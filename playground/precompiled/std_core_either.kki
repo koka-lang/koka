@@ -1,0 +1,70 @@
+// Standard `:either` functions.
+module interface std/core/either
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/hnd = std/core/hnd = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Convert a `:either` to a `:maybe` type discarding the value of the `Left` constructor
+// and using `Just` for the `Right` constructor.
+pub fun maybe[17,9,17,13] : forall<a,b> (e : (std/core/types/either :: (V, V) -> V)<a,b>) -> (std/core/types/maybe :: V -> V)<b>;
+// monadic lift
+fun @mlift-map@10010[1,0,1,0] : forall<a,b,(e :: E)> (@y-x10000 : b) -> (e :: E) (std/core/types/either :: (V, V) -> V)<a,b>;
+// Map over the `Right` component of an `:either` type.
+pub fun map[23,9,23,11] : forall<a,b,c,(e :: E)> (e : (std/core/types/either :: (V, V) -> V)<a,b>, f : (b) -> (e :: E) c) -> (e :: E) (std/core/types/either :: (V, V) -> V)<a,c>;
+// Equality on `:either` values
+pub fun (==)[29,9,29,12] : forall<a,b,(e :: E)> (e1 : (std/core/types/either :: (V, V) -> V)<a,b>, e2 : (std/core/types/either :: (V, V) -> V)<a,b>, ?left/(==) : (a, a) -> (e :: E) std/core/types/bool, ?right/(==) : (b, b) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun @mlift-show@10011[1,0,1,0] : forall<(e :: E)> (@y-x10007 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun @mlift-show@10012[1,0,1,0] : forall<(e :: E)> (@y-x10008 : std/core/types/string) -> (e :: E) std/core/types/string;
+// Show an `:either` type
+pub fun show[39,9,39,12] : forall<a,b,(e :: E)> (e : (std/core/types/either :: (V, V) -> V)<a,b>, ?left/show : (a) -> (e :: E) std/core/types/string, ?right/show : (b) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun maybe // inline size: 2
+  = forall<a,b> fn(e: (std/core/types/either :: (V, V) -> V)<a,b>){
+    (match (e) {
+      ((std/core/types/Left((@pat@0: a) : a) : (std/core/types/either :: (V, V) -> V)<a,b> ) as @pat: ((std/core/types/either :: (V, V) -> V)<a,b>))
+         -> std/core/types/Nothing<b>;
+      ((@skip std/core/types/Right((x: b) : b) : (std/core/types/either :: (V, V) -> V)<a,b> ) as @pat@1: ((std/core/types/either :: (V, V) -> V)<a,b>))
+         -> std/core/types/Just<b>(x);
+    });
+  };
+fun map // inline size: 4
+  = forall<a,b,c,(e :: E)> fn<(e :: E)>(e: (std/core/types/either :: (V, V) -> V)<a,b>, f: (b) -> (e :: E) c){
+    (match (e) {
+      ((std/core/types/Right((x: b) : b) : (std/core/types/either :: (V, V) -> V)<a,b> ) as @pat: ((std/core/types/either :: (V, V) -> V)<a,b>))
+         -> std/core/types/Right<a,c>((f(x)));
+      ((@skip std/core/types/Left((x@0: a) : a) : (std/core/types/either :: (V, V) -> V)<a,b> ) as @pat@0: ((std/core/types/either :: (V, V) -> V)<a,b>))
+         -> std/core/types/Left<a,c>(x@0);
+    });
+  };

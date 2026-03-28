@@ -1,0 +1,67 @@
+// Standard show functions.
+module interface std/core/show
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/hnd = std/core/hnd = "";
+import std/core/int = std/core/int = "";
+import std/core/char = std/core/char = "";
+import std/core/string = std/core/string = "";
+import std/core/sslice = std/core/sslice = "";
+import std/core/list = std/core/list = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Generic show: shows the internal representation of an object as a string
+// Note: this breaks parametricity so it should not be public
+fun gshow[27,8,27,12] : forall<a> (a) -> std/core/types/string;
+fun int-show-hex[32,8,32,19] : (i : std/core/types/int, use-capitals : std/core/types/bool) -> std/core/types/string;
+// Show an `:int` as a hexadecimal value.\
+// The `width`  parameter specifies how wide the hex value is where `"0"`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if capital letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
+pub fun show-hex[41,9,41,16] : (i : std/core/types/int, width : (std/core/types/@optional :: V -> V)<std/core/types/int>, use-capitals : (std/core/types/@optional :: V -> V)<std/core/types/bool>, pre : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Show a character as a string
+pub fun show-char[46,9,46,17] : (c : std/core/types/char) -> std/core/types/string;
+// Show a `:char` as a character literal
+pub fun char/show[61,9,61,17] : (c : std/core/types/char) -> std/core/types/string;
+// Show a string as a string literal
+pub fun string/show[65,18,65,28] : (s : std/core/types/string) -> std/core/types/string;
+// Show an `:sslice` as a string literal
+pub fun sslice/show[69,9,69,19] : (s : std/core/sslice/sslice) -> std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun char/show // inline size: 3
+  = fn(c: std/core/types/char){
+    std/core/types/(++)("\x27", (std/core/types/(++)((std/core/show/show-char(c)), "\x27")));
+  };
+fun sslice/show // inline size: 2
+  = fn(s: std/core/sslice/sslice){
+    std/core/show/#string/show((std/core/sslice/string(s)));
+  };

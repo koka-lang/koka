@@ -1,0 +1,284 @@
+// Examples of "Fully in-place" functional programming
+//
+// Work in progress.
+// For a nice overview, see the introduction of:
+//  "FP^2: Fully in-Place Functional Programming",
+//  Anton Lorenzen, Daan Leijen, and Wouter Swierstra, ICFP'23.
+//  <https://www.microsoft.com/en-us/research/uploads/prod/2023/05/fip-tr-v2.pdf>
+//
+// And also:
+//  "The Functional Essence of Imperative Binary Search Trees",
+//  Anton Lorenzen, Daan Leijen, Wouter Swierstra, and Sam Lindley, PLDI'24
+//  <https://www.microsoft.com/en-us/research/publication/fiptree-tr/>
+//
+// Prerequisites:
+//   `learn/basic`
+//   `learn/implicits`
+module interface learn/fip
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/core/undiv = std/core/undiv = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// We can write `fip(n)` (and `fbip(n)`), where `n` is a constant, to allow the function
+// to allocate at most `n` constructors. This is useful for example to write in-place
+// tree insertion where we may need to allocate a leaf node for a newly inserted element
+recursive type tree[74,1,76,5] <a> :: V -> V {
+  con Bin[75,3,75,5](left: (tree :: V -> V)<a>, value: a, right: (tree :: V -> V)<a>){0,3,8} : forall<a> (left : (tree :: V -> V)<a>, value : a, right : (tree :: V -> V)<a>) -> (tree :: V -> V)<a> = 1;
+  con Tip[76,3,76,5]{0,0,0} : forall<a> (tree :: V -> V)<a> = 2;
+};
+// To map in-place over a tree in constant stack space we use a zipper.
+// In this case a zipper from `:tree<a>` to `:tree<b>`.
+// Each `Bin`, `BinR`, and `BinL` match in size so we can reuse
+// them in-place when traversing a tree.
+recursive type zipper[145,1,148,6] <a,b> :: (V, V) -> V {
+  con BinL[146,3,146,6](up: (zipper :: (V, V) -> V)<a,b>, x: a, right: (tree :: V -> V)<a>){0,3,8} : forall<a,b> (up : (zipper :: (V, V) -> V)<a,b>, x : a, right : (tree :: V -> V)<a>) -> (zipper :: (V, V) -> V)<a,b> = 1;
+  con BinR[147,3,147,6](left: (tree :: V -> V)<b>, x: b, up: (zipper :: (V, V) -> V)<a,b>){0,3,8} : forall<a,b> (left : (tree :: V -> V)<b>, x : b, up : (zipper :: (V, V) -> V)<a,b>) -> (zipper :: (V, V) -> V)<a,b> = 2;
+  con Done[148,3,148,6]{0,0,0} : forall<a,b> (zipper :: (V, V) -> V)<a,b> = 3;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// We can use the `fip` keyword to ensure that,
+// _if the (non-borrowed) parameters are unique at runtime_,
+// the function does not allocate or deallocate memory, and uses constant stack space.
+// For example:
+fip fun rev-acc[25,9,25,15] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, acc : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+fip fun rev[30,9,30,11] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+pub fun example-rev[33,9,33,19] : () -> <(std/core/console/console :: X)> ();
+// We can still use `rev` persistently as well and have a full
+// functional semantics where the argument list is copied when needed.
+// The best of both worlds: we can write a purely functional version
+// but get in-place update when possible without having to write multiple
+// versions of the same functionality, e.g. an in-place updating set and a persistent set
+pub fun example-persistent[51,9,51,26] : () -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// Sometimes, this copying can be unnecessary .. we are working on providing
+// better warnings for these situations
+pub fun example-bad[57,9,57,19] : () -> <(std/core/console/console :: X)> ();
+// Similarly, we can write the weaker `fbip` keyword for a function that does not allocate any memory,
+// but is allowed to deallocate and use arbitrary stack space.
+fbip fun @trmc-filter-odd[65,10,65,19] : (xs : (std/core/types/list :: V -> V)<std/core/types/int>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/int>>) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// Similarly, we can write the weaker `fbip` keyword for a function that does not allocate any memory,
+// but is allowed to deallocate and use arbitrary stack space.
+fbip fun filter-odd[65,10,65,19] : (xs : (std/core/types/list :: V -> V)<std/core/types/int>) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// Automatically generated. Tests for the `Bin` constructor of the `:tree` type.
+fip fun is-bin[75,3,75,5] : forall<a> (^ tree : (tree :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Tip` constructor of the `:tree` type.
+fip fun is-tip[76,3,76,5] : forall<a> (^ tree : (tree :: V -> V)<a>) -> std/core/types/bool;
+fip(1) fun @trmc-insert[78,12,78,17] : (t : (tree :: V -> V)<std/core/types/int>, k : std/core/types/int, @acc : (std/core/types/ctx :: V -> V)<(tree :: V -> V)<std/core/types/int>>) -> (tree :: V -> V)<std/core/types/int>;
+fip(1) fun insert[78,12,78,17] : (t : (tree :: V -> V)<std/core/types/int>, k : std/core/types/int) -> (tree :: V -> V)<std/core/types/int>;
+// Unfortunately, we cannot quite check a recursive polymorphic fip version of `insert` yet
+// since we cannot (yet) express second-rank borrow information where the compare
+// function does not only need to be borrowed, but borrow its arguments as well
+// (e.g. we need `^?cmp : (^a,^a) -> order`).
+//
+// The `insert-poly` actually _does_ execute in-place at runtime like a `fip(1)`
+// function, we just can't check it statically (at this time).
+fun @trmc-insert-poly[93,5,93,15] : forall<a> (t : (tree :: V -> V)<a>, k : a, ^ ?cmp : (a, a) -> std/core/types/order, @acc : (std/core/types/ctx :: V -> V)<(tree :: V -> V)<a>>) -> (tree :: V -> V)<a>;
+// Unfortunately, we cannot quite check a recursive polymorphic fip version of `insert` yet
+// since we cannot (yet) express second-rank borrow information where the compare
+// function does not only need to be borrowed, but borrow its arguments as well
+// (e.g. we need `^?cmp : (^a,^a) -> order`).
+//
+// The `insert-poly` actually _does_ execute in-place at runtime like a `fip(1)`
+// function, we just can't check it statically (at this time).
+fun insert-poly[93,5,93,15] : forall<a> (t : (tree :: V -> V)<a>, k : a, ^ ?cmp : (a, a) -> std/core/types/order) -> (tree :: V -> V)<a>;
+// We can get around the previous restriction by using the `:order2<a>`
+// (value) type which contains not only the `:order`, but also the elements
+// themselves in ascending order.
+// Instead of a bare comparison, we use an `order2` function that returns
+// such an ordered pair -- this way we can keep using the elements `k` and `x` in
+// a linear way while being polymorphic over the elements.
+// A subtle point here is that `order2` is passed borrowed and as such can itself
+// allocate/deallocate; the `fip` annotation only checks if a function is intrinsically
+// fully in-place -- modulo the borrowed function parameters. (Consider the `map` function for example).
+fip(1) fun @trmc-insert-order[109,12,109,23] : forall<a> (t : (tree :: V -> V)<a>, k : a, ^ ?order2 : (a, a) -> (std/core/types/order2 :: V -> V)<a>, @acc : (std/core/types/ctx :: V -> V)<(tree :: V -> V)<a>>) -> (tree :: V -> V)<a>;
+// We can get around the previous restriction by using the `:order2<a>`
+// (value) type which contains not only the `:order`, but also the elements
+// themselves in ascending order.
+// Instead of a bare comparison, we use an `order2` function that returns
+// such an ordered pair -- this way we can keep using the elements `k` and `x` in
+// a linear way while being polymorphic over the elements.
+// A subtle point here is that `order2` is passed borrowed and as such can itself
+// allocate/deallocate; the `fip` annotation only checks if a function is intrinsically
+// fully in-place -- modulo the borrowed function parameters. (Consider the `map` function for example).
+fip(1) fun insert-order[109,12,109,23] : forall<a> (t : (tree :: V -> V)<a>, k : a, ^ ?order2 : (a, a) -> (std/core/types/order2 :: V -> V)<a>) -> (tree :: V -> V)<a>;
+// Return the height of a tree.
+fun height[118,5,118,10] : forall<a> (t : (tree :: V -> V)<a>) -> std/core/types/int;
+// Return the sum of a tree
+fun sum[124,5,124,7] : (t : (tree :: V -> V)<std/core/types/int>) -> std/core/types/int;
+// Convert a list to a tree given an ordering on the elements
+fun tree[131,5,131,8] : forall<a> (elems : (std/core/types/list :: V -> V)<a>, ^ ?order2 : (a, a) -> (std/core/types/order2 :: V -> V)<a>) -> (tree :: V -> V)<a>;
+fun example-order[136,5,136,17] : () -> <(std/core/console/console :: X)> ();
+// Automatically generated. Tests for the `BinL` constructor of the `:zipper` type.
+fip fun is-binL[146,3,146,6] : forall<a,b> (^ zipper : (zipper :: (V, V) -> V)<a,b>) -> std/core/types/bool;
+// Automatically generated. Tests for the `BinR` constructor of the `:zipper` type.
+fip fun is-binR[147,3,147,6] : forall<a,b> (^ zipper : (zipper :: (V, V) -> V)<a,b>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Done` constructor of the `:zipper` type.
+fip fun is-done[148,3,148,6] : forall<a,b> (^ zipper : (zipper :: (V, V) -> V)<a,b>) -> std/core/types/bool;
+// monadic lift
+fun @mlift-tmap-up@10073[1,0,1,0] : forall<a,b,(e :: E)> (f@0 : (b) -> <(std/core/types/div :: X)|(e :: E)> a, r@0 : (tree :: V -> V)<b>, t@0 : (tree :: V -> V)<a>, up : (zipper :: (V, V) -> V)<b,a>, @y-x10068 : a) -> <(std/core/types/div :: X)|(e :: E)> (tree :: V -> V)<a>;
+// traverse down the left spine accumulating a left zipper
+fip fun tmap-down[160,9,160,17] : forall<a,b,(e :: E)> (t : (tree :: V -> V)<a>, ^ f : (a) -> <(std/core/types/div :: X)|(e :: E)> b, acc : (zipper :: (V, V) -> V)<a,b>) -> <(std/core/types/div :: X)|(e :: E)> (tree :: V -> V)<b>;
+// and traverse back up visiting all the right nodes recursively
+fip fun tmap-up[166,9,166,15] : forall<a,b,(e :: E)> (t : (tree :: V -> V)<a>, ^ f : (b) -> <(std/core/types/div :: X)|(e :: E)> a, acc : (zipper :: (V, V) -> V)<b,a>) -> <(std/core/types/div :: X)|(e :: E)> (tree :: V -> V)<a>;
+// Map a function `f` over all element of a tree.
+fip fun tmap[151,9,151,12] : forall<a,b,(e :: E)> (t : (tree :: V -> V)<a>, ^ f : (a) -> <(std/core/types/div :: X)|(e :: E)> b) -> <(std/core/types/div :: X)|(e :: E)> (tree :: V -> V)<b>;
+fun example-tmap[172,5,172,16] : () -> <(std/core/types/div :: X)> std/core/types/int;
+pub fun main[181,9,181,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "__*" borrow "__^" fip(1) fun insert-order // inline size: 10
+  = forall<a> fn(t: (tree :: V -> V)<a>, k: a, @implicit/order2: (a, a) -> (std/core/types/order2 :: V -> V)<a>){
+    (match (t) {
+      ((learn/fip/Bin((l: (tree :: V -> V)<a>) : (tree :: V -> V)<a>, (x: a) : a, (r: (tree :: V -> V)<a>) : (tree :: V -> V)<a>) : (tree :: V -> V)<a> ) as @pat: ((tree :: V -> V)<a>))
+         -> (match ((@implicit/order2(x, k))) {
+          ((std/core/types/Eq2((kx: a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@0: ((std/core/types/order2 :: V -> V)<a>))
+             -> learn/fip/Bin<a>(l, kx, r);
+          ((std/core/types/Lt2((kx@0: a) : a, (kk: a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@1: ((std/core/types/order2 :: V -> V)<a>))
+             -> learn/fip/Bin<a>(l, kx@0, (learn/fip/insert-order<a>(r, kk, @implicit/order2)));
+          ((@skip std/core/types/Gt2((kk@0: a) : a, (kx@1: a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@2: ((std/core/types/order2 :: V -> V)<a>))
+             -> learn/fip/Bin<a>((learn/fip/insert-order<a>(l, kk@0, @implicit/order2)), kx@1, r);
+        });
+      ((@skip learn/fip/Tip() : (tree :: V -> V)<a> ) as @pat@3: ((tree :: V -> V)<a>))
+         -> learn/fip/Bin<a>((learn/fip/Tip<a>), k, (learn/fip/Tip<a>));
+    });
+  };
+recursive specialize "__*" borrow "__^" fun insert-poly // inline size: 12
+  = forall<a> fn(t: (tree :: V -> V)<a>, k: a, @implicit/cmp: (a, a) -> std/core/types/order){
+    (match (t) {
+      ((learn/fip/Bin((l: (tree :: V -> V)<a>) : (tree :: V -> V)<a>, (x: a) : a, (r: (tree :: V -> V)<a>) : (tree :: V -> V)<a>) : (tree :: V -> V)<a> ) as @pat: ((tree :: V -> V)<a>))
+         -> (match ((@implicit/cmp(x, k))) {
+          ((std/core/types/Eq() : std/core/types/order ) as @pat@0: std/core/types/order)
+             -> learn/fip/Bin<a>(l, k, r);
+          (@pat@0@0: std/core/types/order)
+             -> (match ((std/core/order/(==)((@implicit/cmp(x, k)), std/core/types/Lt))) {
+              ((std/core/types/True() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+                 -> learn/fip/Bin<a>(l, x, (learn/fip/insert-poly<a>(r, k, @implicit/cmp)));
+              ((@skip std/core/types/False() : std/core/types/bool ) as @pat@3: std/core/types/bool)
+                 -> learn/fip/Bin<a>((learn/fip/insert-poly<a>(l, k, @implicit/cmp)), x, r);
+            });
+        });
+      ((@skip learn/fip/Tip() : (tree :: V -> V)<a> ) as @pat@4: ((tree :: V -> V)<a>))
+         -> learn/fip/Bin<a>((learn/fip/Tip<a>), k, (learn/fip/Tip<a>));
+    });
+  };
+specialize "_*" borrow "_^" fun tree // inline size: 1
+  = forall<a> fn(elems: (std/core/types/list :: V -> V)<a>, @implicit/order2: (a, a) -> (std/core/types/order2 :: V -> V)<a>){
+    std/core/list/foldl<a,(tree :: V -> V)<a>,(std/core/types/total :: E)>(elems, (learn/fip/Tip<a>), (fn(t: (tree :: V -> V)<a>, i: a){
+        (learn/fip/insert-order<a>(t, i, @implicit/order2));
+      }));
+  };
+fip fun rev // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>){
+    learn/fip/rev-acc<a>(xs, (std/core/types/Nil<a>));
+  };
+fun example-persistent // inline size: 3
+  = fn(){
+    val xs[52,7,52,8] : (std/core/types/list :: V -> V)<std/core/types/int>
+      = std/core/list/#range/list(1, 5);
+    val ys@10004[1,0,1,0] : (std/core/types/list :: V -> V)<std/core/types/int>
+      = learn/fip/rev-acc<std/core/types/int>(xs, (std/core/types/Nil<std/core/types/int>));
+    std/core/list/append<std/core/types/int>(xs, ys@10004);
+  };
+inline borrow "^" fip fun is-bin // inline size: 1
+  = forall<a> fn(tree@0: (tree :: V -> V)<a>){
+    (match (tree@0) {
+      ((learn/fip/Bin((@pat@0: (tree :: V -> V)<a>) : (tree :: V -> V)<a>, (@pat@1: a) : a, (@pat@2: (tree :: V -> V)<a>) : (tree :: V -> V)<a>) : (tree :: V -> V)<a> ) as @pat: ((tree :: V -> V)<a>))
+         -> std/core/types/True;
+      ((@skip learn/fip/Tip() : (tree :: V -> V)<a> ) as @pat@3: ((tree :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-tip // inline size: 1
+  = forall<a> fn(tree@0: (tree :: V -> V)<a>){
+    (match (tree@0) {
+      ((learn/fip/Tip() : (tree :: V -> V)<a> ) as @pat: ((tree :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@0: ((tree :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+borrow "_^" fun tree // inline size: 2
+  = forall<a> fn(elems: (std/core/types/list :: V -> V)<a>, @implicit/order2: (a, a) -> (std/core/types/order2 :: V -> V)<a>){
+    std/core/list/foldl<a,(tree :: V -> V)<a>,(std/core/types/total :: E)>(elems, (learn/fip/Tip<a>), (fn(t: (tree :: V -> V)<a>, i: a){
+        (learn/fip/insert-order<a>(t, i, @implicit/order2));
+      }));
+  };
+inline borrow "^" fip fun is-binL // inline size: 1
+  = forall<a,b> fn(zipper: (zipper :: (V, V) -> V)<a,b>){
+    (match (zipper) {
+      ((learn/fip/BinL((@pat@0: (zipper :: (V, V) -> V)<a,b>) : (zipper :: (V, V) -> V)<a,b>, (@pat@1: a) : a, (@pat@2: (tree :: V -> V)<a>) : (tree :: V -> V)<a>) : (zipper :: (V, V) -> V)<a,b> ) as @pat: ((zipper :: (V, V) -> V)<a,b>))
+         -> std/core/types/True;
+      (@pat@3: ((zipper :: (V, V) -> V)<a,b>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-binR // inline size: 1
+  = forall<a,b> fn(zipper: (zipper :: (V, V) -> V)<a,b>){
+    (match (zipper) {
+      ((learn/fip/BinR((@pat@0: (tree :: V -> V)<b>) : (tree :: V -> V)<b>, (@pat@1: b) : b, (@pat@2: (zipper :: (V, V) -> V)<a,b>) : (zipper :: (V, V) -> V)<a,b>) : (zipper :: (V, V) -> V)<a,b> ) as @pat: ((zipper :: (V, V) -> V)<a,b>))
+         -> std/core/types/True;
+      (@pat@3: ((zipper :: (V, V) -> V)<a,b>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-done // inline size: 1
+  = forall<a,b> fn(zipper: (zipper :: (V, V) -> V)<a,b>){
+    (match (zipper) {
+      ((learn/fip/Done() : (zipper :: (V, V) -> V)<a,b> ) as @pat: ((zipper :: (V, V) -> V)<a,b>))
+         -> std/core/types/True;
+      (@pat@0: ((zipper :: (V, V) -> V)<a,b>))
+         -> std/core/types/False;
+    });
+  };
+borrow "_^" fip fun tmap // inline size: 1
+  = forall<a,b,(e :: E)> fn<<(std/core/types/div :: X)|(e :: E)>>(t: (tree :: V -> V)<a>, f: (a) -> <(std/core/types/div :: X)|(e :: E)> b){
+    learn/fip/tmap-down<a,b,(e :: E)>(t, f, (learn/fip/Done<a,b>));
+  };

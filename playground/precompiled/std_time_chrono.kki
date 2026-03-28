@@ -1,0 +1,108 @@
+/* Get the system time.
+
+*/
+module interface std/time/chrono
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/time/timestamp = std/time/timestamp = "";
+import std/time/duration = std/time/duration = "";
+import std/time/instant = std/time/instant = "";
+import std/time/utc = std/time/utc = "";
+import std/num/ddouble = std/num/ddouble inline = "";
+import std/num/float64 = std/num/float64 inline = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Returns a unix time stamp as seconds and fraction of seconds;
+// The fraction of seconds is for added precision if necessary,
+// and can be larger than one to indicate leap seconds.
+// This still needs to be adjusted to our epoch and taking account of leap seconds.
+fun unix-now[63,8,63,15] : () -> <(std/core/types/ndet :: X)> (std/core/types/float64, std/core/types/float64);
+// The current `:instant` in time as returned by the system clock
+// in an optional time scale `ts` (`= ts-ti`).
+//
+// This uses the best available system clock for the requested
+// timescale. For example
+// it uses [``CLOCK_UTC``](https://www.madore.org/~david/computers/unix-leap-seconds.html)
+// when available to get proper UTC time, or ``CLOCK_TAI`` for TAI time.
+//
+// Otherwise, it usually uses Unix (POSIX) time (``CLOCK_REALTIME``).
+// Unfortunately, most operating systems cannot not report time in leap
+// seconds accurately. The `now` function is limited by the OS in this case.
+//
+// To guard against inaccurate clocks and increase monotonicity,
+// the `now` function guarantees that if the current measurement is
+// upto 1 second in the past with regard to the previous call to `now`,
+// that the returned instant is monotonic by adding nano seconds to the
+// previous measurement until the system clock catches up again.
+//
+// This is effective in particular on older OS's where the time sometimes jumps
+// back one second after a leap second. By limiting the adjustment to at most
+// one second it ensures the clock catches up soon and does not affect the user
+// setting a new time in the past.
+pub fun now-in[53,9,53,14] : (ts : (std/core/types/@optional :: V -> V)<std/time/instant/timescale>) -> <(std/core/types/ndet :: X)> std/time/instant/instant;
+// monadic lift
+fun @mlift-now@10006[1,0,1,0] : (@y-x10003 : std/time/instant/timescale) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/instant/instant;
+// The current `:instant` in time as returned by the system clock
+// in the UTC timescale. Equivalent to `now-in(utc())`, see
+// `now-in` for further information about the system clock.
+pub fun now[27,9,27,11] : () -> <(std/core/types/ndet :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/instant/instant;
+fun xnow-resolution[72,8,72,22] : () -> <(std/core/types/ndet :: X)> std/core/types/float64;
+// Return the smallest time difference that the system clock can measure.
+pub fun now-resolution[69,9,69,22] : () -> <(std/core/types/ndet :: X)> std/time/duration/duration;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun now-resolution // inline size: 3
+  = fn<<(std/core/types/ndet :: X)>>(){
+    val secs@10002[1,0,1,0] : std/core/types/float64
+          = std/time/chrono/xnow-resolution();
+    std/time/duration/Duration((std/num/ddouble/Ddouble(secs@10002, 0.0)));
+  };

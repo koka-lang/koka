@@ -1,0 +1,843 @@
+/* 64-bit IEEE floating point numbers.
+
+Also described as _double_ precision or _binary64_ numbers in the standards.
+See also <https://en.wikipedia.org/wiki/Double-precision_floating-point_format>.
+
+*/
+module interface std/num/float64
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/text/parse = std/text/parse = "";
+import std/num/int32 = std/num/int32 = "";
+import std/num/int64 = std/num/int64 = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// &pi;
+pub val pi[31,9,31,10] : std/core/types/float64;
+// &pi;
+pub val flt-pi[34,9,34,14] : std/core/types/float64;
+// 2&pi;
+pub val flt-twopi[37,9,37,17] : std/core/types/float64;
+// &pi;/2
+pub val flt-pi2[40,9,40,15] : std/core/types/float64;
+// &pi;/4
+pub val flt-pi4[43,9,43,15] : std/core/types/float64;
+// 3&pi;/4
+pub val flt-pi34[46,9,46,16] : std/core/types/float64;
+// The [_e_](https://en.wikipedia.org/wiki/E_(mathematical_constant)) constant.
+pub val flt-e[49,9,49,13] : std/core/types/float64;
+// The natural logarithm of 2
+pub val flt-ln2[52,9,52,15] : std/core/types/float64;
+// The natural logarithm of 10
+pub val flt-ln10[55,9,55,16] : std/core/types/float64;
+// The base-2 logarithm of _e_.
+pub val flt-log2e[58,9,58,17] : std/core/types/float64;
+// The base-10 logarithm of _e_.
+pub val flt-log10e[61,9,61,18] : std/core/types/float64;
+// The square-root of 2
+pub val flt-sqrt2[64,9,64,17] : std/core/types/float64;
+// `1.0 / sqrt(2.0)`  (= `sqrt(0.5)`)
+pub val flt-sqrt12[67,9,67,18] : std/core/types/float64;
+// [Euler's constant](https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant)
+pub val flt-euler[70,9,70,17] : std/core/types/float64;
+// Maximum float64 value
+pub val flt-max[73,9,73,15] : std/core/types/float64;
+// Smallest positive normalized float64 value
+pub val flt-min[76,9,76,15] : std/core/types/float64;
+// Smallest positive subnormal value (i.e. [``DBL_TRUE_MIN``](https://en.cppreference.com/w/cpp/types/climits))
+pub val flt-true-min[79,9,79,20] : std/core/types/float64;
+// Machine epsilon: the difference between 1.0 and the next representable `:float64` value.
+pub val flt-epsilon[82,9,82,19] : std/core/types/float64;
+// maximal precision in decimal digits of a `:float64`.
+pub val flt-max-prec[85,9,85,20] : std/core/types/int;
+// Is the value negative?
+pub fip fun is-neg[149,13,149,18] : (d : std/core/types/float64) -> std/core/types/bool;
+// Returns the largest of two floats
+pub fip fun max[211,13,211,15] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// Is this a [subnormal](https://en.wikipedia.org/wiki/Denormal_number) value?
+// (i.e. `0 < d.abs < flt-min`)
+pub fun is-subnormal[323,9,323,20] : (d : std/core/types/float64) -> std/core/types/bool;
+// Extend a `:float32` to a `:float64`
+pub fun float32/float64[391,12,391,26] : (f : std/core/types/float32) -> std/core/types/float64;
+// Convert an 64-bit integer to a `:float64`.
+pub fip fun int64/float64[201,13,201,25] : (i : std/core/types/int64) -> std/core/types/float64;
+fun make-neginf[281,8,281,18] : () -> std/core/types/float64;
+// Negative infinity
+pub val neginf[94,9,94,14] : std/core/types/float64;
+fun make-posinf[276,8,276,18] : () -> std/core/types/float64;
+// Positive infinity
+pub val posinf[91,9,91,14] : std/core/types/float64;
+// Is the value positive?
+pub fip fun is-pos[153,13,153,18] : (d : std/core/types/float64) -> std/core/types/bool;
+// Is the value zero?
+pub fip fun is-zero[157,13,157,19] : (d : std/core/types/float64) -> std/core/types/bool;
+// Returns the smallest of two floats
+pub fip fun min[207,13,207,15] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// Returns the smallest element of a list of floats (or `0` for the empty list)
+pub fun minimum[255,9,255,15] : (xs : (std/core/types/list :: V -> V)<std/core/types/float64>) -> std/core/types/float64;
+// Returns the largest element of a list of floats (or `0` for the empty list)
+pub fun maximum[261,9,261,15] : (xs : (std/core/types/list :: V -> V)<std/core/types/float64>) -> std/core/types/float64;
+fun make-nan[271,8,271,15] : () -> std/core/types/float64;
+// Represents a value that is _not a number_ (NaN)
+pub val nan[88,9,88,11] : std/core/types/float64;
+// Compare the argument to zero.
+pub fip fun sign[161,13,161,16] : (d : std/core/types/float64) -> std/core/types/order;
+fun show-fixedx[236,8,236,18] : (d : std/core/types/float64, prec : std/core/types/int32) -> std/core/types/string;
+fun show-expx[248,8,248,16] : (d : std/core/types/float64, prec : std/core/types/int32) -> std/core/types/string;
+// Show a `:float64` in exponential (scientific) notation.
+// The optional `precision` (= `-17`) specifies the precision.
+// If `>=0` it specifies the number of digits behind the dot (up to `17` max).
+// If negative, then at most the absolute value of `precision` digits behind the dot are used.
+pub fun show-exp[245,9,245,16] : (d : std/core/types/float64, precision : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Show a `:float64` fixed-point notation.
+// The optional `precision` (= `-2`) specifies the maximum precision.
+// If `>=0` it specifies the number of digits behind the dot (up to `20` max).
+// If negative, then at most the absolute value of `precision` digits behind the dot are used.
+// This may still show a number in exponential notation if the it is too small or large,
+// in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
+// `precision.abs > 17`, the `show-exp` routine is used.
+pub fun show-fixed[230,9,230,18] : (d : std/core/types/float64, precision : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Show a `:float64` as a string.
+// If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
+// Default `precision` is `-17`.
+pub fun show[217,9,217,12] : (d : std/core/types/float64, precision : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Is this value equal to negative or positive infinity ?
+pub fun is-inf[294,12,294,17] : (d : std/core/types/float64) -> std/core/types/bool;
+// Is this a negative zero value?
+pub fun is-negzero[318,9,318,18] : (d : std/core/types/float64) -> std/core/types/bool;
+// fused multiply-add. Computes `(x*y)+z` as if to infinite precision
+// with only the final result rounded back to a `:float64`.
+pub fun fmadd[352,12,352,16] : (x : std/core/types/float64, y : std/core/types/float64, z : std/core/types/float64) -> std/core/types/float64;
+// Return the integral part of a `:float64` `d` .
+// If `d >= 0.0` , return the largest integer equal or less to `d` ,
+// If `d < 0.0` , return the smallest integer equal or larger to `d` .
+pub fun truncate[360,9,360,16] : (d : std/core/types/float64) -> std/core/types/float64;
+// Return the fractional part of a `:float64` `d`.\
+// `d.truncate + d.fraction === d`\
+// `(-2.4).fraction === -0.4`
+pub fun fraction[366,9,366,16] : (d : std/core/types/float64) -> std/core/types/float64;
+// Return the 'floored' fraction of `d`, always greater or equal to zero.\
+// `d.floor + d.ffraction === d`\
+// `(-2.4).ffraction === 0.6`
+pub fun ffraction[372,9,372,17] : (d : std/core/types/float64) -> std/core/types/float64;
+// Round a float64 to a specified precision. Rounds to the  even number in case of a tie.\
+// `123.456.round-to-prec(2) == 123.46`\
+// `123.456.round-to-prec(-1) == 120.0`\
+pub fun round-to-prec[379,9,379,21] : (d : std/core/types/float64, prec : std/core/types/int) -> std/core/types/float64;
+// Round a `:float64` to a `:float32`
+pub fun float64/float32[386,12,386,26] : (f : std/core/types/float64) -> std/core/types/float32;
+// Short version of `float32` for convenience, e.g. `1.337.f32`. For example:
+// ```
+// > 1.337.show-hex ++ " != " ++ 1.337.f32.float64.show-hex
+// "0x1.5645A1CAC0831p+0 != 0x1.5645A2p+0"
+// ```
+// .
+pub fun f32[401,9,401,11] : (f : std/core/types/float64) -> std/core/types/float32;
+// Return the logarithm in base `base` of a `:float64` `f`
+pub fun log[451,9,451,11] : (f : std/core/types/float64, base : std/core/types/float64) -> std/core/types/float64;
+fun log2p1[473,5,473,10] : (x : std/core/types/float64) -> std/core/types/float64;
+fun exp2m1[476,5,476,10] : (x : std/core/types/float64) -> std/core/types/float64;
+// Returns `ln(exp(x) + exp(y))`.
+// Avoids overflow/underflow errors.
+pub fun lnaddexp[481,9,481,16] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// Returns `log2( exp2(x) + exp2(y) )`.
+// Avoids overflow/underflow errors.
+pub fun logaddexp2[490,9,490,18] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// Return if two floats are nearly equal with respect to some `epsilon` (=`8*flt-epsilon`).
+// The epsilon is the nearest difference for numbers around 1.0. The routine automatically
+// scales the epsilon for larger and smaller numbers, and for subnormal numbers.
+pub fun nearly-eq[500,9,500,17] : (x : std/core/types/float64, y : std/core/types/float64, epsilon : (std/core/types/@optional :: V -> V)<std/core/types/float64>) -> std/core/types/bool;
+// Return if two floats are nearly equal with respect to an `epsilon` of `8*flt-epsilon`.
+// See also `nearly-eq` which takes an explicit `epsilon`.
+pub fun (~=)[513,9,513,12] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/bool;
+// Low-level: return the bits of a 64-bit `:float64` as in `:int64`
+pub fun float64-to-bits[521,12,521,26] : (d : std/core/types/float64) -> std/core/types/int64;
+// Low-level: create a `:float64` from the given 64-bit integer.
+pub fun float64-from-bits[528,12,528,28] : (i : std/core/types/int64) -> std/core/types/float64;
+// Calculate 2&middot;^`e`^ for an integer `e`.
+// Uses efficient bit conversion for exponents between  -1022 and 1023 and
+// otherwise falls back to the regular `exp2` function converting `e` to a float64.
+pub fun exp2i[537,9,537,13] : (e : std/core/types/int) -> std/core/types/float64;
+val one-p1023[549,5,549,13] : std/core/types/float64;
+val one-m1022[550,5,550,13] : std/core/types/float64;
+fun mul-exp2[552,5,552,12] : (x : std/core/types/float64, e : std/core/types/int) -> std/core/types/float64;
+// 'Load exponent': returns `x`&middot;2^`e`^ for a `is-finite` `x` and
+// otherwise `x` itself. See also `encode` which loads an integer mantissa.
+pub fun ldexp[557,9,557,13] : (x : std/core/types/float64, e : std/core/types/int) -> std/core/types/float64;
+// Create a float64 `d` given a mantissa `man` and exponent `exp`
+// such that `man`&middot;2^`exp`^ =  `d` exactly (if it is representable
+// by a `:float64`). See also `ldexp`.
+pub fun encode[546,9,546,14] : (man : std/core/types/int, exp : std/core/types/int) -> std/core/types/float64;
+// decode a normalized float64 (i.e. not subnormal)
+fun decode-normalized[579,5,579,21] : (d : std/core/types/float64, e-adjust : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> (std/core/types/int, std/core/types/int);
+// Decode a float64 `d` into a tuple `(m,e)` of a mantissa `m` and exponent `e`
+// such that `m`&middot;2^`e`^ =  `d` exactly. The mantissa `m` is
+// always either 0 or in the range [2^52^, 2^53^). See also `frexp`.
+pub fun decode[573,9,573,14] : (d : std/core/types/float64) -> (std/core/types/int, std/core/types/int);
+// 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
+// for a number `x` such that `x == f`&middot;2^`exp`^.
+// The absolute value of the fraction `f` is always in the range [0.5, 1.0), or
+// one of `0.0`, `-0.0`, `neginf`, `posinf`, or `nan`.
+// See also `decode` which  decodes to an integer mantissa.
+pub fun frexp[591,9,591,13] : (x : std/core/types/float64) -> (std/core/types/float64, std/core/types/int);
+// Returns the greatest `:float64` less than `x`.
+// This behaves exactly as `nextDown` in the IEEE 754-2008 standard.
+// The identity `x.next-down == ~next-down(~x)` holds for all `x`.
+// When `x` is finite `x == x.next-down.next-up` also holds.
+pub fun next-down[601,9,601,17] : (x : std/core/types/float64) -> std/core/types/float64;
+// Returns the least `:float64` greater than `x`.
+// This behaves exactly as `nextUp` in the IEEE 754-2008 standard.
+// The identity `x.next-up == ~next-down(~x)` holds for all `x`.
+// When `x` is finite `x == x.next-up.next-down` also holds.
+pub fun next-up[614,9,614,15] : (x : std/core/types/float64) -> std/core/types/float64;
+// Compare floats using a total ordering on the `:float64`.
+// The ordering follows the `totalOrder` predicate as defined in IEEE 754-2008 exactly.
+// The values are ordered in following order:
+// negative quiet nan,
+// negative signaling nan,
+// `neginf`,
+// -finite,
+// -0.0,
+// +0.0,
+// finite,
+// `posinf`,
+// signaling nan,
+// and quiet nan.
+pub fun cmp[636,9,636,11] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/order;
+// The midpoint is the average of `x` and `y`.
+// Avoids overflow on large numbers.
+pub fun midpoint[647,9,647,16] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// Linear interpolation, calculating `x + t*(y - x)` but avoids troublesome edge cases.
+// Follows the C++20 [specification](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
+// In particular, if `x.is-finite && y.is-finite`, then:
+// - exact: `lerp(x,y,0.0) == x` and  `lerp(x,y,1.0) == y`
+// - monotonic: if `x <= y` and `t1 <= t2`, then `cmp( lerp(x,y,t1), lerp(x,y,t2) ) <= Eq` (and other cases)
+// - deterministic: only `lerp(x,x,flt-inf)` results in `nan`
+// - bounded: `t<0.0 || t>1.0 || is-finite(lerp(x,y,t))`
+// - consistent: `lerp(x,x,t) == x`
+pub fun lerp[661,9,661,12] : (x : std/core/types/float64, y : std/core/types/float64, t : std/core/types/float64) -> std/core/types/float64;
+/* Show a float64 in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
+An advantage of this format is that it precisely represents the `:float64` and can
+reliably (and efficiently) be parsed back, i.e. `d.show-hex.parse-float64 == Just(d)`.
+The significant is the _hexadecimal_ fraction while the
+exponent after the `p` is the _decimal_ power of 2.
+ For example, ``0xA.Fp-10`` = (10 + 15/16)&middot;2^-10^  (not 2^-16^!) = 0.01068115234375.
+ Equivalently, ``0xA.Fp-10 == 0x5.78p-9 == 0x2.BCp-8 == 0x1.5Ep-7``.
+```
+> flt-min.show-hex
+"0x1.0p-1022"
+> 0.1.show-hex
+"0x1.999999999999Ap-4"
+> flt-max.show-hex
+"0x1.FFFFFFFFFFFFFp+1023"
+> -0.0.show-hex
+"-0x0.0p+0"
+> nan.show-hex
+"NaN"
+> 0.01068115234375.show-hex
+"0x1.5Ep-7"
+```
+.
+*/
+pub fun show-hex[698,9,698,16] : (d : std/core/types/float64, width : (std/core/types/@optional :: V -> V)<std/core/types/int>, use-capitals : (std/core/types/@optional :: V -> V)<std/core/types/bool>, pre : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// monadic lift
+fun @mlift-phexdouble@10171[1,0,1,0] : (wild_@2 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-phexdouble@10172[1,0,1,0] : (frac : std/core/types/string, man : std/core/types/string, exp : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-phexdouble@10173[1,0,1,0] : (wild_@1 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/string;
+// monadic lift
+fun @mlift-phexdouble@10174[1,0,1,0] : (man : std/core/types/string, @y-x10133 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-phexdouble@10175[1,0,1,0] : (man : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-phexdouble@10176[1,0,1,0] : (wild_@0 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-phexdouble@10177[1,0,1,0] : (wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+fun phexdouble[725,5,725,14] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// Return `nan` on failure
+fun prim-parse-float64[752,8,752,25] : (s : std/core/types/string) -> std/core/types/float64;
+// monadic lift
+fun @mlift-pdecdouble@10178[1,0,1,0] : (wild_@0 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-pdecdouble@10179[1,0,1,0] : (cur : std/core/sslice/sslice, exp : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdecdouble@10180[1,0,1,0] : (wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/string;
+// monadic lift
+fun @mlift-pdecdouble@10181[1,0,1,0] : (cur : std/core/sslice/sslice, @y-x10141 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdecdouble@10182[1,0,1,0] : (cur : std/core/sslice/sslice, man : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdecdouble@10183[1,0,1,0] : (cur : std/core/sslice/sslice) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+fun pdecdouble[735,5,735,14] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pspecial@10184[1,0,1,0] : (wild_ : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pspecial@10185[1,0,1,0] : (wild_@0 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pspecial@10186[1,0,1,0] : (wild_@1 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+fun pspecial[745,5,745,12] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdouble@10187[1,0,1,0] : (wild_ : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdouble@10188[1,0,1,0] : (wild_@0 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdouble@10189[1,0,1,0] : (wild_@1 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdouble@10190[1,0,1,0] : (neg : std/core/types/bool, d : std/core/types/float64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-pdouble@10191[1,0,1,0] : (neg : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+pub fun pdouble[720,9,720,15] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-parse-float64@10192[1,0,1,0] : (x : std/core/types/float64, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// monadic lift
+fun @mlift-parse-float64@10193[1,0,1,0] : (x : std/core/types/float64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/float64;
+// Parse a float64 number. Can be "NaN", "Inf(inity)" (case-insensitive),
+// a fix-point number (`1.2`) or in scientific notation (`-2.3e-5`).
+// Also allows floats in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41) (`0xA.Fp-10`) that can
+// be represented precisely (and are the preferred _round trip_ format).
+pub fun parse-float64[717,9,717,21] : (s : std/core/types/string) -> (std/core/types/maybe :: V -> V)<std/core/types/float64>;
+// Return the sum of a list of floats.
+// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements)
+// to minimize rounding errors. This
+// is more precise as Kahan summation and about as fast.\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
+// while\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].foldl(0.0,(+)) == 0.0` (!)\
+// A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
+// Math. Mechanik, 54:39--51, 1974.
+pub fun sum[771,9,771,11] : (xs : (std/core/types/list :: V -> V)<std/core/types/float64>) -> std/core/types/float64;
+// The hypotenuse of `x` and `y`: `sqrt(x*x + y*y)`.
+// Prevents overflow for large numbers.
+pub fun hypot[783,9,783,13] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// The square of a float64
+pub fun sqr[814,9,814,11] : (x : std/core/types/float64) -> std/core/types/float64;
+// The square root of the sum of the squares of three floats.
+// Prevents overflow for large numbers.
+pub fun xyz/hypot[795,9,795,17] : (x : std/core/types/float64, y : std/core/types/float64, z : std/core/types/float64) -> std/core/types/float64;
+// The maximum of the absolute values.
+pub fun abs-max[818,9,818,15] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// The maximum of a list of absolute values.
+pub fun list/abs-max[822,9,822,20] : (xs : (std/core/types/list :: V -> V)<std/core/types/float64>) -> std/core/types/float64;
+// The square root of the sum of squares of a list of floats.
+// Prevents overflow for large numbers and uses Kahan-Babu&scaron;kan-Neumaier summation
+// for precision.
+pub fun list/hypot[807,9,807,18] : (xs : (std/core/types/list :: V -> V)<std/core/types/float64>) -> std/core/types/float64;
+val rad2deg[829,5,829,11] : std/core/types/float64;
+val deg2rad[830,5,830,11] : std/core/types/float64;
+// Convert radians to degrees.
+pub fun deg[833,9,833,11] : (rad : std/core/types/float64) -> std/core/types/float64;
+// Convert degrees to radians.
+pub fun rad[837,9,837,11] : (deg : std/core/types/float64) -> std/core/types/float64;
+// Return `x` with the sign of `y`.
+pub fun with-sign-of[842,9,842,20] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64;
+// The area hyperbolic tangent of `d`
+pub fun atanh[921,12,921,16] : (d : std/core/types/float64) -> std/core/types/float64;
+// The area hyperbolic cosine of `d`
+pub fun acosh[926,12,926,16] : (d : std/core/types/float64) -> std/core/types/float64;
+// The area hyperbolic sine of `d`
+pub fun asinh[931,12,931,16] : (d : std/core/types/float64) -> std/core/types/float64;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// Are two floating point number equal?
+pub fip extern (==)[102,23,102,26] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/bool {
+  inline "(#1 == #2)";
+  js inline "(#1 === #2)";
+};
+// Are two floating point number not equal?
+pub fip extern (!=)[107,23,107,26] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/bool {
+  inline "(#1 != #2)";
+  js inline "(#1 !== #2)";
+};
+// Is the first floating point number smaller or equal to the second?
+pub fip extern (<=)[112,23,112,26] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/bool = inline "(#1 <= #2)";
+// Is the first floating point number greater or equal to the second?
+pub fip extern (>=)[116,23,116,26] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/bool = inline "(#1 >= #2)";
+// Is the first floating point number smaller than the second?
+pub fip extern (<)[120,23,120,25] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/bool = inline "(#1 < #2)";
+// Is the first floating point number greater than the second?
+pub fip extern (>)[124,23,124,25] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/bool = inline "(#1 > #2)";
+// Add two floating point numbers.
+pub fip extern (+)[128,23,128,25] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64 = inline "(#1 + #2)";
+// Subtract two floating point numbers.
+pub fip extern (-)[132,23,132,25] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64 = inline "(#1 - #2)";
+// Multiply two floating point numbers.
+pub fip extern (*)[136,23,136,25] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64 = inline "(#1 * #2)";
+// Divide two floating point numbers.
+pub fip extern (/)[140,23,140,25] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64 = inline "(#1 / #2)";
+// Modulus of two floating point numbers.
+pub fip extern (%)[144,23,144,25] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64 {
+  c inline "fmod(#1,#2)";
+  inline "(#1 % #2)";
+};
+// Negate a `:float64`.
+pub fip extern (~)[165,23,165,25] : (f : std/core/types/float64) -> std/core/types/float64 = inline "(-#1)";
+// convert a `:float64` to an `:int` using `round` to round to its nearest integer.
+// (rounding to an even number on a tie)
+// Returns `0` if the argument is not `finite?`.
+pub extern int[171,19,171,21] : (f : std/core/types/float64) -> std/core/types/int {
+  c inline "kk_integer_from_double(#1,kk_context())";
+  cs inline "Primitive.IntDouble(#1)";
+  js inline "$std_core_types._int_double(#1)";
+};
+// Returns the value `f`  raised to the power `p` .
+pub fip extern (^)[177,23,177,25] : (f : std/core/types/float64, p : std/core/types/float64) -> std/core/types/float64 {
+  c inline "pow(#1,#2)";
+  cs inline "Math.Pow(#1,#2)";
+  js inline "Math.pow(#1,#2)";
+};
+// Return the absolute value of a `:float64` `f`
+pub fip extern abs[183,23,183,25] : (f : std/core/types/float64) -> std/core/types/float64 {
+  c inline "kk_double_abs(#1)";
+  cs inline "Math.Abs(#1)";
+  js inline "Math.abs(#1)";
+};
+// Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
+pub fip extern float64[189,23,189,29] : (i : std/core/types/int) -> std/core/types/float64 {
+  c inline "kk_integer_as_double(#1,kk_context())";
+  cs inline "Primitive.IntToDouble(#1)";
+  js inline "$std_core_types._int_to_double(#1)";
+};
+// Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
+pub fip extern float32[195,23,195,29] : (i : std/core/types/int) -> std/core/types/float32 {
+  c inline "kk_integer_as_float(#1,kk_context())";
+  cs inline "Primitive.IntToFloat(#1)";
+  js inline "$std_core_types._int_to_float(#1)";
+};
+// Is this value equal to NaN ?
+pub extern is-nan[288,19,288,24] : (d : std/core/types/float64) -> std/core/types/bool {
+  c inline "isnan(#1)";
+  cs inline "double.IsNaN(#1)";
+  js inline "isNaN(#1)";
+};
+// Is this value equal to positive infinity ?
+pub extern is-posinf[300,19,300,27] : (d : std/core/types/float64) -> std/core/types/bool {
+  c inline "(isinf(#1) && !signbit(#1))";
+  cs inline "double.IsPositiveInfinity(#1)";
+  js inline "((#1) === Infinity)";
+};
+// Is this value equal to negative infinity ?
+pub extern is-neginf[306,19,306,27] : (d : std/core/types/float64) -> std/core/types/bool {
+  c inline "(isinf(#1) && signbit(#1))";
+  cs inline "double.IsNegativeInfinity(#1)";
+  js inline "((#1) === -Infinity)";
+};
+// Is this a finite number (i.e. not `nan` or infinity)
+pub extern is-finite[312,19,312,27] : (d : std/core/types/float64) -> std/core/types/bool {
+  c inline "isfinite(#1)";
+  cs inline "(!double.IsNaN(#1) && !double.IsInfinity(#1))";
+  js inline "isFinite(#1)";
+};
+// Round a float64 to its nearest integral value.
+// If the value is halfway between two integers, the value is rounded towards the even one.
+pub extern round[333,19,333,23] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "kk_double_round_even(#1,kk_context())";
+  cs inline "Math.Round(#1,MidpointRounding.ToEven)";
+  js inline "$std_core_types._double_round_even(#1)";
+};
+// Return the largest integer equal or less than `d`
+pub extern floor[339,19,339,23] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "floor(#1)";
+  cs inline "Math.Floor(#1)";
+  js inline "Math.floor(#1)";
+};
+// Return the smallest integer equal or larger than `d`
+pub extern ceiling[345,19,345,25] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "ceil(#1)";
+  cs inline "Math.Ceiling(#1)";
+  js inline "Math.ceil(#1)";
+};
+// Return the square root of a value `d`
+// Returns `nan` if `d == nan`  or if `d`  is negative.
+// Returns `inf` if `d == inf` .
+pub extern sqrt[412,19,412,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "sqrt(#1)";
+  cs inline "Math.Sqrt(#1)";
+  js inline "Math.sqrt(#1)";
+};
+// Return the cubic root of a value `d`
+// Returns `nan` if `d == nan`  or if `d`  is negative.
+// Returns `inf` if `d == inf` .
+pub extern cbrt[421,19,421,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "cbrt(#1)";
+  cs inline "Math.Cbrt(#1)";
+  js inline "Math.cbrt(#1)";
+};
+// Return the `d` raised to the power of `p`.
+pub extern pow[427,19,427,21] : (d : std/core/types/float64, p : std/core/types/float64) -> std/core/types/float64 {
+  c inline "pow(#1,#2)";
+  cs inline "Math.Pow(#1,#2)";
+  js inline "Math.pow(#1,#2)";
+};
+// Return the natural logarithm (in base _e_)  of a `:float64` `f`
+pub extern ln[433,19,433,20] : (f : std/core/types/float64) -> std/core/types/float64 {
+  c inline "log(#1)";
+  cs inline "Math.Log(#1)";
+  js inline "Math.log(#1)";
+};
+// Return the logarithm in base 10 of a `:float64` `f`.
+pub extern log10[439,19,439,23] : (f : std/core/types/float64) -> std/core/types/float64 {
+  c inline "log10(#1)";
+  cs inline "Math.Log10(#1)";
+  js inline "Math.log10(#1)";
+};
+// Return the logarithm in base 2 of a `:float64` `f`.
+pub extern log2[445,19,445,22] : (f : std/core/types/float64) -> std/core/types/float64 {
+  c inline "log2(#1)";
+  cs inline "Math.Log2(#1)";
+  js inline "Math.log2(#1)";
+};
+// Return _e_ to the power of `p`.
+pub extern exp[455,19,455,21] : (p : std/core/types/float64) -> std/core/types/float64 {
+  c inline "exp(#1)";
+  cs inline "Math.Exp(#1)";
+  js inline "Math.exp(#1)";
+};
+// Return the 10 to the power of `p`.
+pub extern exp10[461,19,461,23] : (p : std/core/types/float64) -> std/core/types/float64 {
+  c inline "pow(10.0,#1)";
+  cs inline "Math.Pow(10.0,#1)";
+  js inline "Math.pow(10.0,#1)";
+};
+// Return the 2 to the power of `p`.
+pub extern exp2[467,19,467,22] : (p : std/core/types/float64) -> std/core/types/float64 {
+  c inline "exp2(#1)";
+  cs inline "Math.Pow(2.0,#1)";
+  js inline "Math.pow(2.0,#1)";
+};
+// Return the sine of an angle in radians `d`.
+pub extern sin[847,19,847,21] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "sin(#1)";
+  cs inline "Math.Sin(#1)";
+  js inline "Math.sin(#1)";
+};
+// Return the cosine of an angle in radians `d`.
+pub extern cos[853,19,853,21] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "cos(#1)";
+  cs inline "Math.Cos(#1)";
+  js inline "Math.cos(#1)";
+};
+// Return the tangent of an angle in radians `d`.
+pub extern tan[859,19,859,21] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "tan(#1)";
+  cs inline "Math.Tan(#1)";
+  js inline "Math.tan(#1)";
+};
+// Return the arc-tangent of `d`
+pub extern atan[865,19,865,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "atan(#1)";
+  cs inline "Math.Atan(#1)";
+  js inline "Math.atan(#1)";
+};
+// Return the arc-tangent of a point (`x`,`y`).
+pub extern atan2[871,19,871,23] : (x : std/core/types/float64, y : std/core/types/float64) -> std/core/types/float64 {
+  c inline "atan2(#1,#2)";
+  cs inline "Math.Atan2(#1,#2)";
+  js inline "Math.atan2(#1,#2)";
+};
+// Return the arc-cosine of `d`
+pub extern acos[877,19,877,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "acos(#1)";
+  cs inline "Math.Acos(#1)";
+  js inline "Math.acos(#1)";
+};
+// Return the arc-sine of `d`
+pub extern asin[883,19,883,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "asin(#1)";
+  cs inline "Math.Asin(#1)";
+  js inline "Math.asin(#1)";
+};
+// The hyperbolic tangent of `d`
+pub extern tanh[890,19,890,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "tanh(#1)";
+  cs inline "Math.Tanh(#1)";
+  js inline "Math.tanh(#1)";
+};
+// The hyperbolic cosine of `d`
+pub extern cosh[896,19,896,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "cosh(#1)";
+  cs inline "Math.Cosh(#1)";
+  js inline "Math.cosh(#1)";
+};
+// The hyperbolic sine of `d`
+pub extern sinh[902,19,902,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "sinh(#1)";
+  cs inline "Math.Sinh(#1)";
+  js inline "Math.sinh(#1)";
+};
+// Return `ln(1.0 + x)`.
+// Avoids potential imprecision for small `x` where adding `1.0` explicitly
+// may lead to rounding errors.
+pub extern ln1p[910,19,910,22] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "log1p(#1)";
+  js inline "Math.log1p(#1)";
+};
+// Return `exp(x - 1.0)`.
+// Avoids rounding errors for values of `x` very close to `1.0`.
+pub extern expm1[916,19,916,23] : (d : std/core/types/float64) -> std/core/types/float64 {
+  c inline "expm1(#1)";
+  js inline "Math.expm1(#1)";
+};
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline val pi // inline size: 0
+  = 3.141592653589793;
+inline val flt-pi // inline size: 0
+  = 3.141592653589793;
+inline val flt-twopi // inline size: 0
+  = 6.283185307179586;
+inline val flt-pi2 // inline size: 0
+  = 1.5707963267948966;
+inline val flt-pi4 // inline size: 0
+  = 0.7853981633974483;
+inline val flt-pi34 // inline size: 0
+  = 2.356194490192345;
+inline val flt-e // inline size: 0
+  = 2.718281828459045;
+inline val flt-ln2 // inline size: 0
+  = 0.6931471805599453;
+inline val flt-ln10 // inline size: 0
+  = 2.302585092994046;
+inline val flt-log2e // inline size: 0
+  = 1.4426950408889634;
+inline val flt-log10e // inline size: 0
+  = 0.4342944819032518;
+inline val flt-sqrt2 // inline size: 0
+  = 1.4142135623730951;
+inline val flt-sqrt12 // inline size: 0
+  = 0.7071067811865476;
+inline val flt-euler // inline size: 0
+  = 0.5772156649015329;
+inline val flt-max // inline size: 0
+  = 1.7976931348623157e308;
+inline val flt-min // inline size: 0
+  = 2.2250738585072014e-308;
+inline val flt-true-min // inline size: 0
+  = 5.0e-324;
+inline val flt-epsilon // inline size: 0
+  = 2.220446049250313e-16;
+inline val flt-max-prec // inline size: 0
+  = 15;
+fip fun is-neg // inline size: 1
+  = fn(d: std/core/types/float64){
+    std/num/float64/(<)(d, 0.0);
+  };
+fip fun max // inline size: 2
+  = fn(x: std/core/types/float64, y: std/core/types/float64){
+    match ((std/num/float64/(>=)(x, y))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> y;
+    };
+  };
+fun is-subnormal // inline size: 4
+  = fn(d: std/core/types/float64){
+    match ((std/num/float64/(!=)(d, 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/num/float64/(<)((std/num/float64/abs(d)), 2.2250738585072014e-308);
+      (@pat@0: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fip fun int64/float64 // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/float64/float64((std/num/int64/int(i)));
+  };
+fip fun is-pos // inline size: 1
+  = fn(d: std/core/types/float64){
+    std/num/float64/(>)(d, 0.0);
+  };
+fip fun is-zero // inline size: 1
+  = fn(d: std/core/types/float64){
+    std/num/float64/(==)(d, 0.0);
+  };
+fip fun min // inline size: 2
+  = fn(x: std/core/types/float64, y: std/core/types/float64){
+    match ((std/num/float64/(<=)(x, y))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> y;
+    };
+  };
+fun minimum // inline size: 2
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/float64>){
+    match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/float64> ) as @pat: ((std/core/types/list :: V -> V)<std/core/types/float64>))
+         -> 0.0;
+      ((@skip std/core/types/Cons((x: std/core/types/float64) : std/core/types/float64, (xx: (std/core/types/list :: V -> V)<std/core/types/float64>) : (std/core/types/list :: V -> V)<std/core/types/float64>) : (std/core/types/list :: V -> V)<std/core/types/float64> ) as @pat@0: ((std/core/types/list :: V -> V)<std/core/types/float64>))
+         -> std/core/list/foldl<std/core/types/float64,std/core/types/float64,(std/core/types/total :: E)>(xx, x, std/num/float64/min);
+    };
+  };
+fun maximum // inline size: 2
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/float64>){
+    match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/float64> ) as @pat: ((std/core/types/list :: V -> V)<std/core/types/float64>))
+         -> 0.0;
+      ((@skip std/core/types/Cons((x: std/core/types/float64) : std/core/types/float64, (xx: (std/core/types/list :: V -> V)<std/core/types/float64>) : (std/core/types/list :: V -> V)<std/core/types/float64>) : (std/core/types/list :: V -> V)<std/core/types/float64> ) as @pat@0: ((std/core/types/list :: V -> V)<std/core/types/float64>))
+         -> std/core/list/foldl<std/core/types/float64,std/core/types/float64,(std/core/types/total :: E)>(xx, x, std/num/float64/max);
+    };
+  };
+fip fun sign // inline size: 4
+  = fn(d: std/core/types/float64){
+    match ((std/num/float64/(<)(d, 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Lt;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/num/float64/(>)(d, 0.0))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Eq;
+        });
+    };
+  };
+fun show-exp // inline size: 3
+  = fn(d: std/core/types/float64, precision: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/num/float64/show-expx(d, (std/num/int32/int32((match (precision) {
+        ((std/core/types/@OptArg((@uniq-precision@796: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-precision@796;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> -17;
+      }))));
+  };
+fun is-negzero // inline size: 4
+  = fn(d: std/core/types/float64){
+    match ((std/num/float64/(==)(d, 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/num/float64/is-neginf((std/num/float64/(/)(1.0, d)));
+      (@pat@0: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fun truncate // inline size: 4
+  = fn(d: std/core/types/float64){
+    match ((std/num/float64/(>=)(d, 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/num/float64/floor(d);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/num/float64/ceiling(d);
+    };
+  };
+fun ffraction // inline size: 2
+  = fn(d: std/core/types/float64){
+    std/num/float64/(-)(d, (std/num/float64/floor(d)));
+  };
+fun f32 // inline size: 1
+  = fn(f: std/core/types/float64){
+    std/num/float64/#float64/float32(f);
+  };
+fun log // inline size: 3
+  = fn(f: std/core/types/float64, base: std/core/types/float64){
+    std/num/float64/(/)((std/num/float64/ln(f)), (std/num/float64/ln(base)));
+  };
+fun log2p1 // inline size: 2
+  = fn(x: std/core/types/float64){
+    std/num/float64/(*)(1.4426950408889634, (std/num/float64/ln1p(x)));
+  };
+fun exp2m1 // inline size: 2
+  = fn(x: std/core/types/float64){
+    std/num/float64/expm1((std/num/float64/(*)(0.6931471805599453, x)));
+  };
+fun (~=) // inline size: 1
+  = fn(x: std/core/types/float64, y: std/core/types/float64){
+    std/num/float64/nearly-eq(x, y, (std/core/types/@NoOptArg<std/core/types/float64>));
+  };
+inline val one-p1023 // inline size: 0
+  = 8.98846567431158e307;
+inline val one-m1022 // inline size: 0
+  = 2.2250738585072014e-308;
+fun mul-exp2 // inline size: 2
+  = fn(x: std/core/types/float64, e: std/core/types/int){
+    std/num/float64/(*)(x, (std/num/float64/exp2i(e)));
+  };
+fun encode // inline size: 2
+  = fn(man: std/core/types/int, exp: std/core/types/int){
+    std/num/float64/ldexp((std/num/float64/float64(man)), exp);
+  };
+fun sqr // inline size: 1
+  = fn(x: std/core/types/float64){
+    std/num/float64/(*)(x, x);
+  };
+fun abs-max // inline size: 4
+  = fn(x: std/core/types/float64, y: std/core/types/float64){
+    val x@0@10122[1,0,1,0] : std/core/types/float64
+      = std/num/float64/abs(x);
+    val y@0@10123[1,0,1,0] : std/core/types/float64
+      = std/num/float64/abs(y);
+    match ((std/num/float64/(>=)(x@0@10122, y@0@10123))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x@0@10122;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> y@0@10123;
+    };
+  };
+fun list/abs-max // inline size: 4
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/float64>){
+    std/core/list/foldl<std/core/types/float64,std/core/types/float64,(std/core/types/total :: E)>(xs, 0.0, (fn(m: std/core/types/float64, x: std/core/types/float64){
+        val x@0@10124[1,0,1,0] : std/core/types/float64
+              = (std/num/float64/abs(x));
+        (match ((std/num/float64/(>=)(x@0@10124, m))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+             -> x@0@10124;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> m;
+        });
+      }));
+  };
+fun deg // inline size: 1
+  = fn(rad@0: std/core/types/float64){
+    std/num/float64/(*)(rad@0, std/num/float64/rad2deg);
+  };
+fun rad // inline size: 1
+  = fn(deg@0: std/core/types/float64){
+    std/num/float64/(*)(deg@0, std/num/float64/deg2rad);
+  };

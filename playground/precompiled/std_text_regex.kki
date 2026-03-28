@@ -1,0 +1,391 @@
+/* Regular expressions.
+
+   The regular expressions conform to the regular expressions of JavaScript
+   as described at <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions>
+*/
+module interface std/text/regex
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/int32 = std/num/int32 = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// Abstract type of a regular expression object
+pub value{0,2,8} type regex[28,1,28,53] {
+  // Abstract type of a regular expression object
+  con Regex[28,23,28,27](obj: std/core/types/any, src: std/core/types/string){0,2,8} : (obj : std/core/types/any, src : std/core/types/string) -> regex = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `obj` constructor field of the `:regex` type.
+fun regex/obj[28,30,28,32] : (^ regex : regex) -> std/core/types/any;
+// Automatically generated. Retrieves the `src` constructor field of the `:regex` type.
+fun regex/src[28,40,28,42] : (^ regex : regex) -> std/core/types/string;
+pub fun regex/@copy[28,23,28,27] : (@this : regex, obj : (std/core/types/@optional :: V -> V)<std/core/types/any>, src : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> regex;
+// Return the pattern as a string
+pub fun source[31,9,31,14] : (r : regex) -> std/core/types/string;
+fun regex-create[34,8,34,19] : (source : std/core/types/string, ignore-case : std/core/types/bool, multi-line : std/core/types/bool) -> std/core/types/any;
+fun regex-exec[39,8,39,17] : (regex : std/core/types/any, str : std/core/types/string, start : std/core/types/ssize_t) -> (std/core/types/list :: V -> V)<std/core/sslice/sslice>;
+fun regex-exec-all[44,8,44,21] : (regex : std/core/types/any, str : std/core/types/string, start : std/core/types/ssize_t, atmost : std/core/types/ssize_t) -> (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>;
+// Create a new regular expression. Takes two optional parameters. Set `ignoreCase` to `True`
+// to ignore uppercase/lowercase distinction. If  `multiline` is set to `True`, then `^` and `$`
+// match also the beginning and end of every line (instead of the entire input).
+pub fun regex[59,9,59,13] : (regex : std/core/types/string, ignorecase : (std/core/types/@optional :: V -> V)<std/core/types/bool>, multiline : (std/core/types/@optional :: V -> V)<std/core/types/bool>) -> regex;
+val rx-nongroup[54,5,54,15] : regex;
+// Find a match for a regular expression.
+// See also `find` and `contains`
+pub fun exec[65,9,65,12] : (regex : regex, s : std/core/types/string) -> (std/core/types/list :: V -> V)<std/core/sslice/sslice>;
+// Match a regular expression `regex` over a string `s`.
+// Matches at most `atmost` times (and matches all by default).
+// Returns always an odd number of elements where every even
+// element is a match and the odd ones the string parts between the
+// matches.
+// See also `find-all` and `strings`.
+pub fun exec-all[74,9,74,16] : (regex : regex, s : std/core/types/string, atmost : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>;
+// Return the full matched string of a capture group
+pub fun captured[79,9,79,16] : (matched : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> std/core/types/string;
+// Return the full matched string part for a list of matched capture groups.
+pub fun captures[86,9,86,16] : (xs : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Find a match for a regular expression.
+// See also `exec`
+pub fun find[92,9,92,12] : (s : std/core/types/string, r : regex) -> (std/core/types/maybe :: V -> V)<std/core/types/string>;
+// Does a regular expression pattern occur in a string `s`?
+// (note: called `test` in javascript)
+pub fun contains[100,9,100,16] : (s : std/core/types/string, r : regex) -> std/core/types/bool;
+// Filter only for the matched parts.
+fun @trmc-filter-matches[105,5,105,18] : (xs : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>>) -> (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>;
+// Filter only for the matched parts.
+fun filter-matches[105,5,105,18] : (xs : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) -> (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>;
+// Find all matches for a regular expression in a string.
+pub fun find-all[112,9,112,16] : (s : std/core/types/string, r : regex, atmost : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// monadic lift
+fun @mlift-concat-replace@10069[1,0,1,0] : forall<(e :: E)> (acc : (std/core/types/list :: V -> V)<std/core/types/string>, mm : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>, pre : (std/core/types/list :: V -> V)<std/core/sslice/sslice>, repl : ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string, @y-x10059 : std/core/types/string) -> (e :: E) std/core/types/string;
+fun concat-replace[116,5,116,18] : forall<(e :: E)> (matches : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>, repl : ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string, acc : (std/core/types/list :: V -> V)<std/core/types/string>) -> (e :: E) std/core/types/string;
+// Replace the all occurrences of `regex` by the result of the replacement fun `repl` in a string `s`.
+pub fun replace-all[124,9,124,19] : forall<(e :: E)> (s : std/core/types/string, r : regex, repl : ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string, atmost : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> (e :: E) std/core/types/string;
+// Replace using a replacement string that can contain `$$` for a `$` sign, `$n` for a capture group,
+// `$&` for the entire match `==$0`.
+fun replace-captures[138,5,138,20] : (caps : (std/core/types/list :: V -> V)<std/core/sslice/sslice>, repl : std/core/types/string) -> std/core/types/string;
+// Replace all occurrences of `regex` with the replacement string `repl` in a string `s`.
+// The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
+// `$&` for the entire match `==$0`.
+pub fun string/replace-all[155,9,155,26] : (s : std/core/types/string, regex : regex, repl : std/core/types/string, atmost : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// How many groups are captured by this regex?
+pub fun groups-count[51,9,51,20] : (r : regex) -> std/core/types/int;
+// Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.
+pub fun replace[128,9,128,15] : forall<(e :: E)> (s : std/core/types/string, r : regex, repl : ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// Check if a capture group was matched.
+pub fun matched[133,9,133,15] : (s : std/core/sslice/sslice) -> std/core/types/bool;
+// Replace the first occurrence of `regex` with a replacement string `repl` in a string `s`.
+// The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
+// `$&` for the entire match `==$0`.
+pub fun string/replace[163,9,163,22] : (s : std/core/types/string, regex : regex, repl : std/core/types/string) -> std/core/types/string;
+// Filter only for the non-matched parts.
+fun @trmc-filter-non-matches[168,5,168,22] : (xs : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>>) -> (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>;
+// Filter only for the non-matched parts.
+fun filter-non-matches[168,5,168,22] : (xs : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) -> (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>;
+// Split a string `s` in at most `atmost` parts using a regular expression `r` as separator.
+pub fun split[176,9,176,13] : (s : std/core/types/string, r : regex, atmost : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+pub fun testabc[179,9,179,15] : (s : std/core/types/string) -> std/core/types/bool;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "_*_" fun concat-replace // inline size: 19
+  = forall<(e :: E)> fn<(e :: E)>(matches: (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>, repl: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string, acc: (std/core/types/list :: V -> V)<std/core/types/string>){
+    (match (matches) {
+      ((std/core/types/Cons((pre: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>, ((std/core/types/Cons((m: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>, (mm: (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>> ) as @pat@0: (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>> ) as @pat: ((std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>))
+         -> std/text/regex/concat-replace<(e :: E)>(mm, repl, (std/core/types/Cons<std/core/types/string>((repl(m)), (std/core/types/Cons<std/core/types/string>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(matched : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> std/core/types/string,(matched : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string>((fn(matched@0: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+                (match (matched@0) {
+                  ((std/core/types/Cons(((@skip std/core/sslice/Sslice((@pat@0@0: std/core/types/string) : std/core/types/string, (@pat@1@0: std/core/types/int) : std/core/types/int, (@pat@2: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as s: std/core/sslice/sslice) : std/core/sslice/sslice, (@pat@3: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@1: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+                     -> std/core/sslice/string(s);
+                  ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@4: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+                     -> "";
+                });
+              }))(pre)), acc)))));
+      ((std/core/types/Cons((post: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>, ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>> ) as @pat@2@0: (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>) : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>> ) as @pat@1@1: ((std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>))
+         -> std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> std/core/types/string,(xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> (e :: E) std/core/types/string>(std/core/list/reverse-join)((std/core/types/Cons<std/core/types/string>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(matched : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> std/core/types/string,(matched : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string>((fn(matched@0@0: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+            (match (matched@0@0) {
+              ((std/core/types/Cons(((@skip std/core/sslice/Sslice((@pat@0@1: std/core/types/string) : std/core/types/string, (@pat@1@2: std/core/types/int) : std/core/types/int, (@pat@2@1: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as s@0: std/core/sslice/sslice) : std/core/sslice/sslice, (@pat@3@0: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@5: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+                 -> std/core/sslice/string(s@0);
+              ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@4@0: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+                 -> "";
+            });
+          }))(post)), acc)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>> ) as @pat@3@1: ((std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>))
+         -> std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> std/core/types/string,(xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> (e :: E) std/core/types/string>(std/core/list/reverse-join)(acc);
+    });
+  };
+specialize "__*" fun replace // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(s: std/core/types/string, r: regex, repl: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string){
+    std/text/regex/replace-all<(e :: E)>(s, r, repl, (std/core/types/@OptArg<std/core/types/int>(1)));
+  };
+specialize "__*_" fun replace-all // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(s: std/core/types/string, r: regex, repl: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string, atmost: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/text/regex/concat-replace<(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(regex : regex, s : std/core/types/string, atmost : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>,(regex : regex, s : std/core/types/string, atmost : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> (e :: E) (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>>((fn(regex@0: regex, s@0: std/core/types/string, atmost@0: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+        (std/text/regex/regex-exec-all((match (regex@0) {
+            ((@skip std/text/regex/Regex((@x: std/core/types/any) : std/core/types/any, (@pat@0: std/core/types/string) : std/core/types/string) : regex ) as @pat: regex)
+               -> @x;
+          }), s@0, (std/core/int/ssize_t(0)), (std/core/int/ssize_t((match (atmost@0) {
+            ((std/core/types/@OptArg((@uniq-atmost@220: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@1: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+               -> @uniq-atmost@220;
+            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+               -> -1;
+          })))));
+      }))(r, s, (std/core/types/@OptArg<std/core/types/int>((match (atmost) {
+          ((std/core/types/@OptArg((@uniq-atmost@500: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> @uniq-atmost@500;
+          ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0@1: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> -1;
+        }))))), repl, (std/core/types/Nil<std/core/types/string>));
+  };
+specialize "*_" fun replace-captures // inline size: 1
+  = fn(caps: (std/core/types/list :: V -> V)<std/core/sslice/sslice>, repl: std/core/types/string){
+    std/text/regex/replace-all<(std/core/types/total :: E)>(repl, (std/text/regex/Regex((std/text/regex/regex-create("\x5C$(?:(\x5Cd)|(\x5C&)|(\x5C$))", (match ((std/core/types/@NoOptArg<std/core/types/bool>)) {
+            ((std/core/types/@OptArg((@uniq-ignorecase@168: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+               -> @uniq-ignorecase@168;
+            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+               -> std/core/types/False;
+          }), (match ((std/core/types/@NoOptArg<std/core/types/bool>)) {
+            ((std/core/types/@OptArg((@uniq-multiline@172: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@1: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+               -> @uniq-multiline@172;
+            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+               -> std/core/types/False;
+          }))), "\x5C$(?:(\x5Cd)|(\x5C&)|(\x5C$))")), (fn(cap: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+        (match (cap) {
+          ((std/core/types/Cons(((@skip std/core/sslice/Sslice((@pat@1@0: std/core/types/string) : std/core/types/string, (@pat@2@0: std/core/types/int) : std/core/types/int, (@pat@3@0: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as @pat@0@0: std/core/sslice/sslice) : std/core/sslice/sslice, ((std/core/types/Cons(((@skip std/core/sslice/Sslice((@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/int) : std/core/types/int, (@pat@7: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as digit: std/core/sslice/sslice) : std/core/sslice/sslice, ((std/core/types/Cons(((@skip std/core/sslice/Sslice((@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/int) : std/core/types/int, (@pat@11: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as amp: std/core/sslice/sslice) : std/core/sslice/sslice, ((std/core/types/Cons(((@skip std/core/sslice/Sslice((@pat@13: std/core/types/string) : std/core/types/string, (@pat@14: std/core/types/int) : std/core/types/int, (@pat@15: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as dollar: std/core/sslice/sslice) : std/core/sslice/sslice, ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@16: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@12: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@8: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@4: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@3: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+             -> (match ((std/core/int/(>=)((match (dollar) {
+                ((@skip std/core/sslice/Sslice((@pat@0@1: std/core/types/string) : std/core/types/string, (@x: std/core/types/int) : std/core/types/int, (@pat@1@1: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as @pat@17: std/core/sslice/sslice)
+                   -> @x;
+              }), 0))) {
+              ((std/core/types/True() : std/core/types/bool ) as @pat@17@0: std/core/types/bool)
+                 -> "$";
+              ((@skip std/core/types/False() : std/core/types/bool ) as @pat@18: std/core/types/bool)
+                 -> val grp[143,15,143,17] : std/core/types/int
+                          = (match ((std/core/int/(>=)((match (amp) {
+                              ((@skip std/core/sslice/Sslice((@pat@0@2: std/core/types/string) : std/core/types/string, (@x@0: std/core/types/int) : std/core/types/int, (@pat@1@2: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as @pat@19: std/core/sslice/sslice)
+                                 -> @x@0;
+                            }), 0))) {
+                            ((std/core/types/True() : std/core/types/bool ) as @pat@19@0: std/core/types/bool)
+                               -> 0;
+                            ((@skip std/core/types/False() : std/core/types/bool ) as @pat@20: std/core/types/bool)
+                               -> val s@10028[1,0,1,0] : std/core/types/string
+                                    = std/core/sslice/string(digit);
+                                  val m@10026[1,0,1,0] : (std/core/types/maybe :: V -> V)<std/core/types/int>
+                                    = std/core/int/xparse(s@10028, (match ((std/core/types/@NoOptArg<std/core/types/bool>)) {
+                                        ((std/core/types/@OptArg((@uniq-hex@581: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@22: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+                                           -> @uniq-hex@581;
+                                        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@0@4: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+                                           -> std/core/types/False;
+                                      }));
+                              (match (m@10026) {
+                                ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/types/int> ) as @pat@21: ((std/core/types/maybe :: V -> V)<std/core/types/int>))
+                                   -> 0;
+                                ((@skip std/core/types/Just((x: std/core/types/int) : std/core/types/int) : (std/core/types/maybe :: V -> V)<std/core/types/int> ) as @pat@0@3: ((std/core/types/maybe :: V -> V)<std/core/types/int>))
+                                   -> x;
+                              });
+                          });
+                (match ((std/core/list/@index<std/core/sslice/sslice>(caps, grp))) {
+                  ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat@21@0: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+                     -> "";
+                  ((@skip std/core/types/Just(((@skip std/core/sslice/Sslice((@pat@23: std/core/types/string) : std/core/types/string, (@pat@24: std/core/types/int) : std/core/types/int, (@pat@25: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as s@0: std/core/sslice/sslice) : std/core/sslice/sslice) : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat@22@0: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+                     -> std/core/sslice/string(s@0);
+                });
+            });
+          (@pat@26: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+             -> "$";
+        });
+      }), (std/core/types/@NoOptArg<std/core/types/int>));
+  };
+specialize "__*" fun string/replace // inline size: 1
+  = fn(s: std/core/types/string, regex@0: regex, repl: std/core/types/string){
+    match ((std/core/string/contains(repl, "$"))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/text/regex/replace-all<(std/core/types/total :: E)>(s, regex@0, (fn(caps: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+            (std/text/regex/replace-captures(caps, repl));
+          }), (std/core/types/@OptArg<std/core/types/int>(1)));
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+         -> std/text/regex/replace-all<(std/core/types/total :: E)>(s, regex@0, (fn(@_wildcard-x158_35: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+            repl;
+          }), (std/core/types/@OptArg<std/core/types/int>(1)));
+    };
+  };
+specialize "__*_" fun string/replace-all // inline size: 1
+  = fn(s: std/core/types/string, regex@0: regex, repl: std/core/types/string, atmost: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    match ((std/core/string/contains(repl, "$"))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/text/regex/replace-all<(std/core/types/total :: E)>(s, regex@0, (fn(caps: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+            (std/text/regex/replace-captures(caps, repl));
+          }), (std/core/types/@OptArg<std/core/types/int>((match (atmost) {
+            ((std/core/types/@OptArg((@uniq-atmost@536: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+               -> @uniq-atmost@536;
+            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+               -> -1;
+          }))));
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+         -> std/text/regex/replace-all<(std/core/types/total :: E)>(s, regex@0, (fn(@_wildcard-x158_35: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+            repl;
+          }), (std/core/types/@OptArg<std/core/types/int>((match (atmost) {
+            ((std/core/types/@OptArg((@uniq-atmost@536: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+               -> @uniq-atmost@536;
+            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+               -> -1;
+          }))));
+    };
+  };
+inline borrow "^" fun regex/obj // inline size: 0
+  = fn(regex@0: regex){
+    match (regex@0) {
+      ((@skip std/text/regex/Regex((@x: std/core/types/any) : std/core/types/any, (@pat@0: std/core/types/string) : std/core/types/string) : regex ) as @pat: regex)
+         -> @x;
+    };
+  };
+inline borrow "^" fun regex/src // inline size: 0
+  = fn(regex@0: regex){
+    match (regex@0) {
+      ((@skip std/text/regex/Regex((@pat@0: std/core/types/any) : std/core/types/any, (@x: std/core/types/string) : std/core/types/string) : regex ) as @pat: regex)
+         -> @x;
+    };
+  };
+fun regex/@copy // inline size: 3
+  = fn(@this: regex, obj: (std/core/types/@optional :: V -> V)<std/core/types/any>, src: (std/core/types/@optional :: V -> V)<std/core/types/string>){
+    std/text/regex/Regex((match (obj) {
+        ((std/core/types/@OptArg((@uniq-obj@108: std/core/types/any) : std/core/types/any) : (std/core/types/@optional :: V -> V)<std/core/types/any> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/any>))
+           -> @uniq-obj@108;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/any> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/any>))
+           -> (match (@this) {
+            ((@skip std/text/regex/Regex((@x: std/core/types/any) : std/core/types/any, (@pat@0@0: std/core/types/string) : std/core/types/string) : regex ) as @pat@1: regex)
+               -> @x;
+          });
+      }), (match (src) {
+        ((std/core/types/@OptArg((@uniq-src@116: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-src@116;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> (match (@this) {
+            ((@skip std/text/regex/Regex((@pat@0@1: std/core/types/any) : std/core/types/any, (@x@0: std/core/types/string) : std/core/types/string) : regex ) as @pat@3: regex)
+               -> @x@0;
+          });
+      }));
+  };
+inline fun source // inline size: 0
+  = fn(r: regex){
+    match (r) {
+      ((@skip std/text/regex/Regex((@pat@0: std/core/types/any) : std/core/types/any, (@x: std/core/types/string) : std/core/types/string) : regex ) as @pat: regex)
+         -> @x;
+    };
+  };
+fun regex // inline size: 4
+  = fn(regex@0: std/core/types/string, ignorecase: (std/core/types/@optional :: V -> V)<std/core/types/bool>, multiline: (std/core/types/@optional :: V -> V)<std/core/types/bool>){
+    std/text/regex/Regex((std/text/regex/regex-create(regex@0, (match (ignorecase) {
+          ((std/core/types/@OptArg((@uniq-ignorecase@168: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+             -> @uniq-ignorecase@168;
+          ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+             -> std/core/types/False;
+        }), (match (multiline) {
+          ((std/core/types/@OptArg((@uniq-multiline@172: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@1: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+             -> @uniq-multiline@172;
+          ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+             -> std/core/types/False;
+        }))), regex@0);
+  };
+fun exec // inline size: 2
+  = fn(regex@0: regex, s: std/core/types/string){
+    std/text/regex/regex-exec((match (regex@0) {
+        ((@skip std/text/regex/Regex((@x: std/core/types/any) : std/core/types/any, (@pat@0: std/core/types/string) : std/core/types/string) : regex ) as @pat: regex)
+           -> @x;
+      }), s, (std/core/int/ssize_t(0)));
+  };
+fun exec-all // inline size: 4
+  = fn(regex@0: regex, s: std/core/types/string, atmost: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/text/regex/regex-exec-all((match (regex@0) {
+        ((@skip std/text/regex/Regex((@x: std/core/types/any) : std/core/types/any, (@pat@0: std/core/types/string) : std/core/types/string) : regex ) as @pat: regex)
+           -> @x;
+      }), s, (std/core/int/ssize_t(0)), (std/core/int/ssize_t((match (atmost) {
+        ((std/core/types/@OptArg((@uniq-atmost@220: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@1: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-atmost@220;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> -1;
+      }))));
+  };
+fun captured // inline size: 2
+  = fn(matched@0: (std/core/types/list :: V -> V)<std/core/sslice/sslice>){
+    match (matched@0) {
+      ((std/core/types/Cons(((@skip std/core/sslice/Sslice((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/int) : std/core/types/int, (@pat@2: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as s: std/core/sslice/sslice) : std/core/sslice/sslice, (@pat@3: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+         -> std/core/sslice/string(s);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@4: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+         -> "";
+    };
+  };
+fun captures // inline size: 1
+  = fn(xs: (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<std/core/sslice/sslice>>){
+    std/core/list/map<(std/core/types/list :: V -> V)<std/core/sslice/sslice>,std/core/types/string,(std/core/types/total :: E)>(xs, std/text/regex/captured);
+  };
+fun contains // inline size: 3
+  = fn(s: std/core/types/string, r: regex){
+    val list@10011[1,0,1,0] : (std/core/types/list :: V -> V)<std/core/sslice/sslice>
+          = std/text/regex/regex-exec((match (r) {
+              ((@skip std/text/regex/Regex((@x: std/core/types/any) : std/core/types/any, (@pat@0@0: std/core/types/string) : std/core/types/string) : regex ) as @pat@3: regex)
+                 -> @x;
+            }), s, (std/core/int/ssize_t(0)));
+    match (list@10011) {
+      ((std/core/types/Cons((@pat@0: std/core/sslice/sslice) : std/core/sslice/sslice, (@pat@1: (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice>) : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+         -> std/core/types/True;
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/sslice/sslice> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>))
+         -> std/core/types/False;
+    };
+  };
+fun replace // inline size: 2
+  = forall<(e :: E)> fn<(e :: E)>(s: std/core/types/string, r: regex, repl: ((std/core/types/list :: V -> V)<std/core/sslice/sslice>) -> (e :: E) std/core/types/string){
+    std/text/regex/replace-all<(e :: E)>(s, r, repl, (std/core/types/@OptArg<std/core/types/int>(1)));
+  };
+fun matched // inline size: 1
+  = fn(s: std/core/sslice/sslice){
+    std/core/int/(>=)((match (s) {
+        ((@skip std/core/sslice/Sslice((@pat@0: std/core/types/string) : std/core/types/string, (@x: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as @pat: std/core/sslice/sslice)
+           -> @x;
+      }), 0);
+  };

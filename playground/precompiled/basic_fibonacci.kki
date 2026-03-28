@@ -1,0 +1,80 @@
+// Fibonacci numbers.
+// The `:int` type in Koka has infinite precision.
+module interface basic/fibonacci
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+fun fib[14,5,14,7] : (n : std/core/types/int, x1 : std/core/types/int, x2 : std/core/types/int) -> <(std/core/types/div :: X)> std/core/types/int;
+// Calculate the `n`'th fibonacci number.
+fun fibonacci[10,5,10,13] : (n : std/core/types/int) -> <(std/core/types/div :: X)> std/core/types/int;
+pub fun main[5,9,5,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+pub fun examplex[17,9,17,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+fun example2[20,5,20,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun fibonacci // inline size: 1
+  = fn<<(std/core/types/div :: X)>>(n: std/core/types/int){
+    basic/fibonacci/fib(n, 0, 1);
+  };
+fun examplex // inline size: 3
+  = fn<<(std/core/console/console :: X),(std/core/types/div :: X)>>(){
+    val x@10006[1,0,1,0] : std/core/types/int
+          = basic/fibonacci/fib(100, 0, 1);
+    std/core/console/printsln((std/core/int/show(x@10006)));
+  };
+fun example2 // inline size: 3
+  = fn<<(std/core/console/console :: X),(std/core/types/div :: X)>>(){
+    val x@10009[1,0,1,0] : std/core/types/int
+          = basic/fibonacci/fib(1000, 0, 1);
+    std/core/console/printsln((std/core/int/show(x@10009)));
+  };

@@ -1,0 +1,261 @@
+// Standard tuple functions.
+module interface std/core/tuple
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/hnd = std/core/hnd = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// monadic lift
+fun tuple2/@mlift-map@10153[1,0,1,0] : forall<a,(e :: E)> (@y-x10000 : a, @y-x10001 : a) -> (e :: E) (a, a);
+// monadic lift
+fun tuple2/@mlift-map@10154[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) b, t : (a, a), @y-x10000 : b) -> (e :: E) (b, b);
+// Map a function over a tuple of elements of the same type.
+pub fun tuple2/map[16,9,16,18] : forall<a,b,(e :: E)> (t : (a, a), f : (a) -> (e :: E) b) -> (e :: E) (b, b);
+// monadic lift
+fun tuple3/@mlift-map@10155[1,0,1,0] : forall<a,(e :: E)> (@y-x10002 : a, @y-x10003 : a, @y-x10004 : a) -> (e :: E) (a, a, a);
+// monadic lift
+fun tuple3/@mlift-map@10156[1,0,1,0] : forall<a,b,(e :: E)> (@y-x10002 : b, f : (a) -> (e :: E) b, t : (a, a, a), @y-x10003 : b) -> (e :: E) (b, b, b);
+// monadic lift
+fun tuple3/@mlift-map@10157[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) b, t : (a, a, a), @y-x10002 : b) -> (e :: E) (b, b, b);
+// Map a function over a triple of elements of the same type.
+pub fun tuple3/map[20,9,20,18] : forall<a,b,(e :: E)> (t : (a, a, a), f : (a) -> (e :: E) b) -> (e :: E) (b, b, b);
+// monadic lift
+fun tuple4/@mlift-map@10158[1,0,1,0] : forall<a,(e :: E)> (@y-x10005 : a, @y-x10006 : a, @y-x10007 : a, @y-x10008 : a) -> (e :: E) (a, a, a, a);
+// monadic lift
+fun tuple4/@mlift-map@10159[1,0,1,0] : forall<a,b,(e :: E)> (@y-x10005 : b, @y-x10006 : b, f : (a) -> (e :: E) b, t : (a, a, a, a), @y-x10007 : b) -> (e :: E) (b, b, b, b);
+// monadic lift
+fun tuple4/@mlift-map@10160[1,0,1,0] : forall<a,b,(e :: E)> (@y-x10005 : b, f : (a) -> (e :: E) b, t : (a, a, a, a), @y-x10006 : b) -> (e :: E) (b, b, b, b);
+// monadic lift
+fun tuple4/@mlift-map@10161[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) b, t : (a, a, a, a), @y-x10005 : b) -> (e :: E) (b, b, b, b);
+// Map a function over a quadruple of elements of the same type.
+pub fun tuple4/map[24,9,24,18] : forall<a,b,(e :: E)> (t : (a, a, a, a), f : (a) -> (e :: E) b) -> (e :: E) (b, b, b, b);
+// monadic lift
+fun tuple5/@mlift-map@10162[1,0,1,0] : forall<a,(e :: E)> (@y-x10009 : a, @y-x10010 : a, @y-x10011 : a, @y-x10012 : a, @y-x10013 : a) -> (e :: E) (a, a, a, a, a);
+// monadic lift
+fun tuple5/@mlift-map@10163[1,0,1,0] : forall<a,b,(e :: E)> (@y-x10009 : b, @y-x10010 : b, @y-x10011 : b, f : (a) -> (e :: E) b, t : (a, a, a, a, a), @y-x10012 : b) -> (e :: E) (b, b, b, b, b);
+// monadic lift
+fun tuple5/@mlift-map@10164[1,0,1,0] : forall<a,b,(e :: E)> (@y-x10009 : b, @y-x10010 : b, f : (a) -> (e :: E) b, t : (a, a, a, a, a), @y-x10011 : b) -> (e :: E) (b, b, b, b, b);
+// monadic lift
+fun tuple5/@mlift-map@10165[1,0,1,0] : forall<a,b,(e :: E)> (@y-x10009 : b, f : (a) -> (e :: E) b, t : (a, a, a, a, a), @y-x10010 : b) -> (e :: E) (b, b, b, b, b);
+// monadic lift
+fun tuple5/@mlift-map@10166[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) b, t : (a, a, a, a, a), @y-x10009 : b) -> (e :: E) (b, b, b, b, b);
+// Map a function over a quintuple of elements of the same type.
+pub fun tuple5/map[28,9,28,18] : forall<a,b,(e :: E)> (t : (a, a, a, a, a), f : (a) -> (e :: E) b) -> (e :: E) (b, b, b, b, b);
+// Compare unit values. Useful to build composite equality for structures containing a unit (e.g. either<string, ()>)
+pub fun unit/(==)[32,16,32,24] : (a : (), b : ()) -> std/core/types/bool;
+// monadic lift
+fun tuple2/(@mlift-x@10167==)[1,0,1,0] : forall<a,(e :: E)> (?snd/(==) : (a, a) -> (e :: E) std/core/types/bool, y1 : a, y2 : a, @y-x10014 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Element-wise tuple equality
+pub fun tuple2/(==)[36,9,36,19] : forall<a,b,(e :: E)> (@pat-x36_22 : (a, b), @pat-x36_39 : (a, b), ?fst/(==) : (a, a) -> (e :: E) std/core/types/bool, ?snd/(==) : (b, b) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple3/(@mlift-x@10168==)[1,0,1,0] : forall<a,(e :: E)> (?thd/(==) : (a, a) -> (e :: E) std/core/types/bool, z1 : a, z2 : a, @y-x10020 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple3/(@mlift-x@10169==)[1,0,1,0] : forall<a,b,(e :: E)> (?snd/(==) : (a, a) -> (e :: E) std/core/types/bool, ?thd/(==) : (b, b) -> (e :: E) std/core/types/bool, y1 : a, y2 : a, z1 : b, z2 : b, @y-x10019 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Element-wise triple equality
+pub fun tuple3/(==)[40,9,40,19] : forall<a,b,c,(e :: E)> (@pat-x40_22 : (a, b, c), @pat-x40_44 : (a, b, c), ?fst/(==) : (a, a) -> (e :: E) std/core/types/bool, ?snd/(==) : (b, b) -> (e :: E) std/core/types/bool, ?thd/(==) : (c, c) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple4/(@mlift-x@10170==)[1,0,1,0] : forall<a,(e :: E)> (?field4/(==) : (a, a) -> (e :: E) std/core/types/bool, w1 : a, w2 : a, @y-x10028 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple4/(@mlift-x@10171==)[1,0,1,0] : forall<a,b,(e :: E)> (?field4/(==) : (b, b) -> (e :: E) std/core/types/bool, ?thd/(==) : (a, a) -> (e :: E) std/core/types/bool, w1 : b, w2 : b, z1 : a, z2 : a, @y-x10027 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple4/(@mlift-x@10172==)[1,0,1,0] : forall<a,b,c,(e :: E)> (?field4/(==) : (c, c) -> (e :: E) std/core/types/bool, ?snd/(==) : (a, a) -> (e :: E) std/core/types/bool, ?thd/(==) : (b, b) -> (e :: E) std/core/types/bool, w1 : c, w2 : c, y1 : a, y2 : a, z1 : b, z2 : b, @y-x10026 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Element-wise quadruple equality
+pub fun tuple4/(==)[44,9,44,19] : forall<a,b,c,d,(e :: E)> (@pat-x44_22 : (a, b, c, d), @pat-x44_49 : (a, b, c, d), ?fst/(==) : (a, a) -> (e :: E) std/core/types/bool, ?snd/(==) : (b, b) -> (e :: E) std/core/types/bool, ?thd/(==) : (c, c) -> (e :: E) std/core/types/bool, ?field4/(==) : (d, d) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple5/(@mlift-x@10173==)[1,0,1,0] : forall<(e :: E),a> (?field5/(==) : (a, a) -> (e :: E) std/core/types/bool, v1 : a, v2 : a, @y-x10038 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple5/(@mlift-x@10174==)[1,0,1,0] : forall<a,(e :: E),b> (?field4/(==) : (a, a) -> (e :: E) std/core/types/bool, ?field5/(==) : (b, b) -> (e :: E) std/core/types/bool, v1 : b, v2 : b, w1 : a, w2 : a, @y-x10037 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple5/(@mlift-x@10175==)[1,0,1,0] : forall<a,b,(e :: E),c> (?field4/(==) : (b, b) -> (e :: E) std/core/types/bool, ?field5/(==) : (c, c) -> (e :: E) std/core/types/bool, ?thd/(==) : (a, a) -> (e :: E) std/core/types/bool, v1 : c, v2 : c, w1 : b, w2 : b, z1 : a, z2 : a, @y-x10036 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun tuple5/(@mlift-x@10176==)[1,0,1,0] : forall<a,b,c,(e :: E),d> (?field4/(==) : (c, c) -> (e :: E) std/core/types/bool, ?field5/(==) : (d, d) -> (e :: E) std/core/types/bool, ?snd/(==) : (a, a) -> (e :: E) std/core/types/bool, ?thd/(==) : (b, b) -> (e :: E) std/core/types/bool, v1 : d, v2 : d, w1 : c, w2 : c, y1 : a, y2 : a, z1 : b, z2 : b, @y-x10035 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Element-wise quintuple equality
+pub fun tuple5/(==)[50,9,50,19] : forall<a,b,c,d,(e :: E),a1> (@pat-x50_22 : (a, b, c, d, a1), @pat-x50_54 : (a, b, c, d, a1), ?fst/(==) : (a, a) -> (e :: E) std/core/types/bool, ?snd/(==) : (b, b) -> (e :: E) std/core/types/bool, ?thd/(==) : (c, c) -> (e :: E) std/core/types/bool, ?field4/(==) : (d, d) -> (e :: E) std/core/types/bool, ?field5/(==) : (a1, a1) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Order on unit
+pub fun unit/cmp[56,16,56,23] : (a : (), b : ()) -> std/core/types/order;
+// monadic lift
+fun tuple2/@mlift-cmp@10177[1,0,1,0] : forall<a,(e :: E)> (?snd/cmp : (a, a) -> (e :: E) std/core/types/order, y1 : a, y2 : a, @y-x10046 : std/core/types/order) -> (e :: E) std/core/types/order;
+// Order on tuples
+pub fun tuple2/cmp[60,9,60,18] : forall<a,b,(e :: E)> (@pat-x60_21 : (a, b), @pat-x60_38 : (a, b), ?fst/cmp : (a, a) -> (e :: E) std/core/types/order, ?snd/cmp : (b, b) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple3/@mlift-cmp@10178[1,0,1,0] : forall<a,(e :: E)> (?thd/cmp : (a, a) -> (e :: E) std/core/types/order, z1 : a, z2 : a, @y-x10052 : std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple3/@mlift-cmp@10179[1,0,1,0] : forall<a,b,(e :: E)> (?snd/cmp : (a, a) -> (e :: E) std/core/types/order, ?thd/cmp : (b, b) -> (e :: E) std/core/types/order, y1 : a, y2 : a, z1 : b, z2 : b, @y-x10051 : std/core/types/order) -> (e :: E) std/core/types/order;
+// Order on triples
+pub fbip fun tuple3/cmp[66,14,66,23] : forall<a,b,c,(e :: E)> (@pat-x66_26 : (a, b, c), @pat-x66_48 : (a, b, c), ^ ?fst/cmp : (a, a) -> (e :: E) std/core/types/order, ^ ?snd/cmp : (b, b) -> (e :: E) std/core/types/order, ^ ?thd/cmp : (c, c) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple4/@mlift-cmp@10180[1,0,1,0] : forall<a,(e :: E)> (?field4/cmp : (a, a) -> (e :: E) std/core/types/order, w1 : a, w2 : a, @y-x10060 : std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple4/@mlift-cmp@10181[1,0,1,0] : forall<a,b,(e :: E)> (?field4/cmp : (b, b) -> (e :: E) std/core/types/order, ?thd/cmp : (a, a) -> (e :: E) std/core/types/order, w1 : b, w2 : b, z1 : a, z2 : a, @y-x10059 : std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple4/@mlift-cmp@10182[1,0,1,0] : forall<a,b,c,(e :: E)> (?field4/cmp : (c, c) -> (e :: E) std/core/types/order, ?snd/cmp : (a, a) -> (e :: E) std/core/types/order, ?thd/cmp : (b, b) -> (e :: E) std/core/types/order, w1 : c, w2 : c, y1 : a, y2 : a, z1 : b, z2 : b, @y-x10058 : std/core/types/order) -> (e :: E) std/core/types/order;
+// Order on quadruples
+pub fbip fun tuple4/cmp[74,14,74,23] : forall<a,b,c,d,(e :: E)> (@pat-x74_26 : (a, b, c, d), @pat-x74_53 : (a, b, c, d), ^ ?fst/cmp : (a, a) -> (e :: E) std/core/types/order, ^ ?snd/cmp : (b, b) -> (e :: E) std/core/types/order, ^ ?thd/cmp : (c, c) -> (e :: E) std/core/types/order, ^ ?field4/cmp : (d, d) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple5/@mlift-cmp@10183[1,0,1,0] : forall<(e :: E),a> (?field5/cmp : (a, a) -> (e :: E) std/core/types/order, v1 : a, v2 : a, @y-x10070 : std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple5/@mlift-cmp@10184[1,0,1,0] : forall<a,(e :: E),b> (?field4/cmp : (a, a) -> (e :: E) std/core/types/order, ?field5/cmp : (b, b) -> (e :: E) std/core/types/order, v1 : b, v2 : b, w1 : a, w2 : a, @y-x10069 : std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple5/@mlift-cmp@10185[1,0,1,0] : forall<a,b,(e :: E),c> (?field4/cmp : (b, b) -> (e :: E) std/core/types/order, ?field5/cmp : (c, c) -> (e :: E) std/core/types/order, ?thd/cmp : (a, a) -> (e :: E) std/core/types/order, v1 : c, v2 : c, w1 : b, w2 : b, z1 : a, z2 : a, @y-x10068 : std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun tuple5/@mlift-cmp@10186[1,0,1,0] : forall<a,b,c,(e :: E),d> (?field4/cmp : (c, c) -> (e :: E) std/core/types/order, ?field5/cmp : (d, d) -> (e :: E) std/core/types/order, ?snd/cmp : (a, a) -> (e :: E) std/core/types/order, ?thd/cmp : (b, b) -> (e :: E) std/core/types/order, v1 : d, v2 : d, w1 : c, w2 : c, y1 : a, y2 : a, z1 : b, z2 : b, @y-x10067 : std/core/types/order) -> (e :: E) std/core/types/order;
+// Order on quintuples
+pub fbip fun tuple5/cmp[86,14,86,23] : forall<a,b,c,d,(e :: E),a1> (@pat-x86_26 : (a, b, c, d, a1), @pat-x86_58 : (a, b, c, d, a1), ^ ?fst/cmp : (a, a) -> (e :: E) std/core/types/order, ^ ?snd/cmp : (b, b) -> (e :: E) std/core/types/order, ^ ?thd/cmp : (c, c) -> (e :: E) std/core/types/order, ^ ?field4/cmp : (d, d) -> (e :: E) std/core/types/order, ^ ?field5/cmp : (a1, a1) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/order;
+// fip ordering of unit values
+pub fip fun unit/order2[100,20,100,30] : (a : (), b : ()) -> (std/core/types/order2 :: V -> V)<()>;
+// monadic lift
+fun tuple2/@mlift-order2@10187[1,0,1,0] : forall<a,b,(e :: E)> (z1 : a, @y-x10079 : (std/core/types/order2 :: V -> V)<b>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b)>;
+// monadic lift
+fun tuple2/@mlift-order2@10188[1,0,1,0] : forall<a,b,(e :: E)> (?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>, x2 : b, y2 : b, @y-x10078 : (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b)>;
+// order2 of tuple2 values
+pub fun tuple2/order2[104,9,104,21] : forall<a,b,(e :: E)> (@pat-x104_24 : (a, b), @pat-x104_42 : (a, b), ^ ?a/order2 : (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>, ^ ?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b)>;
+// monadic lift
+fun tuple3/@mlift-order2@10189[1,0,1,0] : forall<a,b,c,(e :: E)> (z1 : a, z2 : b, @y-x10085 : (std/core/types/order2 :: V -> V)<c>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c)>;
+// monadic lift
+fun tuple3/@mlift-order2@10190[1,0,1,0] : forall<a,b,c,(e :: E)> (?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, x3 : c, y3 : c, z1 : a, @y-x10084 : (std/core/types/order2 :: V -> V)<b>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c)>;
+// monadic lift
+fun tuple3/@mlift-order2@10191[1,0,1,0] : forall<a,b,c,(e :: E)> (?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>, ?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, x2 : b, x3 : c, y2 : b, y3 : c, @y-x10083 : (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c)>;
+// order2 of tuple3 values
+pub fun tuple3/order2[115,9,115,21] : forall<a,b,c,(e :: E)> (@pat-x115_24 : (a, b, c), @pat-x115_49 : (a, b, c), ^ ?a/order2 : (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>, ^ ?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>, ^ ?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c)>;
+// monadic lift
+fun tuple4/@mlift-order2@10192[1,0,1,0] : forall<a,b,c,d,(e :: E)> (z1 : a, z2 : b, z3 : c, @y-x10093 : (std/core/types/order2 :: V -> V)<d>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d)>;
+// monadic lift
+fun tuple4/@mlift-order2@10193[1,0,1,0] : forall<a,b,c,d,(e :: E)> (?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>, x4 : d, y4 : d, z1 : a, z2 : b, @y-x10092 : (std/core/types/order2 :: V -> V)<c>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d)>;
+// monadic lift
+fun tuple4/@mlift-order2@10194[1,0,1,0] : forall<a,b,c,d,(e :: E)> (?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, ?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>, x3 : c, x4 : d, y3 : c, y4 : d, z1 : a, @y-x10091 : (std/core/types/order2 :: V -> V)<b>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d)>;
+// monadic lift
+fun tuple4/@mlift-order2@10195[1,0,1,0] : forall<a,b,c,d,(e :: E)> (?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>, ?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, ?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>, x2 : b, x3 : c, x4 : d, y2 : b, y3 : c, y4 : d, @y-x10090 : (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d)>;
+// order2 of tuple4 values
+pub fun tuple4/order2[130,9,130,21] : forall<a,b,c,d,(e :: E)> (@pat-x130_24 : (a, b, c, d), @pat-x130_56 : (a, b, c, d), ^ ?a/order2 : (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>, ^ ?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>, ^ ?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, ^ ?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d)>;
+// monadic lift
+fun tuple5/@mlift-order2@10196[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (z1 : a, z2 : b, z3 : c, z4 : d, @y-x10103 : (std/core/types/order2 :: V -> V)<a1>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d, a1)>;
+// monadic lift
+fun tuple5/@mlift-order2@10197[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (?field5/order2 : (a1, a1) -> (e :: E) (std/core/types/order2 :: V -> V)<a1>, x5 : a1, y5 : a1, z1 : a, z2 : b, z3 : c, @y-x10102 : (std/core/types/order2 :: V -> V)<d>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d, a1)>;
+// monadic lift
+fun tuple5/@mlift-order2@10198[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>, ?field5/order2 : (a1, a1) -> (e :: E) (std/core/types/order2 :: V -> V)<a1>, x4 : d, x5 : a1, y4 : d, y5 : a1, z1 : a, z2 : b, @y-x10101 : (std/core/types/order2 :: V -> V)<c>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d, a1)>;
+// monadic lift
+fun tuple5/@mlift-order2@10199[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, ?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>, ?field5/order2 : (a1, a1) -> (e :: E) (std/core/types/order2 :: V -> V)<a1>, x3 : c, x4 : d, x5 : a1, y3 : c, y4 : d, y5 : a1, z1 : a, @y-x10100 : (std/core/types/order2 :: V -> V)<b>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d, a1)>;
+// monadic lift
+fun tuple5/@mlift-order2@10200[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>, ?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, ?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>, ?field5/order2 : (a1, a1) -> (e :: E) (std/core/types/order2 :: V -> V)<a1>, x2 : b, x3 : c, x4 : d, x5 : a1, y2 : b, y3 : c, y4 : d, y5 : a1, @y-x10099 : (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d, a1)>;
+// order2 of tuple5 values
+pub fun tuple5/order2[148,9,148,21] : forall<a,b,c,d,(e :: E),a1> (@pat-x148_24 : (a, b, c, d, a1), @pat-x148_63 : (a, b, c, d, a1), ^ ?a/order2 : (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>, ^ ?b/order2 : (b, b) -> (e :: E) (std/core/types/order2 :: V -> V)<b>, ^ ?c/order2 : (c, c) -> (e :: E) (std/core/types/order2 :: V -> V)<c>, ^ ?field4/order2 : (d, d) -> (e :: E) (std/core/types/order2 :: V -> V)<d>, ^ ?field5/order2 : (a1, a1) -> (e :: E) (std/core/types/order2 :: V -> V)<a1>) -> (e :: E) (std/core/types/order2 :: V -> V)<(a, b, c, d, a1)>;
+// Convert a unit value `()` to a string
+pub fun unit/show[169,16,169,24] : (u : ()) -> std/core/types/string;
+// monadic lift
+fun tuple2/@mlift-show@10201[1,0,1,0] : forall<(e :: E)> (@y-x10110 : std/core/types/string, @y-x10111 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple2/@mlift-show@10202[1,0,1,0] : forall<a,b,(e :: E)> (?snd/show : (b) -> (e :: E) std/core/types/string, x : (a, b), @y-x10110 : std/core/types/string) -> (e :: E) std/core/types/string;
+// Show a tuple
+pub fun tuple2/show[173,9,173,19] : forall<a,b,(e :: E)> (x : (a, b), ?fst/show : (a) -> (e :: E) std/core/types/string, ?snd/show : (b) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple3/@mlift-show@10203[1,0,1,0] : forall<(e :: E)> (@y-x10112 : std/core/types/string, @y-x10113 : std/core/types/string, @y-x10114 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple3/@mlift-show@10204[1,0,1,0] : forall<a,b,c,(e :: E)> (@y-x10112 : std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, x : (a, b, c), @y-x10113 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple3/@mlift-show@10205[1,0,1,0] : forall<a,b,c,(e :: E)> (?snd/show : (b) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, x : (a, b, c), @y-x10112 : std/core/types/string) -> (e :: E) std/core/types/string;
+// Show a triple
+pub fun tuple3/show[177,9,177,19] : forall<a,b,c,(e :: E)> (x : (a, b, c), ?fst/show : (a) -> (e :: E) std/core/types/string, ?snd/show : (b) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple4/@mlift-show@10206[1,0,1,0] : forall<(e :: E)> (@y-x10115 : std/core/types/string, @y-x10116 : std/core/types/string, @y-x10117 : std/core/types/string, @y-x10118 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple4/@mlift-show@10207[1,0,1,0] : forall<a,b,c,d,(e :: E)> (@y-x10115 : std/core/types/string, @y-x10116 : std/core/types/string, ?field4/show : (d) -> (e :: E) std/core/types/string, x : (a, b, c, d), @y-x10117 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple4/@mlift-show@10208[1,0,1,0] : forall<a,b,c,d,(e :: E)> (@y-x10115 : std/core/types/string, ?field4/show : (d) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, x : (a, b, c, d), @y-x10116 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple4/@mlift-show@10209[1,0,1,0] : forall<a,b,c,d,(e :: E)> (?field4/show : (d) -> (e :: E) std/core/types/string, ?snd/show : (b) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, x : (a, b, c, d), @y-x10115 : std/core/types/string) -> (e :: E) std/core/types/string;
+// Show a quadruple
+pub fun tuple4/show[181,9,181,19] : forall<a,b,c,d,(e :: E)> (x : (a, b, c, d), ?fst/show : (a) -> (e :: E) std/core/types/string, ?snd/show : (b) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, ?field4/show : (d) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple5/@mlift-show@10210[1,0,1,0] : forall<(e :: E)> (@y-x10119 : std/core/types/string, @y-x10120 : std/core/types/string, @y-x10121 : std/core/types/string, @y-x10122 : std/core/types/string, @y-x10123 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple5/@mlift-show@10211[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (@y-x10119 : std/core/types/string, @y-x10120 : std/core/types/string, @y-x10121 : std/core/types/string, ?field5/show : (a1) -> (e :: E) std/core/types/string, x : (a, b, c, d, a1), @y-x10122 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple5/@mlift-show@10212[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (@y-x10119 : std/core/types/string, @y-x10120 : std/core/types/string, ?field4/show : (d) -> (e :: E) std/core/types/string, ?field5/show : (a1) -> (e :: E) std/core/types/string, x : (a, b, c, d, a1), @y-x10121 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple5/@mlift-show@10213[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (@y-x10119 : std/core/types/string, ?field4/show : (d) -> (e :: E) std/core/types/string, ?field5/show : (a1) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, x : (a, b, c, d, a1), @y-x10120 : std/core/types/string) -> (e :: E) std/core/types/string;
+// monadic lift
+fun tuple5/@mlift-show@10214[1,0,1,0] : forall<a,b,c,d,(e :: E),a1> (?field4/show : (d) -> (e :: E) std/core/types/string, ?field5/show : (a1) -> (e :: E) std/core/types/string, ?snd/show : (b) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, x : (a, b, c, d, a1), @y-x10119 : std/core/types/string) -> (e :: E) std/core/types/string;
+// Show a quintuple
+pub fun tuple5/show[186,9,186,19] : forall<a,b,c,d,(e :: E),a1> (x : (a, b, c, d, a1), ?fst/show : (a) -> (e :: E) std/core/types/string, ?snd/show : (b) -> (e :: E) std/core/types/string, ?thd/show : (c) -> (e :: E) std/core/types/string, ?field4/show : (d) -> (e :: E) std/core/types/string, ?field5/show : (a1) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// _deprecated_, use `tuple2/show` instead
+pub fun show-tuple[191,9,191,18] : forall<a,b,(e :: E)> (x : (a, b), showfst : (a) -> (e :: E) std/core/types/string, showsnd : (b) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline fun unit/(==) // inline size: 0
+  = fn(a: (), b: ()){
+    std/core/types/True;
+  };
+fun tuple2/(==) // inline size: 3
+  = forall<a,b,(e :: E)> fn<(e :: E)>(@pat-x36_22: (a, b), @pat-x36_39: (a, b), @implicit/fst/(==): (a, a) -> (e :: E) std/core/types/bool, @implicit/snd/(==): (b, b) -> (e :: E) std/core/types/bool){
+    (match (@pat-x36_22) {
+      ((@skip std/core/types/Tuple2((x1: a) : a, (y1: b) : b) : (a, b) ) as @pat: (a, b))
+         -> (match (@pat-x36_39) {
+          ((@skip std/core/types/Tuple2((x2: a) : a, (y2: b) : b) : (a, b) ) as @pat@0: (a, b))
+             -> (match ((@implicit/fst/(==)(x1, x2))) {
+              ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+                 -> @implicit/snd/(==)(y1, y2);
+              (@pat@2: std/core/types/bool)
+                 -> std/core/types/False;
+            });
+        });
+    });
+  };
+inline fun unit/cmp // inline size: 0
+  = fn(a: (), b: ()){
+    std/core/types/Eq;
+  };
+fun tuple2/cmp // inline size: 3
+  = forall<a,b,(e :: E)> fn<(e :: E)>(@pat-x60_21: (a, b), @pat-x60_38: (a, b), @implicit/fst/cmp: (a, a) -> (e :: E) std/core/types/order, @implicit/snd/cmp: (b, b) -> (e :: E) std/core/types/order){
+    (match (@pat-x60_21) {
+      ((@skip std/core/types/Tuple2((x1: a) : a, (y1: b) : b) : (a, b) ) as @pat: (a, b))
+         -> (match (@pat-x60_38) {
+          ((@skip std/core/types/Tuple2((x2: a) : a, (y2: b) : b) : (a, b) ) as @pat@0: (a, b))
+             -> (match ((@implicit/fst/cmp(x1, x2))) {
+              ((std/core/types/Eq() : std/core/types/order ) as @pat@1: std/core/types/order)
+                 -> @implicit/snd/cmp(y1, y2);
+              (lg: std/core/types/order)
+                 -> lg;
+            });
+        });
+    });
+  };
+inline fip fun unit/order2 // inline size: 1
+  = fn(a: (), b: ()){
+    std/core/types/Eq2<()>(a);
+  };
+inline fun unit/show // inline size: 0
+  = fn(u: ()){
+    "()";
+  };
+fun show-tuple // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(x: (a, b), showfst: (a) -> (e :: E) std/core/types/string, showsnd: (b) -> (e :: E) std/core/types/string){
+    std/core/tuple/#tuple2/show<a,b,(e :: E)>(x, showfst, showsnd);
+  };

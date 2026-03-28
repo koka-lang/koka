@@ -1,0 +1,105 @@
+module interface handlers/yield
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// a generator effect with one operation
+pub recursive effect type yield[2,1,3,25] <a,(e :: E),b> :: (V, E, V) -> V {
+  pub con @Hnd-yield[2,1,2,12](@cfc: std/core/types/int, @fun-yield: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>){0,2,8} : forall<a,(e :: E),b> (std/core/types/int, (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) -> (yield :: (V, E, V) -> V)<a,(e :: E),b> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:yield` type.
+fun yield/@cfc[2,1,2,12] : forall<a,(e :: E),b> (^ yield : (yield :: (V, E, V) -> V)<a,(e :: E),b>) -> std/core/types/int;
+// runtime tag for the effect `:yield`
+pub val yield/@tag[2,1,2,12] : forall<a> (std/core/hnd/htag :: ((E, V) -> V) -> V)<(yield :: (V, E, V) -> V)<a>>;
+// handler for the effect `:yield`
+pub fun yield/@handle[2,8,2,12] : forall<a,b,(e :: E),c> (hnd : (yield :: (V, E, V) -> V)<a,(e :: E),c>, ret : (res : b) -> (e :: E) c, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>|(e :: E)> b) -> (e :: E) c;
+// Automatically generated. Retrieves the `@fun-yield` constructor field of the `:yield` type.
+fun yield/@fun-yield[3,7,3,25] : forall<a,(e :: E),b> (^ yield : (yield :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>;
+// select `yield` operation out of effect `:yield`
+pub fun yield/@select[3,7,3,25] : forall<a,(e :: E),b> (^ hnd : (yield :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>;
+// Call the `fun yield` operation of the effect `:yield`
+pub fun yield[3,7,3,11] : forall<a> (x : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> ();
+// monadic lift
+fun @mlift-traverse@10008[1,0,1,0] : forall<a> (xx : (std/core/types/list :: V -> V)<a>, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> ();
+// traverse a list and yield the elements
+pub fun traverse[6,5,6,12] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> ();
+// monadic lift
+fun @mlift-main@10009[1,0,1,0] : (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<std/core/types/int>>> ();
+// bind the yield operation dynamically
+pub fun main[12,9,12,12] : () -> <(std/core/console/console :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun yield/@cfc // inline size: 0
+  = forall<a,(e :: E),b> fn(yield@0: (yield :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (yield@0) {
+      ((@skip handlers/yield/@Hnd-yield((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (yield :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((yield :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun yield/@fun-yield // inline size: 0
+  = forall<a,(e :: E),b> fn(yield@0: (yield :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (yield@0) {
+      ((@skip handlers/yield/@Hnd-yield((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (yield :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((yield :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun yield/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (yield :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/yield/@Hnd-yield((@pat@0: std/core/types/int) : std/core/types/int, (@fun-yield: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (yield :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((yield :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @fun-yield;
+    });
+  };
+inline fun yield // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>>(x: a){
+    std/core/hnd/@perform1<a,(),(yield :: (V, E, V) -> V)<a>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(yield :: (V, E, V) -> V)<a>>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(yield :: (V, E, V) -> V)<a>>>((std/core/hnd/@evv-at<(yield :: (V, E, V) -> V)<a>>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/yield/#yield/@select<a,(e :: E),b>), x);
+  };

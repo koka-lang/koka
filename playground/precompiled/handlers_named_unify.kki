@@ -1,0 +1,318 @@
+/* Shows the use of named effect handlers under an umbrella effect.
+
+   For more info see the paper:
+   "First-class named effect handlers", Daan Leijen, Ningning Xie, and Youyou Cong, 2020.
+*/
+module interface handlers/named/unify
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// An alias for pure effects: a pure function always returns the same result
+// when called with the same arguments but may not terminate or raise an exception.
+local alias std/core/pure[55,1,55,26] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/div :: X)> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A non-unifiable type
+recursive type ntype[15,1,17,31] {
+  con Con[16,3,16,5](tag: std/core/types/string){0,1,8} : (tag : std/core/types/string) -> ntype = 1;
+  con App[17,3,17,5](t1: ntype, t2: ntype){0,2,8} : (t1 : ntype, t2 : ntype) -> ntype = 2;
+};
+// Unification variables under a substitution
+recursive named effect type variable[26,7,28,35] <(s :: S),(e :: E),a> :: (S, E, V) -> V {
+  con @Hnd-variable[26,7,26,21](@cfc: std/core/types/int, @fun-get: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>, @fun-resolve: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>){0,3,8} : forall<(s :: S),(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>, (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) -> (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a> = 1;
+};
+// A unifiable type
+recursive type utype[9,1,12,38] <(s :: S)> :: S -> V {
+  con UVar[10,3,10,6](v: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>){0,1,8} : forall<(s :: S)> (v : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) -> (utype :: S -> V)<(s :: S)> = 1;
+  con UCon[11,3,11,6](tag: std/core/types/string){0,1,8} : forall<(s :: S)> (tag : std/core/types/string) -> (utype :: S -> V)<(s :: S)> = 2;
+  con UApp[12,3,12,6](t1: (utype :: S -> V)<(s :: S)>, t2: (utype :: S -> V)<(s :: S)>){0,2,8} : forall<(s :: S)> (t1 : (utype :: S -> V)<(s :: S)>, t2 : (utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)> = 3;
+};
+// Umbrella substitution effect
+recursive effect type subst[21,8,22,31] <(s :: S),(e :: E),a> :: (S, E, V) -> V {
+  con @Hnd-subst[21,8,21,19](@cfc: std/core/types/int, @ctl-fresh: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>){0,2,8} : forall<(s :: S),(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) -> (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Tests for the `UVar` constructor of the `:utype` type.
+fip fun is-uvar[10,3,10,6] : forall<(s :: S)> (^ utype : (utype :: S -> V)<(s :: S)>) -> std/core/types/bool;
+// Automatically generated. Tests for the `UCon` constructor of the `:utype` type.
+fip fun is-ucon[11,3,11,6] : forall<(s :: S)> (^ utype : (utype :: S -> V)<(s :: S)>) -> std/core/types/bool;
+// Automatically generated. Tests for the `UApp` constructor of the `:utype` type.
+fip fun is-uapp[12,3,12,6] : forall<(s :: S)> (^ utype : (utype :: S -> V)<(s :: S)>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Con` constructor of the `:ntype` type.
+fip fun is-con[16,3,16,5] : (^ ntype : ntype) -> std/core/types/bool;
+// Automatically generated. Tests for the `App` constructor of the `:ntype` type.
+fip fun is-app[17,3,17,5] : (^ ntype : ntype) -> std/core/types/bool;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:subst` type.
+fun subst/@cfc[21,8,21,19] : forall<(s :: S),(e :: E),a> (^ subst : (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:subst`
+val subst/@tag[21,8,21,19] : forall<(s :: S)> (std/core/hnd/htag :: ((E, V) -> V) -> V)<(subst :: (S, E, V) -> V)<(s :: S)>>;
+// handler for the effect `:subst`
+fun subst/@handle[21,15,21,19] : forall<(s :: S),a,(e :: E),b> (hnd : (subst :: (S, E, V) -> V)<(s :: S),(e :: E),b>, ret : (res : a) -> (e :: E) b, action : forall<(s1 :: S)> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s1 :: S)>>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@ctl-fresh` constructor field of the `:subst` type.
+fun subst/@ctl-fresh[22,7,22,31] : forall<(s :: S),(e :: E),a> (^ subst : (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>;
+// select `fresh` operation out of effect `:subst`
+fun fresh/@select[22,7,22,31] : forall<(s :: S),(e :: E),a> (^ hnd : (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>;
+// Call the `ctl fresh` operation of the effect `:subst`
+fun fresh[22,7,22,11] : forall<(s :: S)> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:variable` type.
+fun variable/@cfc[26,7,26,21] : forall<(s :: S),(e :: E),a> (^ variable : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:variable`
+val variable/@tag[26,7,26,21] : forall<(s :: S)> (std/core/hnd/htag :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>;
+// handler for the effect `:variable`
+fun variable/@handle[26,14,26,21] : forall<(s :: S),a,(e :: E),b> (hnd : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),b>, ret : (res : a) -> (e :: E) b, action : (hname : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) -> (e :: E) a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@fun-get` constructor field of the `:variable` type.
+fun variable/@fun-get[27,7,27,29] : forall<(s :: S),(e :: E),a> (^ variable : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>;
+// select `get` operation out of effect `:variable`
+fun get/@select[27,7,27,29] : forall<(s :: S),(e :: E),a> (^ hnd : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>;
+// named under umbrella effect `:subst`
+
+// Call the `fun get` operation of the effect `:variable`
+fun get[27,7,27,9] : forall<(s :: S)> (@hname : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>;
+// Automatically generated. Retrieves the `@fun-resolve` constructor field of the `:variable` type.
+fun variable/@fun-resolve[28,7,28,35] : forall<(s :: S),(e :: E),a> (^ variable : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>;
+// select `resolve` operation out of effect `:variable`
+fun resolve/@select[28,7,28,35] : forall<(s :: S),(e :: E),a> (^ hnd : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>;
+// `:(ev<variable<s,a>>)          -> <subst<s>,pure> maybe<utype<s>>`
+
+// Call the `fun resolve` operation of the effect `:variable`
+fun resolve[28,7,28,13] : forall<(s :: S)> (@hname : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>, tp : (utype :: S -> V)<(s :: S)>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-with-var@10121[1,0,1,0] : forall<(h :: H),(s :: S),(e :: E)> (mtp : (std/core/types/local-var :: (H, V) -> V)<(h :: H),(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>>, tp : (utype :: S -> V)<(s :: S)>, @y-x10029 : (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> ();
+// private (named) handler instance for creating a unification variable
+fun with-var[32,5,32,12] : forall<(s :: S),a,(e :: E)> (action : ((std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a;
+// umbrella handler for substitution
+fun subst[46,5,46,9] : forall<a,(e :: E)> (action : forall<(s :: S)> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>,(std/core/pure :: E)|(e :: E)> a) -> <(std/core/pure :: E)|(e :: E)> a;
+// monadic lift
+fun @mlift-trmc-resolve-all@10122[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<ntype>, tp2 : (utype :: S -> V)<(s :: S)>, @trmc-x10011 : ntype) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// monadic lift
+fun @mlift-trmc-resolve-all@10123[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<ntype>, @y-x10044 : ntype) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// monadic lift
+fun @mlift-trmc-resolve-all@10124[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<ntype>, @y-x10043 : (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// monadic lift
+fun @mlift-trmcm-resolve-all@10125[1,0,1,0] : forall<(s :: S)> (@accm : (ntype) -> ntype, tp2 : (utype :: S -> V)<(s :: S)>, @trmc-x10016 : ntype) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// monadic lift
+fun @mlift-trmcm-resolve-all@10126[1,0,1,0] : forall<(s :: S)> (@accm : (ntype) -> ntype, @y-x10050 : (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// resolve all unification variables to a non-unifiable type
+fun @trmc-resolve-all[52,5,52,15] : forall<(s :: S)> (tp : (utype :: S -> V)<(s :: S)>, @acc : (std/core/types/ctx :: V -> V)<ntype>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// resolve all unification variables to a non-unifiable type
+fun @trmcm-resolve-all[52,5,52,15] : forall<(s :: S)> (tp : (utype :: S -> V)<(s :: S)>, @accm : (ntype) -> ntype) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// resolve all unification variables to a non-unifiable type
+fun resolve-all[52,5,52,15] : forall<(s :: S)> (tp : (utype :: S -> V)<(s :: S)>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// monadic lift
+fun @mlift-trmc-unify@10127[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<(utype :: S -> V)<(s :: S)>>, tp12 : (utype :: S -> V)<(s :: S)>, tp22 : (utype :: S -> V)<(s :: S)>, @trmc-x10017 : (utype :: S -> V)<(s :: S)>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmc-unify@10128[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<(utype :: S -> V)<(s :: S)>>, tp2 : (utype :: S -> V)<(s :: S)>, wild_ : ()) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmc-unify@10129[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<(utype :: S -> V)<(s :: S)>>, tpv1 : (utype :: S -> V)<(s :: S)>, wild_@0 : ()) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmc-unify@10130[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<(utype :: S -> V)<(s :: S)>>, tpv1 : (utype :: S -> V)<(s :: S)>, v2@0 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>, @y-x10062 : (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmc-unify@10131[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<(utype :: S -> V)<(s :: S)>>, tp2 : (utype :: S -> V)<(s :: S)>, v1@0 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>, @y-x10060 : (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmc-unify@10132[1,0,1,0] : forall<(s :: S)> (@acc : (std/core/types/ctx :: V -> V)<(utype :: S -> V)<(s :: S)>>, @y-x10069 : (utype :: S -> V)<(s :: S)>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmcm-unify@10133[1,0,1,0] : forall<(s :: S)> (@accm : ((utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>, tp12 : (utype :: S -> V)<(s :: S)>, tp22 : (utype :: S -> V)<(s :: S)>, @trmc-x10022 : (utype :: S -> V)<(s :: S)>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmcm-unify@10134[1,0,1,0] : forall<(s :: S)> (@accm : ((utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>, tp2 : (utype :: S -> V)<(s :: S)>, wild_ : ()) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmcm-unify@10135[1,0,1,0] : forall<(s :: S)> (@accm : ((utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>, tpv1 : (utype :: S -> V)<(s :: S)>, wild_@0 : ()) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmcm-unify@10136[1,0,1,0] : forall<(s :: S)> (@accm : ((utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>, tpv1 : (utype :: S -> V)<(s :: S)>, v2@0 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>, @y-x10075 : (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// monadic lift
+fun @mlift-trmcm-unify@10137[1,0,1,0] : forall<(s :: S)> (@accm : ((utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>, tp2 : (utype :: S -> V)<(s :: S)>, v1@0 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>, @y-x10073 : (std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// Unify two types under a substitution handler
+fun @trmc-unify[63,5,63,9] : forall<(s :: S)> (tp1 : (utype :: S -> V)<(s :: S)>, tp2 : (utype :: S -> V)<(s :: S)>, @acc : (std/core/types/ctx :: V -> V)<(utype :: S -> V)<(s :: S)>>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// Unify two types under a substitution handler
+fun @trmcm-unify[63,5,63,9] : forall<(s :: S)> (tp1 : (utype :: S -> V)<(s :: S)>, tp2 : (utype :: S -> V)<(s :: S)>, @accm : ((utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// Unify two types under a substitution handler
+fun unify[63,5,63,9] : forall<(s :: S)> (tp1 : (utype :: S -> V)<(s :: S)>, tp2 : (utype :: S -> V)<(s :: S)>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (utype :: S -> V)<(s :: S)>;
+// Helpers to create types
+fun inttp[84,5,84,9] : forall<(s :: S)> () -> (utype :: S -> V)<(s :: S)>;
+fun list[87,5,87,8] : forall<(s :: S)> (tp1 : (utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>;
+fun to[90,5,90,6] : forall<(s :: S)> (tp1 : (utype :: S -> V)<(s :: S)>, tp2 : (utype :: S -> V)<(s :: S)>) -> (utype :: S -> V)<(s :: S)>;
+pub fun show[93,9,93,12] : (tp : ntype, top : (std/core/types/@optional :: V -> V)<std/core/types/bool>) -> std/core/types/string;
+// monadic lift
+fun @mlift-example@10138[1,0,1,0] : forall<(s :: S)> (@y-x10092 : (utype :: S -> V)<(s :: S)>) -> <(std/core/pure :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> ntype;
+// monadic lift
+fun @mlift-example@10139[1,0,1,0] : forall<(s :: S)> (a : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>, b : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ntype;
+// monadic lift
+fun @mlift-example@10140[1,0,1,0] : forall<(s :: S)> (a : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ntype;
+// Test unification
+pub fun example[103,9,103,15] : () -> <(std/core/pure :: E)> ntype;
+// monadic lift
+fun @mlift-main@10141[1,0,1,0] : (tp : ntype) -> <(std/core/pure :: E)> ();
+pub fun main[111,9,111,12] : () -> <(std/core/pure :: E),(std/core/console/console :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fip fun is-uvar // inline size: 1
+  = forall<(s :: S)> fn(utype: (utype :: S -> V)<(s :: S)>){
+    (match (utype) {
+      ((handlers/named/unify/UVar((@pat@0: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>) : (utype :: S -> V)<(s :: S)> ) as @pat: ((utype :: S -> V)<(s :: S)>))
+         -> std/core/types/True;
+      (@pat@1: ((utype :: S -> V)<(s :: S)>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-ucon // inline size: 1
+  = forall<(s :: S)> fn(utype: (utype :: S -> V)<(s :: S)>){
+    (match (utype) {
+      ((handlers/named/unify/UCon((@pat@0: std/core/types/string) : std/core/types/string) : (utype :: S -> V)<(s :: S)> ) as @pat: ((utype :: S -> V)<(s :: S)>))
+         -> std/core/types/True;
+      (@pat@1: ((utype :: S -> V)<(s :: S)>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-uapp // inline size: 1
+  = forall<(s :: S)> fn(utype: (utype :: S -> V)<(s :: S)>){
+    (match (utype) {
+      ((handlers/named/unify/UApp((@pat@0: (utype :: S -> V)<(s :: S)>) : (utype :: S -> V)<(s :: S)>, (@pat@1: (utype :: S -> V)<(s :: S)>) : (utype :: S -> V)<(s :: S)>) : (utype :: S -> V)<(s :: S)> ) as @pat: ((utype :: S -> V)<(s :: S)>))
+         -> std/core/types/True;
+      (@pat@2: ((utype :: S -> V)<(s :: S)>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-con // inline size: 1
+  = fn(ntype: ntype){
+    match (ntype) {
+      ((handlers/named/unify/Con((@pat@0: std/core/types/string) : std/core/types/string) : ntype ) as @pat: ntype)
+         -> std/core/types/True;
+      ((@skip handlers/named/unify/App((@pat@2: ntype) : ntype, (@pat@3: ntype) : ntype) : ntype ) as @pat@1: ntype)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-app // inline size: 1
+  = fn(ntype: ntype){
+    match (ntype) {
+      ((handlers/named/unify/App((@pat@0: ntype) : ntype, (@pat@1: ntype) : ntype) : ntype ) as @pat: ntype)
+         -> std/core/types/True;
+      ((@skip handlers/named/unify/Con((@pat@3: std/core/types/string) : std/core/types/string) : ntype ) as @pat@2: ntype)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fun subst/@cfc // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(subst@0: (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (subst@0) {
+      ((@skip handlers/named/unify/@Hnd-subst((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun subst/@ctl-fresh // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(subst@0: (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (subst@0) {
+      ((@skip handlers/named/unify/@Hnd-subst((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun fresh/@select // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(hnd: (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/named/unify/@Hnd-subst((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-fresh: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,(subst :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (subst :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((subst :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @ctl-fresh;
+    });
+  };
+inline fun fresh // inline size: 5
+  = forall<(s :: S)> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>>>(){
+    std/core/hnd/@perform0<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>>,(subst :: (S, E, V) -> V)<(s :: S)>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(subst :: (S, E, V) -> V)<(s :: S)>>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(subst :: (S, E, V) -> V)<(s :: S)>>>((std/core/hnd/@evv-at<(subst :: (S, E, V) -> V)<(s :: S)>>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),a> handlers/named/unify/#fresh/@select<(s :: S),(e :: E),a>));
+  };
+inline borrow "^" fun variable/@cfc // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(variable: (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (variable) {
+      ((@skip handlers/named/unify/@Hnd-variable((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun variable/@fun-get // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(variable: (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (variable) {
+      ((@skip handlers/named/unify/@Hnd-variable((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun get/@select // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(hnd: (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/named/unify/@Hnd-variable((@pat@0: std/core/types/int) : std/core/types/int, (@fun-get: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @fun-get;
+    });
+  };
+inline fun get // inline size: 1
+  = forall<(s :: S)> fn<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(@hname: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>){
+    std/core/hnd/@perform0<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>>,(variable :: (S, E, V) -> V)<(s :: S)>>(@hname, (forall<(e :: E),a> handlers/named/unify/#get/@select<(s :: S),(e :: E),a>));
+  };
+inline borrow "^" fun variable/@fun-resolve // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(variable: (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (variable) {
+      ((@skip handlers/named/unify/@Hnd-variable((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>, (@x: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun resolve/@select // inline size: 0
+  = forall<(s :: S),(e :: E),a> fn(hnd: (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/named/unify/@Hnd-variable((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(std/core/types/maybe :: V -> V)<(utype :: S -> V)<(s :: S)>>,(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>, (@fun-resolve: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,(e :: E),a>) : (variable :: (S, E, V) -> V)<(s :: S),(e :: E),a> ) as @pat: ((variable :: (S, E, V) -> V)<(s :: S),(e :: E),a>))
+         -> @fun-resolve;
+    });
+  };
+inline fun resolve // inline size: 1
+  = forall<(s :: S)> fn<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(@hname: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(variable :: (S, E, V) -> V)<(s :: S)>>, tp: (utype :: S -> V)<(s :: S)>){
+    std/core/hnd/@perform1<(utype :: S -> V)<(s :: S)>,(),(variable :: (S, E, V) -> V)<(s :: S)>,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(subst :: (S, E, V) -> V)<(s :: S)>>>>(@hname, (forall<(e :: E),a> handlers/named/unify/#resolve/@select<(s :: S),(e :: E),a>), tp);
+  };
+fun inttp // inline size: 1
+  = forall<(s :: S)> fn(){
+    handlers/named/unify/UCon<(s :: S)>("int");
+  };
+fun list // inline size: 2
+  = forall<(s :: S)> fn(tp1: (utype :: S -> V)<(s :: S)>){
+    handlers/named/unify/UApp<(s :: S)>((handlers/named/unify/UCon<(s :: S)>("list")), tp1);
+  };
+fun to // inline size: 3
+  = forall<(s :: S)> fn(tp1: (utype :: S -> V)<(s :: S)>, tp2: (utype :: S -> V)<(s :: S)>){
+    handlers/named/unify/UApp<(s :: S)>((handlers/named/unify/UApp<(s :: S)>((handlers/named/unify/UCon<(s :: S)>("->")), tp1)), tp2);
+  };

@@ -1,0 +1,164 @@
+// Standard `:bool` functions.
+//
+// Booleans are either `True` or `False`.
+module interface std/core/bool
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+pub fip fun (==)[20,13,20,16] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/bool;
+pub fip fun (!=)[23,13,23,16] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/bool;
+pub fip fun (<)[26,13,26,15] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/bool;
+pub fip fun (>)[32,13,32,15] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/bool;
+pub fip fun (<=)[29,13,29,16] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/bool;
+pub fip fun (>=)[35,13,35,16] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/bool;
+pub fip fun xor[38,13,38,15] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/bool;
+// Compare two booleans with `False < True`.
+pub fip fun cmp[44,13,44,15] : (x : std/core/types/bool, y : std/core/types/bool) -> std/core/types/order;
+// Order two booleans in ascending order.
+pub fip fun order2[50,13,50,18] : (x : std/core/types/bool, y : std/core/types/bool) -> (std/core/types/order2 :: V -> V)<std/core/types/bool>;
+// Convert a `:bool` to a string
+pub fun show[55,9,55,12] : (b : std/core/types/bool) -> std/core/types/string;
+// Convert a boolean to an `:int`
+pub fip fun int[59,13,59,15] : (b : std/core/types/bool) -> std/core/types/int;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fip fun (==) // inline size: 2
+  = fn(x: std/core/types/bool, y: std/core/types/bool){
+    match (x) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> y;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match (y) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/False;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+             -> std/core/types/True;
+        });
+    };
+  };
+fip fun (!=) // inline size: 2
+  = fn(x: std/core/types/bool, y: std/core/types/bool){
+    match (x) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> (match (y) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/types/False;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+             -> std/core/types/True;
+        });
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@1: std/core/types/bool)
+         -> y;
+    };
+  };
+fip fun (<) // inline size: 1
+  = fn(x: std/core/types/bool, y: std/core/types/bool){
+    match (x) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/False;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> y;
+    };
+  };
+fip fun (>) // inline size: 2
+  = fn(x: std/core/types/bool, y: std/core/types/bool){
+    match (x) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> (match (y) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/types/False;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+             -> std/core/types/True;
+        });
+      (@pat@0@1: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fip fun (<=) // inline size: 2
+  = fn(x: std/core/types/bool, y: std/core/types/bool){
+    match (x) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> (match (y) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/True;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+             -> std/core/types/False;
+        });
+      (@pat@0@1: std/core/types/bool)
+         -> std/core/types/True;
+    };
+  };
+fip fun (>=) // inline size: 2
+  = fn(x: std/core/types/bool, y: std/core/types/bool){
+    match (x) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/core/types/True;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+         -> (match (y) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+             -> std/core/types/False;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@2: std/core/types/bool)
+             -> std/core/types/True;
+        });
+    };
+  };
+fip fun xor // inline size: 2
+  = fn(x: std/core/types/bool, y: std/core/types/bool){
+    match (x) {
+      ((std/core/types/False() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> y;
+      ((@skip std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match (y) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/False;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+             -> std/core/types/True;
+        });
+    };
+  };
+fun show // inline size: 1
+  = fn(b: std/core/types/bool){
+    match (b) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> "True";
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> "False";
+    };
+  };
+fip fun int // inline size: 1
+  = fn(b: std/core/types/bool){
+    match (b) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> 1;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> 0;
+    };
+  };

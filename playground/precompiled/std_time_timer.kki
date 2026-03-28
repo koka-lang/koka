@@ -1,0 +1,93 @@
+/* High resolution timer.
+*/
+module interface std/time/timer
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/float64 = std/num/float64 = "";
+import std/num/ddouble = std/num/ddouble = "";
+import std/time/duration = std/time/duration = "";
+import std/time/instant = std/time/instant = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+fun xticks[34,8,34,13] : () -> <(std/core/types/ndet :: X)> (std/core/types/float64, std/core/types/float64);
+// Return a high-resolution time stamp in fractional SI seconds.
+// The duration is guaranteed to be monotonically increasing
+// and have at least millisecond resolution.
+pub fun ticks[30,9,30,13] : () -> <(std/core/types/ndet :: X)> std/time/duration/duration;
+// Return the smallest time difference in seconds that `ticks` can measure.
+fun xticks-resolution[44,8,44,24] : () -> <(std/core/types/ndet :: X)> std/core/types/float64;
+// Return the smallest time difference in seconds that `ticks` can measure.
+pub fun ticks-resolution[40,9,40,24] : () -> <(std/core/types/ndet :: X)> std/time/duration/duration;
+// monadic lift
+fun @mlift-elapsed@10004[1,0,1,0] : forall<a,(e :: E)> (t0 : std/time/duration/duration, x : a) -> <(std/core/types/ndet :: X)|(e :: E)> (std/time/duration/duration, a);
+// Return the number of fractional seconds that it takes to evaluate `action`.
+pub fun elapsed[50,9,50,15] : forall<a,(e :: E)> (action : () -> <(std/core/types/ndet :: X)|(e :: E)> a) -> <(std/core/types/ndet :: X)|(e :: E)> (std/time/duration/duration, a);
+// monadic lift
+fun @mlift-print-elapsed@10005[1,0,1,0] : forall<a,(e :: E)> (msg : (std/core/types/@optional :: V -> V)<std/core/types/string>, @y-x10002 : (std/time/duration/duration, a)) -> <(std/core/types/ndet :: X),(std/core/console/console :: X)|(e :: E)> a;
+// Measure the number of fractional seconds that it takes to evaluate `action`, and print `msg` postfixed with the
+// measured time in millisecond resolution.
+pub fun print-elapsed[58,9,58,21] : forall<a,(e :: E)> (action : () -> <(std/core/types/ndet :: X),(std/core/console/console :: X)|(e :: E)> a, msg : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> <(std/core/types/ndet :: X),(std/core/console/console :: X)|(e :: E)> a;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun ticks // inline size: 2
+  = fn<<(std/core/types/ndet :: X)>>(){
+    match ((std/time/timer/xticks())) {
+      ((@skip std/core/types/Tuple2((secs: std/core/types/float64) : std/core/types/float64, (frac: std/core/types/float64) : std/core/types/float64) : (std/core/types/float64, std/core/types/float64) ) as @pat: (std/core/types/float64, std/core/types/float64))
+         -> std/time/duration/#float64frac/duration(secs, frac);
+    };
+  };
+fun ticks-resolution // inline size: 3
+  = fn<<(std/core/types/ndet :: X)>>(){
+    val secs@10000[1,0,1,0] : std/core/types/float64
+          = std/time/timer/xticks-resolution();
+    std/time/duration/Duration((std/num/ddouble/Ddouble(secs@10000, 0.0)));
+  };

@@ -1,0 +1,895 @@
+/* UTC time scales and leap second support.
+
+# UTC time calculation
+
+The world's standard time scale is Universal Coordinated Time ([UTC]).
+UTC is directly based on International Atomic Time ([TAI])
+(`ts-tai`) and uses standard SI seconds. The UTC time scale differs from
+TAI in that UTC stays within 1 second of [UT1](std_time_ut1.html); the
+time scale based on the rotation of the Earth. To keep UTC close to UT1
+about every 1.5 year a _leap second_ is added to the day (appearing as
+a 60th second in the last minute of the day, e.g. 23:59:60h).
+
+In order to calculate SI second durations between time instants, we need to
+know when a leap second is inserted. For example, there was a leap second
+inserted on 2017-01-01Z, so:
+```
+time(2017,1,1,0,0,0) - time(2016,12,31,23,0,0)
+```
+equals 3601 SI seconds to account for the extra leap second. We also need to
+know the inserted leap seconds to convert UTC time to TAI which forms the
+basis of many other time scales (see [``std/time/astro``](std_time_astro.html)).
+
+The occurrence of leap seconds cannot be reliably predicted though and
+the IERS
+usually [announces](https://hpiers.obspm.fr/iers/bul/bulc/bulletinc.dat)
+leap seconds about half a year in advance. The [IERS leap second][iersl]
+table contains a list of all currently announced leap seconds. _As such,
+any future duration calculation in UTC is essentially non-deterministic since
+it may be off by a number of (as yet unannounced) leap seconds_. This means
+in practice:
+
+* You cannot reliably tell how many SI seconds in the future a certain
+  UTC time occurs (since there may be leap seconds inserted in the future).
+  If you need to store a future date, then
+  store it as an ISO calendar date, like ``2020-01-01T12:00:00Z``,
+  not as a time stamp.
+
+* Do not use Unix time stamps as those may be ambiguous (see `unix-instant`);
+  this library
+  already defaults to time stamps as SI seconds since `epoch` which are
+  monotonic and unambiguous. If no interaction with the user is needed,
+  consider using TAI time and calendar instead.
+
+## Effect types and future leap seconds
+
+Since UTC time calculations depend on a leap second table (`:leaps-table`),
+the UTC time scale can only be created from such table (`ts-utc-create`).
+For most precise UTC time, you can use [`ts-utc-load`](std_time_download.html#ts_utc_load)
+to automatically download and cache the latest IERS leap second information.
+This can be somewhat cumbersome though as this is a function with an `:io` effect.
+
+International Time ([TI]) (or _Temps International_) is a proposed time scale
+that matches exactly UTC up to some date but with no further leap seconds
+added  after that -- which makes time calculations robust and deterministic
+with regard to future dates. For this reason, this library defaults to using
+TI instead of UTC. The TI time scale (`ts-ti`) is defined
+to exactly match UTC before the compiler release date (currently 2019) but
+ignores any future leap seconds.
+
+## UTC between 1961 and 1972
+
+UTC only got integral leap seconds after 1972-01-01Z.
+Before 1972, the UTC time was broadcast using a combination of
+fixed time steps (i.e. _mini leap seconds_) and an offset from the atomic
+clock frequency. By adjusting the frequency, UTC time was effectively
+running at a linearly adjusted rate relative to TAI. We call this
+adjustment _drift_. For example, between 1963-11-01Z and 1964-01-01Z
+the frequency offset was -130&times;10^-10^ which means UTC was running
+ahead of TAI by 0.0011232 seconds per day. The drift was then defined as:
+
+&quad;(TAI-UTC) = 1.9458580 + 0.0011232&times;&Delta;(1962-01-01)
+
+where the function &Delta;(_date_) returns the number of days since
+_date_. Therefore, the difference started as 2.6972788s (as there were
+669 days between 1962-01-01 and 1963-11-01) and increased linearly up to
+2.7657940s on 1964-01-01Z. For dates between 1961-01-01Z and 1972-01-01Z
+the library calculates the UTC time based on the historical [USNO][dat]
+drift data (see Table [#tab-utc]).
+
+Here are some interesting time steps that occurred in this time frame:
+
+* There was a negative time step of -0.1s inserted on 1968-02-01Z:
+  ```
+  instant(1968,1,31,23,59,59,0.9).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
+  instant(1968,2,1).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
+  ```
+  The only other negative time step was inserted on 1961-08-01Z with a
+  duration of -0.05s.
+
+* On the transition to modern UTC at 1972-01-01Z there is a mini leap second of 0.107758s.
+  (because the final drift just before 1971-01-01 is 9.892242s)
+  ```
+  instant(1972,1,1,0,0,9,0.99999999,cal=cal-tai).time.show(6) == "1971-12-31T23:59:60.107758Z"
+  instant(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z"
+  ```
+
+UTC was only established in 1960 (Arias and Guinot [@Arias:utc]), and the TAI
+instant 1961-01-01 00:00:01.422818Z TAI was set to be UTC instant
+1961-01-01Z exactly.
+
+## UTC before 1961
+
+The TAI timescale was established with a 1958-01-01Z epoch, where
+the difference (UT2 - TAI) was set to be approximately zero[^fn-taiepoch].
+In the time frame 1958 up to 1961 the relation between TAI and UTC
+is not formally defined.
+
+We can however use the time steps and frequency adjustments as broadcast by
+the NIST WWV radio station (see Explanatory Supplement to the Astronomical
+Almanac [@Almanac, pages [86--87][astroa]]).  Historically there were
+18 20ms time steps from 1958. The frequency offset in the year 1958 is
+not clear, and is described in the Supplement as  ".. an offset of _about_
+-100&times;10^-10^ during 1958".  We fixed the offset at -85&times;10^-10^ in
+order to have a zero difference from TAI at exactly 1958-01-01Z.
+
+In the library, this makes UTC coincide with TAI up to 1958-01-01,
+interpolated with 'drift' up to 1972-01-01, and using integral leap-seconds
+after that.
+
+Interestingly, in the time before 1961, most leap steps occurred at 19:00h
+instead of at the last second of the day, for example, on 1959-01-28
+there was a 0.02s leap step:
+```
+instant(1959,1,28,19,0,0,0.50,cal=cal-tai).time.show == "1959-01-28T18:59:60.007866Z"
+instant(1959,1,28,19,0,0,0.52,cal=cal-tai).time.show == "1959-01-28T19:00:00.007866Z"
+```
+showing the seconds at 60 just before 19:00h.
+
+## All historical leap second adjustments
+
+Table [#tab-utc] shows all leap second time steps from 1958 up to 2017. This table
+is calculated and uses historical data for time steps before 1972.
+
+~ Begin TableFigure { #tab-utc; caption:"Leap second time steps since 1958. The function \
+  &Delta;(_date_) returns the number of days since _date_. Entries after \
+  1972 are based on [IERS data][iersl]. The entries before 1972 are  \
+  derived from the _Explanatory Supplement to the Astronomical Almanac_, by \
+  P. Kenneth Seidelmann [@Almanac, pages [86--87][astroa]]. Entries before 1961 are based on the \
+  time steps broadcast by the NIST [WWV] radio station."}
+
+|-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
+| Date (UTC) &quad; | Time steps &quad; &quad; | (TAI--UTC)     | (TAI--UTC)     | Drift                                           | &quad; Frequency |
+|                   |                          | Just before\ \ | On the date&quad; |                                                 | Offset    |
++:------------------|--------------------------|:---------------|:---------------|-------------------------------------------------|----------:+
+| 1958-01-01        | +0                       | 0.000000       | 0.000000       | 0.000000s + 0.00073458&times;&Delta;(1958-01-01) | -85&times;10^-10^ |
+| 1958-01-15, 19:00 | +0.020                   | 0.010866       | 0.030866       | 0.020000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-02-05, 19:00 | +0.020                   | 0.046292       | 0.066292       | 0.040000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-02-19, 19:00 | +0.020                   | 0.076576       | 0.096576       | 0.060000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-04-09, 19:00 | +0.020                   | 0.132570       | 0.152570       | 0.080000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-06-11, 19:00 | +0.020                   | 0.198849       | 0.218849       | 0.100000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-07-02, 19:00 | +0.020                   | 0.234275       | 0.254275       | 0.120000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-07-16, 19:00 | +0.020                   | 0.264559       | 0.284559       | 0.140000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-10-22, 19:00 | +0.020                   | 0.356548       | 0.376548       | 0.160000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-11-26, 19:00 | +0.020                   | 0.402258       | 0.422258       | 0.180000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-12-24, 19:00 | +0.020                   | 0.442827       | 0.462827       | 0.200000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1959-01-01        | +0                       | 0.468122       | 0.468122       | 0.468122s + 0.0008640&times;&Delta;(1959-01-01) | -100&times;10^-10^ |
+| 1959-01-28, 19:00 | +0.020                   | 0.492134       | 0.512134       | 0.488122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-02-25, 19:00 | +0.020                   | 0.536326       | 0.556326       | 0.508122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-04-05, 19:00 | +0.020                   | 0.590022       | 0.610022       | 0.528122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-08-26, 19:00 | +0.020                   | 0.733574       | 0.753574       | 0.548122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-09-30, 19:00 | +0.020                   | 0.783814       | 0.803814       | 0.568122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-11-04, 19:00 | +0.020                   | 0.834054       | 0.854054       | 0.588122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-11-18, 19:00 | +0.020                   | 0.866150       | 0.886150       | 0.608122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-12-16, 19:00 | +0.020                   | 0.910342       | 0.930342       | 0.628122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| \                 |                          |                |                   |                                                                 |                    |
+| 1960-01-01        | +0                       | 0.943482       | 0.943482       | 0.943482s + 0.0012960&times;&Delta;(1960-01-01) | -150&times;10^-10^ |
+| 1961-01-01        | +0.005                   | 1.417818       | 1.422818       | 1.422818s + 0.0012960&times;&Delta;(1961-01-01) | -150&times;10^-10^ |
+| 1961-08-01        | -0.050                   | 1.697570       | 1.647570       | 1.372818s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1962-01-01        | +0                       | 1.845858       | 1.845858       | 1.845858s + 0.0011232&times;&Delta;(1962-01-01) | -130&times;10^-10^ |
+| 1963-11-01        | +0.100                   | 2.597279       | 2.697279       | 1.945858s + 0.0011232&times;&Delta;(&quad;&quad;"&quad;&quad;) | -130&times;10^-10^ |
+| 1964-01-01        | +0                       | 2.765794       | 2.765794       | 3.240130s + 0.0012960&times;&Delta;(1965-01-01) | -150&times;10^-10^ |
+| 1964-04-01        | +0.100                   | 2.883730       | 2.983730       | 3.340130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1964-09-01        | +0.100                   | 3.182018       | 3.282018       | 3.440130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-01-01        | +0.100                   | 3.440130       | 3.540130       | 3.540130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-03-01        | +0.100                   | 3.616594       | 3.716594       | 3.640130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-07-01        | +0.100                   | 3.874706       | 3.974706       | 3.740130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-09-01        | +0.100                   | 4.055058       | 4.155058       | 3.840130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1966-01-01        | +0                       | 4.313170       | 4.313170       | 4.313170s + 0.0025920&times;&Delta;(1966-01-01) | -300&times;10^-10^ |
+| 1968-02-01        | -0.100                   | 6.285682       | 6.185682       | 4.213170s + 0.0025920&times;&Delta;(&quad;&quad;"&quad;&quad;) | -300&times;10^-10^ |
+| \                 |                          |                |                   |                                                                 |                    |
+| 1972-01-01        | +0.107758                | 9.892242       | 10             |                                                 |            |
+| 1972-07-01        | +1                       | 10             | 11             |                                                 |            |
+| 1973-01-01        | +1                       | 11             | 12             |                                                 |            |
+| 1974-01-01        | +1                       | 12             | 13             |                                                 |            |
+| 1975-01-01        | +1                       | 13             | 14             |                                                 |            |
+| 1976-01-01        | +1                       | 14             | 15             |                                                 |            |
+| 1977-01-01        | +1                       | 15             | 16             |                                                 |            |
+| 1978-01-01        | +1                       | 16             | 17             |                                                 |            |
+| 1979-01-01        | +1                       | 17             | 18             |                                                 |            |
+| 1980-01-01        | +1                       | 18             | 19             |                                                 |            |
+| 1981-07-01        | +1                       | 19             | 20             |                                                 |            |
+| 1982-07-01        | +1                       | 20             | 21             |                                                 |            |
+| 1983-07-01        | +1                       | 21             | 22             |                                                 |            |
+| 1985-07-01        | +1                       | 22             | 23             |                                                 |            |
+| 1988-01-01        | +1                       | 23             | 24             |                                                 |            |
+| 1990-01-01        | +1                       | 24             | 25             |                                                 |            |
+| 1991-01-01        | +1                       | 25             | 26             |                                                 |            |
+| 1992-07-01        | +1                       | 26             | 27             |                                                 |            |
+| 1993-07-01        | +1                       | 27             | 28             |                                                 |            |
+| 1994-07-01        | +1                       | 28             | 29             |                                                 |            |
+| 1996-01-01        | +1                       | 29             | 30             |                                                 |            |
+| 1997-07-01        | +1                       | 30             | 31             |                                                 |            |
+| 1999-01-01        | +1                       | 31             | 32             |                                                 |            |
+| 2006-01-01        | +1                       | 32             | 33             |                                                 |            |
+| 2009-01-01        | +1                       | 33             | 34             |                                                 |            |
+| 2012-07-01        | +1                       | 34             | 35             |                                                 |            |
+| 2015-07-01        | +1                       | 35             | 36             |                                                 |            |
+| 2017-01-01        | +1                       | 36             | 37             |                                                 |            |
+|-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
+{white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
+
+~ End TableFigure
+
+-- Daan Leijen, 2016.
+
+## References { - }
+
+~ Begin Bibliography { caption:"9" }
+
+~~ BibItem { #Arias:utc; bibitem-label:"[1]"; searchterm:"Arias+Coordinated+universal+time+UTC+historical+background+perspectives" }
+E.F.\ Arias and B.\ Guinot.
+_Coordinated universal time UTC: historical background and perspectives_.
+Journ&eacute;es Syst&egrave;mes de R&eacute;f&eacute;rence Spatio-Temporels. 2004.
+[pdf][utchistory].
+~~
+
+~~ BibItem { #Almanac; bibitem-label:"[2]"; searchterm:"Explanatory+Supplement+to+the+Astronomical+Almanac" }
+P.K.\ Seidelmann.
+_Explanatory Supplement to the Astronomical Almanac_.
+University Science Books, 1992. [book][astroa]
+~~
+
+~~ BibItem { #taiepoch; bibitem-label:"[3]"; searchterm:"History+of+the+Bureau+International+lHeure+Guinot" }
+B.\ Guinot.
+_	History of the Bureau International de l'Heure_.
+In "Polar Motion: Historical and Scientific Problems", ASP Conference Series, Vol. 208,
+Edited by Steven Dick, Dennis McCarthy, and Brian Luzum.
+ISBN: 1-58381-039-0, 2000., p.175.
+[pdf][taiepoch]
+~~
+
+~~ BibItem { #byear; bibitem-label:"[4]"; searchterm:"Besselian+Year+Precession+Matrix+Based+on+IAU+Lieske" }
+Jay\ Lieske.
+_Precession Matrix Based on IAU_ (1976).
+System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282--284. 1979.
+[wikipedia](https://en.wikipedia.org/wiki/Year#Besselian_year)
+~~
+
+~ End Bibliography
+
+[^fn-taiepoch]: The difference TAI-UT2 was supposed to be zero on 1958-01-01Z TAI but different
+    observatories used their own versions of UT2 leading to longitude errors
+    of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s &plusmn; 0.003s
+    (see [historical &Delta;T](https://maia.usno.navy.mil/ser7/historic_deltat.data)),
+    which equals 1958-01-01T00:00:00.018 UT1 time.
+    When we calculate UT2 using the current definition [@Almanac, page 85]:
+
+    > UT2 = UT1 + 0.022&centerdot;sin(2&pi;&tau;) - 0.012&centerdot;cos(2&pi;&tau;) - 0.006&centerdot;sin(4&pi;&tau;) + 0.007&centerdot;cos(4&pi;&tau;)
+
+    where &tau; is the fraction of the Besselian year [@byear]:
+
+    > &tau; = 1900.0 + (JD~TT~ - 2415020.31352) / 365.242198781
+
+    we get 1958-01-01T00:00:00.013023922Z UT2. A difference of about 0.013s with TAI.
+
+[iersl]: https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list
+[dat]: https://maia.usno.navy.mil/ser7/tai-utc.dat
+[astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
+[utchistory]: https://syrte.obspm.fr/journees2004/pdf/Arias2.pdf
+[taiepoch]:https://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?2000ASPC..208..175G&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf
+[WWV]: https://www.nist.gov/time-and-frequency-services/nist-radio-stations/wwv
+[UTC]: std_time_astro.html
+[TAI]: std_time_astro.html
+[TI]: std_time_astro.html
+[TIpropose]: https://syrte.obspm.fr/journees2004/pdf/McCarthy2.pdf#page=4
+\/
+*/
+module interface std/time/utc
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/float64 = std/num/float64 = "";
+import std/num/ddouble = std/num/ddouble = "";
+import std/text/parse = std/text/parse = "";
+import std/time/timestamp = std/time/timestamp = "";
+import std/time/duration = std/time/duration = "";
+import std/time/instant = std/time/instant = "";
+import std/num/int32 = std/num/int32 inline = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// Time spans are a time duration in some time scale represented as a `:ddouble`;
+// this gives it very high precision and range to represent time very precisely.
+// (see the [`instant`](std_time_instant.html) module)
+local alias std/time/timestamp/timespan[25,1,25,28] = std/num/ddouble/ddouble = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// `:utc-timestamp` is UTC time since 2000-01-01
+pub alias utc-timestamp[308,1,308,35] = std/time/timestamp/timestamp = 1;
+// Leap second adjustments. For an instant `i` after `start`:\
+// ``TAI-offset = offset + (drift * days(i - drift-start))``
+pub type leap-adjust[320,1,325,1] {
+  // Leap second adjustments. For an instant `i` after `start`:\
+// ``TAI-offset = offset + (drift * days(i - drift-start))``
+  con Leap-adjust[320,17,320,27](utc-start: (utc-timestamp == 1 std/time/timestamp/timestamp), offset: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), drift-start: (utc-timestamp == 1 std/time/timestamp/timestamp), drift: std/num/ddouble/ddouble){32,2,8} : (utc-start : (utc-timestamp == 1 std/time/timestamp/timestamp), offset : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), drift-start : (utc-timestamp == 1 std/time/timestamp/timestamp), drift : std/num/ddouble/ddouble) -> leap-adjust = 1;
+};
+// A leap second table describes when UTC leap seconds occur.
+pub type leaps-table[311,1,316,1] {
+  // A leap second table describes when UTC leap seconds occur.
+  con Leaps-table[311,17,311,27](expire: std/time/instant/instant, adjusts: (std/core/types/list :: V -> V)<leap-adjust>){0,3,8} : (expire : std/time/instant/instant, adjusts : (std/core/types/list :: V -> V)<leap-adjust>) -> leaps-table = 1;
+};
+// Return the UTC timescale with the latest leap second information.
+pub recursive effect type utc[296,1,296,32] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-utc[296,1,296,17](@cfc: std/core/types/int, @fun-utc: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>) -> (utc :: (E, V) -> V)<(e :: E),a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:utc` type.
+fun utc/@cfc[296,1,296,17] : forall<(e :: E),a> (^ utc : (utc :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// select `utc` operation out of effect `:utc`
+pub fun utc/@select[296,16,296,32] : forall<(e :: E),a> (^ hnd : (utc :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>;
+// Call the `fun utc` operation of the effect `:utc`
+pub fun utc[296,16,296,18] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>> std/time/instant/timescale;
+// Automatically generated. Retrieves the `@fun-utc` constructor field of the `:utc` type.
+fun utc/@fun-utc[296,16,296,32] : forall<(e :: E),a> (^ utc : (utc :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>;
+// runtime tag for the effect `:utc`
+pub val utc/@tag[296,1,296,17] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(utc :: (E, V) -> V)>;
+// handler for the effect `:utc`
+pub fun utc/@handle[296,16,296,17] : forall<a,(e :: E),b> (hnd : (utc :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `expire` constructor field of the `:leaps-table` type.
+pub fun leaps-table/expire[312,7,312,12] : (^ @this : leaps-table) -> std/time/instant/instant;
+// Automatically generated. Retrieves the `adjusts` constructor field of the `:leaps-table` type.
+fun leaps-table/adjusts[315,3,315,9] : (^ @this : leaps-table) -> (std/core/types/list :: V -> V)<leap-adjust>;
+pub fun leaps-table/@copy[311,17,311,27] : (@this : leaps-table, expire : (std/core/types/@optional :: V -> V)<std/time/instant/instant>, adjusts : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>>) -> leaps-table;
+// Leap second adjustments. For an instant `i` after `start`:\
+// ``TAI-offset = offset + (drift * days(i - drift-start))``
+fun @create-Leap-adjust[320,17,320,27] : (utc-start : utc-timestamp, offset : std/time/timestamp/timespan, drift-start : (std/core/types/@optional :: V -> V)<utc-timestamp>, drift : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>) -> leap-adjust;
+val zero[329,5,329,8] : leap-adjust;
+// Automatically generated. Retrieves the `utc-start` constructor field of the `:leap-adjust` type.
+fun leap-adjust/utc-start[321,3,321,11] : (^ @this : leap-adjust) -> utc-timestamp;
+// Automatically generated. Retrieves the `offset` constructor field of the `:leap-adjust` type.
+fun leap-adjust/offset[322,3,322,8] : (^ @this : leap-adjust) -> std/time/timestamp/timespan;
+// Automatically generated. Retrieves the `drift-start` constructor field of the `:leap-adjust` type.
+fun leap-adjust/drift-start[323,3,323,13] : (^ @this : leap-adjust) -> utc-timestamp;
+// Automatically generated. Retrieves the `drift` constructor field of the `:leap-adjust` type.
+fun leap-adjust/drift[324,3,324,7] : (^ @this : leap-adjust) -> std/num/ddouble/ddouble;
+pub fun leap-adjust/@copy[320,17,320,27] : (@this : leap-adjust, utc-start : (std/core/types/@optional :: V -> V)<utc-timestamp>, offset : (std/core/types/@optional :: V -> V)<std/time/timestamp/timespan>, drift-start : (std/core/types/@optional :: V -> V)<utc-timestamp>, drift : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>) -> leap-adjust;
+fun is-zero[331,5,331,11] : (la : leap-adjust) -> std/core/types/bool;
+val ntp2000[417,5,417,11] : std/time/timestamp/timespan;
+val utc1958[663,5,663,11] : std/time/timestamp/timestamp;
+fun find-leap-adjust[673,5,673,20] : (utc : utc-timestamp, leaps : (std/core/types/list :: V -> V)<leap-adjust>) -> leap-adjust;
+fun utc-to-leap-adjust[668,5,668,22] : (leaps : leaps-table, utc : utc-timestamp) -> leap-adjust;
+// Get the leap-second adjustment _delta-tai_ (= TAI - UTC).
+// Needs the timestamp to handle _drift_.
+fun delta-tai[684,5,684,13] : (la : leap-adjust, utc : utc-timestamp) -> std/time/timestamp/timespan;
+fun utc-to-delta-tai[665,5,665,20] : (leaps : leaps-table, utc : utc-timestamp) -> std/time/timestamp/timespan;
+fun utc-to-tai[519,5,519,14] : (leaps : leaps-table, utc : std/time/timestamp/timestamp) -> std/time/duration/duration;
+/* Converting TAI time back to UTC is not straightforward as
+we need to estimate UTC at first as the leap table goes from UTC-to-TAI.
+Moreover, we need to detect if we crossed over a leap second, or are
+inside a leap step. Take for example the leap second of 2006-01-01
+to +33. This looks like:
+
+UTC-to-TAI-delta:                        ... +32   |   +33 ...
+
+UTC timestamp          189388799   189388799+1  189388800
+UTC 2005-12-31T23:59:     59          60   leap    00
+                 ---------|-----------|xxxxxxxxxxxx|-------------
+                          |           |            |
+TAI 2006-01-01T00:00:     31          32           33
+TAI timestamp:         189388831   189388832    189388833
+
+In the code below, suppose `tai` is `189388832.5`.
+Then we estimate at first the delta `dtai0` to +33, so our
+estimate `utc0` is `189388799.5` (just before the leap step!).
+We then use `utc0` to get delta-TAI at that time, +32 and
+set the difference `diff` to `(33-32) == 1` -- the time of the
+leap second we crossed. (usually, `diff` is zero of course).
+If the difference is positive, we then check if `utc0` is in the
+leap period itself (instead of before it): that is the case if
+the delta-TAI at `utc0+diff` equals `dtai0` again.
+If we are not in a leap second, the final utc time is the
+estimate plus the time of the leap period if we crossed over it, `utc0+diff`.
+Otherwise, the same holds but we need to add `diff` as leap seconds,
+in the example ending up as `189388799.5+1`.
+*/
+fun utc-from-tai[553,5,553,16] : (leaps : leaps-table, tai-since : std/time/duration/duration) -> std/time/timestamp/timestamp;
+// Return `Just(start,diff)` if a leap second occurred in the given day
+// (`days` after 2000-01-01) with the start time and leap second gap (`diff`)
+fun utc-leap-in-day[570,5,570,19] : (leaps : leaps-table, days : std/core/types/int) -> (std/core/types/maybe :: V -> V)<(std/time/timestamp/timestamp, std/time/timestamp/timespan)>;
+// The UTC seconds in a day
+fun utc-seconds-in-day[584,5,584,22] : (leaps : leaps-table, utc : std/time/timestamp/timestamp) -> std/time/timestamp/timespan;
+// Return the modified julian day since 2000-01-01 taking leap seconds into
+// account that happen any time during the day
+fun utc-to-mjd[592,5,592,14] : (leaps : leaps-table, utc : utc-timestamp, tzdelta : std/time/timestamp/timespan) -> std/num/ddouble/ddouble;
+// Return UTC from the modified julian day since 2000-01-01 taking leap seconds into
+// account that happen any time during the day
+fun utc-from-mjd[606,5,606,16] : (leaps : leaps-table, days : std/core/types/int, frac : std/num/ddouble/ddouble) -> utc-timestamp;
+// Create a new time scale based on UTC seconds with a given `name`
+// and a leap second table.
+pub fun utc-timescale[425,9,425,21] : (name : std/core/types/string, leaps : leaps-table) -> std/time/instant/timescale;
+fun upto[714,5,714,8] : (lt : leaps-table, end : utc-timestamp) -> leaps-table;
+pub fun extend[707,9,707,14] : (leap1 : leaps-table, leap2 : leaps-table) -> leaps-table;
+// IERS leap second data valid until 2024-12-28
+val default-iers-leap-seconds[771,5,771,29] : std/core/types/string;
+val jd-epoch-shift[812,5,812,18] : std/time/timestamp/timespan;
+// JD to MJD
+val mjd-epoch-shift[813,5,813,19] : std/time/timestamp/timespan;
+// monadic lift
+fun @mlift-pexpire@10316[1,0,1,0] : (ntpex : std/num/ddouble/ddouble) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/time/timestamp/timestamp;
+// monadic lift
+fun @mlift-pexpire@10317[1,0,1,0] : (wild_@1 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/time/timestamp/timestamp;
+// monadic lift
+fun @mlift-pexpire@10318[1,0,1,0] : (wild_@0 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/time/timestamp/timestamp;
+// monadic lift
+fun @mlift-pexpire@10319[1,0,1,0] : (wild_ : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/time/timestamp/timestamp;
+fun pexpire[843,5,843,11] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/time/timestamp/timestamp;
+// val rxexpire = regex(r"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
+fun parse-expire[838,5,838,16] : (line : std/core/types/string) -> (std/core/types/maybe :: V -> V)<std/time/timestamp/timestamp>;
+fun parse-leap-expire[830,5,830,21] : (leaps : std/core/types/string, adjusts : (std/core/types/list :: V -> V)<leap-adjust>) -> std/time/instant/instant;
+// monadic lift
+fun @mlift-ptaiadjust@10320[1,0,1,0] : (dmjd : std/num/ddouble/ddouble, drift : std/num/ddouble/ddouble, mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, wild_@10 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10321[1,0,1,0] : (dmjd : std/num/ddouble/ddouble, drift : std/num/ddouble/ddouble, mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, wild_@9 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10322[1,0,1,0] : (dmjd : std/num/ddouble/ddouble, drift : std/num/ddouble/ddouble, mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, wild_@8 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10323[1,0,1,0] : (dmjd : std/num/ddouble/ddouble, mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, drift : std/num/ddouble/ddouble) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10324[1,0,1,0] : (dmjd : std/num/ddouble/ddouble, mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, @y-x10249 : (std/core/types/list :: V -> V)<std/core/types/char>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10325[1,0,1,0] : (dmjd : std/num/ddouble/ddouble, mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, @y-x10248 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10326[1,0,1,0] : (mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, dmjd : std/num/ddouble/ddouble) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10327[1,0,1,0] : (mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, @y-x10246 : (std/core/types/list :: V -> V)<std/core/types/char>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10328[1,0,1,0] : (mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble, @y-x10245 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10329[1,0,1,0] : (mjd : std/num/ddouble/ddouble, ofs : std/num/ddouble/ddouble) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10330[1,0,1,0] : (mjd : std/num/ddouble/ddouble, wild_@5 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10331[1,0,1,0] : (mjd : std/num/ddouble/ddouble, wild_@4 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10332[1,0,1,0] : (mjd : std/num/ddouble/ddouble, wild_@3 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10333[1,0,1,0] : (@y-x10240 : std/num/ddouble/ddouble) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10334[1,0,1,0] : (wild_@2 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10335[1,0,1,0] : (wild_@1 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10336[1,0,1,0] : (@y-x10237 : (std/core/types/list :: V -> V)<std/core/types/char>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10337[1,0,1,0] : (@y-x10235 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-ptaiadjust@10338[1,0,1,0] : (wild_ : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+fun ptaiadjust[853,5,853,14] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-parse-taiadjust@10339[1,0,1,0] : (x : leap-adjust, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-parse-taiadjust@10340[1,0,1,0] : (x : leap-adjust) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+fun parse-taiadjust[850,5,850,19] : (line : std/core/types/string) -> (std/core/types/maybe :: V -> V)<leap-adjust>;
+// Parse the standard UTC leap second adjustment file in the "old" .dat format as
+// in <https://maia.usno.navy.mil/ser7/tai-utc.dat>, where entries have the shape
+// ````
+// 1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
+// ````
+// which specifies the start time (`JD 2437300.5`), new TAI-UTC offset
+// (`1.4228180`s), and the drift, starting at `37300` MJD of 0.001296s per day.
+// Lines that start with ``#`` are comments. As an extension you can have an
+// expiration date on a line that starts with ``#@`` followed by seconds since
+// the NTP epoch (1900-01-01). Just as in a standard IERS leap second file.
+pub fun parse-leap-seconds-dat[825,9,825,30] : (leaps : std/core/types/string) -> leaps-table;
+// TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
+// TAI started in 1958-01-01Z. The initial official UTC time step in 1961-01-01Z was 1.422818s and before that there
+// were small steps of 20ms. See Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
+// In 1958, the supplement remarks that WWC operated at an offset of _about_ -100e-10, we
+// change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01.
+// (without a rate change it is a negative -0.0472380s).
+// Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
+val default-leap-seconds-pre72[883,5,883,30] : std/core/types/string;
+// Leap second table upto (but not including) 1972-01-01 UTC
+pub val leaps-table-pre1972[696,9,696,27] : leaps-table;
+// monadic lift
+fun @mlift-pleap@10341[1,0,1,0] : (ntpsecs : std/core/types/int, adjust : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-pleap@10342[1,0,1,0] : (ntpsecs : std/core/types/int, wild_@0 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-pleap@10343[1,0,1,0] : (ntpsecs : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+// monadic lift
+fun @mlift-pleap@10344[1,0,1,0] : (wild_ : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+fun pleap[745,5,745,9] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> leap-adjust;
+fun parse-leap[740,5,740,14] : (line : std/core/types/string) -> (std/core/types/maybe :: V -> V)<leap-adjust>;
+pub fun parse-leap-seconds[735,9,735,26] : (leaps : std/core/types/string) -> leaps-table;
+// Default TI leaps table has leap second information up to the compiler release (currently `leaps-table-y2017`).
+pub val leaps-table-ti[700,9,700,22] : leaps-table;
+/* The [TI] (_International Time_) time scale with a 2000-01-01Z UTC epoch.
+This is the default time scale used in this library. It was a
+[proposed][TIpropose] time scale at the 2004 ITU-R meeting as a replacement of UTC
+without future leap seconds. In this library, we define TI to match
+exactly UTC up to the compiler release date (currently 2017) but ignore any
+possible future leap seconds after that date. This is the preferred time scale
+in this library as it guarantees deterministic time calculations for any
+future date, i.e. before 2017-01-01Z, TI == UTC, while after that, TI == TAI - 37s.
+*/
+pub val ts-ti[466,9,466,13] : std/time/instant/timescale;
+pub fun @default-utc[298,9,298,20] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+val leaps-table0[328,5,328,16] : leaps-table;
+pub fun leap-adjust/show[334,9,334,24] : (l : leap-adjust) -> std/core/types/string;
+pub fun leaps-table/show[337,9,337,24] : (t : leaps-table) -> std/core/types/string;
+val unix2000[404,5,404,12] : std/time/timestamp/timespan;
+// Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
+// and optional leap seconds to designate instants inside a leap seconds.
+pub fun timespan/unix-instant[394,9,394,29] : (t : std/time/timestamp/timespan, leap : (std/core/types/@optional :: V -> V)<std/core/types/int>, ts : (std/core/types/@optional :: V -> V)<std/time/instant/timescale>) -> std/time/instant/instant;
+/* Given a Unix time stamp in (fractional) seconds (`secs`) and an optional separate
+fraction of seconds `frac` (for increased precision for nanosecond timestamps), return an `:instant`.
+that is `secs + frac` seconds after the Unix epoch (``1970-01-01Z``).
+
+Unfortunately, Unix time stamps are [ambiguous](https://en.wikipedia.org/wiki/Unix_time).
+The seconds `secs` are interpreted as: `val days = secs / 86400` and `val dsecs = secs % 86400`,
+where `days` is the number of days since ``1970-01-01Z`` and `dsecs` is the SI seconds into
+the day. This means that one cannot represent a possible extra leap second since it
+will look as the first second of the next day. For example, here is how the time stamps look
+around the leap second of ``1973-01-01Z``:
+````
+> instant(1972,12,31,23,59,59).unix-timestamp
+94694399
+
+> instant(1972,12,31,23,59,60).unix-timestamp
+94694400
+
+> instant(1973,1,1).unix-timestamp
+94694400
+````
+
+Internally, this library uses proper `:timestamp`s that _can_ keep track of leap seconds.
+To indicate a time in a leap second, you can use a fraction `frac` that is larger than `1.0`. For example:
+````
+> unix-instant(94694399.0).time
+1972-12-31T23:59:59Z
+
+> unix-instant(94694399.0,1.0).time
+1972-12-31T23:59:60Z
+
+> unix-instant(94694400.0).time
+1973-01-01T00:00:00Z
+````
+
+This works well for systems that support [``CLOCK_UTC``](https://www.madore.org/~david/computers/unix-leap-seconds.html).
+*/
+pub fun float64/unix-instant[380,9,380,28] : (u : std/core/types/float64, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>, ts : (std/core/types/@optional :: V -> V)<std/time/instant/timescale>) -> std/time/instant/instant;
+// Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
+// Use a fraction `> 1` to indicate a time inside a leap second.
+pub fun int/unix-instant[387,9,387,24] : (u : std/core/types/int, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>, ts : (std/core/types/@optional :: V -> V)<std/time/instant/timescale>) -> std/time/instant/instant;
+// Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
+// Since Unix time stamps are ambiguous,
+// instants inside a leap seconds show as occurring in the second after that.
+pub fun unix-timestamp[401,9,401,22] : (i : std/time/instant/instant) -> std/num/ddouble/ddouble;
+// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale.
+// It equals the `ts-ti` time scale.
+pub val ts-ntp[474,9,474,14] : std/time/instant/timescale;
+// Convert an NTP time in seconds since the NTP epoch (1900-01-01Z) to an instant.
+// Also takes an optional `leap` argument if the NTP time is inside a leap second.
+pub fun ntp-instant[408,9,408,19] : (ntp : std/num/ddouble/ddouble, leap : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/time/instant/instant;
+// Return the NTP time of an instant since the NTP epoch (1900-01-01)
+// Since NTP time stamps are ambiguous, times inside a leap second show
+// as occurring in the second after the leap second.
+pub fun ntp-timestamp[414,9,414,21] : (i : std/time/instant/instant) -> std/num/ddouble/ddouble;
+// The UTC time scale.
+pub fun ts-utc-create[442,9,442,21] : (leaps : leaps-table) -> std/time/instant/timescale;
+// [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale is equal
+// to the UTC time scale (`ts-utc`).
+pub fun ts-unix-create[447,9,447,22] : (leaps : leaps-table) -> std/time/instant/timescale;
+// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal
+// to the UTC time scale (`ts-utc`).
+pub fun ts-ntp-create[453,9,453,21] : (leaps : leaps-table) -> std/time/instant/timescale;
+// [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds.
+// It equals the `ts-ti` time scale.
+pub val ts-unix[470,9,470,15] : std/time/instant/timescale;
+/*----------------------------------------------------------------------------
+  UTC-SLS to TAI conversion
+----------------------------------------------------------------------------*/
+fun utc-sls-leap-in-day[621,5,621,23] : (leaps : leaps-table, smooth : std/time/timestamp/timespan, utc : utc-timestamp) -> (std/core/types/maybe :: V -> V)<(std/time/timestamp/timestamp, std/time/timestamp/timestamp, std/time/timestamp/timespan, std/time/timestamp/timespan)>;
+fun utc-sls-from-tai[636,5,636,20] : (leaps : leaps-table, smooth : std/time/timestamp/timespan, tai-since : std/time/duration/duration) -> std/time/timestamp/timestamp;
+fun utc-sls-to-tai[645,5,645,18] : (leaps : leaps-table, smooth : std/time/timestamp/timespan, sls : utc-timestamp) -> std/time/duration/duration;
+// Create a new smoothed leap second time scale with an optional period during
+// which smoothing takes place. This is 1000s for `ts-utc-sls`.
+fun utc-sls-timescale[479,5,479,21] : (name : std/core/types/string, leaps : leaps-table, smooth : (std/core/types/@optional :: V -> V)<std/time/timestamp/timespan>) -> std/time/instant/timescale;
+// Create a new UTC-SLS time scale from a provided leap second table `leaps`.
+// Implements a UTC time scale except without ever showing leap seconds.
+// UTC-SLS is equivalent to UTC except for the last 1000 seconds of a day where
+// a leap second occurs. On such day, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, UTC
+// and UTC-SLS are equal again.
+//
+// This is a recommended time scale to use for time stamps or communication
+// with other services since it avoids any potential trouble
+// with leap seconds while still being quite precise.
+// See also: <https://www.cl.cam.ac.uk/~mgk25/time/utc-sls>.
+//
+// You can create a UTC-SLS time scale based on the latest IERS leap second
+// data using [`cal-utc-sls-load`](std_time_download.html#cal_utc_sls_load).
+pub fun ts-utc-sls-create[504,9,504,25] : (leaps : leaps-table) -> std/time/instant/timescale;
+// TI time scale with smoothed leap seconds.\
+// Implements a TI time scale (`ts-ti`) except without ever showing leap seconds.
+// TI-SLS is equivalent to TI except for the last 1000 seconds of a day where
+// a leap second occurs. On such day, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, TI
+// and TI-SLS are equal again.
+pub val ts-ti-sls[513,9,513,17] : std/time/instant/timescale;
+// Leap second table up to 2017-01-01Z.
+pub val leaps-table-y2017[705,9,705,25] : leaps-table;
+// Get a list of leap second steps in a triple, NTP start time, offset just before, and the new offset at that time,
+// the base offset, the drift start date and the drift rate.
+pub fun get-leap-steps[719,9,719,22] : (table : (std/core/types/@optional :: V -> V)<leaps-table>) -> (std/core/types/list :: V -> V)<(utc-timestamp, std/time/timestamp/timespan, std/time/timestamp/timespan, (std/time/timestamp/timespan, utc-timestamp, std/num/ddouble/ddouble))>;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+specialize "_*" fun upto // inline size: 1
+  = fn(lt: leaps-table, end: utc-timestamp){
+    val @arg-x1670[1,0,1,0] : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>>
+          = std/core/types/@OptArg<(std/core/types/list :: V -> V)<leap-adjust>>((std/core/list/drop-while<leap-adjust,(std/core/types/total :: E)>((match (lt) {
+              ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@1: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@2: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@0: std/time/instant/instant) : std/time/instant/instant, (@x: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat: leaps-table)
+                 -> @x;
+            }), (fn(la: leap-adjust){
+              (std/core/order/(==)((std/time/timestamp/cmp((match (la) {
+                    ((@skip std/time/utc/Leap-adjust(((@skip std/time/timestamp/Timestamp((@pat@0@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@1@0: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @x@0: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@3@0: std/core/types/float64) : std/core/types/float64, (@pat@4: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@2@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), ((@skip std/time/timestamp/Timestamp((@pat@6: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@7: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@5: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@9: std/core/types/float64) : std/core/types/float64, (@pat@10: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@8: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : leap-adjust ) as @pat@3: leap-adjust)
+                       -> @x@0;
+                  }), end)), std/core/types/Gt));
+            }))));
+    std/time/utc/Leaps-table((match ((std/core/types/@NoOptArg<std/time/instant/instant>)) {
+        ((std/core/types/@OptArg((@uniq-expire@375: std/time/instant/instant) : std/time/instant/instant) : (std/core/types/@optional :: V -> V)<std/time/instant/instant> ) as @pat@11: ((std/core/types/@optional :: V -> V)<std/time/instant/instant>))
+           -> @uniq-expire@375;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/time/instant/instant> ) as @pat@0@1: ((std/core/types/@optional :: V -> V)<std/time/instant/instant>))
+           -> (match (lt) {
+            ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@0@2: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@1@1: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @x@1: std/time/instant/instant) : std/time/instant/instant, (@pat@2@1: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat@12: leaps-table)
+               -> @x@1;
+          });
+      }), (match (@arg-x1670) {
+        ((std/core/types/@OptArg((@uniq-adjusts@383: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>> ) as @pat@1@2: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>>))
+           -> @uniq-adjusts@383;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>> ) as @pat@2@2: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>>))
+           -> (match (lt) {
+            ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@1@3: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@2@3: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@0@3: std/time/instant/instant) : std/time/instant/instant, (@x@2: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat@13: leaps-table)
+               -> @x@2;
+          });
+      }));
+  };
+inline borrow "^" fun utc/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(utc@0: (utc :: (E, V) -> V)<(e :: E),a>){
+    (match (utc@0) {
+      ((@skip std/time/utc/@Hnd-utc((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>) : (utc :: (E, V) -> V)<(e :: E),a> ) as @pat: ((utc :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun utc/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (utc :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip std/time/utc/@Hnd-utc((@pat@0: std/core/types/int) : std/core/types/int, (@fun-utc: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>) : (utc :: (E, V) -> V)<(e :: E),a> ) as @pat: ((utc :: (E, V) -> V)<(e :: E),a>))
+         -> @fun-utc;
+    });
+  };
+inline fun utc // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/time/instant/timescale,<(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>>,(utc :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(utc :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(utc :: (E, V) -> V)>>((std/core/hnd/@evv-at<(utc :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), std/time/utc/#utc/@select);
+  };
+inline borrow "^" fun utc/@fun-utc // inline size: 0
+  = forall<(e :: E),a> fn(utc@0: (utc :: (E, V) -> V)<(e :: E),a>){
+    (match (utc@0) {
+      ((@skip std/time/utc/@Hnd-utc((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>) : (utc :: (E, V) -> V)<(e :: E),a> ) as @pat: ((utc :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun leaps-table/expire // inline size: 0
+  = fn(@this: leaps-table){
+    match (@this) {
+      ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@0: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@1: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @x: std/time/instant/instant) : std/time/instant/instant, (@pat@2: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat: leaps-table)
+         -> @x;
+    };
+  };
+inline borrow "^" fun leaps-table/adjusts // inline size: 0
+  = fn(@this: leaps-table){
+    match (@this) {
+      ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@1: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@2: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@0: std/time/instant/instant) : std/time/instant/instant, (@x: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat: leaps-table)
+         -> @x;
+    };
+  };
+fun leaps-table/@copy // inline size: 3
+  = fn(@this: leaps-table, expire: (std/core/types/@optional :: V -> V)<std/time/instant/instant>, adjusts: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>>){
+    std/time/utc/Leaps-table((match (expire) {
+        ((std/core/types/@OptArg((@uniq-expire@375: std/time/instant/instant) : std/time/instant/instant) : (std/core/types/@optional :: V -> V)<std/time/instant/instant> ) as @pat: ((std/core/types/@optional :: V -> V)<std/time/instant/instant>))
+           -> @uniq-expire@375;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/time/instant/instant> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/time/instant/instant>))
+           -> (match (@this) {
+            ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@0@0: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@1@0: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @x: std/time/instant/instant) : std/time/instant/instant, (@pat@2: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat@1: leaps-table)
+               -> @x;
+          });
+      }), (match (adjusts) {
+        ((std/core/types/@OptArg((@uniq-adjusts@383: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>> ) as @pat@1@1: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>>))
+           -> @uniq-adjusts@383;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>> ) as @pat@2@0: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<leap-adjust>>))
+           -> (match (@this) {
+            ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@1@2: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@2@1: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@0@1: std/time/instant/instant) : std/time/instant/instant, (@x@0: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat@3: leaps-table)
+               -> @x@0;
+          });
+      }));
+  };
+inline fun @create-Leap-adjust // inline size: 3
+  = fn(utc-start: utc-timestamp, offset: std/time/timestamp/timespan, drift-start: (std/core/types/@optional :: V -> V)<utc-timestamp>, drift: (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>){
+    std/time/utc/Leap-adjust(utc-start, offset, (match (drift-start) {
+        ((std/core/types/@OptArg((@uniq-drift-start@396: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp)) : (std/core/types/@optional :: V -> V)<(utc-timestamp == 1 std/time/timestamp/timestamp)> ) as @pat: ((std/core/types/@optional :: V -> V)<(utc-timestamp == 1 std/time/timestamp/timestamp)>))
+           -> @uniq-drift-start@396;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(utc-timestamp == 1 std/time/timestamp/timestamp)> ) as @pat@0: ((std/core/types/@optional :: V -> V)<(utc-timestamp == 1 std/time/timestamp/timestamp)>))
+           -> std/time/timestamp/timestamp0;
+      }), (match (drift) {
+        ((std/core/types/@OptArg((@uniq-drift@400: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble> ) as @pat@1: ((std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>))
+           -> @uniq-drift@400;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>))
+           -> std/num/ddouble/zero;
+      }));
+  };
+inline borrow "^" fun leap-adjust/utc-start // inline size: 0
+  = fn(@this: leap-adjust){
+    match (@this) {
+      ((@skip std/time/utc/Leap-adjust(((@skip std/time/timestamp/Timestamp((@pat@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@1: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @x: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@3: std/core/types/float64) : std/core/types/float64, (@pat@4: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@2: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), ((@skip std/time/timestamp/Timestamp((@pat@6: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@7: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@5: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@9: std/core/types/float64) : std/core/types/float64, (@pat@10: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@8: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : leap-adjust ) as @pat: leap-adjust)
+         -> @x;
+    };
+  };
+inline borrow "^" fun leap-adjust/offset // inline size: 0
+  = fn(@this: leap-adjust){
+    match (@this) {
+      ((@skip std/time/utc/Leap-adjust(((@skip std/time/timestamp/Timestamp((@pat@1: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@0: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@3: std/core/types/float64) : std/core/types/float64, (@pat@4: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), ((@skip std/time/timestamp/Timestamp((@pat@6: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@7: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@5: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@9: std/core/types/float64) : std/core/types/float64, (@pat@10: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@8: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : leap-adjust ) as @pat: leap-adjust)
+         -> @x;
+    };
+  };
+inline borrow "^" fun leap-adjust/drift-start // inline size: 0
+  = fn(@this: leap-adjust){
+    match (@this) {
+      ((@skip std/time/utc/Leap-adjust(((@skip std/time/timestamp/Timestamp((@pat@1: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@0: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@4: std/core/types/float64) : std/core/types/float64, (@pat@5: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), ((@skip std/time/timestamp/Timestamp((@pat@6: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@7: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @x: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@9: std/core/types/float64) : std/core/types/float64, (@pat@10: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@8: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : leap-adjust ) as @pat: leap-adjust)
+         -> @x;
+    };
+  };
+inline borrow "^" fun leap-adjust/drift // inline size: 0
+  = fn(@this: leap-adjust){
+    match (@this) {
+      ((@skip std/time/utc/Leap-adjust(((@skip std/time/timestamp/Timestamp((@pat@1: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@0: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@4: std/core/types/float64) : std/core/types/float64, (@pat@5: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), ((@skip std/time/timestamp/Timestamp((@pat@7: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@8: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@6: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@9: std/core/types/float64) : std/core/types/float64, (@pat@10: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : leap-adjust ) as @pat: leap-adjust)
+         -> @x;
+    };
+  };
+fun is-zero // inline size: 3
+  = fn(la: leap-adjust){
+    match ((std/num/float64/(==)((match (la) {
+        ((@skip std/time/utc/Leap-adjust(((@skip std/time/timestamp/Timestamp((@pat@1@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@0@0: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@3: std/core/types/float64) : std/core/types/float64, (@pat@4: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), ((@skip std/time/timestamp/Timestamp((@pat@6: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@7: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@5: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@9: std/core/types/float64) : std/core/types/float64, (@pat@10: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@8: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : leap-adjust ) as @pat@1: leap-adjust)
+           -> (match (@x@0) {
+            ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+               -> @x;
+          });
+      }), 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@11: std/core/types/bool)
+         -> std/num/float64/(==)((match (la) {
+            ((@skip std/time/utc/Leap-adjust(((@skip std/time/timestamp/Timestamp((@pat@1@1: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@2@0: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@0@2: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@4@0: std/core/types/float64) : std/core/types/float64, (@pat@5@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), ((@skip std/time/timestamp/Timestamp((@pat@7@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@8@0: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@6@0: (utc-timestamp == 1 std/time/timestamp/timestamp)) : (utc-timestamp == 1 std/time/timestamp/timestamp), ((@skip std/num/ddouble/Ddouble((@pat@9@0: std/core/types/float64) : std/core/types/float64, (@pat@10@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@2: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : leap-adjust ) as @pat@13: leap-adjust)
+               -> (match (@x@2) {
+                ((@skip std/num/ddouble/Ddouble((@x@1: std/core/types/float64) : std/core/types/float64, (@pat@0@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@12: std/num/ddouble/ddouble)
+                   -> @x@1;
+              });
+          }), 0.0);
+      (@pat@0@3: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fun utc-to-leap-adjust // inline size: 4
+  = fn(leaps: leaps-table, utc@0: utc-timestamp){
+    match ((std/core/order/(==)((std/time/timestamp/cmp(utc@0, std/time/utc/utc1958)), std/core/types/Lt))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/time/utc/zero;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/time/utc/find-leap-adjust(utc@0, (match (leaps) {
+            ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@1@0: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@2: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@0@0: std/time/instant/instant) : std/time/instant/instant, (@x: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat@1: leaps-table)
+               -> @x;
+          }));
+    };
+  };
+fun utc-seconds-in-day // inline size: 4
+  = fn(leaps: leaps-table, utc@0: std/time/timestamp/timestamp){
+    val tuple2@10043[1,0,1,0] : (std/core/types/int, std/num/ddouble/ddouble)
+          = std/time/timestamp/days-seconds(utc@0);
+    match ((std/time/utc/utc-leap-in-day(leaps, (match (tuple2@10043) {
+        ((@skip std/core/types/Tuple2((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : (std/core/types/int, std/num/ddouble/ddouble) ) as @pat: (std/core/types/int, std/num/ddouble/ddouble))
+           -> @x;
+      })))) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<(std/time/timestamp/timestamp, (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble))> ) as @pat@1: ((std/core/types/maybe :: V -> V)<(std/time/timestamp/timestamp, (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble))>))
+         -> std/time/timestamp/solar-secs-per-day;
+      ((@skip std/core/types/Just(((@skip std/core/types/Tuple2(((@skip std/time/timestamp/Timestamp((@pat@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@4: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@2: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, ((@skip std/num/ddouble/Ddouble((@pat@5: std/core/types/float64) : std/core/types/float64, (@pat@6: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as diff: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timestamp, (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) ) as @pat@1@0: (std/time/timestamp/timestamp, (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble))) : (std/time/timestamp/timestamp, (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble))) : (std/core/types/maybe :: V -> V)<(std/time/timestamp/timestamp, (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble))> ) as @pat@0@0: ((std/core/types/maybe :: V -> V)<(std/time/timestamp/timestamp, (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble))>))
+         -> std/num/ddouble/(+)(std/time/timestamp/solar-secs-per-day, diff);
+    };
+  };
+inline val default-iers-leap-seconds // inline size: 0
+  = "\x0A  # From: https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list\x0A  #\x09Updated through IERS Bulletin C (https://hpiers.obspm.fr/iers/bul/bulc/bulletinc.dat)\x0A  # File expires on:  28 December 2024\x0A  #\x0A  #@\x093944332800\x0A  #\x0A  2272060800  10  # 1 Jan 1972\x0A  2287785600  11  # 1 Jul 1972\x0A  2303683200  12  # 1 Jan 1973\x0A  2335219200  13  # 1 Jan 1974\x0A  2366755200  14  # 1 Jan 1975\x0A  2398291200  15  # 1 Jan 1976\x0A  2429913600  16  # 1 Jan 1977\x0A  2461449600  17  # 1 Jan 1978\x0A  2492985600  18  # 1 Jan 1979\x0A  2524521600  19  # 1 Jan 1980\x0A  2571782400  20  # 1 Jul 1981\x0A  2603318400  21  # 1 Jul 1982\x0A  2634854400  22  # 1 Jul 1983\x0A  2698012800  23  # 1 Jul 1985\x0A  2776982400  24  # 1 Jan 1988\x0A  2840140800  25  # 1 Jan 1990\x0A  2871676800  26  # 1 Jan 1991\x0A  2918937600  27  # 1 Jul 1992\x0A  2950473600  28  # 1 Jul 1993\x0A  2982009600  29  # 1 Jul 1994\x0A  3029443200  30  # 1 Jan 1996\x0A  3076704000  31  # 1 Jul 1997\x0A  3124137600  32  # 1 Jan 1999\x0A  3345062400  33  # 1 Jan 2006\x0A  3439756800  34  # 1 Jan 2009\x0A  3550089600  35  # 1 Jul 2012\x0A  3644697600  36  # 1 Jul 2015\x0A  3692217600  37  # 1 Jan 2017\x0A  // 3723753600  35  # 1 Jan 2018";
+inline val default-leap-seconds-pre72 // inline size: 0
+  = "\x0A  # from: Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.\x0A  1958 JAN  1 =JD 2436204.5     TAI-UTC= 0.0  S + (MJD - 36204.) X 0.00073458 S\x0A  1958 JAN 15 =JD 2436219.29167 TAI-UTC= 0.02 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 FEB  5 =JD 2436240.29167 TAI-UTC= 0.04 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 FEB 19 =JD 2436254.29167 TAI-UTC= 0.06 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 APR  9 =JD 2436303.29167 TAI-UTC= 0.08 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 JUN 11 =JD 2436366.29167 TAI-UTC= 0.10 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 JUL  2 =JD 2436387.29167 TAI-UTC= 0.12 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 JUL 16 =JD 2436401.29167 TAI-UTC= 0.14 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 OCT 22 =JD 2436499.29167 TAI-UTC= 0.16 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 NOV 26 =JD 2436534.29167 TAI-UTC= 0.18 S + (MJD - 36204.) X 0.00073458 S\x0A  1958 DEC 24 =JD 2436562.29167 TAI-UTC= 0.20 S + (MJD - 36204.) X 0.00073458 S\x0A\x0A  1959 JAN  1 =JD 2436569.5     TAI-UTC= 0.4681220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 JAN 28 =JD 2436597.29167 TAI-UTC= 0.4881220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 FEB 25 =JD 2436625.29167 TAI-UTC= 0.5081220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 APR  5 =JD 2436664.29167 TAI-UTC= 0.5281220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 AUG 26 =JD 2436807.29167 TAI-UTC= 0.5481220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 SEP 30 =JD 2436842.29167 TAI-UTC= 0.5681220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 NOV  4 =JD 2436877.29167 TAI-UTC= 0.5881220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 NOV 18 =JD 2436891.29167 TAI-UTC= 0.6081220 S + (MJD - 36569.) X 0.000864 S\x0A  1959 DEC 16 =JD 2436919.29167 TAI-UTC= 0.6281220 S + (MJD - 36569.) X 0.000864 S\x0A  1960 JAN  1 =JD 2436934.5     TAI-UTC= 0.9434820 S + (MJD - 36934.) X 0.001296 S\x0A\x0A  # from: https://maia.usno.navy.mil/ser7/tai-utc.dat\x0A  1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S\x0A  1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S\x0A  1962 JAN  1 =JD 2437665.5  TAI-UTC=   1.8458580 S + (MJD - 37665.) X 0.0011232S\x0A  1963 NOV  1 =JD 2438334.5  TAI-UTC=   1.9458580 S + (MJD - 37665.) X 0.0011232S\x0A  1964 JAN  1 =JD 2438395.5  TAI-UTC=   3.2401300 S + (MJD - 38761.) X 0.001296 S\x0A  1964 APR  1 =JD 2438486.5  TAI-UTC=   3.3401300 S + (MJD - 38761.) X 0.001296 S\x0A  1964 SEP  1 =JD 2438639.5  TAI-UTC=   3.4401300 S + (MJD - 38761.) X 0.001296 S\x0A  1965 JAN  1 =JD 2438761.5  TAI-UTC=   3.5401300 S + (MJD - 38761.) X 0.001296 S\x0A  1965 MAR  1 =JD 2438820.5  TAI-UTC=   3.6401300 S + (MJD - 38761.) X 0.001296 S\x0A  1965 JUL  1 =JD 2438942.5  TAI-UTC=   3.7401300 S + (MJD - 38761.) X 0.001296 S\x0A  1965 SEP  1 =JD 2439004.5  TAI-UTC=   3.8401300 S + (MJD - 38761.) X 0.001296 S\x0A  1966 JAN  1 =JD 2439126.5  TAI-UTC=   4.3131700 S + (MJD - 39126.) X 0.002592 S\x0A  1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S";
+fun @default-utc // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(action: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(utc :: (E, V) -> V)>|(e :: E)> a){
+    std/time/utc/#utc/@handle<a,(e :: E),a>((std/time/utc/@Hnd-utc<(e :: E),a>(1, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(op : () -> (e :: E) std/time/instant/timescale) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>,(op : () -> (e :: E) std/time/instant/timescale) -> (e :: E) (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/time/instant/timescale,(utc :: (E, V) -> V),(e :: E),a>>((std/core/hnd/clause-tail0<(e :: E),a,(utc :: (E, V) -> V),std/time/instant/timescale>))((fn<(e :: E)>(){
+          std/time/utc/ts-ti;
+        }))))), (fn<(e :: E)>(@res: a){
+        @res;
+      }), action);
+  };
+fun leaps-table/show // inline size: 2
+  = fn(t: leaps-table){
+    std/core/list/unlines((std/core/list/map<leap-adjust,std/core/types/string,(std/core/types/total :: E)>((match (t) {
+        ((@skip std/time/utc/Leaps-table(((@skip std/time/instant/Instant((@pat@1: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, (@pat@2: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@0: std/time/instant/instant) : std/time/instant/instant, (@x: (std/core/types/list :: V -> V)<leap-adjust>) : (std/core/types/list :: V -> V)<leap-adjust>) : leaps-table ) as @pat: leaps-table)
+           -> @x;
+      }), std/time/utc/#leap-adjust/show)));
+  };
+fun unix-timestamp // inline size: 3
+  = fn(i: std/time/instant/instant){
+    std/num/ddouble/(+)(std/time/utc/unix2000, (std/time/timestamp/unsafe-timespan-withleap((std/time/instant/convert((match (i) {
+          ((@skip std/time/instant/Instant(((@skip std/time/timestamp/Timestamp((@pat@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@1: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @x: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, ((@skip std/time/instant/Timescale((@pat@3: std/core/types/string) : std/core/types/string, (@pat@4: std/core/types/string) : std/core/types/string, (@pat@5: (std/time/duration/duration) -> std/time/timestamp/timestamp) : (std/time/duration/duration) -> std/time/timestamp/timestamp, (@pat@6: (std/time/timestamp/timestamp) -> std/time/duration/duration) : (std/time/timestamp/timestamp) -> std/time/duration/duration, (@pat@7: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>, (@pat@8: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>, (@pat@9: (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : std/time/instant/timescale ) as @pat@2: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat: std/time/instant/instant)
+             -> @x;
+        }), (match (i) {
+          ((@skip std/time/instant/Instant(((@skip std/time/timestamp/Timestamp((@pat@1@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@2@0: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@0@0: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, ((@skip std/time/instant/Timescale((@pat@3@0: std/core/types/string) : std/core/types/string, (@pat@4@0: std/core/types/string) : std/core/types/string, (@pat@5@0: (std/time/duration/duration) -> std/time/timestamp/timestamp) : (std/time/duration/duration) -> std/time/timestamp/timestamp, (@pat@6@0: (std/time/timestamp/timestamp) -> std/time/duration/duration) : (std/time/timestamp/timestamp) -> std/time/duration/duration, (@pat@7@0: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>, (@pat@8@0: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>, (@pat@9@0: (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : std/time/instant/timescale ) as @x@0: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@10: std/time/instant/instant)
+             -> @x@0;
+        }), std/time/utc/ts-ti)))));
+  };
+inline val ts-ntp // inline size: 0
+  = std/time/utc/ts-ti;
+fun ntp-timestamp // inline size: 3
+  = fn(i: std/time/instant/instant){
+    std/num/ddouble/(+)(std/time/utc/ntp2000, (std/time/timestamp/unsafe-timespan-withleap((std/time/instant/convert((match (i) {
+          ((@skip std/time/instant/Instant(((@skip std/time/timestamp/Timestamp((@pat@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@1: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @x: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, ((@skip std/time/instant/Timescale((@pat@3: std/core/types/string) : std/core/types/string, (@pat@4: std/core/types/string) : std/core/types/string, (@pat@5: (std/time/duration/duration) -> std/time/timestamp/timestamp) : (std/time/duration/duration) -> std/time/timestamp/timestamp, (@pat@6: (std/time/timestamp/timestamp) -> std/time/duration/duration) : (std/time/timestamp/timestamp) -> std/time/duration/duration, (@pat@7: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>, (@pat@8: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>, (@pat@9: (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : std/time/instant/timescale ) as @pat@2: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat: std/time/instant/instant)
+             -> @x;
+        }), (match (i) {
+          ((@skip std/time/instant/Instant(((@skip std/time/timestamp/Timestamp((@pat@1@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble), (@pat@2@0: std/core/types/int32) : std/core/types/int32) : std/time/timestamp/timestamp ) as @pat@0@0: std/time/timestamp/timestamp) : std/time/timestamp/timestamp, ((@skip std/time/instant/Timescale((@pat@3@0: std/core/types/string) : std/core/types/string, (@pat@4@0: std/core/types/string) : std/core/types/string, (@pat@5@0: (std/time/duration/duration) -> std/time/timestamp/timestamp) : (std/time/duration/duration) -> std/time/timestamp/timestamp, (@pat@6@0: (std/time/timestamp/timestamp) -> std/time/duration/duration) : (std/time/timestamp/timestamp) -> std/time/duration/duration, (@pat@7@0: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>, (@pat@8@0: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>, (@pat@9@0: (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : std/time/instant/timescale ) as @x@0: std/time/instant/timescale) : std/time/instant/timescale) : std/time/instant/instant ) as @pat@10: std/time/instant/instant)
+             -> @x@0;
+        }), std/time/utc/ts-ti)))));
+  };
+fun ts-utc-create // inline size: 1
+  = fn(leaps: leaps-table){
+    std/time/utc/utc-timescale("UTC", leaps);
+  };
+fun ts-unix-create // inline size: 1
+  = fn(leaps: leaps-table){
+    std/time/utc/utc-timescale("UTC", leaps);
+  };
+fun ts-ntp-create // inline size: 1
+  = fn(leaps: leaps-table){
+    std/time/utc/utc-timescale("UTC", leaps);
+  };
+inline val ts-unix // inline size: 0
+  = std/time/utc/ts-ti;

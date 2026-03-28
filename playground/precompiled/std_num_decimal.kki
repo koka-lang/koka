@@ -1,0 +1,663 @@
+// Arbitrary precision decimal numbers.
+//
+// Decimals have arbitrary precision and range and
+// do exact decimal arithmetic and are well suited for
+// financial calculations for example.
+module interface std/num/decimal
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/text/parse = std/text/parse = "";
+import std/num/float64 = std/num/float64 = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// Type of a decimal number. Decimals have arbitrary precision and range and
+// do exact decimal arithmetic and are well suited for financial calculations for
+// example.
+pub value{0,2,8} type decimal[22,1,24,11] {
+  // Type of a decimal number. Decimals have arbitrary precision and range and
+// do exact decimal arithmetic and are well suited for financial calculations for
+// example.
+  con Decimal[22,23,22,29](num: std/core/types/int, exp: std/core/types/int){0,2,8} : (num : std/core/types/int, exp : std/core/types/int) -> decimal = 1;
+};
+// Rounding modes.
+pub value{1,0,1} type round[175,1,193,20] {
+  // Round to neareast integer, round to the even number in case of a tie
+  pub con Half-even[177,7,177,15]{0,0,0} : round = 1;
+  // Round to nearest integer, round towards infinity in case of a tie
+  pub con Half-ceiling[179,7,179,18]{0,0,0} : round = 2;
+  // Round to nearest integer, round towards negative infinity in case of a tie
+  pub con Half-floor[181,7,181,16]{0,0,0} : round = 3;
+  // Round to nearest integer, round towards zero in case of a tie
+  pub con Half-truncate[183,7,183,19]{0,0,0} : round = 4;
+  // Round to nearest integer, round away from zero in case of a tie
+  pub con Half-away-from-zero[185,7,185,25]{0,0,0} : round = 5;
+  // Round to the minimum integer that is larger or equal
+  pub con Ceiling[187,7,187,13]{0,0,0} : round = 6;
+  // Round to the maximum integer that is lower or equal
+  pub con Floor[189,7,189,11]{0,0,0} : round = 7;
+  // Round to the nearest integer towards zero (i.e. _truncate_)
+  pub con Truncate[191,7,191,14]{0,0,0} : round = 8;
+  // Round to the nearest integer away from zero, i.e. toward negative infinity for negative numbers, and positive infinity for positive numbers.
+  pub con Away-from-zero[193,7,193,20]{0,0,0} : round = 9;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `num` constructor field of the `:decimal` type.
+fun decimal/num[23,3,23,5] : (^ decimal : decimal) -> std/core/types/int;
+// Automatically generated. Retrieves the `exp` constructor field of the `:decimal` type.
+fun decimal/exp[24,3,24,5] : (^ decimal : decimal) -> std/core/types/int;
+pub fun decimal/@copy[22,23,22,29] : (@this : decimal, num : (std/core/types/@optional :: V -> V)<std/core/types/int>, exp : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> decimal;
+// The decimal zero.
+pub val zero[28,9,28,12] : decimal;
+// Negate a decimal.
+pub fun (~)[127,9,127,11] : (x : decimal) -> decimal;
+// Is this decimal zero?
+pub fun is-zero[152,9,152,15] : (x : decimal) -> std/core/types/bool;
+// Is the decimal positive?
+pub fun is-pos[156,9,156,14] : (x : decimal) -> std/core/types/bool;
+// Is the decimal negative?
+pub fun is-neg[160,9,160,14] : (x : decimal) -> std/core/types/bool;
+// The absolute value of a decimal
+pub fun abs[325,9,325,11] : (x : decimal) -> decimal;
+// round exponents to specific intervals (7) to avoid too much rescaling
+fun round-exp[31,5,31,13] : (exp : std/core/types/int) -> std/core/types/int;
+// Create a decimal from an integer `i` with an optional
+// exponent `exp` (=`0`) such that the result equals `i`&times;10^`exp`^.
+fun decimal-exp[42,5,42,15] : (i : std/core/types/int, exp : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> decimal;
+// Ensure a decimal `x` has an exponent such that `x.exp <= e`.
+fun expand[103,5,103,10] : (x : decimal, e : std/core/types/int) -> decimal;
+// Compare decimals.
+pub fun cmp[293,9,293,11] : (x : decimal, y : decimal) -> std/core/types/order;
+pub fun (!=)[304,9,304,12] : (x : decimal, y : decimal) -> std/core/types/bool;
+// Choose an exponent that minimizes memory usage.
+pub fun reduce[110,9,110,14] : (x : decimal) -> decimal;
+// Multiply two decimals with full precision.
+pub fun (*)[164,9,164,11] : (x : decimal, y : decimal) -> decimal;
+// Add two decimals.
+pub fun (+)[118,9,118,11] : (x : decimal, y : decimal) -> decimal;
+// Subtract two decimals.
+pub fun (-)[131,9,131,11] : (x : decimal, y : decimal) -> decimal;
+/* Divide two decimals with a given extra precision `min-prec` (=`15`).
+The `min-prec` is the number of extra digits used to calculate inexact
+divisions.
+
+Note: the division uses up to `min-prec` precision using `Floor` rounding
+for the last digit if the result is  inexact. To round differently, you can
+for example divide with larger precision and use `round-to-prec`.
+```
+> div( decimal(2), decimal(3), 0 )
+0
+> div( decimal(2), decimal(3), 1 )
+0.6
+> div( decimal(2), decimal(3) )  // default precision is 15
+0.6666666666666666
+> div( decimal(2), decimal(3) ).round-to-prec(6)
+0.666667
+```
+.
+*/
+pub fun div[268,9,268,11] : (x : decimal, y : decimal, min-prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> decimal;
+// Divide two decimals using 15 digits of extra precision.
+pub fun (/)[288,9,288,11] : (x : decimal, y : decimal) -> decimal;
+pub fun (<=)[306,9,306,12] : (x : decimal, y : decimal) -> std/core/types/bool;
+pub fun (==)[303,9,303,12] : (x : decimal, y : decimal) -> std/core/types/bool;
+pub fun (>)[301,9,301,11] : (x : decimal, y : decimal) -> std/core/types/bool;
+pub fun (>=)[302,9,302,12] : (x : decimal, y : decimal) -> std/core/types/bool;
+// The maximum of `x` and `y`
+pub fun max[317,9,317,11] : (x : decimal, y : decimal) -> decimal;
+// The minimum of `x` and `y`.
+pub fun min[313,9,313,11] : (x : decimal, y : decimal) -> decimal;
+// Create a decimal from an integer `i` with an optional
+// exponent `exp` (=`0`) such that the result equals `i`&times;10^`exp`^.
+pub fun int/decimal[36,9,36,19] : (i : std/core/types/int, exp : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> decimal;
+// Increment a decimal
+pub fun inc[135,9,135,11] : (x : decimal) -> decimal;
+// Decrement a decimal
+pub fun dec[139,9,139,11] : (x : decimal) -> decimal;
+// Is this an even decimal?
+pub fun is-even[143,9,143,15] : (x : decimal) -> std/core/types/bool;
+// Round the decimal-point number `x` to
+// to a specified number of digits behind the dot `prec` (=`0`) with an optional
+// rounding mode `rnd` (=`Half-even`). The precision can be negative.\
+// `decimal(1,485).round-to-prec(2).show == "1.48"` \
+// `decimal(112,49).round-to-prec(-1).show == "110"`
+pub fun round-to-prec[209,9,209,21] : (x : decimal, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>, rnd : (std/core/types/@optional :: V -> V)<round>) -> decimal;
+// Round a `:decimal` number to a whole number with an optional rounding mode (=`Half-even`).
+pub fun round[201,9,201,13] : (x : decimal, rnd : (std/core/types/@optional :: V -> V)<round>) -> decimal;
+pub fun (<)[305,9,305,11] : (x : decimal, y : decimal) -> std/core/types/bool;
+// Decimal to the power of `n`
+pub fun pow[169,9,169,11] : (x : decimal, n : std/core/types/int) -> decimal;
+/* Create a decimal from a `:float64` with a specified maximal precision (=`-1`).
+Use a negative maximal precision to create a decimal that precisely represents the `:float64`.
+Note: creating a `:decimal` from a `:float64` may lose precision and give surprising results as many decimal
+fractions cannot be represented precisely by a `:float64`.
+Also, `decimal(i,exp)` is more efficient and better when when exact representations
+are required. For example:
+```
+> decimal(1.1)
+1.100000000000000088817841970012523233890533447265625
+> decimal(1.1,17)
+1.10000000000000008
+> decimal(11,-1)
+1.1
+```
+.
+*/
+pub fun float64/decimal[65,9,65,23] : (d : std/core/types/float64, max-prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> decimal;
+// Is this an odd decimal?
+pub fun is-odd[147,9,147,14] : (x : decimal) -> std/core/types/bool;
+// Automatically generated. Tests for the `Half-even` constructor of the `:round` type.
+pub fip fun is-half-even[177,7,177,15] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Half-ceiling` constructor of the `:round` type.
+pub fip fun is-half-ceiling[179,7,179,18] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Half-floor` constructor of the `:round` type.
+pub fip fun is-half-floor[181,7,181,16] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Half-truncate` constructor of the `:round` type.
+pub fip fun is-half-truncate[183,7,183,19] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Half-away-from-zero` constructor of the `:round` type.
+pub fip fun is-half-away-from-zero[185,7,185,25] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Ceiling` constructor of the `:round` type.
+pub fip fun is-ceiling[187,7,187,13] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Floor` constructor of the `:round` type.
+pub fip fun is-floor[189,7,189,11] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Truncate` constructor of the `:round` type.
+pub fip fun is-truncate[191,7,191,14] : (^ round : round) -> std/core/types/bool;
+// Automatically generated. Tests for the `Away-from-zero` constructor of the `:round` type.
+pub fip fun is-away-from-zero[193,7,193,20] : (^ round : round) -> std/core/types/bool;
+// Round a `:decimal` number to an integer an optional rounding mode `rnd` (=`Half-even`).
+pub fun int[196,9,196,11] : (x : decimal, rnd : (std/core/types/@optional :: V -> V)<round>) -> std/core/types/int;
+// Optimize: Use float64 division when within precision bounds.
+val maxexp[240,5,240,10] : std/core/types/int;
+val maxpd[241,5,241,9] : std/core/types/float64;
+val maxprecise[242,5,242,14] : std/core/types/int;
+val minprecise[243,5,243,14] : std/core/types/int;
+fun is-precise[245,5,245,14] : (i : std/core/types/int) -> std/core/types/bool;
+// The sign of a decimal number.
+pub fun sign[309,9,309,12] : (x : decimal) -> std/core/types/order;
+// monadic lift
+fun @mlift-pdecimal@10262[1,0,1,0] : (wild_@0 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-pdecimal@10263[1,0,1,0] : (frac : std/core/types/string, neg : std/core/types/bool, whole : std/core/types/string, exp : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> decimal;
+// monadic lift
+fun @mlift-pdecimal@10264[1,0,1,0] : (wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/string;
+// monadic lift
+fun @mlift-pdecimal@10265[1,0,1,0] : (neg : std/core/types/bool, whole : std/core/types/string, frac : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> decimal;
+// monadic lift
+fun @mlift-pdecimal@10266[1,0,1,0] : (neg : std/core/types/bool, whole : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> decimal;
+// monadic lift
+fun @mlift-pdecimal@10267[1,0,1,0] : (neg : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> decimal;
+fun pdecimal[93,5,93,12] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> decimal;
+// monadic lift
+fun @mlift-parse-decimal@10268[1,0,1,0] : (x : decimal, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> decimal;
+// monadic lift
+fun @mlift-parse-decimal@10269[1,0,1,0] : (x : decimal) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> decimal;
+// Parse a `:decimal` number.
+pub fun parse-decimal[90,9,90,21] : (s : std/core/types/string) -> (std/core/types/maybe :: V -> V)<decimal>;
+// Take the sum of a list of decimal numbers (0 for the empty list).
+pub fun sum[321,9,321,11] : (ds : (std/core/types/list :: V -> V)<decimal>) -> decimal;
+// Round a `:decimal` using to the largest integer that is not larger than `x`.
+pub fun floor[330,9,330,13] : (x : decimal) -> decimal;
+// Round a `:decimal` to the smallest integer that is not less than `x`.
+pub fun ceiling[334,9,334,15] : (x : decimal) -> decimal;
+// Truncate a `:decimal` to an integer by rounding towards zero.
+pub fun truncate[338,9,338,16] : (x : decimal) -> decimal;
+// Convert a decimal to a `:float64`. This may lose precision.
+pub fun float64[343,9,343,15] : (x : decimal) -> std/core/types/float64;
+// Return the 'truncated' fraction, always in the range (`-1.0`,`1.0`).
+// `x.truncate + x.fraction == x`
+pub fun fraction[353,9,353,16] : (x : decimal) -> decimal;
+// Return the 'floored' fraction, always in the range [`0`,`1.0`).
+// `x.floor + x.ffraction == x`
+pub fun ffraction[358,9,358,17] : (x : decimal) -> decimal;
+// The exponent of a decimal if displayed in scientific notation.\
+// `11.2e-1.decimal.exponent == 0`
+pub fun exponent[384,9,384,16] : (d : decimal) -> std/core/types/int;
+fun show-frac[446,5,446,13] : (frac : std/core/types/string, prec : std/core/types/int) -> std/core/types/string;
+/* Show a decimal `d` with a given precision `prec` (=`-1000`) in scientific notation.
+The precision specifies the  number of digits after the dot, i.e.
+the number of significant digits is `prec+1`.
+If the precision is negative, _at most_ `prec` digits are displayed, and if
+it is positive exactly `prec` digits are used.
+```
+> decimal(1,-1).show-exp
+"1e-1"
+> 1.1.decimal.show-exp
+"1.100000000000000088817841970012523233890533447265625"
+> 1.1.decimal.show-exp(-20)
+"1.10000000000000008882"
+> 0.125.decimal.show-exp(-20)
+"1.25e-1"
+> 0.125.decimal.show-exp(20)
+"1.25000000000000000000e-1"
+```
+.
+*/
+pub fun show-exp[437,9,437,16] : (d : decimal, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+/* Show a decimal `d` with a given precision `prec` (=`-1000`) in fixed-point notation.
+The precision specifies the  number of digits after the dot.
+If the precision is negative, _at most_  `prec` digits after the dot are displayed,
+while for a positive precision, exactly `prec` digits are used.
+```
+> decimal(1,-1).show-fixed
+"0.1"
+> 0.1.decimal.show-fixed
+"0.1000000000000000055511151231257827021181583404541015625"
+> 0.1.decimal.show-fixed(20)
+"0.1000000000000000555"
+> 0.1.decimal.show-fixed(-20)
+"0.1000000000000000555"
+> decimal(1,-1).show-fixed(20)
+"0.1000000000000000000"
+```
+.
+*/
+pub fun show-fixed[405,9,405,18] : (d : decimal, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Show a decimal `d` with a given precision `prec` (=`-1000`).
+// The precision specifies the  number of digits after the dot (in either scientific of fixed-point notation).
+// If the precision is negative, _at most_ `prec` digits are displayed, while for a positive
+// precision, exactly `prec` digits behind the dot are displayed.
+// This uses `show-fixed` when the exponent of `d` in scientific notation is larger than -5
+// and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
+pub fun show[376,9,376,12] : (d : decimal, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Show a decimal `d` using its internal representation.
+pub fun show-raw[367,9,367,16] : (d : decimal) -> std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun decimal/num // inline size: 0
+  = fn(decimal: decimal){
+    match (decimal) {
+      ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+         -> @x;
+    };
+  };
+inline borrow "^" fun decimal/exp // inline size: 0
+  = fn(decimal: decimal){
+    match (decimal) {
+      ((@skip std/num/decimal/Decimal((@pat@0: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+         -> @x;
+    };
+  };
+fun decimal/@copy // inline size: 3
+  = fn(@this: decimal, num: (std/core/types/@optional :: V -> V)<std/core/types/int>, exp: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/num/decimal/Decimal((match (num) {
+        ((std/core/types/@OptArg((@uniq-num@109: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-num@109;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@1: decimal)
+               -> @x;
+          });
+      }), (match (exp) {
+        ((std/core/types/@OptArg((@uniq-exp@117: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-exp@117;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/num/decimal/Decimal((@pat@0@1: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@3: decimal)
+               -> @x@0;
+          });
+      }));
+  };
+fun (~) // inline size: 2
+  = fn(x: decimal){
+    std/num/decimal/Decimal((std/core/int/(~)((match (x) {
+        ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+           -> @x;
+      }))), (match (x) {
+        ((@skip std/num/decimal/Decimal((@pat@0@0: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@1: decimal)
+           -> @x@0;
+      }));
+  };
+fun is-zero // inline size: 1
+  = fn(x: decimal){
+    std/core/int/is-zero((match (x) {
+      ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+         -> @x;
+    }));
+  };
+fun is-pos // inline size: 1
+  = fn(x: decimal){
+    std/core/int/(>)((match (x) {
+        ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+           -> @x;
+      }), 0);
+  };
+fun is-neg // inline size: 1
+  = fn(x: decimal){
+    std/core/int/(<)((match (x) {
+        ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+           -> @x;
+      }), 0);
+  };
+fun abs // inline size: 4
+  = fn(x: decimal){
+    match ((std/core/int/(<)((match (x) {
+        ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+           -> @x;
+      }), 0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/num/decimal/Decimal((std/core/int/(~)((match (x) {
+            ((@skip std/num/decimal/Decimal((@x@0: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@2: decimal)
+               -> @x@0;
+          }))), (match (x) {
+            ((@skip std/num/decimal/Decimal((@pat@0@1: std/core/types/int) : std/core/types/int, (@x@1: std/core/types/int) : std/core/types/int) : decimal ) as @pat@3: decimal)
+               -> @x@1;
+          }));
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@2: std/core/types/bool)
+         -> x;
+    };
+  };
+fun round-exp // inline size: 4
+  = fn(exp: std/core/types/int){
+    match ((std/core/int/is-zero(exp))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> 0;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/int/(*)(7, (std/core/int/(/)(exp, 7)));
+    };
+  };
+fun (!=) // inline size: 2
+  = fn(x: decimal, y: decimal){
+    std/core/order/(!=)((std/num/decimal/cmp(x, y)), std/core/types/Eq);
+  };
+fun (/) // inline size: 1
+  = fn(x: decimal, y: decimal){
+    std/num/decimal/div(x, y, (std/core/types/@NoOptArg<std/core/types/int>));
+  };
+fun (<=) // inline size: 2
+  = fn(x: decimal, y: decimal){
+    std/core/order/(!=)((std/num/decimal/cmp(x, y)), std/core/types/Gt);
+  };
+fun (==) // inline size: 2
+  = fn(x: decimal, y: decimal){
+    std/core/order/(==)((std/num/decimal/cmp(x, y)), std/core/types/Eq);
+  };
+fun (>) // inline size: 2
+  = fn(x: decimal, y: decimal){
+    std/core/order/(==)((std/num/decimal/cmp(x, y)), std/core/types/Gt);
+  };
+fun (>=) // inline size: 2
+  = fn(x: decimal, y: decimal){
+    std/core/order/(!=)((std/num/decimal/cmp(x, y)), std/core/types/Lt);
+  };
+fun max // inline size: 3
+  = fn(x: decimal, y: decimal){
+    match ((std/core/order/(!=)((std/num/decimal/cmp(x, y)), std/core/types/Lt))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> y;
+    };
+  };
+fun min // inline size: 3
+  = fn(x: decimal, y: decimal){
+    match ((std/core/order/(!=)((std/num/decimal/cmp(x, y)), std/core/types/Gt))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> y;
+    };
+  };
+fun int/decimal // inline size: 3
+  = fn(i: std/core/types/int, exp: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/num/decimal/decimal-exp(i, (std/core/types/@OptArg<std/core/types/int>((match (exp) {
+        ((std/core/types/@OptArg((@uniq-exp@1946: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-exp@1946;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> 0;
+      }))));
+  };
+fun inc // inline size: 2
+  = fn(x: decimal){
+    std/num/decimal/Decimal((std/core/int/int-add((match (x) {
+          ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+             -> @x;
+        }), 1)), (match (x) {
+        ((@skip std/num/decimal/Decimal((@pat@0@0: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@1: decimal)
+           -> @x@0;
+      }));
+  };
+fun dec // inline size: 2
+  = fn(x: decimal){
+    std/num/decimal/Decimal((std/core/int/int-sub((match (x) {
+          ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+             -> @x;
+        }), 1)), (match (x) {
+        ((@skip std/num/decimal/Decimal((@pat@0@0: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@1: decimal)
+           -> @x@0;
+      }));
+  };
+fun is-even // inline size: 2
+  = fn(x: decimal){
+    val b@10014[1,0,1,0] : std/core/types/bool
+          = std/core/int/is-odd((match (x) {
+            ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@1: decimal)
+               -> @x;
+          }));
+    match (b@10014) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/False;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/True;
+    };
+  };
+fun round // inline size: 4
+  = fn(x: decimal, rnd: (std/core/types/@optional :: V -> V)<round>){
+    std/num/decimal/round-to-prec(x, (std/core/types/@OptArg<std/core/types/int>(0)), (std/core/types/@OptArg<round>((match (rnd) {
+        ((std/core/types/@OptArg((@uniq-rnd@2371: round) : round) : (std/core/types/@optional :: V -> V)<round> ) as @pat: ((std/core/types/@optional :: V -> V)<round>))
+           -> @uniq-rnd@2371;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<round> ) as @pat@0: ((std/core/types/@optional :: V -> V)<round>))
+           -> std/num/decimal/Half-even;
+      }))));
+  };
+fun (<) // inline size: 2
+  = fn(x: decimal, y: decimal){
+    std/core/order/(==)((std/num/decimal/cmp(x, y)), std/core/types/Lt);
+  };
+fun is-odd // inline size: 1
+  = fn(x: decimal){
+    std/core/int/is-odd((match (x) {
+      ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+         -> @x;
+    }));
+  };
+inline borrow "^" fip fun is-half-even // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Half-even() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-half-ceiling // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Half-ceiling() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-half-floor // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Half-floor() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-half-truncate // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Half-truncate() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-half-away-from-zero // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Half-away-from-zero() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-ceiling // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Ceiling() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-floor // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Floor() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-truncate // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Truncate() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-away-from-zero // inline size: 1
+  = fn(round@0: round){
+    match (round@0) {
+      ((std/num/decimal/Away-from-zero() : round ) as @pat: round)
+         -> std/core/types/True;
+      (@pat@0: round)
+         -> std/core/types/False;
+    };
+  };
+inline val maxexp // inline size: 0
+  = 308;
+inline val maxpd // inline size: 0
+  = 1.0e15;
+fun is-precise // inline size: 3
+  = fn(i: std/core/types/int){
+    match ((std/core/int/(>)(i, std/num/decimal/minprecise))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/int/(<)(i, std/num/decimal/maxprecise);
+      (@pat@0: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fun sign // inline size: 4
+  = fn(x: decimal){
+    match ((std/core/int/(==)((match (x) {
+        ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@3: decimal)
+           -> @x;
+      }), 0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Eq;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/core/int/(>)((match (x) {
+            ((@skip std/num/decimal/Decimal((@x@0: std/core/types/int) : std/core/types/int, (@pat@0@0@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@3@0: decimal)
+               -> @x@0;
+          }), 0))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Lt;
+        });
+    };
+  };
+fun sum // inline size: 1
+  = fn(ds: (std/core/types/list :: V -> V)<decimal>){
+    std/core/list/foldr<decimal,decimal,(std/core/types/total :: E)>(ds, std/num/decimal/zero, std/num/decimal/(+));
+  };
+fun floor // inline size: 3
+  = fn(x: decimal){
+    std/num/decimal/round-to-prec(x, (std/core/types/@OptArg<std/core/types/int>(0)), (std/core/types/@OptArg<round>(std/num/decimal/Floor)));
+  };
+fun ceiling // inline size: 3
+  = fn(x: decimal){
+    std/num/decimal/round-to-prec(x, (std/core/types/@OptArg<std/core/types/int>(0)), (std/core/types/@OptArg<round>(std/num/decimal/Ceiling)));
+  };
+fun truncate // inline size: 3
+  = fn(x: decimal){
+    std/num/decimal/round-to-prec(x, (std/core/types/@OptArg<std/core/types/int>(0)), (std/core/types/@OptArg<round>(std/num/decimal/Truncate)));
+  };
+fun exponent // inline size: 3
+  = fn(d: decimal){
+    val x@0@10190[1,0,1,0] : std/core/types/int
+      = std/core/int/count-digits((match (d) {
+        ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+           -> @x;
+      }));
+    val x@10188[1,0,1,0] : std/core/types/int
+      = std/core/int/int-add(x@0@10190, (match (d) {
+          ((@skip std/num/decimal/Decimal((@pat@0@0: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@1: decimal)
+             -> @x@0;
+        }));
+    std/core/int/int-sub(x@10188, 1);
+  };
+fun show-raw // inline size: 4
+  = fn(d: decimal){
+    std/core/types/(++)((std/core/int/show((match (d) {
+        ((@skip std/num/decimal/Decimal((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat: decimal)
+           -> @x;
+      }))), (std/core/types/(++)("e", (std/core/int/show((match (d) {
+          ((@skip std/num/decimal/Decimal((@pat@0@0: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int) : decimal ) as @pat@1: decimal)
+             -> @x@0;
+        }))))));
+  };

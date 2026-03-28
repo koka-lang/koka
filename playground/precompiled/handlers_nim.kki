@@ -1,0 +1,516 @@
+/* Examples from the paper "Liberating effects with rows and handlers"
+   by Daniel Hillerström and Sam Lindley.
+   <https://www.dhil.net/research/papers/liberating_effects-tyde2016.pdf>
+*/
+module interface handlers/nim
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/float64 = std/num/float64 = "";
+import std/num/random = std/num/random = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// The `:io` effect is used for functions that perform arbitrary I/O operations.
+local alias std/core/io[79,1,79,29] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,((std/core/io-noexn :: E) == 3 <(std/core/types/div :: X),((std/core/io-total :: E) == 2 <(std/core/types/ndet :: X),(std/core/console/console :: X),(std/core/net :: X),(std/core/fsys :: X),(std/core/ui :: X),((std/core/types/st :: H -> E)<(std/core/types/global :: H)> == 1 <(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/types/write :: H -> X)<(std/core/types/global :: H)>,(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>>)>)>)> = 4;
+// An alias for pure effects: a pure function always returns the same result
+// when called with the same arguments but may not terminate or raise an exception.
+local alias std/core/pure[55,1,55,26] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/div :: X)> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A player is either `Bob` or `Alice`
+value{1,0,1} type player[15,1,17,7] {
+  con Bob[16,3,16,5]{0,0,0} : player = 1;
+  con Alice[17,3,17,7]{0,0,0} : player = 2;
+};
+recursive effect type cheat[117,1,117,35] <(e :: E),a> :: (E, V) -> V {
+  con @Hnd-cheat[117,1,117,15](@cfc: std/core/types/int, @fun-cheat: forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,b,(cheat :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,b,(cheat :: (E, V) -> V),(e :: E),a>) -> (cheat :: (E, V) -> V)<(e :: E),a> = 1;
+};
+recursive effect type choose[176,1,176,26] <(e :: E),a> :: (E, V) -> V {
+  con @Hnd-choose[176,1,176,16](@cfc: std/core/types/int, @ctl-choose: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>) -> (choose :: (E, V) -> V)<(e :: E),a> = 1;
+};
+;
+// A game tree
+recursive type gtree[75,1,77,26] {
+  con Take[76,3,76,6](player: player, moves: (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>){1,1,8} : (player : player, moves : (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) -> gtree = 1;
+  con Winner[77,3,77,8](player: player){1,0,1} : (player : player) -> gtree = 2;
+};
+// Operation to move a certain number of sticks.
+recursive effect type move[38,1,38,51] <(e :: E),a> :: (E, V) -> V {
+  con @Hnd-move[38,1,38,14](@cfc: std/core/types/int, @ctl-move: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>) -> (move :: (E, V) -> V)<(e :: E),a> = 1;
+};
+recursive effect type state[207,1,209,21] <a,(e :: E),b> :: (V, E, V) -> V {
+  con @Hnd-state[207,1,207,12](@cfc: std/core/types/int, @fun-get: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, @fun-put: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>){0,3,8} : forall<a,(e :: E),b> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) -> (state :: (V, E, V) -> V)<a,(e :: E),b> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Tests for the `Bob` constructor of the `:player` type.
+fip fun is-bob[16,3,16,5] : (^ player : player) -> std/core/types/bool;
+// Automatically generated. Tests for the `Alice` constructor of the `:player` type.
+fip fun is-alice[17,3,17,7] : (^ player : player) -> std/core/types/bool;
+fun (==)[20,5,20,8] : (p1 : player, p2 : player) -> std/core/types/bool;
+pub fun player/show[27,9,27,19] : (p : player) -> std/core/types/string;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:move` type.
+fun move/@cfc[38,1,38,14] : forall<(e :: E),a> (^ move : (move :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// Automatically generated. Retrieves the `@ctl-move` constructor field of the `:move` type.
+fun move/@ctl-move[38,12,38,51] : forall<(e :: E),a> (^ move : (move :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>;
+// runtime tag for the effect `:move`
+val move/@tag[38,1,38,14] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(move :: (E, V) -> V)>;
+// handler for the effect `:move`
+fun move/@handle[38,12,38,14] : forall<a,(e :: E),b> (hnd : (move :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// select `move` operation out of effect `:move`
+fun move/@select[38,12,38,51] : forall<(e :: E),a> (^ hnd : (move :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>;
+// Call the `ctl move` operation of the effect `:move`
+fun move[38,12,38,15] : (player : player, sticks : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-alice-turn@10220[1,0,1,0] : (n : std/core/types/int, @y-x10029 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> player;
+// monadic lift
+fun @mlift-bob-turn@10221[1,0,1,0] : (n@0 : std/core/types/int, @y-x10032 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> player;
+fun alice-turn[41,5,41,14] : (n : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> player;
+fun bob-turn[45,5,45,12] : (n : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> player;
+fun game[49,5,49,8] : (n : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> player;
+val perfect[57,5,57,11] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+pub fun example-perfect1[59,9,59,24] : () -> <(std/core/types/div :: X)> player;
+pub fun example-perfect2[64,9,64,24] : () -> <(std/core/types/div :: X)> player;
+// Automatically generated. Tests for the `Take` constructor of the `:gtree` type.
+fip fun is-take[76,3,76,6] : (^ gtree : gtree) -> std/core/types/bool;
+// Automatically generated. Retrieves the `player` constructor field of the `:gtree` type.
+fun gtree/player[76,9,76,14] : (^ gtree : gtree) -> player;
+// Automatically generated. Tests for the `Winner` constructor of the `:gtree` type.
+fip fun is-winner[77,3,77,8] : (^ gtree : gtree) -> std/core/types/bool;
+fun valid-moves[80,5,80,15] : (n : std/core/types/int) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// monadic lift
+fun @mlift-gametree@10222[1,0,1,0] : forall<(e :: E)> (moves : (std/core/types/list :: V -> V)<std/core/types/int>, p : player, subgames : (std/core/types/list :: V -> V)<gtree>) -> (e :: E) gtree;
+val gametree[84,5,84,12] : forall<(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> player) -> (e :: E) gtree;
+fun show-gtree[97,5,97,14] : (gt : gtree, indent : std/core/types/int) -> <(std/core/types/div :: X)> std/core/types/string;
+pub fun gtree/show[93,9,93,18] : (gt : gtree) -> <(std/core/types/div :: X)> std/core/types/string;
+pub fun example-gtree[107,9,107,21] : () -> <(std/core/types/div :: X)> gtree;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:cheat` type.
+fun cheat/@cfc[117,1,117,15] : forall<(e :: E),a> (^ cheat : (cheat :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// Automatically generated. Retrieves the `@fun-cheat` constructor field of the `:cheat` type.
+fun cheat/@fun-cheat[117,12,117,35] : forall<(e :: E),a,b> (^ cheat : (cheat :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,b,(cheat :: (E, V) -> V),(e :: E),a>;
+// runtime tag for the effect `:cheat`
+val cheat/@tag[117,1,117,15] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(cheat :: (E, V) -> V)>;
+// handler for the effect `:cheat`
+fun cheat/@handle[117,12,117,15] : forall<a,(e :: E),b> (hnd : (cheat :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// select `cheat` operation out of effect `:cheat`
+fun cheat/@select[117,12,117,35] : forall<a,(e :: E),b> (^ hnd : (cheat :: (E, V) -> V)<(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,a,(cheat :: (E, V) -> V),(e :: E),b>;
+// Call the `fun cheat` operation of the effect `:cheat`
+fun cheat[117,12,117,16] : forall<a> (player : player) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>> a;
+val cheat-report[119,5,119,16] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a;
+// monadic lift
+fun @mlift-check@10223[1,0,1,0] : forall<a,(e :: E)> (m : std/core/types/int, p : player, resume : (std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a, @y-x10048 : (std/core/types/maybe :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a;
+// monadic lift
+fun @mlift-check@10224[1,0,1,0] : forall<a,(e :: E)> (n : std/core/types/int, p : player, resume : (std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a, m : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>|(e :: E)> a;
+val check[123,5,123,9] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a;
+pub fun example-check[131,9,131,21] : () -> <(std/core/pure :: E)> player;
+pub fun example-use[138,9,138,19] : () -> (std/core/types/list :: V -> V)<std/core/types/int>;
+val pc[146,5,146,6] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+pub fun example-pc1[153,9,153,19] : () -> <(std/core/pure :: E)> player;
+pub fun example-pc2[160,9,160,19] : () -> <(std/core/pure :: E)> player;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:choose` type.
+fun choose/@cfc[176,1,176,16] : forall<(e :: E),a> (^ choose : (choose :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// Automatically generated. Retrieves the `@ctl-choose` constructor field of the `:choose` type.
+fun choose/@ctl-choose[176,12,176,26] : forall<(e :: E),a> (^ choose : (choose :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>;
+// runtime tag for the effect `:choose`
+val choose/@tag[176,1,176,16] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(choose :: (E, V) -> V)>;
+// handler for the effect `:choose`
+fun choose/@handle[176,12,176,16] : forall<a,(e :: E),b> (hnd : (choose :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// select `choose` operation out of effect `:choose`
+fun choose/@select[176,12,176,26] : forall<(e :: E),a> (^ hnd : (choose :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>;
+// Call the `ctl choose` operation of the effect `:choose`
+fun choose[176,12,176,17] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-bob-chooses@10225[1,0,1,0] : forall<a,(e :: E)> (m : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>|(e :: E)> a, @y-x10072 : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>|(e :: E)> a;
+fun bob-chooses[178,5,178,15] : forall<a,(e :: E)> (m : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>|(e :: E)> a;
+// monadic lift
+fun @mlift-all-results@10226[1,0,1,0] : forall<a,(e :: E)> (@y-x10076 : (std/core/types/list :: V -> V)<a>, @y-x10077 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-all-results@10227[1,0,1,0] : forall<a,(e :: E)> (resume : (std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>, @y-x10076 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+val all-results[182,5,182,15] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-example-choose@10228[1,0,1,0] : (@y-x10079 : player) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>> (std/core/types/list :: V -> V)<player>;
+pub fun example-choose[187,9,187,22] : () -> <(std/core/types/div :: X)> (std/core/types/list :: V -> V)<player>;
+val coin[193,5,193,8] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>,(std/core/types/ndet :: X)|(e :: E)> a) -> <(std/core/types/ndet :: X)|(e :: E)> a;
+pub fun example-coin[196,9,196,20] : () -> <(std/core/types/div :: X),(std/core/types/ndet :: X)> player;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:state` type.
+fun state/@cfc[207,1,207,12] : forall<a,(e :: E),b> (^ state : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> std/core/types/int;
+// runtime tag for the effect `:state`
+val state/@tag[207,1,207,12] : forall<a> (std/core/hnd/htag :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>;
+// handler for the effect `:state`
+fun state/@handle[207,8,207,12] : forall<a,b,(e :: E),c> (hnd : (state :: (V, E, V) -> V)<a,(e :: E),c>, ret : (res : b) -> (e :: E) c, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>|(e :: E)> b) -> (e :: E) c;
+// Automatically generated. Retrieves the `@fun-get` constructor field of the `:state` type.
+fun state/@fun-get[208,7,208,15] : forall<a,(e :: E),b> (^ state : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// select `get` operation out of effect `:state`
+fun get/@select[208,7,208,15] : forall<a,(e :: E),b> (^ hnd : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// Call the `fun get` operation of the effect `:state`
+fun get[208,7,208,9] : forall<a> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> a;
+// Automatically generated. Retrieves the `@fun-put` constructor field of the `:state` type.
+fun state/@fun-put[209,7,209,21] : forall<a,(e :: E),b> (^ state : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// select `put` operation out of effect `:state`
+fun put/@select[209,7,209,21] : forall<a,(e :: E),b> (^ hnd : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// Call the `fun put` operation of the effect `:state`
+fun put[209,7,209,9] : forall<a> (x : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> ();
+fun state[212,5,212,9] : forall<a,b,(e :: E)> (init : a, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>|(e :: E)> b) -> (e :: E) b;
+val s0[222,5,222,6] : (std/core/types/list :: V -> V)<(player, std/core/types/int)>;
+fun update-score[227,5,227,16] : (p : player, gs : gstate) -> gstate;
+// monadic lift
+fun @mlift-score-updater@10229[1,0,1,0] : forall<(e :: E)> (p@5262 : player, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> player;
+// monadic lift
+fun @mlift-score-updater@10230[1,0,1,0] : forall<(e :: E)> (p@5262 : player, @y-x10096 : gstate) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> player;
+// monadic lift
+fun @mlift-score-updater@10231[1,0,1,0] : forall<(e :: E)> (p@5262 : player) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> player;
+val score-updater[224,5,224,17] : forall<(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> player) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> player;
+// monadic lift
+fun @mlift-print-board@10232[1,0,1,0] : (scores : (std/core/types/list :: V -> V)<std/core/types/string>) -> <(std/core/console/console :: X),(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>> ();
+fun print-board[233,5,233,15] : (gs : gstate) -> <(std/core/io :: E)> ();
+// monadic lift
+fun @mlift-printer@10233[1,0,1,0] : forall<a,(e :: E)> (x@5263 : a, wild_ : ()) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> a;
+// monadic lift
+fun @mlift-printer@10234[1,0,1,0] : forall<a,(e :: E)> (x@5263 : a, @y-x10102 : gstate) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>,(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>|(e :: E)> a;
+// monadic lift
+fun @mlift-printer@10235[1,0,1,0] : forall<a,(e :: E)> (x@5263 : a) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>|(e :: E)> a;
+val printer[230,5,230,11] : forall<a,(e :: E)> (() -> <(std/core/io :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> a) -> <(std/core/io :: E),(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<gstate>>|(e :: E)> a;
+pub fun example-print1[238,9,238,22] : () -> <(std/core/io :: E)> player;
+// monadic lift
+fun @mlift-replay@10236[1,0,1,0] : forall<a,(e :: E)> (action : () -> <(std/core/types/div :: X)|(e :: E)> a, n : std/core/types/int, x@5265 : a) -> <(std/core/types/div :: X)|(e :: E)> a;
+fun replay[247,5,247,10] : forall<a,(e :: E)> (n : std/core/types/int, action : () -> <(std/core/types/div :: X)|(e :: E)> a) -> <(std/core/types/div :: X)|(e :: E)> a;
+pub fun example-print2[252,9,252,22] : () -> <(std/core/io :: E)> player;
+// monadic lift
+fun @mlift-main@10237[1,0,1,0] : (@y-x10140 : player) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-main@10238[1,0,1,0] : (@y-x10121 : player, @y-x10123 : player, @y-x10125 : gtree, @y-x10129 : player, @y-x10134 : player, @y-x10135 : std/core/types/string) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-main@10239[1,0,1,0] : (@y-x10121 : player, @y-x10123 : player, @y-x10125 : gtree, @y-x10129 : player, @y-x10134 : player) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-main@10240[1,0,1,0] : (@y-x10121 : player, @y-x10123 : player, @y-x10125 : gtree, @y-x10129 : player) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-main@10241[1,0,1,0] : (@y-x10121 : player, @y-x10123 : player, @y-x10125 : gtree) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-main@10242[1,0,1,0] : (@y-x10121 : player, @y-x10123 : player) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-main@10243[1,0,1,0] : (@y-x10121 : player) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+pub fun main[263,9,263,12] : () -> <(std/core/pure :: E),(std/core/console/console :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "_*" fun replay // inline size: 8
+  = forall<a,(e :: E)> fn<<(std/core/types/div :: X)|(e :: E)>>(n: std/core/types/int, action: () -> <(std/core/types/div :: X)|(e :: E)> a){
+    val x@5265[1,0,1,0] : a
+          = action();
+    (match ((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/div :: X)|(e :: E)>,(x : std/core/types/int, y : std/core/types/int) -> std/core/types/bool,(x : std/core/types/int, y : std/core/types/int) -> <(std/core/types/div :: X)|(e :: E)> std/core/types/bool>(std/core/int/(<=))(n, 1))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x@5265;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> handlers/nim/replay<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/div :: X)|(e :: E)>,(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> <(std/core/types/div :: X)|(e :: E)> std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+            (std/core/int/int-sub(x, y));
+          }))(n, 1)), action);
+    });
+  };
+specialize "_*" fun show-gtree // inline size: 1
+  = fn<<(std/core/types/div :: X)>>(gt: gtree, indent: std/core/types/int){
+    match (gt) {
+      ((handlers/nim/Winner((p: player) : player) : gtree ) as @pat: gtree)
+         -> std/core/types/(++)((match (p) {
+            ((handlers/nim/Bob() : player ) as @pat@0: player)
+               -> "bob";
+            ((@skip handlers/nim/Alice() : player ) as @pat@0@0: player)
+               -> "alice";
+          }), " wins");
+      ((@skip handlers/nim/Take((p@0@0: player) : player, (moves: (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : gtree ) as @pat@0@1: gtree)
+         -> val lines[101,11,101,15] : (std/core/types/list :: V -> V)<std/core/types/string>
+                  = std/core/list/map<(std/core/types/int, gtree),std/core/types/string,<(std/core/types/div :: X)>>(moves, (fn<<(std/core/types/div :: X)>>(@pat-x101_32: (std/core/types/int, gtree)){
+                      (match (@pat-x101_32) {
+                        ((@skip std/core/types/Tuple2((sticks: std/core/types/int) : std/core/types/int, (gtx: gtree) : gtree) : (std/core/types/int, gtree) ) as @pat@1: (std/core/types/int, gtree))
+                           -> std/core/types/(++)("\x0A", (std/core/types/(++)((std/core/string/repeatz(" ", (std/core/int/ssize_t(indent)))), (std/core/types/(++)((std/core/int/show(sticks)), (std/core/types/(++)(" -> ", (handlers/nim/show-gtree(gtx, (std/core/int/int-add(indent, 2)))))))))));
+                      });
+                    }));
+        std/core/types/(++)((match (p@0@0) {
+            ((handlers/nim/Bob() : player ) as @pat@2: player)
+               -> "bob";
+            ((@skip handlers/nim/Alice() : player ) as @pat@0@2: player)
+               -> "alice";
+          }), (std/core/list/#concat/join(lines)));
+    };
+  };
+specialize "*_" fun update-score // inline size: 1
+  = fn(p: player, gs: gstate){
+    std/core/list/map<(player, std/core/types/int),(player, std/core/types/int),(std/core/types/total :: E)>(gs, (fn(@pat-x228_14: (player, std/core/types/int)){
+        (match (@pat-x228_14) {
+          ((@skip std/core/types/Tuple2((q: player) : player, (s: std/core/types/int) : std/core/types/int) : (player, std/core/types/int) ) as @pat: (player, std/core/types/int))
+             -> (match (p, q) {
+              ((handlers/nim/Bob() : player ) as @pat@1: player), ((handlers/nim/Bob() : player ) as @pat@0: player)
+                 -> std/core/types/Tuple2<player,std/core/types/int>(q, (std/core/int/int-add(s, 1)));
+              ((handlers/nim/Alice() : player ) as @pat@4: player), ((handlers/nim/Alice() : player ) as @pat@3: player)
+                 -> std/core/types/Tuple2<player,std/core/types/int>(q, (std/core/int/int-add(s, 1)));
+              (@pat@2@0: player), (@pat@2: player)
+                 -> std/core/types/Tuple2<player,std/core/types/int>(q, s);
+            });
+        });
+      }));
+  };
+specialize "*" fun valid-moves // inline size: 1
+  = fn(n: std/core/types/int){
+    std/core/list/filter<std/core/types/int,(std/core/types/total :: E)>((std/core/types/Cons<std/core/types/int>(1, (std/core/types/Cons<std/core/types/int>(2, (std/core/types/Cons<std/core/types/int>(3, (std/core/types/Nil<std/core/types/int>))))))), (fn(m: std/core/types/int){
+        (std/core/int/(<=)(m, n));
+      }));
+  };
+inline borrow "^" fip fun is-bob // inline size: 1
+  = fn(player: player){
+    match (player) {
+      ((handlers/nim/Bob() : player ) as @pat: player)
+         -> std/core/types/True;
+      ((@skip handlers/nim/Alice() : player ) as @pat@0: player)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-alice // inline size: 1
+  = fn(player: player){
+    match (player) {
+      ((handlers/nim/Alice() : player ) as @pat: player)
+         -> std/core/types/True;
+      ((@skip handlers/nim/Bob() : player ) as @pat@0: player)
+         -> std/core/types/False;
+    };
+  };
+fun (==) // inline size: 2
+  = fn(p1: player, p2: player){
+    match (p1, p2) {
+      ((handlers/nim/Bob() : player ) as @pat@1: player), ((handlers/nim/Bob() : player ) as @pat@0: player)
+         -> std/core/types/True;
+      ((handlers/nim/Alice() : player ) as @pat@4: player), ((handlers/nim/Alice() : player ) as @pat@3: player)
+         -> std/core/types/True;
+      (@pat@2: player), (@pat: player)
+         -> std/core/types/False;
+    };
+  };
+fun player/show // inline size: 1
+  = fn(p: player){
+    match (p) {
+      ((handlers/nim/Bob() : player ) as @pat: player)
+         -> "bob";
+      ((@skip handlers/nim/Alice() : player ) as @pat@0: player)
+         -> "alice";
+    };
+  };
+inline borrow "^" fun move/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(move@0: (move :: (E, V) -> V)<(e :: E),a>){
+    (match (move@0) {
+      ((@skip handlers/nim/@Hnd-move((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>) : (move :: (E, V) -> V)<(e :: E),a> ) as @pat: ((move :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun move/@ctl-move // inline size: 0
+  = forall<(e :: E),a> fn(move@0: (move :: (E, V) -> V)<(e :: E),a>){
+    (match (move@0) {
+      ((@skip handlers/nim/@Hnd-move((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>) : (move :: (E, V) -> V)<(e :: E),a> ) as @pat: ((move :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun move/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (move :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/nim/@Hnd-move((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-move: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<player,std/core/types/int,std/core/types/int,(move :: (E, V) -> V),(e :: E),a>) : (move :: (E, V) -> V)<(e :: E),a> ) as @pat: ((move :: (E, V) -> V)<(e :: E),a>))
+         -> @ctl-move;
+    });
+  };
+inline fun move // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>>>(player: player, sticks: std/core/types/int){
+    std/core/hnd/@perform2<player,std/core/types/int,std/core/types/int,<(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>>,(move :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(move :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(move :: (E, V) -> V)>>((std/core/hnd/@evv-at<(move :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/nim/#move/@select, player, sticks);
+  };
+fun game // inline size: 1
+  = fn<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>>>(n: std/core/types/int){
+    handlers/nim/alice-turn(n);
+  };
+fun example-perfect1 // inline size: 2
+  = fn<<(std/core/types/div :: X)>>(){
+    handlers/nim/perfect<player,<(std/core/types/div :: X)>>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/div :: X)>>(){
+      (handlers/nim/alice-turn(7));
+    }));
+  };
+fun example-perfect2 // inline size: 2
+  = fn<<(std/core/types/div :: X)>>(){
+    handlers/nim/perfect<player,<(std/core/types/div :: X)>>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/div :: X)>>(){
+      (handlers/nim/alice-turn(12));
+    }));
+  };
+inline borrow "^" fip fun is-take // inline size: 1
+  = fn(gtree: gtree){
+    match (gtree) {
+      ((handlers/nim/Take((@pat@0: player) : player, (@pat@1: (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : gtree ) as @pat: gtree)
+         -> std/core/types/True;
+      ((@skip handlers/nim/Winner((@pat@3: player) : player) : gtree ) as @pat@2: gtree)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fun gtree/player // inline size: 1
+  = fn(gtree: gtree){
+    match (gtree) {
+      ((handlers/nim/Take((@x: player) : player, (@pat@0: (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : gtree ) as @pat: gtree)
+         -> @x;
+      ((@skip handlers/nim/Winner((@x@0: player) : player) : gtree ) as @pat@1: gtree)
+         -> @x@0;
+    };
+  };
+inline borrow "^" fip fun is-winner // inline size: 1
+  = fn(gtree: gtree){
+    match (gtree) {
+      ((handlers/nim/Winner((@pat@0: player) : player) : gtree ) as @pat: gtree)
+         -> std/core/types/True;
+      ((@skip handlers/nim/Take((@pat@2: player) : player, (@pat@3: (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : (std/core/types/list :: V -> V)<(std/core/types/int, gtree)>) : gtree ) as @pat@1: gtree)
+         -> std/core/types/False;
+    };
+  };
+fun gtree/show // inline size: 1
+  = fn<<(std/core/types/div :: X)>>(gt: gtree){
+    handlers/nim/show-gtree(gt, 2);
+  };
+fun example-gtree // inline size: 2
+  = fn<<(std/core/types/div :: X)>>(){
+    handlers/nim/gametree<<(std/core/types/div :: X)>>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/div :: X)>>(){
+      (handlers/nim/alice-turn(3));
+    }));
+  };
+inline borrow "^" fun cheat/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(cheat@0: (cheat :: (E, V) -> V)<(e :: E),a>){
+    (match (cheat@0) {
+      ((@skip handlers/nim/@Hnd-cheat((@x: std/core/types/int) : std/core/types/int, (@pat@0: (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,b,(cheat :: (E, V) -> V),(e :: E),a>)) : (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,b,(cheat :: (E, V) -> V),(e :: E),a>)) : (cheat :: (E, V) -> V)<(e :: E),a> ) as @pat: ((cheat :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun cheat/@fun-cheat // inline size: 0
+  = forall<(e :: E),a,b> fn(cheat@0: (cheat :: (E, V) -> V)<(e :: E),a>){
+    (match (cheat@0) {
+      ((@skip handlers/nim/@Hnd-cheat((@pat@0: std/core/types/int) : std/core/types/int, (@x: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,c,(cheat :: (E, V) -> V),(e :: E),a>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,c,(cheat :: (E, V) -> V),(e :: E),a>)) : (cheat :: (E, V) -> V)<(e :: E),a> ) as @pat: ((cheat :: (E, V) -> V)<(e :: E),a>))
+         -> @x<b>;
+    });
+  };
+inline borrow "^" fun cheat/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (cheat :: (E, V) -> V)<(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/nim/@Hnd-cheat((@pat@0: std/core/types/int) : std/core/types/int, (@fun-cheat: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,c,(cheat :: (E, V) -> V),(e :: E),b>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<player,c,(cheat :: (E, V) -> V),(e :: E),b>)) : (cheat :: (E, V) -> V)<(e :: E),b> ) as @pat: ((cheat :: (E, V) -> V)<(e :: E),b>))
+         -> @fun-cheat<a>;
+    });
+  };
+inline fun cheat // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>>>(player: player){
+    std/core/hnd/@perform1<player,a,(cheat :: (E, V) -> V),<(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(cheat :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(cheat :: (E, V) -> V)>>((std/core/hnd/@evv-at<(cheat :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(cheat :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/nim/#cheat/@select<a,(e :: E),b>), player);
+  };
+inline borrow "^" fun choose/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(choose@0: (choose :: (E, V) -> V)<(e :: E),a>){
+    (match (choose@0) {
+      ((@skip handlers/nim/@Hnd-choose((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>) : (choose :: (E, V) -> V)<(e :: E),a> ) as @pat: ((choose :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun choose/@ctl-choose // inline size: 0
+  = forall<(e :: E),a> fn(choose@0: (choose :: (E, V) -> V)<(e :: E),a>){
+    (match (choose@0) {
+      ((@skip handlers/nim/@Hnd-choose((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>) : (choose :: (E, V) -> V)<(e :: E),a> ) as @pat: ((choose :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun choose/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (choose :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/nim/@Hnd-choose((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-choose: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(choose :: (E, V) -> V),(e :: E),a>) : (choose :: (E, V) -> V)<(e :: E),a> ) as @pat: ((choose :: (E, V) -> V)<(e :: E),a>))
+         -> @ctl-choose;
+    });
+  };
+inline fun choose // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/core/types/bool,<(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>>,(choose :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(choose :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(choose :: (E, V) -> V)>>((std/core/hnd/@evv-at<(choose :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/nim/#choose/@select);
+  };
+fun example-coin // inline size: 4
+  = fn<<(std/core/types/div :: X),(std/core/types/ndet :: X)>>(){
+    handlers/nim/coin<player,<(std/core/types/div :: X)>>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>,(std/core/types/ndet :: X),(std/core/types/div :: X)>>(){
+      (handlers/nim/bob-chooses<player,<(std/core/types/div :: X),(std/core/types/ndet :: X)>>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/ndet :: X)>>(){
+        (std/core/types/@open<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>>,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>,(std/core/types/ndet :: X)>,(n : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>> player,(n : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(move :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(choose :: (E, V) -> V)>,(std/core/types/ndet :: X)> player>(handlers/nim/alice-turn)(7));
+      })));
+    }));
+  };
+inline borrow "^" fun state/@cfc // inline size: 0
+  = forall<a,(e :: E),b> fn(state@0: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (state@0) {
+      ((@skip handlers/nim/@Hnd-state((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun state/@fun-get // inline size: 0
+  = forall<a,(e :: E),b> fn(state@0: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (state@0) {
+      ((@skip handlers/nim/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun get/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/nim/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@fun-get: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @fun-get;
+    });
+  };
+inline fun get // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>>(){
+    std/core/hnd/@perform0<a,<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(state :: (V, E, V) -> V)<a>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>>((std/core/hnd/@evv-at<(state :: (V, E, V) -> V)<a>>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/nim/#get/@select<a,(e :: E),b>));
+  };
+inline borrow "^" fun state/@fun-put // inline size: 0
+  = forall<a,(e :: E),b> fn(state@0: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (state@0) {
+      ((@skip handlers/nim/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@x: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun put/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/nim/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@fun-put: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @fun-put;
+    });
+  };
+inline fun put // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>>(x: a){
+    std/core/hnd/@perform1<a,(),(state :: (V, E, V) -> V)<a>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>>((std/core/hnd/@evv-at<(state :: (V, E, V) -> V)<a>>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/nim/#put/@select<a,(e :: E),b>), x);
+  };

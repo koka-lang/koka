@@ -1,0 +1,695 @@
+/* Parsing of command line flags.
+
+For example:
+
+```
+struct myflags(
+  verbose : bool = False,
+  version : bool = False,
+  name : string = "",
+  output : string = "",
+  arguments : list<string> = []
+)
+
+val myflags : list<flag<myflags>>
+  = [ Flag( "V?", ["version"], Bool(set-version),     "display version information" ),
+      Flag( "v",  ["verbose"], Bool(set-verbose),     "verbosely list files"),
+      Flag( "o",  ["output"],  Opt(set-output,"FILE"),"use FILE for dump" ),
+      Flag( "n",  ["name"],    Req(set-name,"USER"),  "only show USER files" ),
+    ]
+
+fun set-name( t : myflags, name )  { t(name = name)
+fun set-verbose( t : myflags, v )  { t(verbose = v)
+fun set-version( t : myflags, v )  { t(version = v)
+fun set-output( t : myflags, mbs : maybe<string> ) : myflags
+
+  match(mbs)
+    Nothing -> t(output = "stdout")
+    Just(s) -> t(output = s)
+
+
+pub fun test( cmdargs )
+
+  val header = "usage:\n program [options] files\n\noptions:"
+  // testflags.usageInfo( header ).println
+  val (flags,args,errs) = parse( Myflags(), myflags, cmdargs )
+  if (errs.is-nil)
+    println( "\nsuccess!" );
+    println( "flags: " ++ flags.show-flags)
+    println( "arguments: " ++ args.join(" ") );
+    if (flags.version) myflags.usage(header).println
+
+  else
+    println( errs.join("\n") ++ "\n" ++ myflags.usage(header) )
+
+
+fun show-flags( o : myflags )
+  "{" ++ ["verbose=" ++ o.verbose.show,
+         "version=" ++ o.version.show,
+         "name=" ++ o.name.show,
+         "output=" ++ o.output.show,
+         "arguments=" ++ o.arguments.join(",")].join(";") ++ "}"
+
+```
+\/
+*/
+module interface std/os/flags
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/os/env = std/os/env = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// Specifies the argument of an flag
+pub type flag-parser[137,1,144,54] <a> :: V -> V {
+  // For a flag `foo` Automatically enables forms `--no-foo` and `--foo=true|false`.
+  pub con Bool[140,3,140,6](default: (a, std/core/types/bool) -> a){0,1,8} : forall<a> (default : (a, std/core/types/bool) -> a) -> (flag-parser :: V -> V)<a> = 1;
+  // A required argument.
+  pub con Req[142,3,142,5](parse: (a, std/core/types/string) -> a, help: std/core/types/string){0,2,8} : forall<a> (parse : (a, std/core/types/string) -> a, help : std/core/types/string) -> (flag-parser :: V -> V)<a> = 2;
+  // An optional argument.
+  pub con Opt[144,3,144,5](parse: (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a, help: std/core/types/string){0,2,8} : forall<a> (parse : (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a, help : std/core/types/string) -> (flag-parser :: V -> V)<a> = 3;
+};
+// Specifies a single command line flag
+// For example: `flag("h?",["help"],Bool(Help),"show help information")`.
+pub type flag[129,1,133,22] <a> :: V -> V {
+  // Specifies a single command line flag
+// For example: `flag("h?",["help"],Bool(Help),"show help information")`.
+  pub con Flag[129,12,129,15](short-names: std/core/types/string, long-names: (std/core/types/list :: V -> V)<std/core/types/string>, parser: (flag-parser :: V -> V)<a>, help: std/core/types/string){0,4,8} : forall<a> (short-names : std/core/types/string, long-names : (std/core/types/list :: V -> V)<std/core/types/string>, parser : (flag-parser :: V -> V)<a>, help : std/core/types/string) -> (flag :: V -> V)<a> = 1;
+};
+value{0,2,8} type flag-kind[185,1,190,23] <a> :: V -> V {
+  con Flg[186,3,186,5](set: (a) -> a){0,2,8} : forall<a> (set : (a) -> a) -> (flag-kind :: V -> V)<a> = 1;
+  con Arg[187,3,187,5](arg: std/core/types/string){0,2,8} : forall<a> (arg : std/core/types/string) -> (flag-kind :: V -> V)<a> = 2;
+  con End[188,3,188,5]{0,1,8} : forall<a> (flag-kind :: V -> V)<a> = 3;
+  con Unknown[189,3,189,9](arg: std/core/types/string){0,2,8} : forall<a> (arg : std/core/types/string) -> (flag-kind :: V -> V)<a> = 4;
+  con Error[190,3,190,7](msg: std/core/types/string){0,2,8} : forall<a> (msg : std/core/types/string) -> (flag-kind :: V -> V)<a> = 5;
+};
+// Specifies how to handle flags that follow non-flag command line arguments.
+pub value{0,2,8} type flag-order[118,1,124,30] <a> :: V -> V {
+  // Allow flags to be permuted with non-flag arguments (default)
+  pub con Permute[120,3,120,9]{0,1,8} : forall<a> (flag-order :: V -> V)<a> = 1;
+  // flags following non-flag arguments are treated as arguments
+  pub con Preorder[122,3,122,10]{0,1,8} : forall<a> (flag-order :: V -> V)<a> = 2;
+  // Wrap each non-flag argument into an flag
+  pub con Wrap[124,3,124,6](wrap: (std/core/types/string) -> a){0,2,8} : forall<a> (wrap : (std/core/types/string) -> a) -> (flag-order :: V -> V)<a> = 3;
+};
+type myflags[72,1,78,1] {
+  con Myflags[72,8,72,14](verbose: std/core/types/bool, version: std/core/types/bool, name: std/core/types/string, output: std/core/types/string, arguments: (std/core/types/list :: V -> V)<std/core/types/string>){2,3,8} : (verbose : std/core/types/bool, version : std/core/types/bool, name : std/core/types/string, output : std/core/types/string, arguments : (std/core/types/list :: V -> V)<std/core/types/string>) -> myflags = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+fun @create-Myflags[72,8,72,14] : (verbose : (std/core/types/@optional :: V -> V)<std/core/types/bool>, version : (std/core/types/@optional :: V -> V)<std/core/types/bool>, name : (std/core/types/@optional :: V -> V)<std/core/types/string>, output : (std/core/types/@optional :: V -> V)<std/core/types/string>, arguments : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>) -> myflags;
+// Automatically generated. Retrieves the `verbose` constructor field of the `:myflags` type.
+fun myflags/verbose[73,3,73,9] : (^ myflags : myflags) -> std/core/types/bool;
+// Automatically generated. Retrieves the `version` constructor field of the `:myflags` type.
+fun myflags/version[74,3,74,9] : (^ myflags : myflags) -> std/core/types/bool;
+// Automatically generated. Retrieves the `name` constructor field of the `:myflags` type.
+fun myflags/name[75,3,75,6] : (^ myflags : myflags) -> std/core/types/string;
+// Automatically generated. Retrieves the `output` constructor field of the `:myflags` type.
+fun myflags/output[76,3,76,8] : (^ myflags : myflags) -> std/core/types/string;
+// Automatically generated. Retrieves the `arguments` constructor field of the `:myflags` type.
+fun myflags/arguments[77,3,77,11] : (^ myflags : myflags) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+fun myflags/@copy[72,8,72,14] : (@this : myflags, verbose : (std/core/types/@optional :: V -> V)<std/core/types/bool>, version : (std/core/types/@optional :: V -> V)<std/core/types/bool>, name : (std/core/types/@optional :: V -> V)<std/core/types/string>, output : (std/core/types/@optional :: V -> V)<std/core/types/string>, arguments : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>) -> myflags;
+fun show-flags[80,5,80,14] : (o : myflags) -> std/core/types/string;
+fun set-name[88,5,88,12] : (t : myflags, name : std/core/types/string) -> myflags;
+fun set-verbose[89,5,89,15] : (t : myflags, v : std/core/types/bool) -> myflags;
+fun set-version[90,5,90,15] : (t : myflags, v : std/core/types/bool) -> myflags;
+fun set-output[91,5,91,14] : (t : myflags, mbs : (std/core/types/maybe :: V -> V)<std/core/types/string>) -> myflags;
+val myflags[97,5,97,11] : (std/core/types/list :: V -> V)<(flag :: V -> V)<myflags>>;
+// Automatically generated. Tests for the `Permute` constructor of the `:flag-order` type.
+pub fip fun is-permute[120,3,120,9] : forall<a> (^ flag-order : (flag-order :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Preorder` constructor of the `:flag-order` type.
+pub fip fun is-preorder[122,3,122,10] : forall<a> (^ flag-order : (flag-order :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Wrap` constructor of the `:flag-order` type.
+pub fip fun is-wrap[124,3,124,6] : forall<a> (^ flag-order : (flag-order :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Retrieves the `short-names` constructor field of the `:flag` type.
+pub fun flag/short-names[130,3,130,13] : forall<a> (^ flag : (flag :: V -> V)<a>) -> std/core/types/string;
+// Automatically generated. Retrieves the `long-names` constructor field of the `:flag` type.
+pub fun flag/long-names[131,3,131,12] : forall<a> (^ flag : (flag :: V -> V)<a>) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Automatically generated. Retrieves the `parser` constructor field of the `:flag` type.
+pub fun flag/parser[132,3,132,8] : forall<a> (^ flag : (flag :: V -> V)<a>) -> (flag-parser :: V -> V)<a>;
+// Automatically generated. Retrieves the `help` constructor field of the `:flag` type.
+pub fun flag/help[133,3,133,6] : forall<a> (^ flag : (flag :: V -> V)<a>) -> std/core/types/string;
+pub fun flag/@copy[129,12,129,15] : forall<a> (@this : (flag :: V -> V)<a>, short-names : (std/core/types/@optional :: V -> V)<std/core/types/string>, long-names : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, parser : (std/core/types/@optional :: V -> V)<(flag-parser :: V -> V)<a>>, help : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> (flag :: V -> V)<a>;
+// Automatically generated. Tests for the `Bool` constructor of the `:flag-parser` type.
+pub fip fun is-bool[140,3,140,6] : forall<a> (^ flag-parser : (flag-parser :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Req` constructor of the `:flag-parser` type.
+pub fip fun is-req[142,3,142,5] : forall<a> (^ flag-parser : (flag-parser :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Opt` constructor of the `:flag-parser` type.
+pub fip fun is-opt[144,3,144,5] : forall<a> (^ flag-parser : (flag-parser :: V -> V)<a>) -> std/core/types/bool;
+fun show-short-flag[171,5,171,19] : forall<a> (parser : (flag-parser :: V -> V)<a>) -> std/core/types/string;
+fun show-long-flag[178,5,178,18] : forall<a> (parser : (flag-parser :: V -> V)<a>) -> std/core/types/string;
+fun show-flag[163,5,163,13] : forall<a> (flag : (flag :: V -> V)<a>) -> (std/core/types/list :: V -> V)<(std/core/types/string, std/core/types/string, std/core/types/string)>;
+fun breakon[232,5,232,11] : (s : std/core/types/string, c : std/core/types/string) -> (std/core/types/string, std/core/types/string);
+// monadic lift
+fun @mlift-zipWith3Acc@10118[1,0,1,0] : forall<a,b,c,d,(e :: E)> (acc : (std/core/types/list :: V -> V)<d>, f : (a, b, c) -> (e :: E) d, xx : (std/core/types/list :: V -> V)<a>, yy : (std/core/types/list :: V -> V)<b>, zz : (std/core/types/list :: V -> V)<c>, @y-x10109 : d) -> (e :: E) (std/core/types/list :: V -> V)<d>;
+fun zipWith3Acc[335,5,335,15] : forall<a,b,c,d,(e :: E)> (f : (a, b, c) -> (e :: E) d, acc : (std/core/types/list :: V -> V)<d>, xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, zs : (std/core/types/list :: V -> V)<c>) -> (e :: E) (std/core/types/list :: V -> V)<d>;
+fun zipWith3[331,5,331,12] : forall<a,b,c,d,(e :: E)> (f : (a, b, c) -> (e :: E) d, xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, zs : (std/core/types/list :: V -> V)<c>) -> (e :: E) (std/core/types/list :: V -> V)<d>;
+// Return a nicely formatted string describing the usage of a command,
+// consisting of a `header` followed by the descriptions of the `flags`.
+// The default header is ``"usage:\n program [flags] arguments\n\nflags:"``.
+pub fun usage[150,9,150,13] : forall<a> (flags : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>, header : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Automatically generated. Tests for the `Flg` constructor of the `:flag-kind` type.
+fip fun is-flg[186,3,186,5] : forall<a> (^ flag-kind : (flag-kind :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Arg` constructor of the `:flag-kind` type.
+fip fun is-arg[187,3,187,5] : forall<a> (^ flag-kind : (flag-kind :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `End` constructor of the `:flag-kind` type.
+fip fun is-end[188,3,188,5] : forall<a> (^ flag-kind : (flag-kind :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Unknown` constructor of the `:flag-kind` type.
+fip fun is-unknown[189,3,189,9] : forall<a> (^ flag-kind : (flag-kind :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Error` constructor of the `:flag-kind` type.
+fip fun is-error[190,3,190,7] : forall<a> (^ flag-kind : (flag-kind :: V -> V)<a>) -> std/core/types/bool;
+fun error-ambiguous[311,5,311,19] : forall<a,b> (applicable : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>, opt : std/core/types/string) -> (flag-kind :: V -> V)<b>;
+fun error-required[315,5,315,18] : forall<a> (help : std/core/types/string, opt : std/core/types/string) -> (flag-kind :: V -> V)<a>;
+fun error-negate[318,5,318,16] : forall<a> (flagname : std/core/types/string) -> (flag-kind :: V -> V)<a>;
+fun error-noarg[321,5,321,15] : forall<a> (opt : std/core/types/string) -> (flag-kind :: V -> V)<a>;
+fun error-unknown-message[327,5,327,25] : (opt : std/core/types/string) -> std/core/types/string;
+fun error-unknown[324,5,324,17] : forall<a> (opt : std/core/types/string) -> (flag-kind :: V -> V)<a>;
+fun parse-long[239,5,239,14] : forall<a> (s : std/core/types/string, flags : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) -> (flag-kind :: V -> V)<a>;
+fun parse-shorts[282,5,282,16] : forall<a> (s : std/core/types/string, flags : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<(flag-kind :: V -> V)<a>>;
+fun process-next[223,5,223,16] : forall<a> (arg : std/core/types/string, flags : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<(flag-kind :: V -> V)<a>>;
+// Parse the command line arguments `args` (see `std/env/get-args`)
+// according to the flag descriptions `flags`. Takes an optional argument
+// `ordering` (=`Permute`) that specifies how flags are handled that follow non-flag arguments.
+// Returns three lists: the list of parsed flags,
+// a list of non-flag arguments, and a list of potential error messages.
+pub fun parse[197,9,197,13] : forall<a> (initial : a, flags : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>, args : (std/core/types/list :: V -> V)<std/core/types/string>, ordering : (std/core/types/@optional :: V -> V)<(flag-order :: V -> V)<a>>) -> (a, (std/core/types/list :: V -> V)<std/core/types/string>, (std/core/types/list :: V -> V)<std/core/types/string>);
+pub fun test[104,9,104,12] : (cmdargs : (std/core/types/list :: V -> V)<std/core/types/string>) -> <(std/core/console/console :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+specialize "_*_*" fun parse // inline size: 1
+  = forall<a> fn(initial: a, flags: (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>, args: (std/core/types/list :: V -> V)<std/core/types/string>, ordering: (std/core/types/@optional :: V -> V)<(flag-order :: V -> V)<a>>){
+    std/core/types/unsafe-no-local-cast<(a, (std/core/types/list :: V -> V)<std/core/types/string>, (std/core/types/list :: V -> V)<std/core/types/string>),(std/core/types/total :: E)>((forall<(h :: H)> fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(){
+      std/core/hnd/local-var<std/core/types/bool,(a, (std/core/types/list :: V -> V)<std/core/types/string>, (std/core/types/list :: V -> V)<std/core/types/string>),(std/core/types/total :: E),(h :: H)>(std/core/types/False, (fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(done: (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/bool>){
+          val opts@0[201,7,201,10] : ((std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<(flag-kind :: V -> V)<a>>>)
+                = (std/core/list/map<std/core/types/string,(std/core/types/list :: V -> V)<(flag-kind :: V -> V)<a>>,<(std/core/types/local :: H -> X)<(h :: H)>>>(args, (fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(arg: std/core/types/string){
+                    val opts[203,9,203,12] : ((std/core/types/list :: V -> V)<(flag-kind :: V -> V)<a>>)
+                      = (match ((std/core/types/local-get<std/core/types/bool,(h :: H),(std/core/types/total :: E)>(done, (std/core/types/@Hnodiv<(h :: H),std/core/types/bool,(std/core/types/total :: E)>)))) {
+                        ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+                           -> std/core/types/Cons<(flag-kind :: V -> V)<a>>((std/os/flags/Arg<a>(arg)), (std/core/types/Nil<(flag-kind :: V -> V)<a>>));
+                        ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+                           -> std/os/flags/process-next<a>(arg, flags);
+                      });
+                    val _[204,5,204,16] : ()
+                      = (std/core/list/foreach<(flag-kind :: V -> V)<a>,<(std/core/types/local :: H -> X)<(h :: H)>>>(opts, (fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(opt: (flag-kind :: V -> V)<a>){
+                          (match (opt) {
+                            ((std/os/flags/End() : (flag-kind :: V -> V)<a> ) as @pat@3: ((flag-kind :: V -> V)<a>))
+                               -> std/core/types/local-set<std/core/types/bool,(std/core/types/total :: E),(h :: H)>(done, std/core/types/True);
+                            ((std/os/flags/Arg((@pat@5: std/core/types/string) : std/core/types/string) : (flag-kind :: V -> V)<a> ) as @pat@4: ((flag-kind :: V -> V)<a>))
+                               | (match ((match (ordering) {
+                                ((std/core/types/@OptArg((@uniq-ordering@4743: (flag-order :: V -> V)<a>) : (flag-order :: V -> V)<a>) : (std/core/types/@optional :: V -> V)<(flag-order :: V -> V)<a>> ) as @pat@6: ((std/core/types/@optional :: V -> V)<(flag-order :: V -> V)<a>>))
+                                   -> @uniq-ordering@4743;
+                                ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(flag-order :: V -> V)<a>> ) as @pat@0@0: ((std/core/types/@optional :: V -> V)<(flag-order :: V -> V)<a>>))
+                                   -> std/os/flags/Permute<a>;
+                              })) {
+                                ((std/os/flags/Preorder() : (flag-order :: V -> V)<a> ) as @pat: ((flag-order :: V -> V)<a>))
+                                   -> std/core/types/True;
+                                (@pat@0: ((flag-order :: V -> V)<a>))
+                                   -> std/core/types/False;
+                              }) -> std/core/types/local-set<std/core/types/bool,(std/core/types/total :: E),(h :: H)>(done, std/core/types/True);
+                            (@pat@6@0: ((flag-kind :: V -> V)<a>))
+                               -> std/core/types/Unit;
+                          });
+                        })));
+                    opts;
+                  })));
+          (std/core/list/foldl<(flag-kind :: V -> V)<a>,(a, (std/core/types/list :: V -> V)<std/core/types/string>, (std/core/types/list :: V -> V)<std/core/types/string>),<(std/core/types/local :: H -> X)<(h :: H)>>>((std/core/list/@lift-concat@6012<(flag-kind :: V -> V)<a>>((std/core/types/Nil<(flag-kind :: V -> V)<a>>), opts@0)), (std/core/types/Tuple3<a,(std/core/types/list :: V -> V)<std/core/types/string>,(std/core/types/list :: V -> V)<std/core/types/string>>(initial, (std/core/types/Nil<std/core/types/string>), (std/core/types/Nil<std/core/types/string>))), (fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(acc: (a, (std/core/types/list :: V -> V)<std/core/types/string>, (std/core/types/list :: V -> V)<std/core/types/string>), opt@0: (flag-kind :: V -> V)<a>){
+              (match (acc) {
+                ((@skip std/core/types/Tuple3((o: a) : a, (xs: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (errs: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (a, (std/core/types/list :: V -> V)<std/core/types/string>, (std/core/types/list :: V -> V)<std/core/types/string>) ) as @pat@7: (a, (std/core/types/list :: V -> V)<std/core/types/string>, (std/core/types/list :: V -> V)<std/core/types/string>))
+                   -> (match (opt@0) {
+                    ((std/os/flags/Flg((set: (a) -> a) : (a) -> a) : (flag-kind :: V -> V)<a> ) as @pat@8: ((flag-kind :: V -> V)<a>))
+                       -> std/core/types/Tuple3<a,(std/core/types/list :: V -> V)<std/core/types/string>,(std/core/types/list :: V -> V)<std/core/types/string>>((set(o)), xs, errs);
+                    ((std/os/flags/Unknown((e: std/core/types/string) : std/core/types/string) : (flag-kind :: V -> V)<a> ) as @pat@9: ((flag-kind :: V -> V)<a>))
+                       -> std/core/types/Tuple3<a,(std/core/types/list :: V -> V)<std/core/types/string>,(std/core/types/list :: V -> V)<std/core/types/string>>(o, xs, (std/core/types/Cons<std/core/types/string>((std/core/types/(++)("unrecognized flag \x22", (std/core/types/(++)(e, "\x22")))), errs)));
+                    ((std/os/flags/Error((e@0: std/core/types/string) : std/core/types/string) : (flag-kind :: V -> V)<a> ) as @pat@10: ((flag-kind :: V -> V)<a>))
+                       -> std/core/types/Tuple3<a,(std/core/types/list :: V -> V)<std/core/types/string>,(std/core/types/list :: V -> V)<std/core/types/string>>(o, xs, (std/core/types/Cons<std/core/types/string>(e@0, errs)));
+                    ((std/os/flags/Arg((x: std/core/types/string) : std/core/types/string) : (flag-kind :: V -> V)<a> ) as @pat@11: ((flag-kind :: V -> V)<a>))
+                       -> std/core/types/Tuple3<a,(std/core/types/list :: V -> V)<std/core/types/string>,(std/core/types/list :: V -> V)<std/core/types/string>>(o, (std/core/types/Cons<std/core/types/string>(x, xs)), errs);
+                    ((@skip std/os/flags/End() : (flag-kind :: V -> V)<a> ) as @pat@12: ((flag-kind :: V -> V)<a>))
+                       -> std/core/types/Tuple3<a,(std/core/types/list :: V -> V)<std/core/types/string>,(std/core/types/list :: V -> V)<std/core/types/string>>(o, xs, errs);
+                  });
+              });
+            })));
+        }));
+    }))();
+  };
+specialize "**" fun parse-shorts // inline size: 1
+  = forall<a> fn(s: std/core/types/string, flags: (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>){
+    std/core/types/unsafe-no-local-cast<(std/core/types/list :: V -> V)<(flag-kind :: V -> V)<a>>,(std/core/types/total :: E)>((forall<(h :: H)> fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(){
+      std/core/hnd/local-var<std/core/types/bool,(std/core/types/list :: V -> V)<(flag-kind :: V -> V)<a>>,(std/core/types/total :: E),(h :: H)>(std/core/types/False, (fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(done: (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/bool>){
+          val fs[284,7,284,8] : ((std/core/types/list :: V -> V)<(std/core/types/maybe :: V -> V)<(flag-kind :: V -> V)<a>>>)
+                = (std/core/list/map-indexed<std/core/types/char,(std/core/types/maybe :: V -> V)<(flag-kind :: V -> V)<a>>,<(std/core/types/local :: H -> X)<(h :: H)>>>((std/core/string/list(s)), (fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(i: std/core/types/int, c: std/core/types/char){
+                    (match ((std/core/types/local-get<std/core/types/bool,(h :: H),(std/core/types/total :: E)>(done, (std/core/types/@Hnodiv<(h :: H),std/core/types/bool,(std/core/types/total :: E)>)))) {
+                      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+                         -> std/core/types/Nothing<(flag-kind :: V -> V)<a>>;
+                      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+                         -> val optstr[286,9,286,14] : std/core/types/string
+                              = std/core/types/(++)("-", (std/core/string/#char/string(c)));
+                            val applicable[287,9,287,18] : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>
+                              = std/core/list/filter<(flag :: V -> V)<a>,<(std/core/types/local :: H -> X)<(h :: H)>>>(flags, (fn<<(std/core/types/local :: H -> X)<(h :: H)>>>(opt: (flag :: V -> V)<a>){
+                                  (std/core/string/contains((match (opt) {
+                                      ((@skip std/os/flags/Flag((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1@0: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat@1: ((flag :: V -> V)<a>))
+                                         -> @x;
+                                    }), (std/core/string/#char/string(c))));
+                                }));
+                        (match (applicable) {
+                          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>> ) as @pat@1@1: ((std/core/types/list :: V -> V)<(flag :: V -> V)<a>>))
+                             -> std/core/types/Just<(flag-kind :: V -> V)<a>>((std/os/flags/Error<a>((std/core/types/(++)("unrecognized flag \x22", (std/core/types/(++)(optstr, "\x22")))))));
+                          ((@skip std/core/types/Cons((@pat@3: (flag :: V -> V)<a>) : (flag :: V -> V)<a>, ((std/core/types/Cons((@pat@5: (flag :: V -> V)<a>) : (flag :: V -> V)<a>, (@pat@6: (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>> ) as @pat@4: (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>> ) as @pat@2@0: ((std/core/types/list :: V -> V)<(flag :: V -> V)<a>>))
+                             -> std/core/types/Just<(flag-kind :: V -> V)<a>>((std/os/flags/error-ambiguous<a,a>(applicable, optstr)));
+                          ((@skip std/core/types/Cons((desc: (flag :: V -> V)<a>) : (flag :: V -> V)<a>, ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>> ) as @pat@8: (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>) : (std/core/types/list :: V -> V)<(flag :: V -> V)<a>> ) as @pat@7: ((std/core/types/list :: V -> V)<(flag :: V -> V)<a>>))
+                             -> (match (desc) {
+                              ((@skip std/os/flags/Flag((@pat@0@1: std/core/types/string) : std/core/types/string, (@pat@1@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x@0: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2@1: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat@9: ((flag :: V -> V)<a>))
+                                 -> (match (@x@0) {
+                                  ((std/os/flags/Bool((set: (a, std/core/types/bool) -> a) : (a, std/core/types/bool) -> a) : (flag-parser :: V -> V)<a> ) as @pat@9@0: ((flag-parser :: V -> V)<a>))
+                                     -> std/core/types/Just<(flag-kind :: V -> V)<a>>((std/os/flags/Flg<a>((fn(o: a){
+                                      (set(o, std/core/types/True));
+                                    }))));
+                                  ((std/os/flags/Req((parse@0: (a, std/core/types/string) -> a) : (a, std/core/types/string) -> a, (help: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat@10: ((flag-parser :: V -> V)<a>))
+                                     -> val arg[297,21,297,23] : std/core/types/string
+                                              = std/core/sslice/string((std/core/sslice/after((std/core/sslice/advance((std/core/sslice/first(s, (std/core/types/@NoOptArg<std/core/types/int>))), i)))));
+                                    (match ((std/core/string/(!=)(arg, ""))) {
+                                      ((std/core/types/True() : std/core/types/bool ) as @pat@11: std/core/types/bool)
+                                         -> val _@0[299,25,299,36] : ()
+                                                  = std/core/types/local-set<std/core/types/bool,(std/core/types/total :: E),(h :: H)>(done, std/core/types/True);
+                                        std/core/types/Just<(flag-kind :: V -> V)<a>>((std/os/flags/Flg<a>((fn(o@0: a){
+                                          (parse@0(o@0, arg));
+                                        }))));
+                                      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@12: std/core/types/bool)
+                                         -> std/core/types/Just<(flag-kind :: V -> V)<a>>((std/os/flags/Error<a>((std/core/types/(++)("flag \x22", (std/core/types/(++)(optstr, (std/core/types/(++)("\x22 requires an argument ", help)))))))));
+                                    });
+                                  ((@skip std/os/flags/Opt((parse@0@0: (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a) : (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a, (@pat@14: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat@13: ((flag-parser :: V -> V)<a>))
+                                     -> val arg@0[303,21,303,23] : std/core/types/string
+                                              = std/core/sslice/string((std/core/sslice/after((std/core/sslice/advance((std/core/sslice/first(s, (std/core/types/@NoOptArg<std/core/types/int>))), i)))));
+                                    (match ((std/core/string/(!=)(arg@0, ""))) {
+                                      ((std/core/types/True() : std/core/types/bool ) as @pat@15: std/core/types/bool)
+                                         -> val _@1[305,25,305,36] : ()
+                                                  = std/core/types/local-set<std/core/types/bool,(std/core/types/total :: E),(h :: H)>(done, std/core/types/True);
+                                        std/core/types/Just<(flag-kind :: V -> V)<a>>((std/os/flags/Flg<a>((fn(o@1: a){
+                                          (parse@0@0(o@1, (std/core/types/Just<std/core/types/string>(arg@0))));
+                                        }))));
+                                      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@16: std/core/types/bool)
+                                         -> std/core/types/Just<(flag-kind :: V -> V)<a>>((std/os/flags/Flg<a>((fn(o@2: a){
+                                          (parse@0@0(o@2, (std/core/types/Nothing<std/core/types/string>)));
+                                        }))));
+                                    });
+                                });
+                            });
+                        });
+                    });
+                  })));
+          (std/core/list/flatmap<(std/core/types/maybe :: V -> V)<(flag-kind :: V -> V)<a>>,(flag-kind :: V -> V)<a>,<(std/core/types/local :: H -> X)<(h :: H)>>>(fs, (std/core/list/#maybe/list<(flag-kind :: V -> V)<a>>)));
+        }));
+    }))();
+  };
+specialize "_*" fun process-next // inline size: 1
+  = forall<a> fn(arg: std/core/types/string, flags: (std/core/types/list :: V -> V)<(flag :: V -> V)<a>>){
+    (match ((std/core/sslice/starts-with(arg, "--"))) {
+      ((std/core/types/Just(((@skip std/core/sslice/Sslice((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/int) : std/core/types/int, (@pat@2: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as slice: std/core/sslice/sslice) : std/core/sslice/sslice) : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+         -> val b@10032[1,0,1,0] : std/core/types/bool
+                  = std/core/int/(>)((match (slice) {
+                      ((@skip std/core/sslice/Sslice((@pat@0@0: std/core/types/string) : std/core/types/string, (@pat@1@0@0: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as @pat@1@0: std/core/sslice/sslice)
+                         -> @x;
+                    }), 0);
+        (match (b@10032) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@3: std/core/types/bool)
+             -> std/core/types/Cons<(flag-kind :: V -> V)<a>>((std/os/flags/parse-long<a>((std/core/sslice/string(slice)), flags)), (std/core/types/Nil<(flag-kind :: V -> V)<a>>));
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@1: std/core/types/bool)
+             -> std/core/types/Cons<(flag-kind :: V -> V)<a>>((std/os/flags/End<a>), (std/core/types/Nil<(flag-kind :: V -> V)<a>>));
+        });
+      ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat@5: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+         -> (match ((std/core/sslice/starts-with(arg, "-"))) {
+          ((std/core/types/Just((slice@0@0: std/core/sslice/sslice) : std/core/sslice/sslice) : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat@6: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+             | val b@10032@0[1,0,1,0] : std/core/types/bool
+                     = std/core/int/(>)((match (slice@0@0) {
+                         ((@skip std/core/sslice/Sslice((@pat@0@0@0: std/core/types/string) : std/core/types/string, (@pat@1@0@1: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int) : std/core/sslice/sslice ) as @pat@1@1: std/core/sslice/sslice)
+                            -> @x@0;
+                       }), 0);
+            (match (b@10032@0) {
+              ((std/core/types/True() : std/core/types/bool ) as @pat@8: std/core/types/bool)
+                 -> std/core/types/True;
+              ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@3: std/core/types/bool)
+                 -> std/core/types/False;
+            }) -> std/os/flags/parse-shorts<a>((std/core/sslice/string(slice@0@0)), flags);
+          (@pat@7@0: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+             -> std/core/types/Cons<(flag-kind :: V -> V)<a>>((std/os/flags/Arg<a>(arg)), (std/core/types/Nil<(flag-kind :: V -> V)<a>>));
+        });
+    });
+  };
+specialize "*" fun show-flag // inline size: 1
+  = forall<a> fn(flag: (flag :: V -> V)<a>){
+    val xs@10020[1,0,1,0] : (std/core/types/list :: V -> V)<std/core/types/string>
+      = std/core/list/map<std/core/types/char,std/core/types/string,(std/core/types/total :: E)>((std/core/string/list((match (flag) {
+          ((@skip std/os/flags/Flag((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat: ((flag :: V -> V)<a>))
+             -> @x;
+        }))), (fn(c: std/core/types/char){
+          (std/core/types/(++)("-", (std/core/types/(++)((std/core/string/#char/string(c)), (match (flag) {
+                ((@skip std/os/flags/Flag((@pat@0@1: std/core/types/string) : std/core/types/string, (@pat@1@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x@0: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2@1: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat@5: ((flag :: V -> V)<a>))
+                   -> (match (@x@0) {
+                    ((std/os/flags/Bool((@pat@0@0: (a, std/core/types/bool) -> a) : (a, std/core/types/bool) -> a) : (flag-parser :: V -> V)<a> ) as @pat@3: ((flag-parser :: V -> V)<a>))
+                       -> "";
+                    ((std/os/flags/Req((@pat@2@0: (a, std/core/types/string) -> a) : (a, std/core/types/string) -> a, (h: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat@1@0: ((flag-parser :: V -> V)<a>))
+                       -> std/core/types/(++)("<", (std/core/types/(++)(h, ">")));
+                    ((@skip std/os/flags/Opt((@pat@4: (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a) : (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a, (h@0: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat@3@0: ((flag-parser :: V -> V)<a>))
+                       -> std/core/types/(++)("[", (std/core/types/(++)(h@0, "]")));
+                  });
+              })))));
+        }));
+    val short[164,7,164,11] : std/core/types/string
+      = std/core/list/joinsep(xs@10020, " ");
+    val xs@0@10025[1,0,1,0] : (std/core/types/list :: V -> V)<std/core/types/string>
+      = std/core/list/map<std/core/types/string,std/core/types/string,(std/core/types/total :: E)>((match (flag) {
+          ((@skip std/os/flags/Flag((@pat@0@2: std/core/types/string) : std/core/types/string, (@x@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1@2: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2@2: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat@6: ((flag :: V -> V)<a>))
+             -> @x@1;
+        }), (fn(name: std/core/types/string){
+          (std/core/types/(++)("--", (std/core/types/(++)(name, (match (flag) {
+                ((@skip std/os/flags/Flag((@pat@0@4: std/core/types/string) : std/core/types/string, (@pat@1@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x@2: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2@4: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat@8: ((flag :: V -> V)<a>))
+                   -> (match (@x@2) {
+                    ((std/os/flags/Bool((@pat@0@3: (a, std/core/types/bool) -> a) : (a, std/core/types/bool) -> a) : (flag-parser :: V -> V)<a> ) as @pat@7: ((flag-parser :: V -> V)<a>))
+                       -> "";
+                    ((std/os/flags/Req((@pat@2@3: (a, std/core/types/string) -> a) : (a, std/core/types/string) -> a, (h@1: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat@1@3: ((flag-parser :: V -> V)<a>))
+                       -> std/core/types/(++)("=", h@1);
+                    ((@skip std/os/flags/Opt((@pat@4@0: (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a) : (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a, (h@0@0: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat@3@1: ((flag-parser :: V -> V)<a>))
+                       -> std/core/types/(++)("[=", (std/core/types/(++)(h@0@0, "]")));
+                  });
+              })))));
+        }));
+    val long[165,7,165,10] : std/core/types/string
+      = std/core/list/joinsep(xs@0@10025, " ");
+    val v@10011[1,0,1,0] : (std/core/types/vector :: V -> V)<std/core/types/string>
+      = std/core/string/splitv((match (flag) {
+          ((@skip std/os/flags/Flag((@pat@0@5: std/core/types/string) : std/core/types/string, (@pat@1@5: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2@5: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@x@3: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat@9: ((flag :: V -> V)<a>))
+             -> @x@3;
+        }), "\x0A");
+    (match ((std/core/vector/vlist<std/core/types/string>(v@10011, (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<std/core/types/string>>)))) {
+      ((std/core/types/Cons((hd: std/core/types/string) : std/core/types/string, (tl: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@10: ((std/core/types/list :: V -> V)<std/core/types/string>))
+         -> val ys@10033[1,0,1,0] : (std/core/types/list :: V -> V)<(std/core/types/string, std/core/types/string, std/core/types/string)>
+                  = std/core/list/map<std/core/types/string,(std/core/types/string, std/core/types/string, std/core/types/string),(std/core/types/total :: E)>(tl, (fn(s@0: std/core/types/string){
+                      (std/core/types/Tuple3<std/core/types/string,std/core/types/string,std/core/types/string>("", "", s@0));
+                    }));
+        std/core/list/append<(std/core/types/string, std/core/types/string, std/core/types/string)>((std/core/types/Cons<(std/core/types/string, std/core/types/string, std/core/types/string)>((std/core/types/Tuple3<std/core/types/string,std/core/types/string,std/core/types/string>(short, long, hd)), (std/core/types/Nil<(std/core/types/string, std/core/types/string, std/core/types/string)>))), ys@10033);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@0@6: ((std/core/types/list :: V -> V)<std/core/types/string>))
+         -> std/core/types/Cons<(std/core/types/string, std/core/types/string, std/core/types/string)>((std/core/types/Tuple3<std/core/types/string,std/core/types/string,std/core/types/string>(short, long, "")), (std/core/types/Nil<(std/core/types/string, std/core/types/string, std/core/types/string)>));
+    });
+  };
+specialize "*___" fun zipWith3 // inline size: 1
+  = forall<a,b,c,d,(e :: E)> fn<(e :: E)>(f: (a, b, c) -> (e :: E) d, xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<b>, zs: (std/core/types/list :: V -> V)<c>){
+    std/os/flags/zipWith3Acc<a,b,c,d,(e :: E)>(f, (std/core/types/Nil<d>), xs, ys, zs);
+  };
+recursive specialize "*____" fun zipWith3Acc // inline size: 15
+  = forall<a,b,c,d,(e :: E)> fn<(e :: E)>(f: (a, b, c) -> (e :: E) d, acc: (std/core/types/list :: V -> V)<d>, xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<b>, zs: (std/core/types/list :: V -> V)<c>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<d>) -> (std/core/types/list :: V -> V)<d>,(xs : (std/core/types/list :: V -> V)<d>) -> (e :: E) (std/core/types/list :: V -> V)<d>>((fn(xs@0: (std/core/types/list :: V -> V)<d>){
+          (std/core/list/reverse-acc<d>((std/core/types/Nil<d>), xs@0));
+        }))(acc);
+      ((@skip std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<b> ) as @pat@1: ((std/core/types/list :: V -> V)<b>))
+             -> std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<d>) -> (std/core/types/list :: V -> V)<d>,(xs : (std/core/types/list :: V -> V)<d>) -> (e :: E) (std/core/types/list :: V -> V)<d>>((fn(xs@1: (std/core/types/list :: V -> V)<d>){
+              (std/core/list/reverse-acc<d>((std/core/types/Nil<d>), xs@1));
+            }))(acc);
+          ((@skip std/core/types/Cons((y: b) : b, (yy: (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b> ) as @pat@2: ((std/core/types/list :: V -> V)<b>))
+             -> (match (zs) {
+              ((std/core/types/Cons((z: c) : c, (zz: (std/core/types/list :: V -> V)<c>) : (std/core/types/list :: V -> V)<c>) : (std/core/types/list :: V -> V)<c> ) as @pat@3: ((std/core/types/list :: V -> V)<c>))
+                 -> std/os/flags/zipWith3Acc<a,b,c,d,(e :: E)>(f, (std/core/types/Cons<d>((f(x, y, z)), acc)), xx, yy, zz);
+              ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<c> ) as @pat@4: ((std/core/types/list :: V -> V)<c>))
+                 -> std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<d>) -> (std/core/types/list :: V -> V)<d>,(xs : (std/core/types/list :: V -> V)<d>) -> (e :: E) (std/core/types/list :: V -> V)<d>>((fn(xs@2: (std/core/types/list :: V -> V)<d>){
+                  (std/core/list/reverse-acc<d>((std/core/types/Nil<d>), xs@2));
+                }))(acc);
+            });
+        });
+    });
+  };
+inline fun @create-Myflags // inline size: 6
+  = fn(verbose: (std/core/types/@optional :: V -> V)<std/core/types/bool>, version: (std/core/types/@optional :: V -> V)<std/core/types/bool>, name: (std/core/types/@optional :: V -> V)<std/core/types/string>, output: (std/core/types/@optional :: V -> V)<std/core/types/string>, arguments: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>){
+    std/os/flags/Myflags((match (verbose) {
+        ((std/core/types/@OptArg((@uniq-verbose@159: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+           -> @uniq-verbose@159;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+           -> std/core/types/False;
+      }), (match (version) {
+        ((std/core/types/@OptArg((@uniq-version@163: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@1: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+           -> @uniq-version@163;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+           -> std/core/types/False;
+      }), (match (name) {
+        ((std/core/types/@OptArg((@uniq-name@167: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@3: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-name@167;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@4: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "";
+      }), (match (output) {
+        ((std/core/types/@OptArg((@uniq-output@171: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@5: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-output@171;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@6: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "";
+      }), (match (arguments) {
+        ((std/core/types/@OptArg((@uniq-arguments@177: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@7: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> @uniq-arguments@177;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@8: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> std/core/types/Nil<std/core/types/string>;
+      }));
+  };
+inline borrow "^" fun myflags/verbose // inline size: 0
+  = fn(myflags@0: myflags){
+    match (myflags@0) {
+      ((@skip std/os/flags/Myflags((@x: std/core/types/bool) : std/core/types/bool, (@pat@0: std/core/types/bool) : std/core/types/bool, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : myflags ) as @pat: myflags)
+         -> @x;
+    };
+  };
+inline borrow "^" fun myflags/version // inline size: 0
+  = fn(myflags@0: myflags){
+    match (myflags@0) {
+      ((@skip std/os/flags/Myflags((@pat@0: std/core/types/bool) : std/core/types/bool, (@x: std/core/types/bool) : std/core/types/bool, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : myflags ) as @pat: myflags)
+         -> @x;
+    };
+  };
+inline borrow "^" fun myflags/name // inline size: 0
+  = fn(myflags@0: myflags){
+    match (myflags@0) {
+      ((@skip std/os/flags/Myflags((@pat@0: std/core/types/bool) : std/core/types/bool, (@pat@1: std/core/types/bool) : std/core/types/bool, (@x: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : myflags ) as @pat: myflags)
+         -> @x;
+    };
+  };
+inline borrow "^" fun myflags/output // inline size: 0
+  = fn(myflags@0: myflags){
+    match (myflags@0) {
+      ((@skip std/os/flags/Myflags((@pat@0: std/core/types/bool) : std/core/types/bool, (@pat@1: std/core/types/bool) : std/core/types/bool, (@pat@2: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : myflags ) as @pat: myflags)
+         -> @x;
+    };
+  };
+inline borrow "^" fun myflags/arguments // inline size: 0
+  = fn(myflags@0: myflags){
+    match (myflags@0) {
+      ((@skip std/os/flags/Myflags((@pat@0: std/core/types/bool) : std/core/types/bool, (@pat@1: std/core/types/bool) : std/core/types/bool, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : myflags ) as @pat: myflags)
+         -> @x;
+    };
+  };
+fun set-name // inline size: 2
+  = fn(t: myflags, name: std/core/types/string){
+    std/os/flags/#myflags/@copy(t, (std/core/types/@NoOptArg<std/core/types/bool>), (std/core/types/@NoOptArg<std/core/types/bool>), (std/core/types/@OptArg<std/core/types/string>(name)), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<std/core/types/string>>));
+  };
+fun set-verbose // inline size: 2
+  = fn(t: myflags, v: std/core/types/bool){
+    std/os/flags/#myflags/@copy(t, (std/core/types/@OptArg<std/core/types/bool>(v)), (std/core/types/@NoOptArg<std/core/types/bool>), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<std/core/types/string>>));
+  };
+fun set-version // inline size: 2
+  = fn(t: myflags, v: std/core/types/bool){
+    std/os/flags/#myflags/@copy(t, (std/core/types/@NoOptArg<std/core/types/bool>), (std/core/types/@OptArg<std/core/types/bool>(v)), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<std/core/types/string>>));
+  };
+inline borrow "^" fip fun is-permute // inline size: 1
+  = forall<a> fn(flag-order: (flag-order :: V -> V)<a>){
+    (match (flag-order) {
+      ((std/os/flags/Permute() : (flag-order :: V -> V)<a> ) as @pat: ((flag-order :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@0: ((flag-order :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-preorder // inline size: 1
+  = forall<a> fn(flag-order: (flag-order :: V -> V)<a>){
+    (match (flag-order) {
+      ((std/os/flags/Preorder() : (flag-order :: V -> V)<a> ) as @pat: ((flag-order :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@0: ((flag-order :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-wrap // inline size: 1
+  = forall<a> fn(flag-order: (flag-order :: V -> V)<a>){
+    (match (flag-order) {
+      ((std/os/flags/Wrap((@pat@0: (std/core/types/string) -> a) : (std/core/types/string) -> a) : (flag-order :: V -> V)<a> ) as @pat: ((flag-order :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@1: ((flag-order :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fun flag/short-names // inline size: 0
+  = forall<a> fn(flag: (flag :: V -> V)<a>){
+    (match (flag) {
+      ((@skip std/os/flags/Flag((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat: ((flag :: V -> V)<a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun flag/long-names // inline size: 0
+  = forall<a> fn(flag: (flag :: V -> V)<a>){
+    (match (flag) {
+      ((@skip std/os/flags/Flag((@pat@0: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat: ((flag :: V -> V)<a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun flag/parser // inline size: 0
+  = forall<a> fn(flag: (flag :: V -> V)<a>){
+    (match (flag) {
+      ((@skip std/os/flags/Flag((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@pat@2: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat: ((flag :: V -> V)<a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun flag/help // inline size: 0
+  = forall<a> fn(flag: (flag :: V -> V)<a>){
+    (match (flag) {
+      ((@skip std/os/flags/Flag((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (flag-parser :: V -> V)<a>) : (flag-parser :: V -> V)<a>, (@x: std/core/types/string) : std/core/types/string) : (flag :: V -> V)<a> ) as @pat: ((flag :: V -> V)<a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fip fun is-bool // inline size: 1
+  = forall<a> fn(flag-parser: (flag-parser :: V -> V)<a>){
+    (match (flag-parser) {
+      ((std/os/flags/Bool((@pat@0: (a, std/core/types/bool) -> a) : (a, std/core/types/bool) -> a) : (flag-parser :: V -> V)<a> ) as @pat: ((flag-parser :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@1: ((flag-parser :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-req // inline size: 1
+  = forall<a> fn(flag-parser: (flag-parser :: V -> V)<a>){
+    (match (flag-parser) {
+      ((std/os/flags/Req((@pat@0: (a, std/core/types/string) -> a) : (a, std/core/types/string) -> a, (@pat@1: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat: ((flag-parser :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@2: ((flag-parser :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-opt // inline size: 1
+  = forall<a> fn(flag-parser: (flag-parser :: V -> V)<a>){
+    (match (flag-parser) {
+      ((std/os/flags/Opt((@pat@0: (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a) : (a, (std/core/types/maybe :: V -> V)<std/core/types/string>) -> a, (@pat@1: std/core/types/string) : std/core/types/string) : (flag-parser :: V -> V)<a> ) as @pat: ((flag-parser :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@2: ((flag-parser :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+fun zipWith3 // inline size: 1
+  = forall<a,b,c,d,(e :: E)> fn<(e :: E)>(f: (a, b, c) -> (e :: E) d, xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<b>, zs: (std/core/types/list :: V -> V)<c>){
+    std/os/flags/zipWith3Acc<a,b,c,d,(e :: E)>(f, (std/core/types/Nil<d>), xs, ys, zs);
+  };
+inline borrow "^" fip fun is-flg // inline size: 1
+  = forall<a> fn(flag-kind: (flag-kind :: V -> V)<a>){
+    (match (flag-kind) {
+      ((std/os/flags/Flg((@pat@0: (a) -> a) : (a) -> a) : (flag-kind :: V -> V)<a> ) as @pat: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@1: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-arg // inline size: 1
+  = forall<a> fn(flag-kind: (flag-kind :: V -> V)<a>){
+    (match (flag-kind) {
+      ((std/os/flags/Arg((@pat@0: std/core/types/string) : std/core/types/string) : (flag-kind :: V -> V)<a> ) as @pat: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@1: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-end // inline size: 1
+  = forall<a> fn(flag-kind: (flag-kind :: V -> V)<a>){
+    (match (flag-kind) {
+      ((std/os/flags/End() : (flag-kind :: V -> V)<a> ) as @pat: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@0: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-unknown // inline size: 1
+  = forall<a> fn(flag-kind: (flag-kind :: V -> V)<a>){
+    (match (flag-kind) {
+      ((std/os/flags/Unknown((@pat@0: std/core/types/string) : std/core/types/string) : (flag-kind :: V -> V)<a> ) as @pat: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@1: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-error // inline size: 1
+  = forall<a> fn(flag-kind: (flag-kind :: V -> V)<a>){
+    (match (flag-kind) {
+      ((std/os/flags/Error((@pat@0: std/core/types/string) : std/core/types/string) : (flag-kind :: V -> V)<a> ) as @pat: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@1: ((flag-kind :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+fun error-required // inline size: 4
+  = forall<a> fn(help: std/core/types/string, opt: std/core/types/string){
+    std/os/flags/Error<a>((std/core/types/(++)("flag \x22", (std/core/types/(++)(opt, (std/core/types/(++)("\x22 requires an argument ", help)))))));
+  };
+fun error-negate // inline size: 3
+  = forall<a> fn(flagname: std/core/types/string){
+    std/os/flags/Error<a>((std/core/types/(++)("flag \x22--", (std/core/types/(++)(flagname, "\x22 cannot be negated")))));
+  };
+fun error-noarg // inline size: 3
+  = forall<a> fn(opt: std/core/types/string){
+    std/os/flags/Error<a>((std/core/types/(++)("flag \x22", (std/core/types/(++)(opt, "\x22 does not take an argument")))));
+  };
+fun error-unknown-message // inline size: 2
+  = fn(opt: std/core/types/string){
+    std/core/types/(++)("unrecognized flag \x22", (std/core/types/(++)(opt, "\x22")));
+  };
+fun error-unknown // inline size: 3
+  = forall<a> fn(opt: std/core/types/string){
+    std/os/flags/Error<a>((std/core/types/(++)("unrecognized flag \x22", (std/core/types/(++)(opt, "\x22")))));
+  };

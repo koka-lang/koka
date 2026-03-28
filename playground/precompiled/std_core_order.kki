@@ -1,0 +1,73 @@
+// Standard `:order` functions.
+module interface std/core/order
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/int = std/core/int = "";
+import std/core/hnd = std/core/hnd inline = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+pub fip fun order/int[15,13,15,21] : (x : std/core/types/order) -> std/core/types/int;
+// Convert an `:order2` to an `:int` (`-1`, `0`, or `1`)
+pub fip fun order2/int[40,13,40,22] : forall<a> (^ x : (std/core/types/order2 :: V -> V)<a>) -> std/core/types/int;
+pub fip fun (==)[21,13,21,16] : (x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool;
+pub fip fun (!=)[24,13,24,16] : (x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool;
+pub fip fun (>=)[27,13,27,16] : (x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool;
+pub fip fun (<=)[30,13,30,16] : (x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool;
+pub fip fun (>)[33,13,33,15] : (x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool;
+pub fip fun (<)[36,13,36,15] : (x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool;
+// monadic lift
+fun default/@mlift-order2@10013[1,0,1,0] : forall<a,(e :: E)> (x : a, y : a, @y-x10012 : std/core/types/order) -> (e :: E) (std/core/types/order2 :: V -> V)<a>;
+// Given a comparison function, we can order 2 elements.
+pub fun default/order2[47,9,47,22] : forall<a,(e :: E)> (x : a, y : a, ^ ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) (std/core/types/order2 :: V -> V)<a>;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fip fun order/int // inline size: 2
+  = fn(x: std/core/types/order){
+    match (x) {
+      ((std/core/types/Lt() : std/core/types/order ) as @pat: std/core/types/order)
+         -> -1;
+      ((std/core/types/Eq() : std/core/types/order ) as @pat@0: std/core/types/order)
+         -> 0;
+      ((@skip std/core/types/Gt() : std/core/types/order ) as @pat@1: std/core/types/order)
+         -> 1;
+    };
+  };
+borrow "^" fip fun order2/int // inline size: 2
+  = forall<a> fn(x: (std/core/types/order2 :: V -> V)<a>){
+    (match (x) {
+      ((std/core/types/Lt2((@pat@0: a) : a, (@pat@1: a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat: ((std/core/types/order2 :: V -> V)<a>))
+         -> -1;
+      ((std/core/types/Eq2((@pat@3: a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@2: ((std/core/types/order2 :: V -> V)<a>))
+         -> 0;
+      ((@skip std/core/types/Gt2((@pat@5: a) : a, (@pat@6: a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@4: ((std/core/types/order2 :: V -> V)<a>))
+         -> 1;
+    });
+  };

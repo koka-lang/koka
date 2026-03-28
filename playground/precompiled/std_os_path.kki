@@ -1,0 +1,513 @@
+/* File system paths.
+
+The path functions are system independent: backward slashes (`'\\'`)
+are treated as a forward slash to separate directories. Windows style
+root names like ``c:\`` or ``//server`` are also recognized.
+
+A list of paths can be separated with either a colon (``:``) or
+semi-colon (``;``).
+
+A `:path` is created using the `path` functions. Use `string` to convert
+back to a normalized path string. A path consists of a _root_ name
+(``/``, ``c:\``), the directory (``foo/bar``) and finally the _base_ name.
+The base name itself consists of the _stem_ and the _extension_. The
+extension is always the part that follows the last occurrence of a dot (`'.'`)
+in the base name.
+
+A `:path` is always normalized. For a sequence of directories, any
+empty directory or ``.`` directory is ignored.
+A directory followed by ``..`` is also ignored -- this is the [Plan 9](https://9p.io/sys/doc/lexnames.html)
+interpretation of paths where ``..`` is considered lexically.
+If parent directories should be resolved through symbolic links,
+the `realpath` function should be used (which has the `:io` effect though).
+*/
+module interface std/os/path
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/text/parse = std/text/parse = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// The `:io` effect is used for functions that perform arbitrary I/O operations.
+local alias std/core/io[79,1,79,29] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,((std/core/io-noexn :: E) == 3 <(std/core/types/div :: X),((std/core/io-total :: E) == 2 <(std/core/types/ndet :: X),(std/core/console/console :: X),(std/core/net :: X),(std/core/fsys :: X),(std/core/ui :: X),((std/core/types/st :: H -> E)<(std/core/types/global :: H)> == 1 <(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/types/write :: H -> X)<(std/core/types/global :: H)>,(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>>)>)>)> = 4;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A `:path` represents a file system path.\
+pub value{0,2,8} type path[41,1,43,26] {
+  // A `:path` represents a file system path.\
+  con Path[41,23,41,26](root: std/core/types/string, parts: (std/core/types/list :: V -> V)<std/core/types/string>){0,2,8} : (root : std/core/types/string, parts : (std/core/types/list :: V -> V)<std/core/types/string>) -> path = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// A `:path` represents a file system path.\
+fun @create-Path[41,23,41,26] : (root : (std/core/types/@optional :: V -> V)<std/core/types/string>, parts : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>) -> path;
+// Automatically generated. Retrieves the `root` constructor field of the `:path` type.
+fun path/root[42,3,42,6] : (^ path : path) -> std/core/types/string;
+// Automatically generated. Retrieves the `parts` constructor field of the `:path` type.
+fun path/parts[43,3,43,7] : (^ path : path) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+pub fun path/@copy[41,23,41,26] : (@this : path, root : (std/core/types/@optional :: V -> V)<std/core/types/string>, parts : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>) -> path;
+// Return the base name of a path (stem name + extension)\
+// `"/foo/bar.txt".path.basename === "bar.txt"` \
+// `"/foo".path.basename === "foo"`
+pub fun basename[49,9,49,16] : (p : path) -> std/core/types/string;
+// Return the directory part of a path (including the rootname)
+// `"/foo/bar.txt".path.dirname === "/foo"` \
+// `"/foo".path.dirname === "/"`
+pub fun dirname[55,9,55,15] : (p : path) -> std/core/types/string;
+// Is a path empty?
+pub fun is-empty[98,9,98,16] : (p : path) -> std/core/types/bool;
+// Convert a `:path` to a normalized `:string` path.\
+// If this results in an empty string, the current directory path `"."` is returned.
+// `"c:/foo/test.txt".path.string -> "c:/foo/test.txt"`\
+// `"c:\\foo\\test.txt".path.string -> "c:/foo/test.txt"`\
+// `"/foo//./bar/../test.txt".path.string -> "/foo/test.txt"`
+pub fun string[88,9,88,14] : (p : path) -> std/core/types/string;
+fun split-base[74,5,74,14] : (basename : std/core/types/string) -> (std/core/types/string, std/core/types/string);
+// Return the extension of path (without the preceding dot (`'.'`))\
+// `"/foo/bar.svg.txt".path.extname === "txt"`
+pub fun extname[60,9,60,15] : (p : path) -> std/core/types/string;
+// Return the stem name of path.\
+// `"/foo/bar.svg.txt".path.extname === "foo.svg"`
+pub fun stemname[65,9,65,16] : (p : path) -> std/core/types/string;
+// Return the root name of path.
+// `"c:\\foo".path.rootname === "c:/"`\
+// `"/foo".path.rootname === "/"`
+pub fun rootname[71,9,71,16] : (p : path) -> std/core/types/string;
+fun split-parts[80,5,80,15] : (parts : (std/core/types/list :: V -> V)<std/core/types/string>) -> (std/core/types/string, (std/core/types/list :: V -> V)<std/core/types/string>);
+// Show a path as a string.
+pub fun show[93,9,93,12] : (p : path) -> std/core/types/string;
+// Is a path relative?
+pub fun is-relative[102,9,102,19] : (p : path) -> std/core/types/bool;
+// Is a path absolute?
+pub fun is-absolute[106,9,106,19] : (p : path) -> std/core/types/bool;
+// Return the first path if it is not empty, otherwise return the second one.
+pub fun (||)[170,9,170,12] : (p1 : path, p2 : path) -> path;
+fun push-part[126,5,126,13] : (dir : std/core/types/string, dirs : (std/core/types/list :: V -> V)<std/core/types/string>) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+fun push-parts[121,5,121,14] : (parts : (std/core/types/list :: V -> V)<std/core/types/string>, dirs : (std/core/types/list :: V -> V)<std/core/types/string>) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+fun path-parts[117,5,117,14] : (root : std/core/types/string, s : std/core/types/string, dirs : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>) -> path;
+// monadic lift
+fun @mlift-proot@10184[1,0,1,0] : (wild_@4 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-proot@10185[1,0,1,0] : (wild_@5 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-proot@10186[1,0,1,0] : (wild_@0 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-proot@10187[1,0,1,0] : (wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-proot@10188[1,0,1,0] : (@y-x10139 : (std/core/types/list :: V -> V)<std/core/types/char>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-proot@10189[1,0,1,0] : (@y-x10137 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-proot@10190[1,0,1,0] : (wild_@1 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-proot@10191[1,0,1,0] : (wild_@3 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/bool;
+fun proot[131,5,131,9] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/bool;
+// Create a normalized `:path` from a path string.
+pub fun path[110,9,110,12] : (s : std/core/types/string) -> path;
+fun @trmc-paths-collect[143,5,143,17] : (ps : (std/core/types/list :: V -> V)<std/core/types/string>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<path>>) -> (std/core/types/list :: V -> V)<path>;
+fun paths-collect[143,5,143,17] : (ps : (std/core/types/list :: V -> V)<std/core/types/string>) -> (std/core/types/list :: V -> V)<path>;
+// Parse a list of paths seperated by colon (`':'`) or semi-colon (`';'`)
+//
+// Colon separated paths can be ambiguous with Windows style root names (`c:\\`)
+// In particular, a single letter path followed by an absolute path, e.g. ``c:/foo:/bar`` is
+// parsed as ``c:/foo`` and ``/bar``.
+pub fun paths[140,9,140,13] : (s : std/core/types/string) -> (std/core/types/list :: V -> V)<path>;
+// Add two paths together using left-associative operator `(/)`. \
+// Keeps the root of `p1` and discards the root name of `p2`.\
+// `"/a/" / "b/foo.txt"          === "/a/b/foo.txt"`\
+// `"/a/foo.txt" / "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
+// `"c:/foo" / "d:/bar"          === "c:/foo/bar"`
+pub fun (/)[158,9,158,11] : (p1 : path, p2 : path) -> path;
+// Convenience function that adds a string path.
+pub fun pathstring/(/)[162,9,162,22] : (p1 : path, p2 : std/core/types/string) -> path;
+// Convenience function that adds two strings into a path.
+pub fun string/(/)[166,9,166,18] : (p1 : std/core/types/string, p2 : std/core/types/string) -> path;
+// Combine multiple paths using `(/)`.
+pub fun combine[174,9,174,15] : (ps : (std/core/types/list :: V -> V)<path>) -> path;
+// Remove the directory and root and only keep the base name (file name) portion of the path.\
+// `nodir("foo/bar.ext".path) === "bar.ext"`
+pub fun nodir[182,9,182,13] : (p : path) -> path;
+// Remove the basename and only keep the root and directory name portion of the path.\
+// `nobase("foo/bar.ext".path) == "foo")`
+pub fun nobase[187,9,187,14] : (p : path) -> path;
+// Change the extension of a path.
+// Only adds a dot if the extname does not already start with a dot.
+pub fun change-ext[196,9,196,18] : (p : path, extname : std/core/types/string) -> path;
+// Remove the extension from a path.
+pub fun noext[191,9,191,13] : (p : path) -> path;
+// If a path has no extension, set it to the provided one.
+pub fun default-ext[203,9,203,19] : (p : path, newext : std/core/types/string) -> path;
+// Change the base name of a path
+pub fun change-base[212,9,212,19] : (p : path, basename : std/core/types/string) -> path;
+// Change the stem name of a path
+pub fun change-stem[207,9,207,19] : (p : path, stemname : std/core/types/string) -> path;
+// Return a list of all directory components (excluding the root but including the basename).\
+// `"/foo/bar/test.txt".path.dirparts === ["foo","bar","test.txt"]`
+pub fun dirparts[219,9,219,16] : (p : path) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Return the last directory component name (or the empty string).\
+// `"c:/foo/bar/tst.txt".path.parentname === "bar"
+pub fun parentname[224,9,224,18] : (p : path) -> std/core/types/string;
+fun xrealpath[248,8,248,16] : (p : std/core/types/string) -> <(std/core/io :: E)> std/core/types/string;
+// monadic lift
+fun string/@mlift-realpath@10192[1,0,1,0] : (@y-x10146 : std/core/types/string) -> <(std/core/io :: E)> path;
+// Convert a path to the absolute path on the file system.\
+// The overload on a plain string is necessary as it allows
+// for unnormalized paths with `".."` parts. For example
+// `"/foo/symlink/../test.txt"` may resolve to `"/bar/test.txt"` if
+// ``symlink`` is a symbolic link to a sub directory of `"/bar"`.
+pub fun string/realpath[245,9,245,23] : (s : std/core/types/string) -> <(std/core/io :: E)> path;
+// monadic lift
+fun @mlift-realpath@10193[1,0,1,0] : (@y-x10147 : std/core/types/string) -> <(std/core/io :: E)> path;
+// Convert a path to the absolute path on the file system.
+// The path is not required to exist on disk. However, if it
+// exists any permissions and symbolic links are resolved fully.\
+// `".".realpath` (to get the current working directory)\
+// `"/foo".realpath` (to resolve the full root, like `"c:/foo"` on windows)
+pub fun realpath[232,9,232,16] : (p : path) -> <(std/core/io :: E)> path;
+// monadic lift
+fun @mlift-cwd@10194[1,0,1,0] : (@y-x10148 : std/core/types/string) -> <(std/core/io :: E)> path;
+// Returns the current working directory.\
+// Equal to `".".realpath`.
+pub fun cwd[237,9,237,11] : () -> <(std/core/io :: E)> path;
+// Return the OS specific directory separator (`"/"` or `"\\"`)
+pub fun partsep[255,12,255,18] : () -> <(std/core/types/ndet :: X)> std/core/types/string;
+// Return the OS specific path separator (`';'` or `':'`)
+pub fun pathsep[261,12,261,18] : () -> <(std/core/types/ndet :: X)> std/core/types/string;
+fun xapp-path[270,8,270,16] : () -> <(std/core/io :: E)> std/core/types/string;
+// monadic lift
+fun @mlift-app-path@10195[1,0,1,0] : (@y-x10150 : std/core/types/string) -> <(std/core/io :: E)> path;
+// Return the path to the currently executing application.
+pub fun app-path[267,9,267,16] : () -> <(std/core/io :: E)> path;
+// monadic lift
+fun @mlift-appdir@10196[1,0,1,0] : (@y-x10151 : std/core/types/string) -> <(std/core/io :: E)> path;
+// Return the base directory that contains the currently running application.
+// First tries `app-path().nobase`; if that ends in the ``bin`` or ``exe`` directory it
+// returns the parent of that directory.
+pub fun appdir[278,9,278,14] : () -> <(std/core/io :: E)> path;
+fun xhomedir[287,8,287,15] : () -> <(std/core/io :: E)> std/core/types/string;
+// monadic lift
+fun @mlift-homedir@10197[1,0,1,0] : (@y-x10155 : std/core/types/string) -> <(std/core/io :: E)> path;
+// Return the home directory of the current user.
+pub fun homedir[284,9,284,15] : () -> <(std/core/io :: E)> path;
+fun xtempdir[296,8,296,15] : () -> <(std/core/io :: E)> std/core/types/string;
+// monadic lift
+fun @mlift-tempdir@10198[1,0,1,0] : (@y-x10157 : std/core/types/string) -> <(std/core/io :: E)> path;
+// Return the temporary directory for the current user.
+pub fun tempdir[293,9,293,15] : () -> <(std/core/io :: E)> path;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline fun @create-Path // inline size: 3
+  = fn(root: (std/core/types/@optional :: V -> V)<std/core/types/string>, parts: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>){
+    std/os/path/Path((match (root) {
+        ((std/core/types/@OptArg((@uniq-root@89: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-root@89;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "";
+      }), (match (parts) {
+        ((std/core/types/@OptArg((@uniq-parts@95: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@1: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> @uniq-parts@95;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@2: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> std/core/types/Nil<std/core/types/string>;
+      }));
+  };
+inline borrow "^" fun path/root // inline size: 0
+  = fn(path@0: path){
+    match (path@0) {
+      ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+         -> @x;
+    };
+  };
+inline borrow "^" fun path/parts // inline size: 0
+  = fn(path@0: path){
+    match (path@0) {
+      ((@skip std/os/path/Path((@pat@0: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+         -> @x;
+    };
+  };
+fun path/@copy // inline size: 3
+  = fn(@this: path, root: (std/core/types/@optional :: V -> V)<std/core/types/string>, parts: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>){
+    std/os/path/Path((match (root) {
+        ((std/core/types/@OptArg((@uniq-root@128: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-root@128;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> (match (@this) {
+            ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@1: path)
+               -> @x;
+          });
+      }), (match (parts) {
+        ((std/core/types/@OptArg((@uniq-parts@136: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> @uniq-parts@136;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@2: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> (match (@this) {
+            ((@skip std/os/path/Path((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@3: path)
+               -> @x@0;
+          });
+      }));
+  };
+fun basename // inline size: 2
+  = fn(p: path){
+    match (p) {
+      ((@skip std/os/path/Path((@pat@0@1: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@2: path)
+         -> (match (@x) {
+          ((std/core/types/Cons((x@0: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1: ((std/core/types/list :: V -> V)<std/core/types/string>))
+             -> x@0;
+          ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+             -> (match ((std/core/types/Nothing<std/core/types/string>)) {
+              ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/types/string>))
+                 -> "";
+              ((@skip std/core/types/Just((x@1: std/core/types/string) : std/core/types/string) : (std/core/types/maybe :: V -> V)<std/core/types/string> ) as @pat@0@2: ((std/core/types/maybe :: V -> V)<std/core/types/string>))
+                 -> x@1;
+            });
+        });
+    };
+  };
+fun dirname // inline size: 4
+  = fn(p: path){
+    val xs@10007[1,0,1,0] : (std/core/types/list :: V -> V)<std/core/types/string>
+          = std/core/list/reverse-acc<std/core/types/string>((std/core/types/Nil<std/core/types/string>), (match (p) {
+              ((@skip std/os/path/Path((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@2: path)
+                 -> (match (@x@0) {
+                  ((std/core/types/Cons((@pat@0@0: std/core/types/string) : std/core/types/string, (xx: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1: ((std/core/types/list :: V -> V)<std/core/types/string>))
+                     -> xx;
+                  ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+                     -> std/core/types/Nil<std/core/types/string>;
+                });
+            }));
+    std/core/types/(++)((match (p) {
+        ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+           -> @x;
+      }), (std/core/list/joinsep(xs@10007, "/")));
+  };
+fun is-empty // inline size: 3
+  = fn(p: path){
+    match ((std/core/string/(==)((match (p) {
+        ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+           -> @x;
+      }), ""))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> (match (p) {
+          ((@skip std/os/path/Path((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@3: path)
+             -> (match (@x@0) {
+              ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/types/string>))
+                 -> std/core/types/True;
+              (@pat@0@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+                 -> std/core/types/False;
+            });
+        });
+      (@pat@0@2: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+inline fun rootname // inline size: 0
+  = fn(p: path){
+    match (p) {
+      ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+         -> @x;
+    };
+  };
+fun split-parts // inline size: 4
+  = fn(parts: (std/core/types/list :: V -> V)<std/core/types/string>){
+    std/core/types/Tuple2<std/core/types/string,(std/core/types/list :: V -> V)<std/core/types/string>>((match (parts) {
+        ((std/core/types/Cons((x@0: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1: ((std/core/types/list :: V -> V)<std/core/types/string>))
+           -> x@0;
+        ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+           -> (match ((std/core/types/Nothing<std/core/types/string>)) {
+            ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/types/string>))
+               -> "";
+            ((@skip std/core/types/Just((x@1: std/core/types/string) : std/core/types/string) : (std/core/types/maybe :: V -> V)<std/core/types/string> ) as @pat@0@1: ((std/core/types/maybe :: V -> V)<std/core/types/string>))
+               -> x@1;
+          });
+      }), (match (parts) {
+        ((std/core/types/Cons((@pat@0@1@0: std/core/types/string) : std/core/types/string, (xx: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/types/string>))
+           -> xx;
+        ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1@1: ((std/core/types/list :: V -> V)<std/core/types/string>))
+           -> std/core/types/Nil<std/core/types/string>;
+      }));
+  };
+fun show // inline size: 2
+  = fn(p: path){
+    std/core/show/#string/show((std/os/path/string(p)));
+  };
+fun is-relative // inline size: 1
+  = fn(p: path){
+    std/core/string/(==)((match (p) {
+        ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+           -> @x;
+      }), "");
+  };
+fun is-absolute // inline size: 2
+  = fn(p: path){
+    val b@10032[1,0,1,0] : std/core/types/bool
+          = std/core/string/(==)((match (p) {
+              ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@1: path)
+                 -> @x;
+            }), "");
+    match (b@10032) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/False;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/True;
+    };
+  };
+fun (||) // inline size: 3
+  = fn(p1: path, p2: path){
+    match ((std/core/string/(==)((match (p1) {
+        ((@skip std/os/path/Path((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+           -> @x;
+      }), ""))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> (match (p1) {
+          ((@skip std/os/path/Path((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@3: path)
+             -> (match (@x@0) {
+              ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/types/string>))
+                 -> p2;
+              (@pat@0@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+                 -> p1;
+            });
+        });
+      (@pat@0@2: std/core/types/bool)
+         -> p1;
+    };
+  };
+fun paths // inline size: 4
+  = fn(s: std/core/types/string){
+    val s@0@10052[1,0,1,0] : std/core/types/string
+      = std/core/string/replace-all(s, ";", ":");
+    val v@10011[1,0,1,0] : (std/core/types/vector :: V -> V)<std/core/types/string>
+      = std/core/string/splitv(s@0@10052, ":");
+    std/os/path/paths-collect((std/core/vector/vlist<std/core/types/string>(v@10011, (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<std/core/types/string>>))));
+  };
+fun nodir // inline size: 4
+  = fn(p: path){
+    val parts@10113[1,0,1,0] : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>
+          = std/core/types/@OptArg<(std/core/types/list :: V -> V)<std/core/types/string>>((std/core/list/take<std/core/types/string>((match (p) {
+              ((@skip std/os/path/Path((@pat@0@2: std/core/types/string) : std/core/types/string, (@x@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@5: path)
+                 -> @x@1;
+            }), 1)));
+    std/os/path/Path("", (match (parts@10113) {
+        ((std/core/types/@OptArg((@uniq-parts@136: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> @uniq-parts@136;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@2: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> (match (p) {
+            ((@skip std/os/path/Path((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@3: path)
+               -> @x@0;
+          });
+      }));
+  };
+fun nobase // inline size: 3
+  = fn(p: path){
+    std/os/path/Path((match ((std/core/types/@NoOptArg<std/core/types/string>)) {
+        ((std/core/types/@OptArg((@uniq-root@128: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-root@128;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> (match (p) {
+            ((@skip std/os/path/Path((@x@0: std/core/types/string) : std/core/types/string, (@pat@0@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@1: path)
+               -> @x@0;
+          });
+      }), (match (p) {
+        ((@skip std/os/path/Path((@pat@0@0: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@2: path)
+           -> (match (@x) {
+            ((std/core/types/Cons((@pat@0@2: std/core/types/string) : std/core/types/string, (xx: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@5: ((std/core/types/list :: V -> V)<std/core/types/string>))
+               -> xx;
+            ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1@2: ((std/core/types/list :: V -> V)<std/core/types/string>))
+               -> std/core/types/Nil<std/core/types/string>;
+          });
+      }));
+  };
+fun noext // inline size: 1
+  = fn(p: path){
+    std/os/path/change-ext(p, "");
+  };
+fun dirparts // inline size: 1
+  = fn(p: path){
+    std/core/list/reverse-acc<std/core/types/string>((std/core/types/Nil<std/core/types/string>), (match (p) {
+        ((@skip std/os/path/Path((@pat@0: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat: path)
+           -> @x;
+      }));
+  };
+fun parentname // inline size: 3
+  = fn(p: path){
+    match (p) {
+      ((@skip std/os/path/Path((@pat@0@2: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : path ) as @pat@3: path)
+         -> (match ((match (@x) {
+          ((std/core/types/Cons((@pat@0@1: std/core/types/string) : std/core/types/string, (xx: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/types/string>))
+             -> xx;
+          ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1@1: ((std/core/types/list :: V -> V)<std/core/types/string>))
+             -> std/core/types/Nil<std/core/types/string>;
+        })) {
+          ((std/core/types/Cons((x@0: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1: ((std/core/types/list :: V -> V)<std/core/types/string>))
+             -> x@0;
+          ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+             -> (match ((std/core/types/Nothing<std/core/types/string>)) {
+              ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/types/string>))
+                 -> "";
+              ((@skip std/core/types/Just((x@1: std/core/types/string) : std/core/types/string) : (std/core/types/maybe :: V -> V)<std/core/types/string> ) as @pat@0@3: ((std/core/types/maybe :: V -> V)<std/core/types/string>))
+                 -> x@1;
+            });
+        });
+    };
+  };
+fun string/realpath // inline size: 3
+  = fn<(std/core/io :: E)>(s: std/core/types/string){
+    std/core/types/@open<(std/core/types/total :: E),<(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>>,(s : std/core/types/string) -> path,(s : std/core/types/string) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>> path>(std/os/path/path)((std/os/path/xrealpath(s)));
+  };
+fun cwd // inline size: 3
+  = fn<<(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>>>(){
+    std/core/types/@open<(std/core/types/total :: E),<(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>>,(s : std/core/types/string) -> path,(s : std/core/types/string) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>> path>(std/os/path/path)((std/os/path/xrealpath(".")));
+  };
+fun app-path // inline size: 3
+  = fn<(std/core/io :: E)>(){
+    std/core/types/@open<(std/core/types/total :: E),<(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>>,(s : std/core/types/string) -> path,(s : std/core/types/string) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>> path>(std/os/path/path)((std/os/path/xapp-path()));
+  };
+fun homedir // inline size: 3
+  = fn<(std/core/io :: E)>(){
+    std/core/types/@open<(std/core/types/total :: E),<(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>>,(s : std/core/types/string) -> path,(s : std/core/types/string) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>> path>(std/os/path/path)((std/os/path/xhomedir()));
+  };
+fun tempdir // inline size: 3
+  = fn<(std/core/io :: E)>(){
+    std/core/types/@open<(std/core/types/total :: E),<(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>>,(s : std/core/types/string) -> path,(s : std/core/types/string) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>> path>(std/os/path/path)((std/os/path/xtempdir()));
+  };

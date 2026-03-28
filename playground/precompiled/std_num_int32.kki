@@ -1,0 +1,678 @@
+// 32-bit signed integers.
+//
+// Using 32-bit signed two's complement representation with wrapping on overflow,
+// e.g. `max-int32 + 1.int32 == min-int32`.
+module interface std/num/int32
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/core/undiv = std/core/undiv = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// The 32-bit integer with value 1.
+pub val one[152,9,152,11] : std/core/types/int32;
+// The zero 32-bit integer.
+pub val zero[149,9,149,12] : std/core/types/int32;
+// Convert a boolean to an `:int32`.
+pub fip fun bool/int32[65,13,65,22] : (b : std/core/types/bool) -> std/core/types/int32;
+// Create an `:int32` from the give `hi` and `lo` 16-bit numbers.
+// Preserves the sign of `hi`.
+pub fun hilo/int32[276,9,276,18] : (hi : std/core/types/int32, lo : std/core/types/int32) -> std/core/types/int32;
+// The maximal integer value before overflow happens
+pub val max-int32[21,9,21,17] : std/core/types/int32;
+// The minimal integer value before underflow happens
+pub val min-int32[24,9,24,17] : std/core/types/int32;
+// The number of bits in an `:int32` (always 32)
+pub val bits-int32[27,9,27,18] : std/core/types/int32;
+// Convenient shorthand to `int32`, e.g. `1234.i32`
+pub fip fun i32[34,20,34,22] : (i : std/core/types/int) -> std/core/types/int32;
+// Convert an `:int32` to a boolean.
+pub fip fun bool[60,13,60,16] : (i : std/core/types/int32) -> std/core/types/bool;
+// Convert an `:int32` to an `:int` but interpret the `:int32` as a 32-bit unsigned value.
+pub fun uint[88,9,88,12] : (i : std/core/types/int32) -> std/core/types/int;
+// Convert a pair `(hi,lo)` to a signed integer,
+// where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
+pub fun hilo/int[419,9,419,16] : (@pat-x419_19 : (std/core/types/int32, std/core/types/int32)) -> std/core/types/int;
+// Convert a pair `(hi,lo)` to an unsigned integer,
+// where `(hi,lo).uint == hi.uint * 0x1_0000_0000 + lo.uint`
+pub fun hilo/uint[424,9,424,17] : (@pat-x424_20 : (std/core/types/int32, std/core/types/int32)) -> std/core/types/int;
+// Convert an `:int32` to a string
+pub fun show[30,9,30,12] : (i : std/core/types/int32) -> std/core/types/string;
+// Show an `:int32` in hexadecimal notation
+// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if capital letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
+pub fun show-hex[74,9,74,16] : (i : std/core/types/int32, width : (std/core/types/@optional :: V -> V)<std/core/types/int>, use-capitals : (std/core/types/@optional :: V -> V)<std/core/types/bool>, pre : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Convert an `:int` to `:int32` but interpret the `int` as an unsigned 32-bit value.
+// `i` is clamped between `0` and `0xFFFFFFFF`.\
+// `0x7FFF_FFFF.uint32 == 0x7FFF_FFFF.int32 == max-int32`\
+// `0x8000_0000.uint32 == -0x8000_0000.int32 == min-int32`\
+// `0xFFFF_FFFF.uint32 == -1.int32`\
+pub fun uint32[83,9,83,14] : (i : std/core/types/int) -> std/core/types/int32;
+// Show an `:int32` in hexadecimal notation interpreted as an unsigned 32-bit value.
+// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if capital letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number.
+pub fun show-hex32[96,9,96,18] : (i : std/core/types/int32, width : (std/core/types/@optional :: V -> V)<std/core/types/int>, use-capitals : (std/core/types/@optional :: V -> V)<std/core/types/bool>, pre : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Compare the argument against zero.
+pub fip fun sign[155,13,155,16] : (i : std/core/types/int32) -> std/core/types/order;
+// Returns `true` if the integer `i`  is an odd number.
+pub fip fun is-odd[162,13,162,18] : (i : std/core/types/int32) -> std/core/types/bool;
+// Returns `true` if the integer `i`  is an even number.
+pub fip fun is-even[167,13,167,19] : (i : std/core/types/int32) -> std/core/types/bool;
+// Increment a 32-bit integer.
+pub fip fun inc[172,13,172,15] : (i : std/core/types/int32) -> std/core/types/int32;
+// Decrement a 32-bit integer.
+pub fip fun dec[177,13,177,15] : (i : std/core/types/int32) -> std/core/types/int32;
+pub fip fun cmp[187,13,187,15] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/order;
+// Take the bitwise _xor_ of two `:int32`s
+pub fip fun (^)[227,12,227,14] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/int32;
+// Negate a 32-bit integer
+pub fip fun negate[462,13,462,18] : (i : std/core/types/int32) -> std/core/types/int32;
+// Return the absolute value of an integer.
+// Raises an exception if the `:int32` is `min-int32`
+// (since the negation of `min-int32` equals itself and is still negative)
+pub fun abs[196,9,196,11] : (i : std/core/types/int32) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/int32;
+// Return the absolute value of an integer.
+// Returns 0 if the `:int32` is `min-int32`
+// (since the negation of `min-int32` equals itself and is still negative)
+pub fip fun abs0[205,13,205,16] : (i : std/core/types/int32) -> std/core/types/int32;
+// Shift an `:int32` `i` to the left by `n & 31` bits.
+pub fip fun shl[241,13,241,15] : (i : std/core/types/int32, shift : std/core/types/int) -> std/core/types/int32;
+// Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
+pub fip fun shr[251,13,251,15] : (i : std/core/types/int32, shift : std/core/types/int) -> std/core/types/int32;
+// Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
+pub fip fun sar[262,13,262,15] : (i : std/core/types/int32, shift : std/core/types/int) -> std/core/types/int32;
+// Return the top 16-bits of an `:int32`.
+// Preserves the sign.
+pub fun hi[267,9,267,10] : (i : std/core/types/int32) -> std/core/types/int32;
+// Return the low 16-bits of an `:int32`.
+pub fun lo[271,9,271,10] : (i : std/core/types/int32) -> std/core/types/int32;
+// Bitwise rotate an `:int32` `n % 32` bits to the left.
+pub fip fun rotl[285,13,285,16] : (i : std/core/types/int32, shift : std/core/types/int) -> std/core/types/int32;
+// Bitwise rotate an `:int32` `n % 32` bits to the right.
+pub fip fun rotr[294,13,294,16] : (i : std/core/types/int32, shift : std/core/types/int) -> std/core/types/int32;
+// Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`.
+// where `(hi,lo).int == hi.int * 0x1_0000_0000 + lo.uint`
+// See also <https://en.wikipedia.org/wiki/Carry-less_product>
+pub fip fun clmul_wide[386,16,386,25] : (x : std/core/types/int32, y : std/core/types/int32) -> (std/core/types/int32, std/core/types/int32);
+// Return the minimum of two integers
+pub fip fun min[397,13,397,15] : (i : std/core/types/int32, j : std/core/types/int32) -> std/core/types/int32;
+// Return the maximum of two integers
+pub fip fun max[401,13,401,15] : (i : std/core/types/int32, j : std/core/types/int32) -> std/core/types/int32;
+// Full 32x32 bit unsigned multiply to `(hi,lo)`.
+// where `umul(x,y).uint == x.uint * y.uint`
+pub fip fun umul[407,16,407,19] : (i : std/core/types/int32, j : std/core/types/int32) -> (std/core/types/int32, std/core/types/int32);
+// Full 32x32 bit signed multiply to `(hi,lo)`.
+// where `imul(x,y).int == x.int * y.int`
+pub fip fun imul[413,16,413,19] : (i : std/core/types/int32, j : std/core/types/int32) -> (std/core/types/int32, std/core/types/int32);
+// Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
+pub fun cdiv[429,9,429,12] : (i : std/core/types/int32, j : std/core/types/int32) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/int32;
+// Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
+pub fun cmod[436,9,436,12] : (i : std/core/types/int32, j : std/core/types/int32) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/int32;
+// Negate an 32-bit integer
+pub fip fun (~)[467,13,467,15] : (i : std/core/types/int32) -> std/core/types/int32;
+/*
+Euclidean-0 division.
+Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
+
+1. `D == d*(D/d) + (D%d)`
+2. `D%d`  is always positive where `0 <= D%d < abs(d)`
+
+Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
+that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
+Useful laws that hold for Euclidean-0 division:
+
+* `D/(-d) == -(D/d)`
+* `D%(-d) == D%d`
+* `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`)
+* `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`)
+
+Note that an interesting edge case is `min-int32 / -1` which equals `min-int32` since in modulo 32-bit
+arithmetic `min-int32 == -1 * min-int32 == -1 * (min-int32 / -1) + (min-int32 % -1)` satisfying property (1).
+Of course `(min-int32 + 1) / -1` is again positive (namely `max-int32`).
+
+See also _Division and modulus for computer scientists, Daan Leijen, 2001_
+[pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf) .
+*/
+pub fip fun (/)[494,13,494,15] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/int32;
+// Euclidean-0 modulus. See `(/):(x : int32, y : int32) -> int32` division for more information.
+pub fip fun (%)[505,13,505,15] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/int32;
+pub fip fun divmod[514,13,514,18] : (x : std/core/types/int32, y : std/core/types/int32) -> (std/core/types/int32, std/core/types/int32);
+// monadic lift
+fun range/@mlift-fold-int32@10071[1,0,1,0] : forall<a,(e :: E)> (end : std/core/types/int32, f : (std/core/types/int32, a) -> (e :: E) a, start : std/core/types/int32, x : a) -> (e :: E) a;
+// Fold over the range `[start,end]` (including `end`).
+pub fip fun range/fold-int32[525,13,525,28] : forall<a,(e :: E)> (start : std/core/types/int32, end : std/core/types/int32, init : a, ^ f : (std/core/types/int32, a) -> (e :: E) a) -> (e :: E) a;
+// Fold over the 32-bit integers `0` to `n - 1`.
+pub fip fun fold-int32[531,13,531,22] : forall<a,(e :: E)> (n : std/core/types/int32, init : a, ^ f : (std/core/types/int32, a) -> (e :: E) a) -> (e :: E) a;
+// monadic lift
+fun range/@mlift-fold-while-int32@10072[1,0,1,0] : forall<a,(e :: E)> (end : std/core/types/int32, f : (std/core/types/int32, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, init : a, start : std/core/types/int32, @y-x10044 : (std/core/types/maybe :: V -> V)<a>) -> (e :: E) a;
+// Iterate over the range `[start,end]` (including `end`).
+pub fun range/fold-while-int32[536,9,536,30] : forall<a,(e :: E)> (start : std/core/types/int32, end : std/core/types/int32, init : a, f : (std/core/types/int32, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) a;
+// Iterate over the 32-bit integers `0` to `n - 1`.
+pub fun fold-while-int32[543,9,543,24] : forall<a,(e :: E)> (n : std/core/types/int32, init : a, f : (std/core/types/int32, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) a;
+// monadic lift
+fun range/@mlift-lift-for32@4230@10073[1,0,1,0] : forall<(e :: E)> (action : (std/core/types/int32) -> (e :: E) (), end : std/core/types/int32, i : std/core/types/int32, wild_ : ()) -> (e :: E) ();
+// lifted local: range/for32, rep
+fun range/@lift-for32@4230[1,0,1,0] : forall<(e :: E)> (action : (std/core/types/int32) -> (e :: E) (), end : std/core/types/int32, i : std/core/types/int32) -> (e :: E) ();
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+pub fun range/for32[549,9,549,19] : forall<(e :: E)> (start : std/core/types/int32, end : std/core/types/int32, action : (std/core/types/int32) -> (e :: E) ()) -> (e :: E) ();
+pub fun for32[556,9,556,13] : forall<(e :: E)> (n : std/core/types/int32, action : (std/core/types/int32) -> (e :: E) ()) -> (e :: E) ();
+// monadic lift
+fun range/@mlift-lift-for-while32@4231@10074[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end : std/core/types/int32, i : std/core/types/int32, @y-x10054 : (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// lifted local: range/for-while32, rep
+fun range/@lift-for-while32@4231[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end : std/core/types/int32, i : std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun range/for-while32[563,9,563,25] : forall<a,(e :: E)> (start : std/core/types/int32, end : std/core/types/int32, action : (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+pub fun for-while32[572,9,572,19] : forall<a,(e :: E)> (n : std/core/types/int32, action : (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Create a list with 32-bit integer elements from `lo` to `hi` (including `hi`).
+pub fun @trmc-list32[577,9,577,14] : (lo : std/core/types/int32, hi : std/core/types/int32, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/int32>>) -> (std/core/types/list :: V -> V)<std/core/types/int32>;
+// Create a list with 32-bit integer elements from `lo` to `hi` (including `hi`).
+pub fun list32[577,9,577,14] : (lo : std/core/types/int32, hi : std/core/types/int32) -> (std/core/types/list :: V -> V)<std/core/types/int32>;
+fip fun sumacc32[586,9,586,16] : (^ xs : (std/core/types/list :: V -> V)<std/core/types/int32>, acc : std/core/types/int32) -> std/core/types/int32;
+pub fip fun sum32[582,13,582,17] : (^ xs : (std/core/types/list :: V -> V)<std/core/types/int32>) -> std/core/types/int32;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
+// value if it is outside the range of an `:int32`.
+pub fip extern int32[39,23,39,27] : (i : std/core/types/int) -> std/core/types/int32 {
+  c inline "kk_integer_clamp32(#1,kk_context())";
+  cs inline "Primitive.IntToInt32(#1)";
+  js inline "$std_core_types._int_clamp32(#1)";
+};
+// Convert an `:int32` to an `:int`.
+pub fip extern int[45,23,45,25] : (i : std/core/types/int32) -> std/core/types/int {
+  c inline "kk_integer_from_int(#1,kk_context())";
+  cs inline "(new BigInteger(#1))";
+  js inline "$std_core_types._int_from_int32(#1)";
+};
+// Are two 32-bit integers equal?
+pub fip extern (==)[100,23,100,26] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool {
+  inline "(#1 == #2)";
+  js inline "(#1 === #2)";
+};
+// Are two 32-bit integers not equal?
+pub fip extern (!=)[105,23,105,26] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool {
+  inline "(#1 != #2)";
+  js inline "(#1 !== #2)";
+};
+// Is the first 32-bit integer smaller or equal to the second?
+pub fip extern (<=)[110,23,110,26] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool = inline "(#1 <= #2)";
+// Is the first 32-bit integer larger or equal to the second?
+pub fip extern (>=)[114,23,114,26] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool = inline "(#1 >= #2)";
+// Is the first 32-bit integer smaller than the second?
+pub fip extern (<)[118,23,118,25] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool = inline "(#1 < #2)";
+// Is the first 32-bit integer larger than the second?
+pub fip extern (>)[122,23,122,25] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool = inline "(#1 > #2)";
+// Add two 32-bit integers.
+pub fip extern (+)[126,23,126,25] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/int32 {
+  c inline "(int32_t)((uint32_t)#1 + (uint32_t)#2)";
+  js inline "((#1 + #2)|0)";
+};
+// Subtract two 32-bit integers.
+pub fip extern (-)[131,23,131,25] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/int32 {
+  c inline "(int32_t)((uint32_t)#1 - (uint32_t)#2)";
+  js inline "((#1 - #2)|0)";
+};
+// Is the 32-bit integer negative?
+pub fip extern is-neg[136,23,136,28] : (i : std/core/types/int32) -> std/core/types/bool = inline "0 > #1";
+// Is the 32-bit integer positive (i.e. larger than zero)?
+pub fip extern is-pos[140,23,140,28] : (i : std/core/types/int32) -> std/core/types/bool = inline "0 < #1";
+// Is the 32-bit integer equal to zero?
+pub fip extern is-zero[144,23,144,29] : (i : std/core/types/int32) -> std/core/types/bool {
+  inline "0 == #1";
+  js inline "0 === #1";
+};
+// Multiply two 32-bit integers.
+pub fip extern (*)[182,23,182,25] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 {
+  inline "(int32_t)((uint32_t)#1 * (uint32_t)#2)";
+  js inline "$std_core_types._int32_multiply(#1,#2)";
+};
+// Take the bitwise _and_ of two `:int32`s
+pub fip extern and[213,23,213,25] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 = inline "(#1 & #2)";
+// Take the bitwise _or_ of two `:int32`s
+pub fip extern or[218,23,218,24] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 = inline "(#1 | #2)";
+// Take the bitwise _xor_ of two `:int32`s
+pub fip extern xor[223,23,223,25] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 = inline "(#1 ^ #2)";
+// Bitwise _not_ of an `:int32`, i.e. flips all bits.
+pub fip extern not[232,23,232,25] : (i : std/core/types/int32) -> std/core/types/int32 = inline "(~#1)";
+// Shift an `:int32` `i` to the left by `n & 31` bits.
+fip extern shl32[236,19,236,23] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_shl32(#1,#2)";
+  js inline "#1 << #2";
+};
+// Logical shift an `:int32` to the right by `n % 32` bits. Shift in zeros from the left.
+fip extern shr32[245,19,245,23] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 {
+  c inline "(int32_t)kk_shr32(#1,#2)";
+  cs inline "(Int32)(((UInt32)#1)>>#2)";
+  js inline "#1 >>> #2";
+};
+// Arithmetic shift an `:int32` to the right by `n % 32` bits. Shifts in the sign bit from the left.
+fip extern sar32[256,19,256,23] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_sar32(#1,#2)";
+  cs inline "(#1>>#2)";
+  js inline "#1 >> #2";
+};
+// Bitwise rotate an `:int32` `n % 32` bits to the left.
+fip extern rotl32[280,19,280,24] : (i : std/core/types/int32, n : std/core/types/int32) -> std/core/types/int32 {
+  c inline "(int32_t)kk_bits_rotl32(#1,#2)";
+  js inline "$std_core_types._int32_rotl(#1,#2)";
+};
+// Bitwise rotate an `:int32` `n % 32` bits to the right.
+fip extern rotr32[289,19,289,24] : (i : std/core/types/int32, n : std/core/types/int32) -> std/core/types/int32 {
+  c inline "(int32_t)kk_bits_rotr32(#1,#2)";
+  js inline "$std_core_types._int32_rotr(#1,#2)";
+};
+// Count trailing zero bits. Returns 32 if `i` is zero.
+pub fip extern ctz[299,23,299,25] : (i : std/core/types/int32) -> std/core/types/int {
+  c inline "kk_integer_from_small(kk_bits_ctz32(#1))";
+  js inline "$std_core_types._int32_ctz(#1)";
+};
+// Count leading zero bits. Returns 32 if `i` is zero.
+pub fip extern clz[304,23,304,25] : (i : std/core/types/int32) -> std/core/types/int {
+  c inline "kk_integer_from_small(kk_bits_clz32(#1))";
+  js inline "$std_core_types._int32_clz(#1)";
+};
+// Count leading redundant sign bits (i.e. the number of bits
+// following the most significant bit that are identical to it).
+pub fip extern clrsb[310,23,310,27] : (i : std/core/types/int32) -> std/core/types/int {
+  c inline "kk_integer_from_small(kk_bits_clrsb32(#1))";
+  js inline "$std_core_types._int32_clrsb(#1)";
+};
+// Count number of 1-bits (also known as _population count_ or _hamming weight_).
+pub fip extern popcount[316,23,316,30] : (i : std/core/types/int32) -> std/core/types/int {
+  c inline "kk_integer_from_small(kk_bits_popcount32(#1))";
+  js inline "$std_core_types._int32_bits_popcount(#1)";
+};
+// Is the `popcount` even?
+pub fip extern parity[321,23,321,28] : (i : std/core/types/int32) -> std/core/types/bool {
+  c inline "kk_bits_parity32(#1)";
+  js inline "$std_core_types._int32_parity(#1)";
+};
+// Reverse the bytes in an `:int32`.
+pub fip extern byte-reverse[326,23,326,34] : (i : std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_bits_bswap32(#1)";
+  js inline "$std_core_types._int32_bswap(#1)";
+};
+// Reverse the bits in an `:int32`.
+pub fip extern bit-reverse[331,23,331,33] : (i : std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_bits_reverse32(#1)";
+  js inline "$std_core_types._int32_breverse(#1)";
+};
+// Bit gather (also known as _pext_ or parallel bit extract).
+// For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
+// into contiguous lower bits in the result. The remaining bits in the result are zero.
+//
+// `bgather(0x1234.int32, 0x0F0F.int32).show-hex == "0x24"`
+//
+// Here is how to decode a 4-byte utf-8 encoded character `i`:
+//
+// `bgather(i,0x3F3F3F3F.int32)`
+pub fip extern bit-gather[344,23,344,32] : (i : std/core/types/int32, m : std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_bits_gather32(#1,#2)";
+};
+// Bit scatter (also known as _pdep_ or parallel bit deposit).
+// For each 1-bit in mask `m`, set the corresponding bit in the result from the
+// contiguous lower bits of `i`. Any bits not set according to the mask are set to zero.
+//
+// `bscatter(0x1234.int32, 0x0F0F.int32).show-hex == "0x304"`
+pub fip extern bit-scatter[352,23,352,33] : (i : std/core/types/int32, m : std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_bits_scatter32(#1,#2)";
+};
+// Interleave the hi 16-bits with the lo 16-bits of the argument `i` such
+// that the hi bits are spread over the odd bits and the lo bits over the even bits
+// of the result (starting at bit 0). `bit-zip(x.and(0xFFFF)) == bit-scatter(x,0x5555_5555.int32)`
+pub fip extern bit-zip[358,23,358,29] : (i : std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_bits_zip32(#1)";
+};
+// De-interleave the bits in `i` such that the odd bits are gathered in the
+// hi 16-bits of the result, and the even bits (starting at bit 0)
+// end up in the lo 16-bits of the result. `bit-unzip(x).and(0xFFFF) == bit-gather(x,0x5555_5555.int32)`
+pub fip extern bit-unzip[364,23,364,31] : (i : std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_bits_unzip32(#1)";
+};
+// Or-combine: for every byte `b` in the argument `i`, the corresponding
+// byte in the result becomes 0 if `b==0`, and `0xFF` otherwise.
+pub fip extern orc[369,23,369,25] : (i : std/core/types/int32) -> std/core/types/int32 {
+  c inline "kk_bits_orc32(#1)";
+};
+// Carry-less multiplication (or _xor_ multiplication).
+// See also <https://en.wikipedia.org/wiki/Carry-less_product>
+// Interesting cases:
+// - `clmul(x,x)` : _bit spread_, where a zero bit is put in between each input bit.
+//   `clmul(x,x) == bit-scatter(x,0x5555_5555.int32) == bit-zip(and(x,0xFFFF))`
+// - `clmul(x,-1.int32)`: _prefix xor_, where each bit is the parity of the corresponding input bit
+//    and all input bits before it (the _xor sum_).
+//    `clmul(x,-1.int32).shr(31).bool == x.parity`
+pub fip extern clmul[380,23,380,27] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/int32 {
+  c inline "(int32_t)kk_clmul32((uint32_t)#1,(uint32_t)#2)";
+};
+// Reverse carry-less multiplication.
+// Defined as `clmulr(x,y) == clmul(x.bit-reverse,y.bitreverse).bitreverse`
+// Also `clmulr(x,x) == zip(x.and(0xFFFF0000.int32)`, and
+// `zip(x) == clmul(x,x) | clmulr(x,x)`.
+pub fip extern clmulr[393,23,393,28] : (x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/int32 {
+  c inline "(int32_t)kk_clmulr32((uint32_t)#1,(uint32_t)#2)";
+};
+// Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
+pub fip extern unsafe-cdiv[443,23,443,33] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 {
+  inline "(#1 / #2)";
+  js inline "((#1/#2)|0)";
+};
+// Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
+pub fip extern unsafe-cmod[449,23,449,33] : (std/core/types/int32, std/core/types/int32) -> std/core/types/int32 {
+  inline "(#1 % #2)";
+  js inline "((#1 % #2)|0)";
+};
+// Convert an 32-bit integer to a float64.
+pub fip extern float64[455,23,455,29] : (i : std/core/types/int32) -> std/core/types/float64 {
+  c inline "(double)(#1)";
+  cs inline "(double)(#1)";
+  js inline "(#1)";
+};
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "*__" fun range/@lift-for-while32@4231 // inline size: 13
+  = forall<a,(e :: E)> fn<(e :: E)>(action: (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end: std/core/types/int32, i: std/core/types/int32){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool,(x : std/core/types/int32, y : std/core/types/int32) -> (e :: E) std/core/types/bool>(std/num/int32/(<=))(i, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> (match ((action(i))) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+             -> val i@0@10020[1,0,1,0] : std/core/types/int32
+                      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32) -> std/core/types/int32,(x : std/core/types/int32) -> (e :: E) std/core/types/int32>((std/core/undiv/pretend-decreasing<std/core/types/int32>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i@1: std/core/types/int32){
+                        (std/num/int32/(+)(i@1, (std/num/int32/int32(1))));
+                      }))(i)));
+            std/num/int32/#range/@lift-for-while32@4231<a,(e :: E)>(action, end, i@0@10020);
+          ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/Just<a>(x);
+        });
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+         -> std/core/types/Nothing<a>;
+    });
+  };
+recursive specialize "*__" fun range/@lift-for32@4230 // inline size: 11
+  = forall<(e :: E)> fn<(e :: E)>(action: (std/core/types/int32) -> (e :: E) (), end: std/core/types/int32, i: std/core/types/int32){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool,(x : std/core/types/int32, y : std/core/types/int32) -> (e :: E) std/core/types/bool>(std/num/int32/(<=))(i, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> val _[552,7,552,15] : ()
+              = action(i);
+            val i@0@10016[1,0,1,0] : std/core/types/int32
+              = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32) -> std/core/types/int32,(x : std/core/types/int32) -> (e :: E) std/core/types/int32>((std/core/undiv/pretend-decreasing<std/core/types/int32>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i@1: std/core/types/int32){
+                (std/num/int32/(+)(i@1, (std/num/int32/int32(1))));
+              }))(i)));
+        std/num/int32/#range/@lift-for32@4230<(e :: E)>(action, end, i@0@10016);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/Unit;
+    });
+  };
+specialize "__*" borrow "__^" fip fun fold-int32 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int32, init: a, f: (std/core/types/int32, a) -> (e :: E) a){
+    std/num/int32/#range/fold-int32<a,(e :: E)>(std/num/int32/zero, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i: std/core/types/int32){
+        (std/num/int32/(-)(i, (std/num/int32/int32(1))));
+      }))(n)), init, f);
+  };
+specialize "__*" fun fold-while-int32 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int32, init: a, f: (std/core/types/int32, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/num/int32/#range/fold-while-int32<a,(e :: E)>(std/num/int32/zero, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i: std/core/types/int32){
+        (std/num/int32/(-)(i, (std/num/int32/int32(1))));
+      }))(n)), init, f);
+  };
+recursive specialize "___*" borrow "___^" fip fun range/fold-int32 // inline size: 11
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int32, end: std/core/types/int32, init: a, f: (std/core/types/int32, a) -> (e :: E) a){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool,(x : std/core/types/int32, y : std/core/types/int32) -> (e :: E) std/core/types/bool>(std/num/int32/(>))(start, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> init;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> val x[527,9,527,9] : a
+                  = f(start, init);
+        std/num/int32/#range/fold-int32<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32) -> std/core/types/int32,(x : std/core/types/int32) -> (e :: E) std/core/types/int32>((std/core/undiv/pretend-decreasing<std/core/types/int32>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i: std/core/types/int32){
+            (std/num/int32/(+)(i, (std/num/int32/int32(1))));
+          }))(start)))), end, x, f);
+    });
+  };
+recursive specialize "___*" fun range/fold-while-int32 // inline size: 12
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int32, end: std/core/types/int32, init: a, f: (std/core/types/int32, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32, y : std/core/types/int32) -> std/core/types/bool,(x : std/core/types/int32, y : std/core/types/int32) -> (e :: E) std/core/types/bool>(std/num/int32/(>))(start, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> init;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((f(start, init))) {
+          ((std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/num/int32/#range/fold-while-int32<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int32) -> std/core/types/int32,(x : std/core/types/int32) -> (e :: E) std/core/types/int32>((std/core/undiv/pretend-decreasing<std/core/types/int32>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i: std/core/types/int32){
+                (std/num/int32/(+)(i, (std/num/int32/int32(1))));
+              }))(start)))), end, x, f);
+          ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@2: ((std/core/types/maybe :: V -> V)<a>))
+             -> init;
+        });
+    });
+  };
+specialize "_*" fun for-while32 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int32, action: (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    val end@10022[1,0,1,0] : std/core/types/int32
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i@0: std/core/types/int32){
+            (std/num/int32/(-)(i@0, (std/num/int32/int32(1))));
+          }))(n);
+    std/num/int32/#range/@lift-for-while32@4231<a,(e :: E)>(action, end@10022, std/num/int32/zero);
+  };
+specialize "__*" fun range/for-while32 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int32, end: std/core/types/int32, action: (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/num/int32/#range/@lift-for-while32@4231<a,(e :: E)>(action, end, start);
+  };
+specialize "_*" fun for32 // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(n: std/core/types/int32, action: (std/core/types/int32) -> (e :: E) ()){
+    val end@10018[1,0,1,0] : std/core/types/int32
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int32) -> std/core/types/int32,(i : std/core/types/int32) -> (e :: E) std/core/types/int32>((fn(i@0: std/core/types/int32){
+            (std/num/int32/(-)(i@0, (std/num/int32/int32(1))));
+          }))(n);
+    std/num/int32/#range/@lift-for32@4230<(e :: E)>(action, end@10018, std/num/int32/zero);
+  };
+specialize "__*" fun range/for32 // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(start: std/core/types/int32, end: std/core/types/int32, action: (std/core/types/int32) -> (e :: E) ()){
+    std/num/int32/#range/@lift-for32@4230<(e :: E)>(action, end, start);
+  };
+fip fun bool/int32 // inline size: 1
+  = fn(b: std/core/types/bool){
+    match (b) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/num/int32/one;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/num/int32/zero;
+    };
+  };
+inline fip fun i32 // inline size: 1
+  = fn(i: std/core/types/int){
+    std/num/int32/int32(i);
+  };
+fip fun bool // inline size: 1
+  = fn(i: std/core/types/int32){
+    std/num/int32/(!=)(i, std/num/int32/zero);
+  };
+fun hilo/int // inline size: 4
+  = fn(@pat-x419_19: (std/core/types/int32, std/core/types/int32)){
+    match (@pat-x419_19) {
+      ((@skip std/core/types/Tuple2((hi@0: std/core/types/int32) : std/core/types/int32, (lo@0: std/core/types/int32) : std/core/types/int32) : (std/core/types/int32, std/core/types/int32) ) as @pat: (std/core/types/int32, std/core/types/int32))
+         -> val x@10002[1,0,1,0] : std/core/types/int
+              = std/core/int/(*)((std/num/int32/int(hi@0)), 4294967296);
+            val y@10003[1,0,1,0] : std/core/types/int
+              = std/num/int32/uint(lo@0);
+        std/core/int/int-add(x@10002, y@10003);
+    };
+  };
+fun hilo/uint // inline size: 4
+  = fn(@pat-x424_20: (std/core/types/int32, std/core/types/int32)){
+    match (@pat-x424_20) {
+      ((@skip std/core/types/Tuple2((hi@0: std/core/types/int32) : std/core/types/int32, (lo@0: std/core/types/int32) : std/core/types/int32) : (std/core/types/int32, std/core/types/int32) ) as @pat: (std/core/types/int32, std/core/types/int32))
+         -> val x@10004[1,0,1,0] : std/core/types/int
+              = std/core/int/(*)((std/num/int32/uint(hi@0)), 4294967296);
+            val y@10005[1,0,1,0] : std/core/types/int
+              = std/num/int32/uint(lo@0);
+        std/core/int/int-add(x@10004, y@10005);
+    };
+  };
+fun show // inline size: 2
+  = fn(i: std/core/types/int32){
+    std/core/int/show((std/num/int32/int(i)));
+  };
+fip fun sign // inline size: 4
+  = fn(i: std/core/types/int32){
+    match ((std/num/int32/is-pos(i))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Gt;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/num/int32/is-neg(i))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Lt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Eq;
+        });
+    };
+  };
+fip fun is-odd // inline size: 4
+  = fn(i: std/core/types/int32){
+    std/num/int32/(==)((std/num/int32/and(i, (std/num/int32/int32(1)))), (std/num/int32/int32(1)));
+  };
+fip fun is-even // inline size: 4
+  = fn(i: std/core/types/int32){
+    std/num/int32/(==)((std/num/int32/and(i, (std/num/int32/int32(1)))), (std/num/int32/int32(0)));
+  };
+fip fun inc // inline size: 2
+  = fn(i: std/core/types/int32){
+    std/num/int32/(+)(i, (std/num/int32/int32(1)));
+  };
+fip fun dec // inline size: 2
+  = fn(i: std/core/types/int32){
+    std/num/int32/(-)(i, (std/num/int32/int32(1)));
+  };
+fip fun cmp // inline size: 4
+  = fn(x: std/core/types/int32, y: std/core/types/int32){
+    match ((std/num/int32/(<)(x, y))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Lt;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/num/int32/(>)(x, y))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Eq;
+        });
+    };
+  };
+fip fun (^) // inline size: 1
+  = fn(x: std/core/types/int32, y: std/core/types/int32){
+    std/num/int32/xor(x, y);
+  };
+fip fun negate // inline size: 2
+  = fn(i: std/core/types/int32){
+    std/num/int32/(-)((std/num/int32/int32(0)), i);
+  };
+fip fun shl // inline size: 2
+  = fn(i: std/core/types/int32, shift: std/core/types/int){
+    std/num/int32/shl32(i, (std/num/int32/int32(shift)));
+  };
+fip fun shr // inline size: 2
+  = fn(i: std/core/types/int32, shift: std/core/types/int){
+    std/num/int32/shr32(i, (std/num/int32/int32(shift)));
+  };
+fip fun sar // inline size: 2
+  = fn(i: std/core/types/int32, shift: std/core/types/int){
+    std/num/int32/sar32(i, (std/num/int32/int32(shift)));
+  };
+fun hi // inline size: 2
+  = fn(i: std/core/types/int32){
+    std/num/int32/sar32(i, (std/num/int32/int32(16)));
+  };
+fun lo // inline size: 2
+  = fn(i: std/core/types/int32){
+    std/num/int32/and(i, (std/num/int32/int32(65535)));
+  };
+fip fun rotl // inline size: 2
+  = fn(i: std/core/types/int32, shift: std/core/types/int){
+    std/num/int32/rotl32(i, (std/num/int32/int32(shift)));
+  };
+fip fun rotr // inline size: 2
+  = fn(i: std/core/types/int32, shift: std/core/types/int){
+    std/num/int32/rotr32(i, (std/num/int32/int32(shift)));
+  };
+fip fun min // inline size: 2
+  = fn(i: std/core/types/int32, j: std/core/types/int32){
+    match ((std/num/int32/(<=)(i, j))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };
+fip fun max // inline size: 2
+  = fn(i: std/core/types/int32, j: std/core/types/int32){
+    match ((std/num/int32/(>=)(i, j))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };
+fip fun (~) // inline size: 2
+  = fn(i: std/core/types/int32){
+    std/num/int32/(-)((std/num/int32/int32(0)), i);
+  };
+fun range/for32 // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(start: std/core/types/int32, end: std/core/types/int32, action: (std/core/types/int32) -> (e :: E) ()){
+    std/num/int32/#range/@lift-for32@4230<(e :: E)>(action, end, start);
+  };
+fun range/for-while32 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int32, end: std/core/types/int32, action: (std/core/types/int32) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/num/int32/#range/@lift-for-while32@4231<a,(e :: E)>(action, end, start);
+  };
+borrow "^" fip fun sum32 // inline size: 2
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/int32>){
+    std/num/int32/sumacc32(xs, (std/num/int32/int32(0)));
+  };

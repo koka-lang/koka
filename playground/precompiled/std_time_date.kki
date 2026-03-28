@@ -1,0 +1,534 @@
+/* Date, clock, and week days support.
+
+   Defines basic types for human readable time. Years, months, days etc. are always 1-based.
+   Week dates are absent as they are treated as normal dates, using the `std/time/calendars/cal-iso-week` calendar.
+*/
+module interface std/time/date
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/float64 = std/num/float64 = "";
+import std/num/ddouble = std/num/ddouble = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A clock consists of the hour, minute, second, and fractional second (between ``0.0` and `1.0`).
+pub type clock[72,1,75,19] {
+  // A clock consists of the hour, minute, second, and fractional second (between ``0.0` and `1.0`).
+  pub con Clock[72,12,72,16](hours: std/core/types/int, minutes: std/core/types/int, seconds: std/num/ddouble/ddouble){16,2,8} : (hours : std/core/types/int, minutes : std/core/types/int, seconds : std/num/ddouble/ddouble) -> clock = 1;
+};
+// A date consists of a the year, month, and day.
+pub value{0,3,8} type date[24,1,27,12] {
+  // A date consists of a the year, month, and day.
+  pub con Date[24,18,24,21](year: std/core/types/int, month: std/core/types/int, day: std/core/types/int){0,3,8} : (year : std/core/types/int, month : std/core/types/int, day : std/core/types/int) -> date = 1;
+};
+// An ISO day of the week, starting at Monday (=1) up to Sunday (=7).
+pub value{1,0,1} type weekday[174,1,181,5] {
+  pub con Mon[175,3,175,5]{0,0,0} : weekday = 1;
+  pub con Tue[176,3,176,5]{0,0,0} : weekday = 2;
+  pub con Wed[177,3,177,5]{0,0,0} : weekday = 3;
+  pub con Thu[178,3,178,5]{0,0,0} : weekday = 4;
+  pub con Fri[179,3,179,5]{0,0,0} : weekday = 5;
+  pub con Sat[180,3,180,5]{0,0,0} : weekday = 6;
+  pub con Sun[181,3,181,5]{0,0,0} : weekday = 7;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `year` constructor field of the `:date` type.
+pub fun date/year[25,3,25,6] : (^ date : date) -> std/core/types/int;
+// Automatically generated. Retrieves the `month` constructor field of the `:date` type.
+pub fun date/month[26,3,26,7] : (^ date : date) -> std/core/types/int;
+// Automatically generated. Retrieves the `day` constructor field of the `:date` type.
+pub fun date/day[27,3,27,5] : (^ date : date) -> std/core/types/int;
+pub fun date/@copy[24,18,24,21] : (@this : date, year : (std/core/types/@optional :: V -> V)<std/core/types/int>, month : (std/core/types/@optional :: V -> V)<std/core/types/int>, day : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> date;
+// Automatically generated. Retrieves the `hours` constructor field of the `:clock` type.
+pub fun clock/hours[73,3,73,7] : (^ clock : clock) -> std/core/types/int;
+// Automatically generated. Retrieves the `minutes` constructor field of the `:clock` type.
+pub fun clock/minutes[74,3,74,9] : (^ clock : clock) -> std/core/types/int;
+// Automatically generated. Retrieves the `seconds` constructor field of the `:clock` type.
+pub fun clock/seconds[75,3,75,9] : (^ clock : clock) -> std/num/ddouble/ddouble;
+// Convert a `:weekday` to an `:int` using the ISO definition which starts at Monday as 1,
+// up to Sunday as 7.
+pub fun int[185,9,185,11] : (wd : weekday) -> std/core/types/int;
+// Create an ISO weekdate where the "month" is the ISO week number.
+pub fun weekdate[31,9,31,16] : (year : std/core/types/int, month : std/core/types/int, weekday : weekday) -> date;
+// Add two dates field-wise together.
+pub fun (+)[64,9,64,11] : (d1 : date, d2 : date) -> date;
+// Add two clock together.
+pub fun clock/(+)[166,9,166,17] : (c : clock, d : clock) -> clock;
+// Convert a weekday number to a `:weekday`(starting at Monday (=1) up to Sunday (=7)).
+// Takes the integer `i - 1` modulo 7, so `0` or `14` also become Sunday etc.
+pub fun weekday[198,9,198,15] : (i : std/core/types/int) -> weekday;
+// Return the `:weekday` that comes `n` days after week day `wd`.
+pub fun weekday/(+)[222,9,222,19] : (wd : weekday, n : std/core/types/int) -> weekday;
+// Return the difference between two week days:\
+// `wd2 == wd1 + (wd2 - wd1)`
+pub fun weekday/(-)[231,9,231,19] : (wd1 : weekday, wd2 : weekday) -> std/core/types/int;
+// Return the `:weekday` that comes `n` days before week day `wd`.
+pub fun weekdayint/(-)[226,9,226,22] : (wd : weekday, n : std/core/types/int) -> weekday;
+// Compare two dates by fields.
+pub fun cmp[47,9,47,11] : (d : date, e : date) -> std/core/types/order;
+pub fun (==)[60,9,60,12] : (i : date, j : date) -> std/core/types/bool;
+// Return the total seconds of a `:clock` assuming 60 seconds per
+// minute and 60 minutes per hour.
+pub fun total-seconds[116,9,116,21] : (c : clock) -> std/num/ddouble/ddouble;
+// Compare two clocks as by their total seconds.
+pub fun clock/cmp[155,9,155,17] : (c : clock, d : clock) -> std/core/types/order;
+pub fun clock/(==)[162,9,162,18] : (i : clock, j : clock) -> std/core/types/bool;
+// Compare weekdays.
+pub fun weekday/cmp[244,9,244,19] : (wd1 : weekday, wd2 : weekday) -> std/core/types/order;
+pub fun weekday/(==)[251,9,251,20] : (i : weekday, j : weekday) -> std/core/types/bool;
+pub fun (<)[56,9,56,11] : (i : date, j : date) -> std/core/types/bool;
+pub fun (!=)[61,9,61,12] : (i : date, j : date) -> std/core/types/bool;
+pub fun clock/(!=)[163,9,163,18] : (i : clock, j : clock) -> std/core/types/bool;
+pub fun weekday/(!=)[252,9,252,20] : (i : weekday, j : weekday) -> std/core/types/bool;
+pub fun (<=)[57,9,57,12] : (i : date, j : date) -> std/core/types/bool;
+pub fun (>)[58,9,58,11] : (i : date, j : date) -> std/core/types/bool;
+pub fun (>=)[59,9,59,12] : (i : date, j : date) -> std/core/types/bool;
+pub fun clock/@copy[72,12,72,16] : (@this : clock, hours : (std/core/types/@optional :: V -> V)<std/core/types/int>, minutes : (std/core/types/@optional :: V -> V)<std/core/types/int>, seconds : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>) -> clock;
+// Create a clock from a seconds as an `:int` with an optional fraction.
+// Normalizes the clock with seconds and minutes under 60 but
+// adds the fraction as is to the final seconds, so that might
+// be `>= 60` if the fraction `>= 1.0`;
+pub fun intddouble/clock[98,9,98,24] : (seconds : std/core/types/int, frac : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>) -> clock;
+// Create a clock from seconds; normalizes the clock with seconds and minutes under 60.
+pub fun ddouble/clock[84,9,84,21] : (seconds : std/num/ddouble/ddouble) -> clock;
+// Create a clock from a seconds as an `:int` with an optional fraction.
+// Normalizes the clock with seconds and minutes under 60 but
+// adds the fraction as is to the final seconds, so that might
+// be `>= 60` if the fraction `>= 1.0`;
+pub fun intfloat64/clock[91,9,91,24] : (seconds : std/core/types/int, frac : std/core/types/float64) -> clock;
+pub fun leap/clock[103,9,103,18] : (seconds : std/num/ddouble/ddouble, leap : std/core/types/int) -> clock;
+// The zero clock
+pub val clock0[108,9,108,14] : clock;
+// Is this a zero clock?
+pub fun is-zero[111,9,111,15] : (c : clock) -> std/core/types/bool;
+// Return the fraction of the seconds as milli-seconds (10^-3^).
+pub fun milli-seconds[124,9,124,21] : (c : clock) -> std/core/types/int;
+// Return the fraction of seconds as nano-seconds ((10^-9^).
+pub fun nano-seconds[128,9,128,20] : (c : clock) -> std/core/types/int;
+// Round a clock time to a certain number of digits precision (of the fraction of seconds) (default `9`, nano seconds).
+pub fun round-to-prec[132,9,132,21] : (c : clock, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> clock;
+// Show seconds
+pub fun show-seconds[142,9,142,20] : (secs : std/num/ddouble/ddouble, max-prec : (std/core/types/@optional :: V -> V)<std/core/types/int>, secs-width : (std/core/types/@optional :: V -> V)<std/core/types/int>, unit : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+pub fun clock/(<)[158,9,158,17] : (i : clock, j : clock) -> std/core/types/bool;
+pub fun clock/(<=)[159,9,159,18] : (i : clock, j : clock) -> std/core/types/bool;
+pub fun clock/(>)[160,9,160,17] : (i : clock, j : clock) -> std/core/types/bool;
+pub fun clock/(>=)[161,9,161,18] : (i : clock, j : clock) -> std/core/types/bool;
+// Automatically generated. Tests for the `Mon` constructor of the `:weekday` type.
+pub fip fun is-mon[175,3,175,5] : (^ weekday : weekday) -> std/core/types/bool;
+// Automatically generated. Tests for the `Tue` constructor of the `:weekday` type.
+pub fip fun is-tue[176,3,176,5] : (^ weekday : weekday) -> std/core/types/bool;
+// Automatically generated. Tests for the `Wed` constructor of the `:weekday` type.
+pub fip fun is-wed[177,3,177,5] : (^ weekday : weekday) -> std/core/types/bool;
+// Automatically generated. Tests for the `Thu` constructor of the `:weekday` type.
+pub fip fun is-thu[178,3,178,5] : (^ weekday : weekday) -> std/core/types/bool;
+// Automatically generated. Tests for the `Fri` constructor of the `:weekday` type.
+pub fip fun is-fri[179,3,179,5] : (^ weekday : weekday) -> std/core/types/bool;
+// Automatically generated. Tests for the `Sat` constructor of the `:weekday` type.
+pub fip fun is-sat[180,3,180,5] : (^ weekday : weekday) -> std/core/types/bool;
+// Automatically generated. Tests for the `Sun` constructor of the `:weekday` type.
+pub fip fun is-sun[181,3,181,5] : (^ weekday : weekday) -> std/core/types/bool;
+// Show a `:weekday` as an English string (`Sun.show == "Sunday"`).
+pub fun weekday/show[210,9,210,20] : (wd : weekday) -> std/core/types/string;
+pub fun weekday/(<)[247,9,247,19] : (i : weekday, j : weekday) -> std/core/types/bool;
+pub fun weekday/(<=)[248,9,248,20] : (i : weekday, j : weekday) -> std/core/types/bool;
+pub fun weekday/(>)[249,9,249,19] : (i : weekday, j : weekday) -> std/core/types/bool;
+// pad with zeros
+fun show0[236,5,236,9] : (i : std/core/types/int, width : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
+pub fun show-year[35,9,35,17] : (year : std/core/types/int) -> std/core/types/string;
+// Show a date in ISO format. `Date(2000,1,1).show == "2000-01-01"`.
+// Takes an optional `month-prefix` (=`""`) that is used by the ISO week
+// and month calendar to add a `"W"` or `"M"` prefix respectively.
+pub fun show[42,9,42,12] : (d : date, month-prefix : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Show a clock in ISO format up to an optional maximum precision (=`9`).\
+// `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
+// `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
+pub fun clock/show[138,9,138,18] : (c : clock, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Return the whole seconds part of a `:clock`.
+pub fun whole-seconds[120,9,120,21] : (c : clock) -> std/core/types/int;
+// Show a `:weekday` as a 3 letter English string (`Sun.show-short == "Sun"`)
+pub fun show-short[240,9,240,18] : (wd : weekday) -> std/core/types/string;
+pub fun weekday/(>=)[250,9,250,20] : (i : weekday, j : weekday) -> std/core/types/bool;
+// Return the ISO calendar date of Easter in a given year (Algorithm by [J.M. Oudin](https://aa.usno.navy.mil/faq/docs/easter.php)).
+pub fun easter[259,9,259,14] : (year : std/core/types/int) -> date;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun date/year // inline size: 0
+  = fn(date: date){
+    match (date) {
+      ((@skip std/time/date/Date((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : date ) as @pat: date)
+         -> @x;
+    };
+  };
+inline borrow "^" fun date/month // inline size: 0
+  = fn(date: date){
+    match (date) {
+      ((@skip std/time/date/Date((@pat@0: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : date ) as @pat: date)
+         -> @x;
+    };
+  };
+inline borrow "^" fun date/day // inline size: 0
+  = fn(date: date){
+    match (date) {
+      ((@skip std/time/date/Date((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int) : date ) as @pat: date)
+         -> @x;
+    };
+  };
+fun date/@copy // inline size: 4
+  = fn(@this: date, year: (std/core/types/@optional :: V -> V)<std/core/types/int>, month: (std/core/types/@optional :: V -> V)<std/core/types/int>, day: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/time/date/Date((match (year) {
+        ((std/core/types/@OptArg((@uniq-year@102: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-year@102;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/time/date/Date((@x: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int, (@pat@1@0: std/core/types/int) : std/core/types/int) : date ) as @pat@1: date)
+               -> @x;
+          });
+      }), (match (month) {
+        ((std/core/types/@OptArg((@uniq-month@110: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@1@1: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-month@110;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/time/date/Date((@pat@0@1: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int, (@pat@1@2: std/core/types/int) : std/core/types/int) : date ) as @pat@3: date)
+               -> @x@0;
+          });
+      }), (match (day) {
+        ((std/core/types/@OptArg((@uniq-day@118: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@3@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-day@118;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@4: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/time/date/Date((@pat@0@2: std/core/types/int) : std/core/types/int, (@pat@1@3: std/core/types/int) : std/core/types/int, (@x@1: std/core/types/int) : std/core/types/int) : date ) as @pat@5: date)
+               -> @x@1;
+          });
+      }));
+  };
+inline borrow "^" fun clock/hours // inline size: 0
+  = fn(clock: clock){
+    match (clock) {
+      ((@skip std/time/date/Clock((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2: std/core/types/float64) : std/core/types/float64, (@pat@3: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat: clock)
+         -> @x;
+    };
+  };
+inline borrow "^" fun clock/minutes // inline size: 0
+  = fn(clock: clock){
+    match (clock) {
+      ((@skip std/time/date/Clock((@pat@0: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2: std/core/types/float64) : std/core/types/float64, (@pat@3: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat: clock)
+         -> @x;
+    };
+  };
+inline borrow "^" fun clock/seconds // inline size: 0
+  = fn(clock: clock){
+    match (clock) {
+      ((@skip std/time/date/Clock((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2: std/core/types/float64) : std/core/types/float64, (@pat@3: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat: clock)
+         -> @x;
+    };
+  };
+fun weekdate // inline size: 2
+  = fn(year: std/core/types/int, month: std/core/types/int, weekday@0: weekday){
+    std/time/date/Date(year, month, (std/time/date/int(weekday@0)));
+  };
+fun (+) // inline size: 4
+  = fn(d1: date, d2: date){
+    std/time/date/Date((std/core/int/int-add((match (d1) {
+          ((@skip std/time/date/Date((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : date ) as @pat: date)
+             -> @x;
+        }), (match (d2) {
+          ((@skip std/time/date/Date((@x@0: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int, (@pat@1@0: std/core/types/int) : std/core/types/int) : date ) as @pat@2: date)
+             -> @x@0;
+        }))), (std/core/int/int-add((match (d1) {
+          ((@skip std/time/date/Date((@pat@0@1: std/core/types/int) : std/core/types/int, (@x@1: std/core/types/int) : std/core/types/int, (@pat@1@1: std/core/types/int) : std/core/types/int) : date ) as @pat@3: date)
+             -> @x@1;
+        }), (match (d2) {
+          ((@skip std/time/date/Date((@pat@0@2: std/core/types/int) : std/core/types/int, (@x@2: std/core/types/int) : std/core/types/int, (@pat@1@2: std/core/types/int) : std/core/types/int) : date ) as @pat@4: date)
+             -> @x@2;
+        }))), (std/core/int/int-add((match (d1) {
+          ((@skip std/time/date/Date((@pat@0@3: std/core/types/int) : std/core/types/int, (@pat@1@3: std/core/types/int) : std/core/types/int, (@x@3: std/core/types/int) : std/core/types/int) : date ) as @pat@5: date)
+             -> @x@3;
+        }), (match (d2) {
+          ((@skip std/time/date/Date((@pat@0@4: std/core/types/int) : std/core/types/int, (@pat@1@4: std/core/types/int) : std/core/types/int, (@x@4: std/core/types/int) : std/core/types/int) : date ) as @pat@6: date)
+             -> @x@4;
+        }))));
+  };
+fun clock/(+) // inline size: 4
+  = fn(c: clock, d: clock){
+    std/time/date/Clock((std/core/int/int-add((match (c) {
+          ((@skip std/time/date/Clock((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2: std/core/types/float64) : std/core/types/float64, (@pat@3: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat: clock)
+             -> @x;
+        }), (match (d) {
+          ((@skip std/time/date/Clock((@x@0: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@0: std/core/types/float64) : std/core/types/float64, (@pat@3@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1@0: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@4: clock)
+             -> @x@0;
+        }))), (std/core/int/int-add((match (c) {
+          ((@skip std/time/date/Clock((@pat@0@1: std/core/types/int) : std/core/types/int, (@x@1: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@1: std/core/types/float64) : std/core/types/float64, (@pat@3@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1@1: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@5: clock)
+             -> @x@1;
+        }), (match (d) {
+          ((@skip std/time/date/Clock((@pat@0@2: std/core/types/int) : std/core/types/int, (@x@2: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@2: std/core/types/float64) : std/core/types/float64, (@pat@3@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1@2: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@6: clock)
+             -> @x@2;
+        }))), (std/num/ddouble/(+)((match (c) {
+          ((@skip std/time/date/Clock((@pat@0@3: std/core/types/int) : std/core/types/int, (@pat@1@3: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@3: std/core/types/float64) : std/core/types/float64, (@pat@3@3: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@7: clock)
+             -> @x@3;
+        }), (match (d) {
+          ((@skip std/time/date/Clock((@pat@0@4: std/core/types/int) : std/core/types/int, (@pat@1@4: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@4: std/core/types/float64) : std/core/types/float64, (@pat@3@4: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@8: clock)
+             -> @x@4;
+        }))));
+  };
+fun weekday/(+) // inline size: 3
+  = fn(wd: weekday, n: std/core/types/int){
+    val x@10027[1,0,1,0] : std/core/types/int
+          = std/time/date/int(wd);
+    std/time/date/weekday((std/core/int/int-add(x@10027, n)));
+  };
+fun weekday/(-) // inline size: 4
+  = fn(wd1: weekday, wd2: weekday){
+    val x@10029[1,0,1,0] : std/core/types/int
+      = std/time/date/int(wd1);
+    val y@10030[1,0,1,0] : std/core/types/int
+      = std/time/date/int(wd2);
+    std/core/int/(%)((std/core/int/int-sub(x@10029, y@10030)), 7);
+  };
+fun weekdayint/(-) // inline size: 3
+  = fn(wd: weekday, n: std/core/types/int){
+    val x@10031[1,0,1,0] : std/core/types/int
+          = std/time/date/int(wd);
+    std/time/date/weekday((std/core/int/int-sub(x@10031, n)));
+  };
+fun (==) // inline size: 2
+  = fn(i: date, j: date){
+    std/core/order/(==)((std/time/date/cmp(i, j)), std/core/types/Eq);
+  };
+fun clock/(==) // inline size: 2
+  = fn(i: clock, j: clock){
+    std/core/order/(==)((std/time/date/#clock/cmp(i, j)), std/core/types/Eq);
+  };
+fun weekday/(==) // inline size: 2
+  = fn(i: weekday, j: weekday){
+    std/core/order/(==)((std/time/date/#weekday/cmp(i, j)), std/core/types/Eq);
+  };
+fun (<) // inline size: 2
+  = fn(i: date, j: date){
+    std/core/order/(==)((std/time/date/cmp(i, j)), std/core/types/Lt);
+  };
+fun (!=) // inline size: 2
+  = fn(i: date, j: date){
+    std/core/order/(!=)((std/time/date/cmp(i, j)), std/core/types/Eq);
+  };
+fun clock/(!=) // inline size: 2
+  = fn(i: clock, j: clock){
+    std/core/order/(!=)((std/time/date/#clock/cmp(i, j)), std/core/types/Eq);
+  };
+fun weekday/(!=) // inline size: 2
+  = fn(i: weekday, j: weekday){
+    std/core/order/(!=)((std/time/date/#weekday/cmp(i, j)), std/core/types/Eq);
+  };
+fun (<=) // inline size: 2
+  = fn(i: date, j: date){
+    std/core/order/(!=)((std/time/date/cmp(i, j)), std/core/types/Gt);
+  };
+fun (>) // inline size: 2
+  = fn(i: date, j: date){
+    std/core/order/(==)((std/time/date/cmp(i, j)), std/core/types/Gt);
+  };
+fun (>=) // inline size: 2
+  = fn(i: date, j: date){
+    std/core/order/(!=)((std/time/date/cmp(i, j)), std/core/types/Lt);
+  };
+fun clock/@copy // inline size: 4
+  = fn(@this: clock, hours: (std/core/types/@optional :: V -> V)<std/core/types/int>, minutes: (std/core/types/@optional :: V -> V)<std/core/types/int>, seconds: (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>){
+    std/time/date/Clock((match (hours) {
+        ((std/core/types/@OptArg((@uniq-hours@3141: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-hours@3141;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/time/date/Clock((@x: std/core/types/int) : std/core/types/int, (@pat@0@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2: std/core/types/float64) : std/core/types/float64, (@pat@3: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1@0: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@1: clock)
+               -> @x;
+          });
+      }), (match (minutes) {
+        ((std/core/types/@OptArg((@uniq-minutes@3149: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@1@1: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-minutes@3149;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@2@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/time/date/Clock((@pat@0@1: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@1: std/core/types/float64) : std/core/types/float64, (@pat@3@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1@2: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@4: clock)
+               -> @x@0;
+          });
+      }), (match (seconds) {
+        ((std/core/types/@OptArg((@uniq-seconds@3157: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble> ) as @pat@3@1: ((std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>))
+           -> @uniq-seconds@3157;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble> ) as @pat@4@0: ((std/core/types/@optional :: V -> V)<std/num/ddouble/ddouble>))
+           -> (match (@this) {
+            ((@skip std/time/date/Clock((@pat@0@2: std/core/types/int) : std/core/types/int, (@pat@1@3: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@2: std/core/types/float64) : std/core/types/float64, (@pat@3@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@1: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@5: clock)
+               -> @x@1;
+          });
+      }));
+  };
+fun round-to-prec // inline size: 3
+  = fn(c: clock, prec: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/time/date/Clock((match (c) {
+        ((@skip std/time/date/Clock((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2: std/core/types/float64) : std/core/types/float64, (@pat@3: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat: clock)
+           -> @x;
+      }), (match (c) {
+        ((@skip std/time/date/Clock((@pat@0@0: std/core/types/int) : std/core/types/int, (@x@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@0: std/core/types/float64) : std/core/types/float64, (@pat@3@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1@0: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@4: clock)
+           -> @x@0;
+      }), (std/num/ddouble/round-to-prec((match (c) {
+          ((@skip std/time/date/Clock((@pat@0@1: std/core/types/int) : std/core/types/int, (@pat@1@1: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@2@1: std/core/types/float64) : std/core/types/float64, (@pat@3@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@1: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : clock ) as @pat@5: clock)
+             -> @x@1;
+        }), (match (prec) {
+          ((std/core/types/@OptArg((@uniq-prec@3410: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@6: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> @uniq-prec@3410;
+          ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0@2: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> 9;
+        }))));
+  };
+fun clock/(<) // inline size: 2
+  = fn(i: clock, j: clock){
+    std/core/order/(==)((std/time/date/#clock/cmp(i, j)), std/core/types/Lt);
+  };
+fun clock/(<=) // inline size: 2
+  = fn(i: clock, j: clock){
+    std/core/order/(!=)((std/time/date/#clock/cmp(i, j)), std/core/types/Gt);
+  };
+fun clock/(>) // inline size: 2
+  = fn(i: clock, j: clock){
+    std/core/order/(==)((std/time/date/#clock/cmp(i, j)), std/core/types/Gt);
+  };
+fun clock/(>=) // inline size: 2
+  = fn(i: clock, j: clock){
+    std/core/order/(!=)((std/time/date/#clock/cmp(i, j)), std/core/types/Lt);
+  };
+inline borrow "^" fip fun is-mon // inline size: 1
+  = fn(weekday@0: weekday){
+    match (weekday@0) {
+      ((std/time/date/Mon() : weekday ) as @pat: weekday)
+         -> std/core/types/True;
+      (@pat@0: weekday)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-tue // inline size: 1
+  = fn(weekday@0: weekday){
+    match (weekday@0) {
+      ((std/time/date/Tue() : weekday ) as @pat: weekday)
+         -> std/core/types/True;
+      (@pat@0: weekday)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-wed // inline size: 1
+  = fn(weekday@0: weekday){
+    match (weekday@0) {
+      ((std/time/date/Wed() : weekday ) as @pat: weekday)
+         -> std/core/types/True;
+      (@pat@0: weekday)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-thu // inline size: 1
+  = fn(weekday@0: weekday){
+    match (weekday@0) {
+      ((std/time/date/Thu() : weekday ) as @pat: weekday)
+         -> std/core/types/True;
+      (@pat@0: weekday)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-fri // inline size: 1
+  = fn(weekday@0: weekday){
+    match (weekday@0) {
+      ((std/time/date/Fri() : weekday ) as @pat: weekday)
+         -> std/core/types/True;
+      (@pat@0: weekday)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-sat // inline size: 1
+  = fn(weekday@0: weekday){
+    match (weekday@0) {
+      ((std/time/date/Sat() : weekday ) as @pat: weekday)
+         -> std/core/types/True;
+      (@pat@0: weekday)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-sun // inline size: 1
+  = fn(weekday@0: weekday){
+    match (weekday@0) {
+      ((std/time/date/Sun() : weekday ) as @pat: weekday)
+         -> std/core/types/True;
+      (@pat@0: weekday)
+         -> std/core/types/False;
+    };
+  };
+fun weekday/(<) // inline size: 2
+  = fn(i: weekday, j: weekday){
+    std/core/order/(==)((std/time/date/#weekday/cmp(i, j)), std/core/types/Lt);
+  };
+fun weekday/(<=) // inline size: 2
+  = fn(i: weekday, j: weekday){
+    std/core/order/(!=)((std/time/date/#weekday/cmp(i, j)), std/core/types/Gt);
+  };
+fun weekday/(>) // inline size: 2
+  = fn(i: weekday, j: weekday){
+    std/core/order/(==)((std/time/date/#weekday/cmp(i, j)), std/core/types/Gt);
+  };
+fun show0 // inline size: 4
+  = fn(i: std/core/types/int, width: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/core/string/pad-left((std/core/int/show(i)), (match (width) {
+        ((std/core/types/@OptArg((@uniq-width@4961: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-width@4961;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> 2;
+      }), (std/core/types/@OptArg<std/core/types/char>('0')));
+  };
+fun show-short // inline size: 4
+  = fn(wd: weekday){
+    std/core/sslice/string((std/core/sslice/first((std/time/date/#weekday/show(wd)), (std/core/types/@OptArg<std/core/types/int>(3)))));
+  };
+fun weekday/(>=) // inline size: 2
+  = fn(i: weekday, j: weekday){
+    std/core/order/(!=)((std/time/date/#weekday/cmp(i, j)), std/core/types/Lt);
+  };

@@ -1,0 +1,128 @@
+/* Shows the use of a named effect handlers for multiple reader effects.
+
+   Prerequisites:
+   - learn/var
+   - learn/with
+   - handlers/basic
+*/
+module interface handlers/named/ask-poly
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// An alias for pure effects: a pure function always returns the same result
+// when called with the same arguments but may not terminate or raise an exception.
+local alias std/core/pure[55,1,55,26] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/div :: X)> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+recursive named effect type reader[10,7,11,15] <a,(e :: E),b> :: (V, E, V) -> V {
+  con @Hnd-reader[10,7,10,19](@cfc: std/core/types/int, @fun-ask: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>){0,2,8} : forall<a,(e :: E),b> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>) -> (reader :: (V, E, V) -> V)<a,(e :: E),b> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:reader` type.
+fun reader/@cfc[10,7,10,19] : forall<a,(e :: E),b> (^ reader : (reader :: (V, E, V) -> V)<a,(e :: E),b>) -> std/core/types/int;
+// runtime tag for the effect `:reader`
+val reader/@tag[10,7,10,19] : forall<a> (std/core/hnd/htag :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>;
+// handler for the effect `:reader`
+fun reader/@handle[10,14,10,19] : forall<a,b,(e :: E),c> (hnd : (reader :: (V, E, V) -> V)<a,(e :: E),c>, ret : (res : b) -> (e :: E) c, action : (hname : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>) -> (e :: E) b) -> (e :: E) c;
+// Automatically generated. Retrieves the `@fun-ask` constructor field of the `:reader` type.
+fun reader/@fun-ask[11,7,11,15] : forall<a,(e :: E),b> (^ reader : (reader :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>;
+// select `ask` operation out of effect `:reader`
+fun ask/@select[11,7,11,15] : forall<a,(e :: E),b> (^ hnd : (reader :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>;
+// named handler for files
+
+// Call the `fun ask` operation of the effect `:reader`
+fun ask[11,7,11,9] : forall<a> (@hname : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> a;
+// A reader handler
+fun reader[15,5,15,10] : forall<a,b,(e :: E)> (x : a, action : ((std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>) -> (e :: E) b) -> (e :: E) b;
+// monadic lift
+fun @mlift-read2files@10016[1,0,1,0] : forall<a> (@y-x10009 : std/core/types/string, ?show : (a) -> std/core/types/string, @y-x10010 : a) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-read2files@10017[1,0,1,0] : forall<a> (r2 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>, ?show : (a) -> std/core/types/string, @y-x10009 : std/core/types/string) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+// Using two readers.
+// This particular example is of course silly (one can just pass regular parameters)
+// but it can be useful if the named effect performs operations itself
+// in its own context (like reading from the current http connection)
+pub fun read2files[25,9,25,18] : forall<a> (r1 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<std/core/types/string>>, r2 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>, ?show : (a) -> std/core/types/string) -> <(std/core/pure :: E),(std/core/console/console :: X)> ();
+pub fun main[29,9,29,12] : () -> <(std/core/pure :: E),(std/core/console/console :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun reader/@cfc // inline size: 0
+  = forall<a,(e :: E),b> fn(reader@0: (reader :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (reader@0) {
+      ((@skip handlers/named/ask-poly/@Hnd-reader((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>) : (reader :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((reader :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun reader/@fun-ask // inline size: 0
+  = forall<a,(e :: E),b> fn(reader@0: (reader :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (reader@0) {
+      ((@skip handlers/named/ask-poly/@Hnd-reader((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>) : (reader :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((reader :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun ask/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (reader :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/named/ask-poly/@Hnd-reader((@pat@0: std/core/types/int) : std/core/types/int, (@fun-ask: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>) : (reader :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((reader :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @fun-ask;
+    });
+  };
+inline fun ask // inline size: 1
+  = forall<a> fn<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(@hname: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>){
+    std/core/hnd/@perform0<a,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,(reader :: (V, E, V) -> V)<a>>(@hname, (forall<(e :: E),b> handlers/named/ask-poly/#ask/@select<a,(e :: E),b>));
+  };
+fun reader // inline size: 4
+  = forall<a,b,(e :: E)> fn<(e :: E)>(x: a, action: ((std/core/hnd/ev :: ((E, V) -> V) -> V)<(reader :: (V, E, V) -> V)<a>>) -> (e :: E) b){
+    handlers/named/ask-poly/#reader/@handle<a,b,(e :: E),b>((handlers/named/ask-poly/@Hnd-reader<a,(e :: E),b>(1, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(op : () -> (e :: E) a) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>,(op : () -> (e :: E) a) -> (e :: E) (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(reader :: (V, E, V) -> V)<a>,(e :: E),b>>((std/core/hnd/clause-tail0<(e :: E),b,(reader :: (V, E, V) -> V)<a>,a>))((fn<(e :: E)>(){
+          x;
+        }))))), (fn<(e :: E)>(@res: b){
+        @res;
+      }), action);
+  };

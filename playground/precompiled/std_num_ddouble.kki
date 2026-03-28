@@ -1,0 +1,1184 @@
+/* 128-bit double-double floating point numbers.
+
+The `:ddouble` type implements [double double][ddwiki] 128-bit floating point numbers
+as a pair of IEEE `:float64` values. This extends the precision to 31 decimal digits
+(versus 15 for `:float64`), but keeps the same range as
+a `:float64` with a maximum  value of about 1.8&middot;10^308^ (`dd-max`). Because
+`:float64`s usually have hardware support, a `:ddouble` is usually much faster
+than arbitrary precision floating point numbers.
+
+## Precision {-}
+
+If you add two regular 64-bit `:float64` values you can quickly notice the imprecision
+due to decimal fractions that cannot be represented precisely. For example:
+```
+> 0.1 + 0.2
+0.30000000000000004
+```
+
+This happens because the decimal `0.1` and `0.2` cannot be represented exactly
+by a `:float64` which is encoded in base 2. For example, if we show `0.1` to 20 digits, we get:
+```
+> 0.1.show(20)
+"0.10000000000000000555"
+```
+
+When we convert the constant `0.1` to a `:ddouble` we can see with even more precision how it is
+approximated:
+
+```
+> 0.1.ddouble
+0.1000000000000000055511151231258
+```
+
+However, if we convert the number `0.1` directly to a `:ddouble` (instead of going through
+a `:float64` constant), we can represent `0.1` more precisely:
+
+```
+> ddouble("0.1")   // for convenience; using `ddouble-exp(1,-1)` is more efficient
+0.1
+```
+
+This is possible because a `:ddouble` uses two `:float64`s to represent numbers; in this
+case the first (_hi_) float64 is (the inexact) `0.1` while the second one (_lo_) is the
+correction to that number. The `show-sum`  (or `show-hex`) function shows this internal pair of numbers:
+
+```
+> ddouble("0.1").show-sum(20)
+"0.10000000000000000555 + -5.55111512312578301027e-18"
+
+> ddouble("0.1") + ddouble("0.2")
+0.3
+```
+
+Generally, a `:ddouble` _d_ is represented by a pair of `:float64`s, _hi_ and _lo_,
+such that _d_ equals _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
+Note that despite the extra precision, underflow/overflow and machine precision are
+not as well-defined as with a regular `:float64` [@lin;@shewchuk;@Dekker].
+Nevertheless, using a `:ddouble` often prevents instability in practice over
+`:float64` computations due to  rounding errors or combining very large and
+small numbers.
+
+Take the "thin triangle" problem for example [@Goldberg:float;@Kahan:triangle].
+The challenge is to compute
+the area of a very thin triangle with sides $a$, $b$, and $c$. The short sides
+ $b$ and $c$ are just 3 units in the last place (ulp) shorter than
+the longest side $a$. Using the value $s = (a + b + c)/2$, the area of
+a triangle is $A = \sqrt{s(s-a)(s-b)(s-c)}$. This is troublesome if $s$ is
+close to $a$ since $s-a$ magnifies any rounding error. Let's take $a=7$,
+and $b = c = 7/2 + 3\cdot2^{-111}$; according to [@gustafson:posit],
+&ldquo;If the units are in light-years, then the short sides are only longer than
+half the long side by $1/200$th the diameter of a proton. Yet that pops the triangle
+up to about the width of a doorway at the thickest point&rdquo;. Using various
+128-bit numbers we get:
+````
+exact          : 3.14784204874900425235885265494550774498...e-16
+128-bit ddouble: 3.147842048749004252358852654945\([47]{color:#F88}\)e-16
+128-bit posit  : 3.147842048749004252358852654945507744\([39]{color:#F88}\)e-16
+128-bit ieee   : 3.\([63481490842332134725920516158057682878]{color:#F88}\)e-16
+````
+For this kind of example, a `:ddouble` has better precision than a
+regular 128-bit IEEE float since it can combine very large and
+small values. Note that Kahan [@Kahan:triangle] shows how to rewrite the area equation
+to avoid magnifying rounding errors -- in that case the result for IEEE 128-bit floats becomes:
+````
+128-bit ieee x : 3.147842048749004252358852654945507\([92210]{color:#F88}\)e-16
+````
+
+The implementation is based closely on the excellent [QD] C++ library [@Hida:qd;@Hida:qdlib],
+and assumes proper 64-bit IEEE `:float64`s with correct rounding.
+Integers can be represented precisely up to 30 decimal digits (and a bit more...
+up to 2^106^ - 2).
+
+## References {-}
+
+~ Bibliography { caption:"0" }
+
+~~ BibItem { #dekker; bibitem-label:"[1]"; searchterm:"Dekker+A+Floating-Point+Technique+for+Extending+the+Available+Precision" }
+T.\ Dekker.
+_A Floating-Point Technique for Extending the Available Precision_.
+Numerische\ Mathematik, vol. 18 (3), June 1971, 224--242.
+[pdf](https://gdz.sub.uni-goettingen.de/dms/resolveppn/?PPN=GDZPPN001170007).
+~~
+
+~~ BibItem { #Goldberg:float; bibitem-label:"[2]"}
+David Goldberg.
+_What Every Computer Scientist Should Know About Floating-point Arithmetic_.
+ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](https://doi.org/10.1145/103162.103163).
+[pdf](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.22.6768&rep=rep1&type=pdf).
+~~
+
+~~ BibItem { #Gustafson:posit; bibitem-label:"[3]"; searchterm:"Gustafson+John+Beating+floating+point+at+its+own+game+posit+arithmetic"; }
+John\ L. Gustafson and Isaac\ Yonemoto.
+_Beating Floating Point at its Own Game: Posit Arithmetic_. 2017.
+[pdf](https://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf).
+~~
+
+~~ BibItem { #Hida:qd; bibitem-label:"[4]"; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
+Yozo Hida,\ Xiaoye S.\ Li, and David\ H.\ Bailey.
+_Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
+Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
+~~
+
+~~ BibItem { #Hida:qdlib; bibitem-label:"[5]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
+Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
+_Library for double-double and quad-double arithmetic._
+(2007). [pdf](https://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+~~
+
+~~ Bibitem { #lin; bibitem-label:"[6]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
+Seppo\ Linnainmaa.
+_Software for Doubled-Precision Floating-Point Computations_.
+ACM Transactions on Mathematical Software (TOMS), vol. 7 (3), Sept. 1981, 272--283.
+~~
+
+~~ Bibitem { #Kahan:triangle; bibitem-label:"[7]"}
+William\ Kahan.
+_Miscalculating Area and Angles of a Needle-like Triangle_.
+Lecture notes, 2004, [pdf](https://people.eecs.berkeley.edu/~wkahan/Triangle.pdf).
+~~
+
+~~ BibItem { #shewchuk; bibitem-label:"[8]"; }
+Jonathan\ Richard\ Shewchuk.
+_Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates_.
+Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)
+~~
+
+~
+
+[ddwiki]: https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format#Double-double_arithmetic
+[qd]:     https://crd-legacy.lbl.gov/~dhbailey/mpdist
+
+\/
+*/
+module interface std/num/ddouble
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/core/undiv = std/core/undiv = "";
+import std/num/float64 = std/num/float64 = "";
+import std/num/decimal = std/num/decimal = "";
+import std/text/parse = std/text/parse = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+/* The `:ddouble` type implements [double double][ddwiki] 128-bit floating point numbers
+as a pair of IEEE `:float64` values. This extends the precision to 31 decimal digits
+(versus 15 for `:float64`), but keeps the same range as
+a `:float64` with a maximum  value of about 1.8&middot;10^308^. Because
+`:float64`s usually have hardware support, a `:ddouble` is usually much faster
+than arbitrary precision floating point numbers.
+
+Internally a `:ddouble` _d_ is represented as a pair of `:float64`s, _hi_ and _lo_,
+such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
+*/
+pub value{16,0,8} type ddouble[179,1,181,14] {
+  /* The `:ddouble` type implements [double double][ddwiki] 128-bit floating point numbers
+as a pair of IEEE `:float64` values. This extends the precision to 31 decimal digits
+(versus 15 for `:float64`), but keeps the same range as
+a `:float64` with a maximum  value of about 1.8&middot;10^308^. Because
+`:float64`s usually have hardware support, a `:ddouble` is usually much faster
+than arbitrary precision floating point numbers.
+
+Internally a `:ddouble` _d_ is represented as a pair of `:float64`s, _hi_ and _lo_,
+such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
+*/
+  con Ddouble[179,23,179,29](hi: std/core/types/float64, lo: std/core/types/float64){16,0,8} : (hi : std/core/types/float64, lo : std/core/types/float64) -> ddouble = 1;
+};
+value{16,0,8} type edouble[382,1,384,15] {
+  con Edouble[382,14,382,20](num: std/core/types/float64, err: std/core/types/float64){16,0,8} : (num : std/core/types/float64, err : std/core/types/float64) -> edouble = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `hi` constructor field of the `:ddouble` type.
+fun ddouble/hi[180,3,180,4] : (^ ddouble : ddouble) -> std/core/types/float64;
+// Automatically generated. Retrieves the `lo` constructor field of the `:ddouble` type.
+fun ddouble/lo[181,3,181,4] : (^ ddouble : ddouble) -> std/core/types/float64;
+pub fun ddouble/@copy[179,23,179,29] : (@this : ddouble, hi : (std/core/types/@optional :: V -> V)<std/core/types/float64>, lo : (std/core/types/@optional :: V -> V)<std/core/types/float64>) -> ddouble;
+// Create a `:ddouble` from a `:float64`.
+pub fun float64/ddouble[184,9,184,23] : (d : std/core/types/float64) -> ddouble;
+val maxprecise[187,5,187,14] : std/core/types/int;
+// Compare two `:ddouble` values.
+pub fun cmp[357,9,357,11] : (x : ddouble, y : ddouble) -> std/core/types/order;
+pub fun (!=)[366,9,366,12] : (x : ddouble, y : ddouble) -> std/core/types/bool;
+pub fun (>=)[364,9,364,12] : (x : ddouble, y : ddouble) -> std/core/types/bool;
+pub fun (<=)[368,9,368,12] : (x : ddouble, y : ddouble) -> std/core/types/bool;
+// Negate a `:ddouble`.
+pub fun (~)[426,9,426,11] : (x : ddouble) -> ddouble;
+val minprecise[188,5,188,14] : std/core/types/int;
+fun is-precise[190,5,190,14] : (i : std/core/types/int) -> std/core/types/bool;
+// Not-A-Number
+pub val dd-nan[290,9,290,14] : ddouble;
+// Is this `:ddouble` equal to is-zero
+pub fun is-zero[319,9,319,15] : (x : ddouble) -> std/core/types/bool;
+// Is this `:ddouble` negative?
+pub fun is-neg[323,9,323,14] : (x : ddouble) -> std/core/types/bool;
+// Is this a finite `:ddouble`? (i.e. not `is-nan` or `is-inf`)
+pub fun is-finite[341,9,341,17] : (x : ddouble) -> std/core/types/bool;
+pub fun (==)[365,9,365,12] : (x : ddouble, y : ddouble) -> std/core/types/bool;
+// Automatically generated. Retrieves the `num` constructor field of the `:edouble` type.
+fun edouble/num[383,3,383,5] : (^ edouble : edouble) -> std/core/types/float64;
+// Automatically generated. Retrieves the `err` constructor field of the `:edouble` type.
+fun edouble/err[384,3,384,5] : (^ edouble : edouble) -> std/core/types/float64;
+// Return the absolute value.
+pub fun abs[434,9,434,11] : (x : ddouble) -> ddouble;
+// Convert a `:ddouble` to a `:float64` (losing precision)
+pub fun float64[535,9,535,15] : (x : ddouble) -> std/core/types/float64;
+fun dquicksum[405,5,405,13] : (x : std/core/types/float64, y : std/core/types/float64) -> ddouble;
+// often called `twoproduct` in literature (see [@shewchuk])
+fun prod[487,5,487,8] : (x : std/core/types/float64, y : std/core/types/float64) -> edouble;
+// Multiply two `:ddouble`s
+pub fun (*)[498,9,498,11] : (x : ddouble, y : ddouble) -> ddouble;
+// As `sum` but with `x.abs >= y.abs`
+fun quicksum[400,5,400,12] : (x : std/core/types/float64, y : std/core/types/float64) -> edouble;
+// often called `twosum` in literature (see [@shewchuk])
+fun sum[387,5,387,7] : (x : std/core/types/float64, y : std/core/types/float64) -> edouble;
+// Add two `:ddouble`s
+pub fun (+)[412,9,412,11] : (x : ddouble, y : ddouble) -> ddouble;
+// Subtract two values.
+pub fun (-)[430,9,430,11] : (x : ddouble, y : ddouble) -> ddouble;
+// Divide two `:ddouble`s
+pub fun (/)[510,9,510,11] : (x : ddouble, y : ddouble) -> ddouble;
+fun dsum[393,5,393,8] : (x : std/core/types/float64, y : std/core/types/float64) -> ddouble;
+// Create a `:ddouble` as the sum of two `:float64`'s.
+pub fun ddouble[422,9,422,15] : (x : std/core/types/float64, y : std/core/types/float64) -> ddouble;
+fun prodsqr[492,5,492,11] : (x : std/core/types/float64) -> edouble;
+// Multiply `x` with itself.
+pub fun sqr[504,9,504,11] : (x : ddouble) -> ddouble;
+fun npwr-acc[595,5,595,12] : (x : ddouble, acc : ddouble, n : std/core/types/int) -> ddouble;
+// One
+pub val one[311,9,311,11] : ddouble;
+fun npwr[600,5,600,8] : (x : ddouble, n : std/core/types/int) -> ddouble;
+// Return `x` to the power of `n`.
+fun powi[606,5,606,8] : (x : ddouble, n : std/core/types/int) -> ddouble;
+// Ten (`10.ddouble`)
+pub val ten[314,9,314,11] : ddouble;
+// Return 10 to the power of `exp`.
+fun powi10[611,5,611,10] : (exp : std/core/types/int) -> ddouble;
+fun mul-exp10[630,5,630,13] : (x : ddouble, exp : std/core/types/int) -> ddouble;
+fun small-exp[223,5,223,13] : (i : std/core/types/int, e : std/core/types/int) -> ddouble;
+fun ddouble-int-exp[200,5,200,19] : (i : std/core/types/int, e : std/core/types/int) -> ddouble;
+// Create a `:ddouble` from an `:int`.
+// A `:ddouble` can represent integers precisely up to 30 digits.
+// If an integer is passed that is out of range an infinity is returned.
+pub fun int/ddouble[197,9,197,19] : (i : std/core/types/int) -> ddouble;
+// monadic lift
+fun @mlift-pddouble-normal@10797[1,0,1,0] : (wild_@0 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-pddouble-normal@10798[1,0,1,0] : (frac : std/core/types/string, neg : std/core/types/bool, whole : std/core/types/string, exp@0 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-pddouble-normal@10799[1,0,1,0] : (wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/string;
+// monadic lift
+fun @mlift-pddouble-normal@10800[1,0,1,0] : (neg : std/core/types/bool, whole : std/core/types/string, @y-x10767 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-pddouble-normal@10801[1,0,1,0] : (neg : std/core/types/bool, whole : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-pddouble-normal@10802[1,0,1,0] : (neg : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+fun pddouble-normal[799,5,799,19] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-pddouble-sum@10803[1,0,1,0] : (hi : std/core/types/float64, lo : std/core/types/float64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-pddouble-sum@10804[1,0,1,0] : (hi : std/core/types/float64, wild_@0 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-pddouble-sum@10805[1,0,1,0] : (hi : std/core/types/float64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+fun pddouble-sum[792,5,792,16] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+pub fun pddouble[789,9,789,16] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-parse-ddouble@10806[1,0,1,0] : (x : ddouble, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+// monadic lift
+fun @mlift-parse-ddouble@10807[1,0,1,0] : (x : ddouble) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> ddouble;
+pub fun parse-ddouble[786,9,786,21] : (s : std/core/types/string) -> (std/core/types/maybe :: V -> V)<ddouble>;
+// Parse a floating point number with up to 31 digits precision.
+// Return `dd-nan` if the string is an invalid number.
+pub fun string/ddouble[742,9,742,22] : (s : std/core/types/string) -> ddouble;
+// Decrement by one.
+pub fun dec[442,9,442,11] : (x : ddouble) -> ddouble;
+// Zero constant
+pub val zero[308,9,308,12] : ddouble;
+// Return the sum of a list of doubles.
+// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements)
+// to minimize rounding errors. This
+// is more precise as Kahan summation and about as fast.\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
+// A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
+// Math. Mechanik, 54:39--51, 1974.
+pub fun list/sum[1039,9,1039,16] : (xs : (std/core/types/list :: V -> V)<ddouble>) -> ddouble;
+// &pi;
+pub val dd-pi[228,9,228,13] : ddouble;
+// 2&pi;
+pub val dd-twopi[232,9,232,16] : ddouble;
+// &pi;/2
+pub val dd-pi2[235,9,235,14] : ddouble;
+// &pi;/4
+pub val dd-pi4[238,9,238,14] : ddouble;
+// &pi;/16
+val dd-pi16[242,5,242,11] : ddouble;
+// 3&pi;/4
+pub val dd-pi34[245,9,245,15] : ddouble;
+// The _e_ constant.
+pub val dd-e[249,9,249,12] : ddouble;
+// The natural logarithm of 2
+pub val dd-ln2[252,9,252,14] : ddouble;
+// The natural logarithm of 10
+pub val dd-ln10[255,9,255,15] : ddouble;
+// The base-2 logarithm of _e_.
+pub val dd-log2e[258,9,258,16] : ddouble;
+// The base-10 logarithm of _e_.
+pub val dd-log10e[261,9,261,17] : ddouble;
+// The square-root of 2
+pub val dd-sqrt2[264,9,264,16] : ddouble;
+// `1.0 / sqrt(2.0)`
+pub val dd-sqrt12[267,9,267,17] : ddouble;
+// [Euler's constant](https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant)
+pub val dd-euler[270,9,270,16] : ddouble;
+// The 'machine epsilon': this is not well-defined for a `:ddouble` in general since
+// the difference between 1.0 and the next representable `:ddouble` value is `dd-true-min`.
+// Instead, we take the square of `flt-epsilon`, i.e. 2^-104^.
+pub val dd-epsilon[275,9,275,18] : ddouble;
+// 8*dd-epsilon
+val dd-epsilon8[278,5,278,15] : ddouble;
+// The maximum representable `:ddouble`
+pub val dd-max[281,9,281,14] : ddouble;
+// The smallest positive `:ddouble` that is still normalized
+pub val dd-min[284,9,284,14] : ddouble;
+// The smallest positive `:ddouble`  (which is subnormal).
+pub val dd-true-min[287,9,287,19] : ddouble;
+// Positive infinity
+pub val dd-posinf[293,9,293,17] : ddouble;
+// Negative infinity
+pub val dd-neginf[296,9,296,17] : ddouble;
+// maximal precision in decimal digits of a `:ddouble`.
+pub val dd-max-prec[299,9,299,19] : std/core/types/int;
+val dd-default-prec[301,5,301,19] : std/core/types/int;
+val two[316,5,316,7] : ddouble;
+// Is this `:ddouble` positive?
+pub fun is-pos[327,9,327,14] : (x : ddouble) -> std/core/types/bool;
+// Is this `:ddouble` not-a-number?
+pub fun is-nan[337,9,337,14] : (x : ddouble) -> std/core/types/bool;
+// Is this an infinite value.
+pub fun is-inf[345,9,345,14] : (x : ddouble) -> std/core/types/bool;
+// Does `x` equal positive infinity?
+pub fun is-posinf[349,9,349,17] : (x : ddouble) -> std/core/types/bool;
+// Does `x` equal negative infinity?
+pub fun is-neginf[353,9,353,17] : (x : ddouble) -> std/core/types/bool;
+pub fun (>)[363,9,363,11] : (x : ddouble, y : ddouble) -> std/core/types/bool;
+pub fun (<)[367,9,367,11] : (x : ddouble, y : ddouble) -> std/core/types/bool;
+// Return the sign of the `:ddouble`.
+pub fun is-sign[331,9,331,15] : (x : ddouble) -> std/core/types/order;
+// The minimum of `x` and `y`.
+pub fun min[371,9,371,11] : (x : ddouble, y : ddouble) -> ddouble;
+// The maximum of `x` and `y`
+pub fun max[375,9,375,11] : (x : ddouble, y : ddouble) -> ddouble;
+fun edouble/@copy[382,14,382,20] : (@this : edouble, num : (std/core/types/@optional :: V -> V)<std/core/types/float64>, err : (std/core/types/@optional :: V -> V)<std/core/types/float64>) -> edouble;
+// Increment by one.
+pub fun inc[438,9,438,11] : (x : ddouble) -> ddouble;
+// Round a `:ddouble` to the nearest integer, rounding to the nearest even number in case of a tie.
+pub fun round[543,9,543,13] : (x : ddouble) -> ddouble;
+// Remainder of two `:ddouble`s
+pub fun (%)[521,9,521,11] : (x : ddouble, y : ddouble) -> ddouble;
+// Division and remainder of two `:ddouble`s
+pub fun divrem[526,9,526,14] : (x : ddouble, y : ddouble) -> (ddouble, ddouble);
+// Convert a `:ddouble` to a `:decimal` up to a given precision `prec` (= `-1`).
+// A negative precision converts precisely. Returns 0 for non-finite `:ddouble`'s.
+pub fun decimal[648,9,648,15] : (x : ddouble, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/num/decimal/decimal;
+// Convert a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie)
+pub fun int[539,9,539,11] : (x : ddouble, nonfin : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/int;
+// Round to negative infinity.
+pub fun floor[552,9,552,13] : (x : ddouble) -> ddouble;
+// Round to positive infinity.
+pub fun ceiling[559,9,559,15] : (x : ddouble) -> ddouble;
+// Round towards zero.
+pub fun truncate[566,9,566,16] : (x : ddouble) -> ddouble;
+// The fraction of `x` such that `x.truncate + x.fraction == x`.
+pub fun fraction[570,9,570,16] : (x : ddouble) -> ddouble;
+// The _floored_ fraction of `x`. This is always positive, such that `x.floor + x.ffraction == x`.
+pub fun ffraction[574,9,574,17] : (x : ddouble) -> ddouble;
+// Round a `:ddouble` to a specified precision.
+// Uses `round` if the precision is smaller or equal to zero.
+pub fun round-to-prec[579,9,579,21] : (x : ddouble, prec : std/core/types/int) -> ddouble;
+// 'Load exponent': returns `x`&middot;2^`exp`^.
+pub fun ldexp[592,9,592,13] : (x : ddouble, exp : std/core/types/int) -> ddouble;
+// Create a `:ddouble` `x` such that `x` equals `d`&middot;10^`e`^.
+pub fun float64/ddouble-exp[623,9,623,27] : (d : std/core/types/float64, e : std/core/types/int) -> ddouble;
+// Create a `:ddouble` `x` such that `x` equals `i`&middot;10^`e`^.
+pub fun int/ddouble-exp[627,9,627,23] : (i : std/core/types/int, exp : std/core/types/int) -> ddouble;
+// Decode a `:ddouble` `d` into two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`,
+// where `lo` &le; 0.5&middot;ulp(`hi`).
+pub fun decode[639,9,639,14] : (d : ddouble) -> (std/core/types/float64, std/core/types/float64);
+// Encode a `:ddouble` `d` from two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`.
+pub fun encode[643,9,643,14] : (hi : std/core/types/float64, lo : std/core/types/float64) -> ddouble;
+// The square root of a non-negative `:ddouble` `x`.
+// For negative `x`, `dd-nan` is returned.
+pub fun sqrt[820,9,820,12] : (x : ddouble) -> ddouble;
+// Multiply `x` by a `:float64` `p` where `p` must be a power of 2.
+fun mul-pwr2[849,5,849,12] : (x : ddouble, p : std/core/types/float64) -> ddouble;
+fun half[854,5,854,8] : (x : ddouble) -> ddouble;
+fun twice[857,5,857,9] : (x : ddouble) -> ddouble;
+val exp-factors[897,5,897,15] : (std/core/types/list :: V -> V)<ddouble>;
+fun exp-approx[906,5,906,14] : (p : ddouble, t : ddouble, r : ddouble, eps : std/core/types/float64, fs : (std/core/types/list :: V -> V)<ddouble>, s : (std/core/types/@optional :: V -> V)<ddouble>) -> ddouble;
+// Return _e_ (`dd-e`) to the power of `x`.
+pub fun exp[866,9,866,11] : (x : ddouble) -> ddouble;
+// The natural logarithm (in base _e_) of `x`.
+pub fun ln[924,9,924,10] : (x : ddouble) -> ddouble;
+// `x` to the power of `y` both as `:ddouble`
+pub fun pow[961,9,961,11] : (x : ddouble, y : ddouble) -> ddouble;
+// Return 10 to the power of `exp`.
+pub fun exp10[615,9,615,13] : (exp : ddouble) -> ddouble;
+// Return 2 to the power of `exp`.
+pub fun exp2[619,9,619,12] : (exp : ddouble) -> ddouble;
+// Show a `:ddouble` `x` with a given precision `prec` (=`-31`).
+// The precision specifies the  number of digits after the dot (in either scientific of fixed-point notation).
+// If the precision is negative, _at most_ `prec` digits are displayed, while for a positive
+// precision, exactly `prec` digits behind the dot are displayed.
+// This uses `show-fixed` when the exponent of `x` in scientific notation is larger than -5
+// and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
+pub fun show[680,9,680,12] : (x : ddouble, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+/* Show a `:ddouble` `x` precisely as the sum of two `:float64`s
+in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
+Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
+i.e. `x == x.show-hex.ddouble`.
+```
+> 0.1.ddouble.show-hex
+"0x1.999999999999Ap-4 + 0x0.0p+0"
+> "0.1".ddouble.show-hex
+"0x1.999999999999Ap-4 + -0x1.999999999999Ap-58"
+> dd-pi.show-hex
+"0x1.921FB54442D18p+1 + 0x1.1A62633145C07p-53"
+> dd-max.show-hex
+"0x1.FFFFFFFFFFFFFp+1023 + 0x1.FFFFFFFFFFFFFp+969"
+```
+.
+*/
+pub fun show-hex[669,9,669,16] : (x : ddouble, width : (std/core/types/@optional :: V -> V)<std/core/types/int>, use-capitals : (std/core/types/@optional :: V -> V)<std/core/types/bool>, pre : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+/* Show a ddouble `x` with a given precision `prec` (=`-31`) in scientific notation.
+The precision specifies the  number of digits after the dot, i.e.
+the number of significant digits is `prec+1`.
+If the precision is negative, _at most_ `prec` digits are displayed, and if
+it is positive exactly `prec` digits are used.
+```
+> 1.1.ddouble.show-exp
+"1.1000000000000000888178419700125"
+> 1.1.ddouble.show-exp(-100)
+"1.100000000000000088817841970012523233890533447265625"
+> 1.1.ddouble.show-exp(5)
+"1.10000"
+> 1.1.ddouble.show-exp(-5)
+"1.1"
+```
+.
+*/
+pub fun show-exp[702,9,702,16] : (x : ddouble, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+/* Show a ddouble `x` with a given precision `prec` (=`-31`) in fixed-point notation.
+The precision specifies the  number of digits after the dot.
+If the precision is negative, _at most_  `prec` digits after the dot are displayed,
+while for a positive precision, exactly `prec` digits are used.
+```
+> 0.1.ddouble.show-fixed
+"0.1000000000000000055511151231258"
+> 0.1.ddouble.show-fixed(-100)
+"0.1000000000000000055511151231257827021181583404541015625"
+> 0.1.ddouble.show-fixed(5)
+"0.10000"
+> 0.1.ddouble.show-fixed(-5)
+"0.1"
+```
+.
+*/
+pub fun show-fixed[723,9,723,18] : (x : ddouble, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Show a `:ddouble` as the sum of  `:float64`s with an optional precision.
+// Note: use `show-hex` for reliable round-trip parsing.
+pub fun show-sum[730,9,730,16] : (x : ddouble, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// The `n`-th root of a `:ddouble` number `x`.
+// `n` must be positive, and if `n` is even, then
+// `x` must not be negative.
+pub fun nroot[836,9,836,13] : (x : ddouble, n : std/core/types/int) -> ddouble;
+val one-half[852,5,852,12] : ddouble;
+// Return the logarithm in some base `b` of a `:ddouble` `x`
+pub fun log[949,9,949,11] : (x : ddouble, base : ddouble) -> ddouble;
+// The logarithm in base 10 of `x`.
+pub fun log10[953,9,953,13] : (x : ddouble) -> ddouble;
+// The logarithm in base 2 of `x`.
+pub fun log2[957,9,957,12] : (x : ddouble) -> ddouble;
+// Return `ln(1.0 + x)`.
+// Avoids potential imprecision for small `x` where adding `1.0` explicitly
+// may lead to rounding errors.
+pub fun ln1p[968,9,968,12] : (x : ddouble) -> ddouble;
+// Return `exp(x - 1.0)`.
+// Avoids rounding errors for values of `x` very close to `1.0`.
+pub fun expm1[978,9,978,13] : (x : ddouble) -> ddouble;
+fun log2p1[986,5,986,10] : (x : ddouble) -> ddouble;
+fun exp2m1[989,5,989,10] : (x : ddouble) -> ddouble;
+// Returns `ln(exp(x) + exp(y))`.
+// Avoids overlow/underflow errors.
+pub fun lnaddexp[994,9,994,16] : (x : ddouble, y : ddouble) -> ddouble;
+// Returns `log2( exp2(x) + exp2(y) )`.
+// Avoids overlow/underflow errors.
+pub fun logaddexp2[1003,9,1003,18] : (x : ddouble, y : ddouble) -> ddouble;
+// Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`8*dd-epsilon`).
+// The epsilon is the nearest difference for numbers around 1.0. The routine automatically
+// scales the epsilon for larger and smaller numbers, and for numbers close to zero.
+pub fun nearly-eq[1013,9,1013,17] : (x : ddouble, y : ddouble, epsilon : (std/core/types/@optional :: V -> V)<ddouble>) -> std/core/types/bool;
+// Return if two `:ddouble`s are nearly equal with respect to an `epsilon` of `10*dd-epsilon`.
+// See also `nearly-eq` which takes an explicit `epsilon`.
+pub fun (~=)[1025,9,1025,12] : (x : ddouble, y : ddouble) -> std/core/types/bool;
+// The hypotenuse of `x` and `y`: `sqrt(x*x + y*y)`.
+// Prevents overflow for large numbers.
+pub fun hypot[1051,9,1051,13] : (x : ddouble, y : ddouble) -> ddouble;
+// The square root of the sum of the squares of three doubles.
+// Prevents overflow for large numbers.
+pub fun xyz/hypot[1063,9,1063,17] : (x : ddouble, y : ddouble, z : ddouble) -> ddouble;
+// The maximum of the absolute values.
+fun abs-max[1082,5,1082,11] : (x : ddouble, y : ddouble) -> ddouble;
+// The maximum of a list of absolute values.
+fun list/abs-max[1086,5,1086,16] : (xs : (std/core/types/list :: V -> V)<ddouble>) -> ddouble;
+// The square root of the sum of squares of a list of doubles.
+// Prevents overflow for large numbers and uses Kahan-Babu&scaron;kan-Neumaier summation
+// for precision.
+pub fun list/hypot[1075,9,1075,18] : (xs : (std/core/types/list :: V -> V)<ddouble>) -> ddouble;
+val ch-factors[1158,5,1158,14] : (std/core/types/list :: V -> V)<ddouble>;
+val sin16-table[1172,5,1172,15] : (std/core/types/vector :: V -> V)<ddouble>;
+// Return sin(i*pi/16) for 0 <= i <= 8
+fun sin16[1169,5,1169,9] : (i : std/core/types/int) -> ddouble;
+// Calculate sine and cosine on an angle in radians.
+pub fun sincos[1107,9,1107,14] : (rad : ddouble) -> (ddouble, ddouble);
+// The sine function of a given angle in radians.
+pub fun sin[1094,9,1094,11] : (rad : ddouble) -> ddouble;
+// The cosine function of a given angle in radians.
+pub fun cos[1098,9,1098,11] : (rad : ddouble) -> ddouble;
+// The tangent of a given angle in radians.
+pub fun tan[1102,9,1102,11] : (rad : ddouble) -> ddouble;
+// Return `x` with the sign of `y`.
+pub fun with-sign-of[1185,9,1185,20] : (x : ddouble, y : ddouble) -> ddouble;
+// The arc-tangent of a point (`x`,`y`). Returns the angle with respect to the x-axis in radians between -&pi; and &pi;.
+pub fun atan2[1207,9,1207,13] : (y : ddouble, x : ddouble) -> ddouble;
+// The arc-sine of `x`. Returns the angle in radians.
+pub fun asin[1189,9,1189,12] : (x : ddouble) -> ddouble;
+// The arc-cosine of `x`. Returns the angle in radians.
+pub fun acos[1196,9,1196,12] : (x : ddouble) -> ddouble;
+// The arc-tangent of `x`. Returns the angle in radians.
+pub fun atan[1203,9,1203,12] : (x : ddouble) -> ddouble;
+// The hyperbolic sine of `x`.
+pub fun sinh[1228,9,1228,12] : (x : ddouble) -> ddouble;
+// The hyperbolic cosine of `x`.
+pub fun cosh[1240,9,1240,12] : (x : ddouble) -> ddouble;
+// The hyperbolic tangent of `x`.
+pub fun tanh[1252,9,1252,12] : (x : ddouble) -> ddouble;
+// The area hyperbolic sine of `x`.
+pub fun asinh[1268,9,1268,13] : (x : ddouble) -> ddouble;
+// The area hyperbolic cosine of `x`.
+pub fun acosh[1272,9,1272,13] : (x : ddouble) -> ddouble;
+// The area hyperbolic tangent of `x`.
+pub fun atanh[1276,9,1276,13] : (x : ddouble) -> ddouble;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun ddouble/hi // inline size: 0
+  = fn(ddouble@0: ddouble){
+    match (ddouble@0) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    };
+  };
+inline borrow "^" fun ddouble/lo // inline size: 0
+  = fn(ddouble@0: ddouble){
+    match (ddouble@0) {
+      ((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@x: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    };
+  };
+fun ddouble/@copy // inline size: 3
+  = fn(@this: ddouble, hi: (std/core/types/@optional :: V -> V)<std/core/types/float64>, lo: (std/core/types/@optional :: V -> V)<std/core/types/float64>){
+    std/num/ddouble/Ddouble((match (hi) {
+        ((std/core/types/@OptArg((@uniq-hi@185: std/core/types/float64) : std/core/types/float64) : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> @uniq-hi@185;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> (match (@this) {
+            ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+               -> @x;
+          });
+      }), (match (lo) {
+        ((std/core/types/@OptArg((@uniq-lo@193: std/core/types/float64) : std/core/types/float64) : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> @uniq-lo@193;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> (match (@this) {
+            ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+               -> @x@0;
+          });
+      }));
+  };
+fun float64/ddouble // inline size: 1
+  = fn(d: std/core/types/float64){
+    std/num/ddouble/Ddouble(d, 0.0);
+  };
+inline val maxprecise // inline size: 0
+  = 9007199254740991;
+fun cmp // inline size: 3
+  = fn(x: ddouble, y: ddouble){
+    match ((std/num/float64/cmp((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }), (match (y) {
+        ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+           -> @x@0;
+      })))) {
+      ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+         -> std/num/float64/cmp((match (x) {
+            ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+               -> @x@1;
+          }), (match (y) {
+            ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@4: ddouble)
+               -> @x@2;
+          }));
+      (ord: std/core/types/order)
+         -> ord;
+    };
+  };
+fun (!=) // inline size: 4
+  = fn(x: ddouble, y: ddouble){
+    std/core/order/(!=)((match ((std/num/float64/cmp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), (match (y) {
+          ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (x) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+                 -> @x@1;
+            }), (match (y) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@4: ddouble)
+                 -> @x@2;
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Eq);
+  };
+fun (>=) // inline size: 4
+  = fn(x: ddouble, y: ddouble){
+    std/core/order/(!=)((match ((std/num/float64/cmp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), (match (y) {
+          ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (x) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+                 -> @x@1;
+            }), (match (y) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@4: ddouble)
+                 -> @x@2;
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Lt);
+  };
+fun (<=) // inline size: 4
+  = fn(x: ddouble, y: ddouble){
+    std/core/order/(!=)((match ((std/num/float64/cmp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), (match (y) {
+          ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (x) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+                 -> @x@1;
+            }), (match (y) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@4: ddouble)
+                 -> @x@2;
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Gt);
+  };
+fun (~) // inline size: 3
+  = fn(x: ddouble){
+    std/num/ddouble/Ddouble((std/num/float64/(~)((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }))), (std/num/float64/(~)((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+           -> @x@0;
+      }))));
+  };
+fun is-precise // inline size: 3
+  = fn(i: std/core/types/int){
+    match ((std/core/int/(>=)(i, std/num/ddouble/minprecise))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/int/(<=)(i, 9007199254740991);
+      (@pat@0: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fun is-zero // inline size: 1
+  = fn(x: ddouble){
+    std/num/float64/(==)((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }), 0.0);
+  };
+fun is-neg // inline size: 1
+  = fn(x: ddouble){
+    std/num/float64/(<)((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }), 0.0);
+  };
+fun is-finite // inline size: 3
+  = fn(x: ddouble){
+    match ((std/num/float64/is-finite((match (x) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    })))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/num/float64/is-finite((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@2: ddouble)
+             -> @x@0;
+        }));
+      (@pat@0@1: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fun (==) // inline size: 4
+  = fn(x: ddouble, y: ddouble){
+    std/core/order/(==)((match ((std/num/float64/cmp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), (match (y) {
+          ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (x) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+                 -> @x@1;
+            }), (match (y) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@4: ddouble)
+                 -> @x@2;
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Eq);
+  };
+inline borrow "^" fun edouble/num // inline size: 0
+  = fn(edouble: edouble){
+    match (edouble) {
+      ((@skip std/num/ddouble/Edouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : edouble ) as @pat: edouble)
+         -> @x;
+    };
+  };
+inline borrow "^" fun edouble/err // inline size: 0
+  = fn(edouble: edouble){
+    match (edouble) {
+      ((@skip std/num/ddouble/Edouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@x: std/core/types/float64) : std/core/types/float64) : edouble ) as @pat: edouble)
+         -> @x;
+    };
+  };
+inline fun float64 // inline size: 0
+  = fn(x: ddouble){
+    match (x) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    };
+  };
+fun prod // inline size: 4
+  = fn(x: std/core/types/float64, y: std/core/types/float64){
+    val z[488,7,488,7] : std/core/types/float64
+      = std/num/float64/(*)(x, y);
+    val err[489,7,489,9] : std/core/types/float64
+      = std/num/float64/fmadd(x, y, (std/num/float64/(~)(z)));
+    std/num/ddouble/Edouble(z, err);
+  };
+fun (-) // inline size: 4
+  = fn(x: ddouble, y: ddouble){
+    std/num/ddouble/(+)(x, (std/num/ddouble/Ddouble((std/num/float64/(~)((match (y) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }))), (std/num/float64/(~)((match (y) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        }))))));
+  };
+fun ddouble // inline size: 4
+  = fn(x: std/core/types/float64, y: std/core/types/float64){
+    match ((std/num/float64/(==)(y, 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/num/ddouble/Ddouble(x, 0.0);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/num/ddouble/dsum(x, y);
+    };
+  };
+fun prodsqr // inline size: 4
+  = fn(x: std/core/types/float64){
+    val z[493,7,493,7] : std/core/types/float64
+      = std/num/float64/(*)(x, x);
+    val err[494,7,494,9] : std/core/types/float64
+      = std/num/float64/fmadd(x, x, (std/num/float64/(~)(z)));
+    std/num/ddouble/Edouble(z, err);
+  };
+fun powi10 // inline size: 1
+  = fn(exp@0: std/core/types/int){
+    std/num/ddouble/powi(std/num/ddouble/ten, exp@0);
+  };
+fun mul-exp10 // inline size: 4
+  = fn(x: ddouble, exp@0: std/core/types/int){
+    match ((std/core/int/is-zero(exp@0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/num/ddouble/(*)(x, (std/num/ddouble/powi(std/num/ddouble/ten, exp@0)));
+    };
+  };
+fun int/ddouble // inline size: 1
+  = fn(i: std/core/types/int){
+    std/num/ddouble/ddouble-int-exp(i, 0);
+  };
+fun pddouble // inline size: 1
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+    std/text/parse/(||)<ddouble,(std/core/types/total :: E)>(std/num/ddouble/pddouble-sum, std/num/ddouble/pddouble-normal);
+  };
+fun string/ddouble // inline size: 2
+  = fn(s: std/core/types/string){
+    val m@10131[1,0,1,0] : (std/core/types/maybe :: V -> V)<ddouble>
+          = std/num/ddouble/parse-ddouble(s);
+    match (m@10131) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<ddouble> ) as @pat: ((std/core/types/maybe :: V -> V)<ddouble>))
+         -> std/num/ddouble/dd-nan;
+      ((@skip std/core/types/Just((x: ddouble) : ddouble) : (std/core/types/maybe :: V -> V)<ddouble> ) as @pat@0: ((std/core/types/maybe :: V -> V)<ddouble>))
+         -> x;
+    };
+  };
+fun dec // inline size: 4
+  = fn(x: ddouble){
+    std/num/ddouble/(+)(x, (std/num/ddouble/Ddouble((std/num/float64/(~)((match (std/num/ddouble/one) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }))), (std/num/float64/(~)((match (std/num/ddouble/one) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        }))))));
+  };
+inline val dd-max-prec // inline size: 0
+  = 31;
+inline val dd-default-prec // inline size: 0
+  = -31;
+fun is-pos // inline size: 1
+  = fn(x: ddouble){
+    std/num/float64/(>)((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }), 0.0);
+  };
+fun is-nan // inline size: 3
+  = fn(x: ddouble){
+    match ((std/num/float64/is-nan((match (x) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    })))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/core/types/True;
+      (@pat@0@0: std/core/types/bool)
+         -> std/num/float64/is-nan((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@2: ddouble)
+             -> @x@0;
+        }));
+    };
+  };
+fun is-inf // inline size: 1
+  = fn(x: ddouble){
+    std/num/float64/is-inf((match (x) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    }));
+  };
+fun is-posinf // inline size: 1
+  = fn(x: ddouble){
+    std/num/float64/is-posinf((match (x) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    }));
+  };
+fun is-neginf // inline size: 1
+  = fn(x: ddouble){
+    std/num/float64/is-neginf((match (x) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+         -> @x;
+    }));
+  };
+fun (>) // inline size: 4
+  = fn(x: ddouble, y: ddouble){
+    std/core/order/(==)((match ((std/num/float64/cmp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), (match (y) {
+          ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (x) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+                 -> @x@1;
+            }), (match (y) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@4: ddouble)
+                 -> @x@2;
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Gt);
+  };
+fun (<) // inline size: 4
+  = fn(x: ddouble, y: ddouble){
+    std/core/order/(==)((match ((std/num/float64/cmp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), (match (y) {
+          ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (x) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@3: ddouble)
+                 -> @x@1;
+            }), (match (y) {
+              ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@4: ddouble)
+                 -> @x@2;
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Lt);
+  };
+fun is-sign // inline size: 4
+  = fn(x: ddouble){
+    match ((std/num/float64/(==)((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }), 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/core/types/Eq;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+         -> (match ((std/num/float64/(<)((match (x) {
+            ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@2: ddouble)
+               -> @x@0;
+          }), 0.0))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1@0: std/core/types/bool)
+             -> std/core/types/Lt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2@0: std/core/types/bool)
+             -> std/core/types/Gt;
+        });
+    };
+  };
+fun edouble/@copy // inline size: 3
+  = fn(@this: edouble, num: (std/core/types/@optional :: V -> V)<std/core/types/float64>, err: (std/core/types/@optional :: V -> V)<std/core/types/float64>){
+    std/num/ddouble/Edouble((match (num) {
+        ((std/core/types/@OptArg((@uniq-num@4061: std/core/types/float64) : std/core/types/float64) : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> @uniq-num@4061;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> (match (@this) {
+            ((@skip std/num/ddouble/Edouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : edouble ) as @pat@1: edouble)
+               -> @x;
+          });
+      }), (match (err) {
+        ((std/core/types/@OptArg((@uniq-err@4069: std/core/types/float64) : std/core/types/float64) : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> @uniq-err@4069;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> (match (@this) {
+            ((@skip std/num/ddouble/Edouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : edouble ) as @pat@3: edouble)
+               -> @x@0;
+          });
+      }));
+  };
+fun inc // inline size: 1
+  = fn(x: ddouble){
+    std/num/ddouble/(+)(x, std/num/ddouble/one);
+  };
+fun truncate // inline size: 4
+  = fn(x: ddouble){
+    match ((std/num/float64/(<)((match (x) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }), 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+         -> std/num/ddouble/ceiling(x);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@0: std/core/types/bool)
+         -> std/num/ddouble/floor(x);
+    };
+  };
+fun ldexp // inline size: 3
+  = fn(x: ddouble, exp@0: std/core/types/int){
+    std/num/ddouble/Ddouble((std/num/float64/ldexp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), exp@0)), (std/num/float64/ldexp((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        }), exp@0)));
+  };
+fun decode // inline size: 1
+  = fn(d: ddouble){
+    std/core/types/Tuple2<std/core/types/float64,std/core/types/float64>((match (d) {
+        ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+           -> @x;
+      }), (match (d) {
+        ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+           -> @x@0;
+      }));
+  };
+fun encode // inline size: 3
+  = fn(hi: std/core/types/float64, lo: std/core/types/float64){
+    std/num/ddouble/(+)((std/num/ddouble/Ddouble(hi, 0.0)), (std/num/ddouble/Ddouble(lo, 0.0)));
+  };
+fun mul-pwr2 // inline size: 3
+  = fn(x: ddouble, p: std/core/types/float64){
+    std/num/ddouble/Ddouble((std/num/float64/(*)((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), p)), (std/num/float64/(*)((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        }), p)));
+  };
+fun half // inline size: 3
+  = fn(x: ddouble){
+    std/num/ddouble/Ddouble((std/num/float64/(*)((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), 0.5)), (std/num/float64/(*)((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        }), 0.5)));
+  };
+fun twice // inline size: 3
+  = fn(x: ddouble){
+    std/num/ddouble/Ddouble((std/num/float64/(*)((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat: ddouble)
+             -> @x;
+        }), 2.0)), (std/num/float64/(*)((match (x) {
+          ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : ddouble ) as @pat@1: ddouble)
+             -> @x@0;
+        }), 2.0)));
+  };
+fun pow // inline size: 3
+  = fn(x: ddouble, y: ddouble){
+    std/num/ddouble/exp((std/num/ddouble/(*)(y, (std/num/ddouble/ln(x)))));
+  };
+fun exp10 // inline size: 3
+  = fn(exp@0: ddouble){
+    std/num/ddouble/exp((std/num/ddouble/(*)(exp@0, (std/num/ddouble/ln(std/num/ddouble/ten)))));
+  };
+fun exp2 // inline size: 3
+  = fn(exp@0: ddouble){
+    std/num/ddouble/exp((std/num/ddouble/(*)(exp@0, (std/num/ddouble/ln(std/num/ddouble/two)))));
+  };
+fun log // inline size: 3
+  = fn(x: ddouble, base: ddouble){
+    std/num/ddouble/(/)((std/num/ddouble/ln(x)), (std/num/ddouble/ln(base)));
+  };
+fun log10 // inline size: 2
+  = fn(x: ddouble){
+    std/num/ddouble/(/)((std/num/ddouble/ln(x)), std/num/ddouble/dd-ln10);
+  };
+fun log2 // inline size: 2
+  = fn(x: ddouble){
+    std/num/ddouble/(/)((std/num/ddouble/ln(x)), std/num/ddouble/dd-ln2);
+  };
+fun log2p1 // inline size: 2
+  = fn(x: ddouble){
+    std/num/ddouble/(*)(std/num/ddouble/dd-log2e, (std/num/ddouble/ln1p(x)));
+  };
+fun exp2m1 // inline size: 2
+  = fn(x: ddouble){
+    std/num/ddouble/expm1((std/num/ddouble/(*)(std/num/ddouble/dd-ln2, x)));
+  };
+fun (~=) // inline size: 1
+  = fn(x: ddouble, y: ddouble){
+    std/num/ddouble/nearly-eq(x, y, (std/core/types/@NoOptArg<ddouble>));
+  };
+fun sin16 // inline size: 2
+  = fn(i: std/core/types/int){
+    val m@10416[1,0,1,0] : (std/core/types/maybe :: V -> V)<ddouble>
+          = std/core/vector/at<ddouble>(std/num/ddouble/sin16-table, i);
+    match (m@10416) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<ddouble> ) as @pat: ((std/core/types/maybe :: V -> V)<ddouble>))
+         -> std/num/ddouble/dd-nan;
+      ((@skip std/core/types/Just((x: ddouble) : ddouble) : (std/core/types/maybe :: V -> V)<ddouble> ) as @pat@0: ((std/core/types/maybe :: V -> V)<ddouble>))
+         -> x;
+    };
+  };
+fun sin // inline size: 1
+  = fn(rad: ddouble){
+    val tuple2@10470[1,0,1,0] : (ddouble, ddouble)
+          = std/num/ddouble/sincos(rad);
+    match (tuple2@10470) {
+      ((@skip std/core/types/Tuple2((@x: ddouble) : ddouble, (@pat@0: ddouble) : ddouble) : (ddouble, ddouble) ) as @pat: (ddouble, ddouble))
+         -> @x;
+    };
+  };
+fun cos // inline size: 1
+  = fn(rad: ddouble){
+    val tuple2@10471[1,0,1,0] : (ddouble, ddouble)
+          = std/num/ddouble/sincos(rad);
+    match (tuple2@10471) {
+      ((@skip std/core/types/Tuple2((@pat@0: ddouble) : ddouble, (@x: ddouble) : ddouble) : (ddouble, ddouble) ) as @pat: (ddouble, ddouble))
+         -> @x;
+    };
+  };
+fun tan // inline size: 2
+  = fn(rad: ddouble){
+    match ((std/num/ddouble/sincos(rad))) {
+      ((@skip std/core/types/Tuple2(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : ddouble ) as s: ddouble) : ddouble, ((@skip std/num/ddouble/Ddouble((@pat@2: std/core/types/float64) : std/core/types/float64, (@pat@3: std/core/types/float64) : std/core/types/float64) : ddouble ) as c: ddouble) : ddouble) : (ddouble, ddouble) ) as @pat: (ddouble, ddouble))
+         -> std/num/ddouble/(/)(s, c);
+    };
+  };
+fun atan // inline size: 1
+  = fn(x: ddouble){
+    std/num/ddouble/atan2(x, std/num/ddouble/one);
+  };

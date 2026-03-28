@@ -1,0 +1,69 @@
+/* File operations.
+*/
+module interface std/os/file
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/os/path = std/os/path = "";
+import std/os/dir = std/os/dir = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// An `:error<a>` type represents a first-class exception result as a `:result<a,exception>`.
+local alias std/core/exn/error[65,1,65,40]<a> :: V -> V = (std/core/types/result :: (V, V) -> V)<a,std/core/exn/exception> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+fun read-text-file-err[35,8,35,25] : (path : std/core/types/string) -> <(std/core/fsys :: X)> (std/core/exn/error :: V -> V)<std/core/types/string>;
+// Read a text file synchronously (using UTF8 encoding)
+pub fun read-text-file[21,9,21,22] : (path : std/os/path/path) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)> std/core/types/string;
+fun write-text-file-err[40,8,40,26] : (path : std/core/types/string, content : std/core/types/string) -> <(std/core/fsys :: X)> (std/core/exn/error :: V -> V)<()>;
+// monadic lift
+fun @mlift-write-text-file@10033[1,0,1,0] : (content : std/core/types/string, path : std/os/path/path, @c-x10007 : ()) -> ();
+// Write a text file synchronously (using UTF8 encoding)
+pub fun write-text-file[28,9,28,23] : (path : std/os/path/path, content : std/core/types/string, create-dir : (std/core/types/@optional :: V -> V)<std/core/types/bool>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 

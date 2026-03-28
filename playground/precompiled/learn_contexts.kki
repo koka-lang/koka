@@ -1,0 +1,264 @@
+// First-class constructor contexts allow specifying efficient
+// top-down algorithms directly in a purely functional style.
+// See the paper for a more in-depth discussion:
+//
+// >  "The Functional Essence of Imperative Binary Search Trees",
+// >  Anton Lorenzen, Daan Leijen, Wouter Swierstra, and Sam Lindley, PLDI'24
+// >  <https://www.microsoft.com/en-us/research/publication/fiptree-tr/>
+// >  <https://www.microsoft.com/en-us/research/uploads/prodnew/2024/05/fiptree-full.pdf>
+//
+// Prerequisites:
+//   - `learn/basic`
+//   - `learn/with`
+module interface learn/contexts
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// A first-class constructor context where the hole is of the same type as the root of the structure.
+local alias std/core/types/ctx[503,1,503,28]<a> :: V -> V = (std/core/types/cctx :: (V, V) -> V)<a,a> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// monadic lift
+fun @mlift-trmc-map-std@10069[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @trmc-x10022 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-map-std@10070[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @trmc-x10027 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Consider the well-known `map` function that maps a function over a list
+fun @trmc-map-std[16,5,16,11] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Consider the well-known `map` function that maps a function over a list
+fun @trmcm-map-std[16,5,16,11] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Consider the well-known `map` function that maps a function over a list
+fun map-std[16,5,16,11] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmc-map-tail@10071[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @trmc-x10028 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-map-tail@10072[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @trmc-x10033 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Naively, the `map-std` function would use stack space linear in the size
+// of the first list as it is not directly tail recursive. It turns out
+// that Koka can actually optimize tail recursive calls under a series
+// of constructors and `map-std` will be compiled in an efficient way.
+// See the paper:
+//
+// >  "Tail Recursion Modulo Context: An Equational Approach",
+// >  Daan Leijen and Anton Lorenzen, POPL'23,
+// >  <https://www.microsoft.com/en-us/research/publication/tail-recursion-modulo-context-an-equational-approach-2/>
+//
+// To be sure this optimization happens, we can write `tail fun` to get
+// a warning if our function is not quite TRMC.
+tail fun @trmc-map-tail[37,10,37,17] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Naively, the `map-std` function would use stack space linear in the size
+// of the first list as it is not directly tail recursive. It turns out
+// that Koka can actually optimize tail recursive calls under a series
+// of constructors and `map-std` will be compiled in an efficient way.
+// See the paper:
+//
+// >  "Tail Recursion Modulo Context: An Equational Approach",
+// >  Daan Leijen and Anton Lorenzen, POPL'23,
+// >  <https://www.microsoft.com/en-us/research/publication/tail-recursion-modulo-context-an-equational-approach-2/>
+//
+// To be sure this optimization happens, we can write `tail fun` to get
+// a warning if our function is not quite TRMC.
+tail fun @trmcm-map-tail[37,10,37,17] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Naively, the `map-std` function would use stack space linear in the size
+// of the first list as it is not directly tail recursive. It turns out
+// that Koka can actually optimize tail recursive calls under a series
+// of constructors and `map-std` will be compiled in an efficient way.
+// See the paper:
+//
+// >  "Tail Recursion Modulo Context: An Equational Approach",
+// >  Daan Leijen and Anton Lorenzen, POPL'23,
+// >  <https://www.microsoft.com/en-us/research/publication/tail-recursion-modulo-context-an-equational-approach-2/>
+//
+// To be sure this optimization happens, we can write `tail fun` to get
+// a warning if our function is not quite TRMC.
+tail fun map-tail[37,10,37,17] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+pub fun test-tail[42,9,42,17] : () -> <(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-map-acc@10073[1,0,1,0] : forall<a,b,(e :: E)> (acc : (std/core/types/list :: V -> V)<b>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @y-x10054 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// However, the TRMC optimization cannot always apply. How would we
+// then write an efficient `map` function? Commonly, functional programmers
+// use an accumulator to write a tail-recursive version of `map`.
+tail fun map-acc[51,10,51,16] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a) -> (e :: E) b, acc : (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+fun map-acc-entry[56,5,56,17] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+pub fun test-acc[59,9,59,16] : () -> <(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-map-td@10074[1,0,1,0] : forall<a,b,(e :: E)> (acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @y-x10058 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// We can create a context using the `ctx` keyword. A context must
+// consist of constructors and have a single _hole_ (written as `hole`).
+// For example, `ctx Cons(1,Cons(2,hole))` or `ctx Bin(Bin(Leaf 1,hole),Leaf 3)`
+// There are two operations on context, append and apply:
+//
+// `(++)  : (cctx<a,b>, cctx<b,c>) -> cctx<a,c>`  // append
+// `(++.) : (cctx<a,b>, b) -> a`                  // apply
+//
+// Append takes a context of type `:a` with hole `:b` and writes a
+// a context `cctx<b,c>` into the hole to get a new context of type
+// `:a` with hole `:c`. Apply `(.++)` plugs the hole `:b` in a
+// context `cctx<a,b>` and returns _the whole structure_ `:a`.
+// Often the hole and the structure are of the same type, and
+// we have the `alias ctx<a> = cctx<a,a>`.
+//
+// Now we can write a top-down `map` ourselves: (note: we don't need `tail` here as `fip` implies `tail` already)
+fip fun map-td[86,9,86,14] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b, acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+fip fun map-td-entry[91,9,91,20] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+pub fun test-td[94,9,94,15] : () -> <(std/core/console/console :: X)> ();
+fip fun @trmc-concat[108,9,108,14] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+fip fun concat[108,9,108,14] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+fbip fun flatten[113,10,113,16] : forall<a> (xss : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Here, `concat` is TRMC, but `flatten` is not (since the recursive call is inside a function call)
+// With constructor contexts though we can represent the flattened list as a context
+// with a hole in the tail element:
+fip fun concat-td[121,9,121,17] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>;
+fbip fun flatten-td[126,10,126,19] : forall<a> (xss : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>, acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>;
+fbip fun flatten-entry[131,10,131,22] : forall<a> (xss : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+pub fun example-flatten[134,9,134,23] : () -> <(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-partition-td@10075[1,0,1,0] : forall<a,(e :: E)> (acc1 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, acc2 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, pred : (a) -> (e :: E) std/core/types/bool, x : a, xx : (std/core/types/list :: V -> V)<a>, @y-x10062 : std/core/types/bool) -> (e :: E) ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+// Another example is the `partition` function where we
+// need two contexts to build the two result lists in one
+// traversal.
+tail fun partition-td[140,10,140,21] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ pred : (a) -> (e :: E) std/core/types/bool, acc1 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, acc2 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (e :: E) ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+fun partition-entry[147,5,147,19] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ pred : (a) -> (e :: E) std/core/types/bool) -> (e :: E) ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+pub fun example-partition[150,9,150,25] : () -> ((std/core/types/list :: V -> V)<std/core/types/int>, (std/core/types/list :: V -> V)<std/core/types/int>);
+pub fun main[157,9,157,12] : () -> <(std/core/console/console :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "_*_" tail fun map-acc // inline size: 7
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b, acc: (std/core/types/list :: V -> V)<b>){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> learn/contexts/map-acc<a,b,(e :: E)>(xx, f, (std/core/types/Cons<b>((f(x)), acc)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>,(xs : (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>>((fn(xs@0: (std/core/types/list :: V -> V)<b>){
+          (std/core/list/reverse-acc<b>((std/core/types/Nil<b>), xs@0));
+        }))(acc);
+    });
+  };
+specialize "_*" fun map-acc-entry // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b){
+    learn/contexts/map-acc<a,b,(e :: E)>(xs, f, (std/core/types/Nil<b>));
+  };
+recursive specialize "_*" borrow "_^" fun map-std // inline size: 4
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Cons<b>((f(x)), (learn/contexts/map-std<a,b,(e :: E)>(xx, f)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+    });
+  };
+recursive specialize "_*" borrow "_^" tail fun map-tail // inline size: 4
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Cons<b>((f(x)), (learn/contexts/map-tail<a,b,(e :: E)>(xx, f)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+    });
+  };
+recursive specialize "_*_" borrow "_^_" fip fun map-td // inline size: 12
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b, acc: (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> val @cctx-x796[1,0,1,0] : (std/core/types/list :: V -> V)<b>
+              = std/core/types/Cons<b>((f(x)), (std/core/types/@open<(std/core/types/total :: E),(e :: E),() -> (std/core/types/list :: V -> V)<b>,() -> (e :: E) (std/core/types/list :: V -> V)<b>>((std/core/types/@cctx-hole-create<(std/core/types/list :: V -> V)<b>>))()));
+            val @cctx-x797[1,0,1,0] : (std/core/types/@field-addr :: V -> V)<(std/core/types/list :: V -> V)<b>>
+              = std/core/types/@field-addr-of<(std/core/types/list :: V -> V)<b>>(@cctx-x796, "(\x22std/core/types\x22,\x22\x22,\x22Cons\x22)", "(\x22\x22,\x22\x22,\x22tail\x22)");
+        learn/contexts/map-td<a,b,(e :: E)>(xx, f, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>) -> (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>,(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>>((std/core/types/#cctx/(++)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>))(acc, (std/core/types/@cctx-create<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>(@cctx-x796, @cctx-x797)))));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/@open<(std/core/types/total :: E),(e :: E),(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>, x : (std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>,(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>, x : (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>>((std/core/types/#cctx/(++.)<(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<b>>))(acc, (std/core/types/Nil<b>));
+    });
+  };
+specialize "_*" borrow "_^" fip fun map-td-entry // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b){
+    learn/contexts/map-td<a,b,(e :: E)>(xs, f, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<b>>()));
+  };
+specialize "_*" borrow "_^" fun partition-entry // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    learn/contexts/partition-td<a,(e :: E)>(xs, pred, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()), (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()));
+  };
+recursive specialize "_*__" borrow "_^__" tail fun partition-td // inline size: 24
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool, acc1: (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, acc2: (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Tuple2<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>,(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/#cctx/(++.)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc1, (std/core/types/Nil<a>))), (std/core/types/@open<(std/core/types/total :: E),(e :: E),(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>,(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/#cctx/(++.)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc2, (std/core/types/Nil<a>))));
+      ((@skip std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((pred(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> val @cctx-x1579[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+                  = std/core/types/Cons<a>(x, (std/core/types/@open<(std/core/types/total :: E),(e :: E),() -> (std/core/types/list :: V -> V)<a>,() -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/@cctx-hole-create<(std/core/types/list :: V -> V)<a>>))()));
+                val @cctx-x1580[1,0,1,0] : (std/core/types/@field-addr :: V -> V)<(std/core/types/list :: V -> V)<a>>
+                  = std/core/types/@field-addr-of<(std/core/types/list :: V -> V)<a>>(@cctx-x1579, "(\x22std/core/types\x22,\x22\x22,\x22Cons\x22)", "(\x22\x22,\x22\x22,\x22tail\x22)");
+            learn/contexts/partition-td<a,(e :: E)>(xx, pred, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>,(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>>((std/core/types/#cctx/(++)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc1, (std/core/types/@cctx-create<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>(@cctx-x1579, @cctx-x1580)))), acc2);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> val @cctx-x1626[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+                  = std/core/types/Cons<a>(x, (std/core/types/@open<(std/core/types/total :: E),(e :: E),() -> (std/core/types/list :: V -> V)<a>,() -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/@cctx-hole-create<(std/core/types/list :: V -> V)<a>>))()));
+                val @cctx-x1627[1,0,1,0] : (std/core/types/@field-addr :: V -> V)<(std/core/types/list :: V -> V)<a>>
+                  = std/core/types/@field-addr-of<(std/core/types/list :: V -> V)<a>>(@cctx-x1626, "(\x22std/core/types\x22,\x22\x22,\x22Cons\x22)", "(\x22\x22,\x22\x22,\x22tail\x22)");
+            learn/contexts/partition-td<a,(e :: E)>(xx, pred, acc1, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>,(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>>((std/core/types/#cctx/(++)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc2, (std/core/types/@cctx-create<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>(@cctx-x1626, @cctx-x1627)))));
+        });
+    });
+  };
+fun map-acc-entry // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b){
+    learn/contexts/map-acc<a,b,(e :: E)>(xs, f, (std/core/types/Nil<b>));
+  };
+borrow "_^" fip fun map-td-entry // inline size: 2
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b){
+    learn/contexts/map-td<a,b,(e :: E)>(xs, f, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<b>>()));
+  };
+fbip fun flatten-entry // inline size: 3
+  = forall<a> fn(xss: (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>){
+    std/core/types/#cctx/(++.)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>((learn/contexts/flatten-td<a>(xss, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()))), (std/core/types/Nil<a>));
+  };
+borrow "_^" fun partition-entry // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    learn/contexts/partition-td<a,(e :: E)>(xs, pred, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()), (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()));
+  };

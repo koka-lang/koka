@@ -1,0 +1,204 @@
+// Parsing of time strings.
+module interface std/time/parse
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/text/parse = std/text/parse = "";
+import std/num/ddouble = std/num/ddouble = "";
+import std/time/duration = std/time/duration = "";
+import std/time/instant = std/time/instant = "";
+import std/time/date = std/time/date = "";
+import std/time/calendar = std/time/calendar = "";
+import std/time/calendars = std/time/calendars = "";
+import std/time/time = std/time/time = "";
+import std/time/locale = std/time/locale = "";
+import std/time/utc = std/time/utc = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+fun optchar[120,5,120,11] : (c : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/char;
+fun dash[114,5,114,8] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/char;
+fun colon[117,5,117,9] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/char;
+// monadic lift
+fun @mlift-num@10253[1,0,1,0] : (@y-x10049 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+fun num[123,5,123,7] : (n : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-ptime@10254[1,0,1,0] : (tzmin : std/core/types/int, @c-x10083 : std/core/types/int) -> std/time/calendar/timezone;
+// monadic lift
+fun @mlift-ptime@10255[1,0,1,0] : (@y-x10080 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-ptime@10256[1,0,1,0] : (sign : std/core/types/char, tzhour : std/core/types/int, tzmin : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/calendar/timezone;
+// monadic lift
+fun @mlift-ptime@10257[1,0,1,0] : (sign : std/core/types/char, tzhour : std/core/types/int, wild_@3 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/calendar/timezone;
+// monadic lift
+fun @mlift-ptime@10258[1,0,1,0] : (@y-x10074 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-ptime@10259[1,0,1,0] : (sign : std/core/types/char, tzhour : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/calendar/timezone;
+// monadic lift
+fun @mlift-ptime@10260[1,0,1,0] : (sign : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/calendar/timezone;
+// monadic lift
+fun @mlift-ptime@10261[1,0,1,0] : (wild_@4 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/calendar/timezone;
+// monadic lift
+fun @mlift-ptime@10262[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, hour : std/core/types/int, min : std/core/types/int, secs : std/num/ddouble/ddouble, tzone : std/time/calendar/timezone) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-ptime@10263[1,0,1,0] : (s : std/core/types/int, @c-x10071 : std/num/ddouble/ddouble) -> std/num/ddouble/ddouble;
+// monadic lift
+fun @mlift-ptime@10264[1,0,1,0] : (wild_@2 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/core/types/string;
+// monadic lift
+fun @mlift-ptime@10265[1,0,1,0] : (s : std/core/types/int, f : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/num/ddouble/ddouble;
+// monadic lift
+fun @mlift-ptime@10266[1,0,1,0] : (@y-x10065 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-ptime@10267[1,0,1,0] : (s : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/num/ddouble/ddouble;
+// monadic lift
+fun @mlift-ptime@10268[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, hour : std/core/types/int, min : std/core/types/int, secs : std/num/ddouble/ddouble) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-ptime@10269[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, hour : std/core/types/int, min : std/core/types/int, wild_@1 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-ptime@10270[1,0,1,0] : (@y-x10058 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-ptime@10271[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, hour : std/core/types/int, min : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-ptime@10272[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, hour : std/core/types/int, wild_@0 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-ptime@10273[1,0,1,0] : (@y-x10052 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-ptime@10274[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, hour : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-ptime@10275[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+fun ptime[93,5,93,9] : (date : std/time/date/date, cal : std/time/calendar/calendar) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-piso@10276[1,0,1,0] : (cal : std/time/calendar/calendar, date : std/time/date/date, default@4@10039 : std/time/time/time) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-piso@10277[1,0,1,0] : (@y-x10100 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10278[1,0,1,0] : (calendar : std/time/calendar/calendar, m : std/core/types/int, year : std/core/types/int, d@2 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10279[1,0,1,0] : (calendar : std/time/calendar/calendar, m : std/core/types/int, year : std/core/types/int, wild_@0 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10280[1,0,1,0] : (@y-x10094 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10281[1,0,1,0] : (calendar : std/time/calendar/calendar, year : std/core/types/int, m : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10282[1,0,1,0] : (@y-x10110 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10283[1,0,1,0] : (w : std/core/types/int, year : std/core/types/int, d@0@0 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10284[1,0,1,0] : (w : std/core/types/int, year : std/core/types/int, wild_@2 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10285[1,0,1,0] : (@y-x10104 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10286[1,0,1,0] : (year : std/core/types/int, w : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10287[1,0,1,0] : (year : std/core/types/int, wild_@1 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10288[1,0,1,0] : (@y-x10114 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10289[1,0,1,0] : (calendar : std/time/calendar/calendar, year : std/core/types/int, d@1@0 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10290[1,0,1,0] : (@y-x10124 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10291[1,0,1,0] : (m@0 : std/core/types/int, year : std/core/types/int, d@2@0 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10292[1,0,1,0] : (m@0 : std/core/types/int, year : std/core/types/int, wild_@4 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10293[1,0,1,0] : (@y-x10118 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10294[1,0,1,0] : (year : std/core/types/int, m@0 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10295[1,0,1,0] : (year : std/core/types/int, wild_@3 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10296[1,0,1,0] : (@y-x10128 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10297[1,0,1,0] : (year : std/core/types/int, d@3@0 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10298[1,0,1,0] : (year : std/core/types/int, wild_@5 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/time/date/date, std/time/calendar/calendar);
+// monadic lift
+fun @mlift-piso@10299[1,0,1,0] : (@y-x10131 : (std/time/date/date, std/time/calendar/calendar)) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-piso@10300[1,0,1,0] : (calendar : std/time/calendar/calendar, year : std/core/types/int, wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-piso@10301[1,0,1,0] : (@y-x10088 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-piso@10302[1,0,1,0] : (calendar : std/time/calendar/calendar, year : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+fun piso[62,5,62,8] : (calendar : std/time/calendar/calendar) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-parse-iso@10303[1,0,1,0] : (x : std/time/time/time, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-parse-iso@10304[1,0,1,0] : (x : std/time/time/time) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/time/time;
+// monadic lift
+fun @mlift-parse-iso@10305[1,0,1,0] : (@y-x10138 : (std/text/parse/parse-error :: V -> V)<std/time/time/time>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/core/types/maybe :: V -> V)<std/time/time/time>;
+pub fun parse-iso[59,9,59,17] : (s : std/core/types/string, calendar : (std/core/types/@optional :: V -> V)<std/time/calendar/calendar>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> (std/core/types/maybe :: V -> V)<std/time/time/time>;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun optchar // inline size: 2
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(c: std/core/types/char){
+    std/text/parse/(||)<std/core/types/char,(std/core/types/total :: E)>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+        (std/text/parse/char(c));
+      }), (fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+        c;
+      }));
+  };
+fun dash // inline size: 2
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+    std/text/parse/(||)<std/core/types/char,(std/core/types/total :: E)>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+        (std/text/parse/char('-'));
+      }), (fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+        '-';
+      }));
+  };
+fun colon // inline size: 2
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+    std/text/parse/(||)<std/core/types/char,(std/core/types/total :: E)>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+        (std/text/parse/char(':'));
+      }), (fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/text/parse/parse :: (E, V) -> V)>>>(){
+        ':';
+      }));
+  };

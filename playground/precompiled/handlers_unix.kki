@@ -1,0 +1,511 @@
+module interface handlers/unix
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// Index into an evidence vector
+local alias std/core/hnd/ev-index[138,1,138,28] = std/core/types/ssize_t = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+pub alias filedesc[22,1,22,20] = std/core/types/int = 1;
+// basic I/O
+pub recursive effect type bio[18,1,20,45] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-bio[18,1,18,10](@cfc: std/core/types/int, @fun-write: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>) -> (bio :: (E, V) -> V)<(e :: E),a> = 1;
+};
+pub recursive effect type exit[52,1,53,32] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-exit[52,1,52,11](@cfc: std/core/types/int, @ctl-exit: forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,b,(exit :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,b,(exit :: (E, V) -> V),(e :: E),a>) -> (exit :: (E, V) -> V)<(e :: E),a> = 1;
+};
+pub recursive effect type fork[148,1,149,19] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-fork[148,1,148,11](@cfc: std/core/types/int, @ctl-fork: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>) -> (fork :: (E, V) -> V)<(e :: E),a> = 1;
+};
+pub recursive effect type interrupt[163,1,164,22] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-interrupt[163,1,163,16](@cfc: std/core/types/int, @ctl-interrupt: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>) -> (interrupt :: (E, V) -> V)<(e :: E),a> = 1;
+};
+pub recursive type pstate[159,1,161,43] <(e :: E),a> :: (E, V) -> V {
+  pub con Done[160,3,160,6](result: a){0,1,8} : forall<(e :: E),a> (result : a) -> (pstate :: (E, V) -> V)<(e :: E),a> = 1;
+  pub con Paused[161,3,161,8](resumption: () -> (e :: E) (pstate :: (E, V) -> V)<(e :: E),a>){0,1,8} : forall<(e :: E),a> (resumption : () -> (e :: E) (pstate :: (E, V) -> V)<(e :: E),a>) -> (pstate :: (E, V) -> V)<(e :: E),a> = 2;
+};
+pub value{1,0,1} type user[72,1,75,5] {
+  pub con Root[73,3,73,6]{0,0,0} : user = 1;
+  pub con Alice[74,3,74,7]{0,0,0} : user = 2;
+  pub con Bob[75,3,75,5]{0,0,0} : user = 3;
+};
+pub recursive effect type su[108,1,109,25] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-su[108,1,108,9](@cfc: std/core/types/int, @ctl-su: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>) -> (su :: (E, V) -> V)<(e :: E),a> = 1;
+};
+pub recursive effect type whoami[83,1,84,23] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-whoami[83,1,83,13](@cfc: std/core/types/int, @fun-whoami: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>) -> (whoami :: (E, V) -> V)<(e :: E),a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:bio` type.
+fun bio/@cfc[18,1,18,10] : forall<(e :: E),a> (^ bio : (bio :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:bio`
+pub val bio/@tag[18,1,18,10] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(bio :: (E, V) -> V)>;
+// handler for the effect `:bio`
+pub fun bio/@handle[18,8,18,10] : forall<a,(e :: E),b> (hnd : (bio :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@fun-write` constructor field of the `:bio` type.
+fun bio/@fun-write[20,7,20,45] : forall<(e :: E),a> (^ bio : (bio :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<filedesc,std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>;
+// select `write` operation out of effect `:bio`
+pub fun write/@select[20,7,20,45] : forall<(e :: E),a> (^ hnd : (bio :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<filedesc,std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>;
+// Write a string to a file descriptor
+
+// Call the `fun write` operation of the effect `:bio`
+pub fun write[20,7,20,11] : (fd : filedesc, s : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>> ();
+pub val stdout[24,5,24,10] : std/core/types/int;
+pub fun echo[26,5,26,8] : (s : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-bio@10272[1,0,1,0] : forall<(h :: H),(e :: E)> (buf : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/string>, s : std/core/types/string, @y-x10066 : std/core/types/string) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ();
+// monadic lift
+fun @mlift-bio@10273[1,0,1,0] : forall<(h :: H),a,(e :: E)> (@y-x10068 : a, @y-x10069 : std/core/types/string) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> (a, std/core/types/string);
+// monadic lift
+fun @mlift-bio@10274[1,0,1,0] : forall<(h :: H),a,(e :: E)> (buf : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/string>, @y-x10068 : a) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> (a, std/core/types/string);
+pub fun bio[29,5,29,7] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (a, std/core/types/string);
+// monadic lift
+fun @mlift-bio2@10275[1,0,1,0] : forall<(h :: H),a,(e :: E)> (x@4366 : a, @y-x10077 : std/core/types/string) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> (a, std/core/types/string);
+// monadic lift
+fun @mlift-bio2@10276[1,0,1,0] : forall<(h :: H),(e :: E)> (buf : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/string>, s : std/core/types/string, @y-x10073 : std/core/types/string) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ();
+// monadic lift
+fun @mlift-bio2@10277[1,0,1,0] : forall<(h :: H),a,(e :: E)> (buf : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/string>, x@4366 : a) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> (a, std/core/types/string);
+// we can also write the previous `bio` using a `with return`
+pub fun bio2[35,5,35,8] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (a, std/core/types/string);
+// monadic lift
+fun @mlift-example1@10278[1,0,1,0] : (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>> ();
+pub fun example1[42,9,42,16] : () -> ((), std/core/types/string);
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:exit` type.
+fun exit/@cfc[52,1,52,11] : forall<(e :: E),a> (^ exit : (exit :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:exit`
+pub val exit/@tag[52,1,52,11] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(exit :: (E, V) -> V)>;
+// handler for the effect `:exit`
+pub fun exit/@handle[52,8,52,11] : forall<a,(e :: E),b> (hnd : (exit :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@ctl-exit` constructor field of the `:exit` type.
+fun exit/@ctl-exit[53,7,53,32] : forall<(e :: E),a,b> (^ exit : (exit :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,b,(exit :: (E, V) -> V),(e :: E),a>;
+// select `exit` operation out of effect `:exit`
+pub fun exit/@select[53,7,53,32] : forall<a,(e :: E),b> (^ hnd : (exit :: (E, V) -> V)<(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,a,(exit :: (E, V) -> V),(e :: E),b>;
+// Call the `ctl exit` operation of the effect `:exit`
+pub fun exit[53,7,53,10] : forall<a> (exitcode : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> a;
+// monadic lift
+fun @mlift-status@10279[1,0,1,0] : forall<a,(e :: E)> (wild_ : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>|(e :: E)> std/core/types/int;
+pub fun status[55,5,55,10] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) std/core/types/int;
+// monadic lift
+fun @mlift-example2@10280[1,0,1,0] : (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-example2@10281[1,0,1,0] : forall<_a> (wild_@0@0 : _a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-example2@10282[1,0,1,0] : forall<_a> (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> std/core/types/int;
+pub fun example2[60,9,60,16] : () -> (std/core/types/int, std/core/types/string);
+// Automatically generated. Tests for the `Root` constructor of the `:user` type.
+pub fip fun is-root[73,3,73,6] : (^ user : user) -> std/core/types/bool;
+// Automatically generated. Tests for the `Alice` constructor of the `:user` type.
+pub fip fun is-alice[74,3,74,7] : (^ user : user) -> std/core/types/bool;
+// Automatically generated. Tests for the `Bob` constructor of the `:user` type.
+pub fip fun is-bob[75,3,75,5] : (^ user : user) -> std/core/types/bool;
+pub fun user/show[77,5,77,13] : (user : user) -> std/core/types/string;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:whoami` type.
+fun whoami/@cfc[83,1,83,13] : forall<(e :: E),a> (^ whoami : (whoami :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:whoami`
+pub val whoami/@tag[83,1,83,13] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(whoami :: (E, V) -> V)>;
+// handler for the effect `:whoami`
+pub fun whoami/@handle[83,8,83,13] : forall<a,(e :: E),b> (hnd : (whoami :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@fun-whoami` constructor field of the `:whoami` type.
+fun whoami/@fun-whoami[84,7,84,23] : forall<(e :: E),a> (^ whoami : (whoami :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>;
+// select `whoami` operation out of effect `:whoami`
+pub fun whoami/@select[84,7,84,23] : forall<(e :: E),a> (^ hnd : (whoami :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>;
+// Call the `fun whoami` operation of the effect `:whoami`
+pub fun whoami[84,7,84,12] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>> std/core/types/string;
+pub fun intstr/show[100,5,100,15] : (@pat-x100_18 : (std/core/types/int, std/core/types/string)) -> std/core/types/string;
+pub fun env[88,5,88,7] : forall<a,(e :: E)> (user : user, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+// monadic lift
+fun @mlift-example3@10283[1,0,1,0] : (@y-x10100 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example3@10284[1,0,1,0] : (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example3@10285[1,0,1,0] : (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> std/core/types/int;
+pub fun example3[92,9,92,16] : () -> (std/core/types/int, std/core/types/string);
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:su` type.
+fun su/@cfc[108,1,108,9] : forall<(e :: E),a> (^ su : (su :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:su`
+pub val su/@tag[108,1,108,9] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(su :: (E, V) -> V)>;
+// handler for the effect `:su`
+pub fun su/@handle[108,8,108,9] : forall<a,(e :: E),b> (hnd : (su :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@ctl-su` constructor field of the `:su` type.
+fun su/@ctl-su[109,7,109,25] : forall<(e :: E),a> (^ su : (su :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>;
+// select `su` operation out of effect `:su`
+pub fun su/@select[109,7,109,25] : forall<(e :: E),a> (^ hnd : (su :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>;
+// Call the `ctl su` operation of the effect `:su`
+pub fun su[109,7,109,8] : (u : user) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-session-manager1@10286[1,0,1,0] : forall<a,(e :: E)> (resume : (()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a, u : user, @y-x10106 : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a;
+pub fun session-manager1[111,5,111,20] : forall<a,(e :: E)> (initial-user : user, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+// monadic lift
+fun @mlift-session-manager2@10287[1,0,1,0] : forall<a,(e :: E)> (resume : (()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a, @y-x10112 : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a;
+pub fun session-manager2[119,5,119,20] : forall<a,(e :: E)> (initial-user : user, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+// monadic lift
+fun @mlift-session-manager3@10288[1,0,1,0] : forall<(h :: H),(e :: E)> (@y-x10118 : user) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/string;
+pub fun session-manager3[126,5,126,20] : forall<a,(e :: E)> (initial-user : user, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+// monadic lift
+fun @mlift-example4@10289[1,0,1,0] : (@y-x10137 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example4@10290[1,0,1,0] : (wild_@2 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example4@10291[1,0,1,0] : (wild_@1 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example4@10292[1,0,1,0] : (wild_@0@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example4@10293[1,0,1,0] : (@y-x10129 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example4@10294[1,0,1,0] : (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-example4@10295[1,0,1,0] : (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> std/core/types/int;
+pub fun example4[133,9,133,16] : () -> (std/core/types/int, std/core/types/string);
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:fork` type.
+fun fork/@cfc[148,1,148,11] : forall<(e :: E),a> (^ fork : (fork :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:fork`
+pub val fork/@tag[148,1,148,11] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(fork :: (E, V) -> V)>;
+// handler for the effect `:fork`
+pub fun fork/@handle[148,8,148,11] : forall<a,(e :: E),b> (hnd : (fork :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@ctl-fork` constructor field of the `:fork` type.
+fun fork/@ctl-fork[149,7,149,19] : forall<(e :: E),a> (^ fork : (fork :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>;
+// select `fork` operation out of effect `:fork`
+pub fun fork/@select[149,7,149,19] : forall<(e :: E),a> (^ hnd : (fork :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>;
+// Call the `ctl fork` operation of the effect `:fork`
+pub fun fork[149,7,149,10] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-forking@10296[1,0,1,0] : forall<a,(e :: E)> (@y-x10143 : (std/core/types/list :: V -> V)<a>, @y-x10144 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-forking@10297[1,0,1,0] : forall<a,(e :: E)> (resume : (std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>, @y-x10143 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+pub fun forking[152,5,152,11] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Automatically generated. Tests for the `Done` constructor of the `:pstate` type.
+pub fip fun is-done[160,3,160,6] : forall<a,(e :: E)> (^ pstate : (pstate :: (E, V) -> V)<(e :: E),a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Paused` constructor of the `:pstate` type.
+pub fip fun is-paused[161,3,161,8] : forall<a,(e :: E)> (^ pstate : (pstate :: (E, V) -> V)<(e :: E),a>) -> std/core/types/bool;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:interrupt` type.
+fun interrupt/@cfc[163,1,163,16] : forall<(e :: E),a> (^ interrupt : (interrupt :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:interrupt`
+pub val interrupt/@tag[163,1,163,16] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(interrupt :: (E, V) -> V)>;
+// handler for the effect `:interrupt`
+pub fun interrupt/@handle[163,8,163,16] : forall<a,(e :: E),b> (hnd : (interrupt :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@ctl-interrupt` constructor field of the `:interrupt` type.
+fun interrupt/@ctl-interrupt[164,7,164,22] : forall<(e :: E),a> (^ interrupt : (interrupt :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>;
+// select `interrupt` operation out of effect `:interrupt`
+pub fun interrupt/@select[164,7,164,22] : forall<(e :: E),a> (^ hnd : (interrupt :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>;
+// Call the `ctl interrupt` operation of the effect `:interrupt`
+pub fun interrupt[164,7,164,15] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-reify-process@10298[1,0,1,0] : forall<a,(e :: E)> (@y-x10149 : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>|(e :: E)> (pstate :: (E, V) -> V)<(e :: E),a>;
+pub fun reify-process[166,5,166,17] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (pstate :: (E, V) -> V)<(e :: E),a>;
+// monadic lift
+fun @mlift-lift-scheduler@4384@10299[1,0,1,0] : forall<a,(e :: E)> (dones : (std/core/types/list :: V -> V)<a>, pp@0 : (std/core/types/list :: V -> V)<(pstate :: (E, V) -> V)<<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>,a>>, ps : (std/core/types/list :: V -> V)<(pstate :: (E, V) -> V)<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>|(e :: E)>,a>>) -> <(std/core/types/div :: X)|(e :: E)> (std/core/types/list :: V -> V)<a>;
+// lifted local: scheduler, schedule
+fun @lift-scheduler@4384[1,0,1,0] : forall<a,(e :: E)> (todos : (std/core/types/list :: V -> V)<(pstate :: (E, V) -> V)<<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>,a>>, dones : (std/core/types/list :: V -> V)<a>) -> <(std/core/types/div :: X)|(e :: E)> (std/core/types/list :: V -> V)<a>;
+pub fun scheduler[170,5,170,13] : forall<a,(e :: E)> (pstates : (std/core/types/list :: V -> V)<(pstate :: (E, V) -> V)<<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>,a>>) -> <(std/core/types/div :: X)|(e :: E)> (std/core/types/list :: V -> V)<a>;
+pub fun timeshare[180,5,180,13] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)> a) -> <(std/core/types/div :: X)|(e :: E)> (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-ritchie@10300[1,0,1,0] : forall<(e :: E)> (wild_@1 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+// monadic lift
+fun @mlift-ritchie@10301[1,0,1,0] : forall<(e :: E)> (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+// monadic lift
+fun @mlift-ritchie@10302[1,0,1,0] : forall<(e :: E)> (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+pub fun ritchie[185,5,185,11] : forall<(e :: E)> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+// monadic lift
+fun @mlift-hamlet@10303[1,0,1,0] : forall<(e :: E)> (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+// monadic lift
+fun @mlift-hamlet@10304[1,0,1,0] : forall<(e :: E)> (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+pub fun hamlet[191,5,191,10] : forall<(e :: E)> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+// monadic lift
+fun @mlift-example5@10305[1,0,1,0] : (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-example5@10306[1,0,1,0] : (wild_@0@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-example5@10307[1,0,1,0] : (@y-x10174 : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-example5@10308[1,0,1,0] : (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/console/console :: X)> std/core/types/int;
+// monadic lift
+fun @mlift-example5@10309[1,0,1,0] : (@y-x10183 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/console/console :: X)> (pstate :: (E, V) -> V)<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/console/console :: X)>,std/core/types/int>;
+pub fun example5[196,9,196,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+// monadic lift
+fun @mlift-interrupt-write@10310[1,0,1,0] : forall<(e :: E)> (fd : filedesc, s : std/core/types/string, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>|(e :: E)> ();
+// monadic lift
+fun @mlift-interrupt-write@10311[1,0,1,0] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>|(e :: E)> a, @y-x10190 : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>|(e :: E)> a;
+pub fun interrupt-write[210,5,210,19] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>|(e :: E)> a;
+// monadic lift
+fun @mlift-example6@10312[1,0,1,0] : (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-example6@10313[1,0,1,0] : (wild_@0@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-example6@10314[1,0,1,0] : (@y-x10195 : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-example6@10315[1,0,1,0] : (wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/console/console :: X)> std/core/types/int;
+// monadic lift
+fun @mlift-example6@10316[1,0,1,0] : (@y-x10205 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/console/console :: X)> (pstate :: (E, V) -> V)<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>,(std/core/console/console :: X)>,std/core/types/int>;
+pub fun example6[214,9,214,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+pub fun main[228,9,228,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun bio/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(bio@0: (bio :: (E, V) -> V)<(e :: E),a>){
+    (match (bio@0) {
+      ((@skip handlers/unix/@Hnd-bio((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>) : (bio :: (E, V) -> V)<(e :: E),a> ) as @pat: ((bio :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun bio/@fun-write // inline size: 0
+  = forall<(e :: E),a> fn(bio@0: (bio :: (E, V) -> V)<(e :: E),a>){
+    (match (bio@0) {
+      ((@skip handlers/unix/@Hnd-bio((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>) : (bio :: (E, V) -> V)<(e :: E),a> ) as @pat: ((bio :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun write/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (bio :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/unix/@Hnd-bio((@pat@0: std/core/types/int) : std/core/types/int, (@fun-write: (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause2 :: (V, V, V, (E, V) -> V, E, V) -> V)<(filedesc == 1 std/core/types/int),std/core/types/string,(),(bio :: (E, V) -> V),(e :: E),a>) : (bio :: (E, V) -> V)<(e :: E),a> ) as @pat: ((bio :: (E, V) -> V)<(e :: E),a>))
+         -> @fun-write;
+    });
+  };
+inline fun write // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>>>(fd: filedesc, s: std/core/types/string){
+    std/core/hnd/@perform2<filedesc,std/core/types/string,(),<(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>>,(bio :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(bio :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(bio :: (E, V) -> V)>>((std/core/hnd/@evv-at<(bio :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(bio :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/unix/#write/@select, fd, s);
+  };
+inline val stdout // inline size: 0
+  = 0;
+inline borrow "^" fun exit/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(exit@0: (exit :: (E, V) -> V)<(e :: E),a>){
+    (match (exit@0) {
+      ((@skip handlers/unix/@Hnd-exit((@x: std/core/types/int) : std/core/types/int, (@pat@0: (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,b,(exit :: (E, V) -> V),(e :: E),a>)) : (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,b,(exit :: (E, V) -> V),(e :: E),a>)) : (exit :: (E, V) -> V)<(e :: E),a> ) as @pat: ((exit :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun exit/@ctl-exit // inline size: 0
+  = forall<(e :: E),a,b> fn(exit@0: (exit :: (E, V) -> V)<(e :: E),a>){
+    (match (exit@0) {
+      ((@skip handlers/unix/@Hnd-exit((@pat@0: std/core/types/int) : std/core/types/int, (@x: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,c,(exit :: (E, V) -> V),(e :: E),a>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,c,(exit :: (E, V) -> V),(e :: E),a>)) : (exit :: (E, V) -> V)<(e :: E),a> ) as @pat: ((exit :: (E, V) -> V)<(e :: E),a>))
+         -> @x<b>;
+    });
+  };
+inline borrow "^" fun exit/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (exit :: (E, V) -> V)<(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/unix/@Hnd-exit((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-exit: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,c,(exit :: (E, V) -> V),(e :: E),b>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,c,(exit :: (E, V) -> V),(e :: E),b>)) : (exit :: (E, V) -> V)<(e :: E),b> ) as @pat: ((exit :: (E, V) -> V)<(e :: E),b>))
+         -> @ctl-exit<a>;
+    });
+  };
+inline fun exit // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>>>(exitcode: std/core/types/int){
+    std/core/hnd/@perform1<std/core/types/int,a,(exit :: (E, V) -> V),<(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(exit :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(exit :: (E, V) -> V)>>((std/core/hnd/@evv-at<(exit :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exit :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/unix/#exit/@select<a,(e :: E),b>), exitcode);
+  };
+inline borrow "^" fip fun is-root // inline size: 1
+  = fn(user: user){
+    match (user) {
+      ((handlers/unix/Root() : user ) as @pat: user)
+         -> std/core/types/True;
+      (@pat@0: user)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-alice // inline size: 1
+  = fn(user: user){
+    match (user) {
+      ((handlers/unix/Alice() : user ) as @pat: user)
+         -> std/core/types/True;
+      (@pat@0: user)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-bob // inline size: 1
+  = fn(user: user){
+    match (user) {
+      ((handlers/unix/Bob() : user ) as @pat: user)
+         -> std/core/types/True;
+      (@pat@0: user)
+         -> std/core/types/False;
+    };
+  };
+fun user/show // inline size: 2
+  = fn(user: user){
+    match (user) {
+      ((handlers/unix/Root() : user ) as @pat: user)
+         -> "root";
+      ((handlers/unix/Alice() : user ) as @pat@0: user)
+         -> "alice";
+      ((@skip handlers/unix/Bob() : user ) as @pat@1: user)
+         -> "bob";
+    };
+  };
+inline borrow "^" fun whoami/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(whoami@0: (whoami :: (E, V) -> V)<(e :: E),a>){
+    (match (whoami@0) {
+      ((@skip handlers/unix/@Hnd-whoami((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>) : (whoami :: (E, V) -> V)<(e :: E),a> ) as @pat: ((whoami :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun whoami/@fun-whoami // inline size: 0
+  = forall<(e :: E),a> fn(whoami@0: (whoami :: (E, V) -> V)<(e :: E),a>){
+    (match (whoami@0) {
+      ((@skip handlers/unix/@Hnd-whoami((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>) : (whoami :: (E, V) -> V)<(e :: E),a> ) as @pat: ((whoami :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun whoami/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (whoami :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/unix/@Hnd-whoami((@pat@0: std/core/types/int) : std/core/types/int, (@fun-whoami: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(whoami :: (E, V) -> V),(e :: E),a>) : (whoami :: (E, V) -> V)<(e :: E),a> ) as @pat: ((whoami :: (E, V) -> V)<(e :: E),a>))
+         -> @fun-whoami;
+    });
+  };
+inline fun whoami // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/core/types/string,<(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>>,(whoami :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(whoami :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(whoami :: (E, V) -> V)>>((std/core/hnd/@evv-at<(whoami :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(whoami :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/unix/#whoami/@select);
+  };
+inline borrow "^" fun su/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(su@0: (su :: (E, V) -> V)<(e :: E),a>){
+    (match (su@0) {
+      ((@skip handlers/unix/@Hnd-su((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>) : (su :: (E, V) -> V)<(e :: E),a> ) as @pat: ((su :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun su/@ctl-su // inline size: 0
+  = forall<(e :: E),a> fn(su@0: (su :: (E, V) -> V)<(e :: E),a>){
+    (match (su@0) {
+      ((@skip handlers/unix/@Hnd-su((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>) : (su :: (E, V) -> V)<(e :: E),a> ) as @pat: ((su :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun su/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (su :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/unix/@Hnd-su((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-su: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<user,(),(su :: (E, V) -> V),(e :: E),a>) : (su :: (E, V) -> V)<(e :: E),a> ) as @pat: ((su :: (E, V) -> V)<(e :: E),a>))
+         -> @ctl-su;
+    });
+  };
+inline fun su // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>>>(u: user){
+    std/core/hnd/@perform1<user,(),(su :: (E, V) -> V),<(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(su :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(su :: (E, V) -> V)>>((std/core/hnd/@evv-at<(su :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(su :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/unix/#su/@select, u);
+  };
+inline borrow "^" fun fork/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(fork@0: (fork :: (E, V) -> V)<(e :: E),a>){
+    (match (fork@0) {
+      ((@skip handlers/unix/@Hnd-fork((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>) : (fork :: (E, V) -> V)<(e :: E),a> ) as @pat: ((fork :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun fork/@ctl-fork // inline size: 0
+  = forall<(e :: E),a> fn(fork@0: (fork :: (E, V) -> V)<(e :: E),a>){
+    (match (fork@0) {
+      ((@skip handlers/unix/@Hnd-fork((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>) : (fork :: (E, V) -> V)<(e :: E),a> ) as @pat: ((fork :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun fork/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (fork :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/unix/@Hnd-fork((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-fork: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(fork :: (E, V) -> V),(e :: E),a>) : (fork :: (E, V) -> V)<(e :: E),a> ) as @pat: ((fork :: (E, V) -> V)<(e :: E),a>))
+         -> @ctl-fork;
+    });
+  };
+inline fun fork // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/core/types/bool,<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>>,(fork :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(fork :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(fork :: (E, V) -> V)>>((std/core/hnd/@evv-at<(fork :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/unix/#fork/@select);
+  };
+inline borrow "^" fip fun is-done // inline size: 1
+  = forall<a,(e :: E)> fn(pstate: (pstate :: (E, V) -> V)<(e :: E),a>){
+    (match (pstate) {
+      ((handlers/unix/Done((@pat@0: a) : a) : (pstate :: (E, V) -> V)<(e :: E),a> ) as @pat: ((pstate :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/True;
+      (@pat@1: ((pstate :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-paused // inline size: 1
+  = forall<a,(e :: E)> fn(pstate: (pstate :: (E, V) -> V)<(e :: E),a>){
+    (match (pstate) {
+      ((handlers/unix/Paused((@pat@0: () -> (e :: E) (pstate :: (E, V) -> V)<(e :: E),a>) : () -> (e :: E) (pstate :: (E, V) -> V)<(e :: E),a>) : (pstate :: (E, V) -> V)<(e :: E),a> ) as @pat: ((pstate :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/True;
+      (@pat@1: ((pstate :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fun interrupt/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(interrupt@0: (interrupt :: (E, V) -> V)<(e :: E),a>){
+    (match (interrupt@0) {
+      ((@skip handlers/unix/@Hnd-interrupt((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>) : (interrupt :: (E, V) -> V)<(e :: E),a> ) as @pat: ((interrupt :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun interrupt/@ctl-interrupt // inline size: 0
+  = forall<(e :: E),a> fn(interrupt@0: (interrupt :: (E, V) -> V)<(e :: E),a>){
+    (match (interrupt@0) {
+      ((@skip handlers/unix/@Hnd-interrupt((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>) : (interrupt :: (E, V) -> V)<(e :: E),a> ) as @pat: ((interrupt :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun interrupt/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (interrupt :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/unix/@Hnd-interrupt((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-interrupt: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(interrupt :: (E, V) -> V),(e :: E),a>) : (interrupt :: (E, V) -> V)<(e :: E),a> ) as @pat: ((interrupt :: (E, V) -> V)<(e :: E),a>))
+         -> @ctl-interrupt;
+    });
+  };
+inline fun interrupt // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<(),<(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>>,(interrupt :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(interrupt :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(interrupt :: (E, V) -> V)>>((std/core/hnd/@evv-at<(interrupt :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/unix/#interrupt/@select);
+  };
+fun scheduler // inline size: 1
+  = forall<a,(e :: E)> fn<<(std/core/types/div :: X)|(e :: E)>>(pstates: (std/core/types/list :: V -> V)<(pstate :: (E, V) -> V)<<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>,a>>){
+    handlers/unix/@lift-scheduler@4384<a,(e :: E)>(pstates, (std/core/types/Nil<a>));
+  };
+fun timeshare // inline size: 4
+  = forall<a,(e :: E)> fn<<(std/core/types/div :: X)|(e :: E)>>(action: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(interrupt :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)> a){
+    handlers/unix/@lift-scheduler@4384<a,(e :: E)>((std/core/types/Cons<(pstate :: (E, V) -> V)<<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>,a>>((handlers/unix/Paused<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>|(e :: E)>,a>((fn<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>|(e :: E)>>(){
+          (handlers/unix/reify-process<a,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>|(e :: E)>>(action));
+        }))), (std/core/types/Nil<(pstate :: (E, V) -> V)<<(std/core/types/handled :: ((E, V) -> V) -> X)<(fork :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>,a>>))), (std/core/types/Nil<a>));
+  };
+fun main // inline size: 1
+  = fn<<(std/core/console/console :: X),(std/core/types/div :: X)>>(){
+    handlers/unix/example5();
+  };

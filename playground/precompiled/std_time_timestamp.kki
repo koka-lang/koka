@@ -1,0 +1,378 @@
+/* Low level time spans and time stamps.
+
+These are unit-less and may not necessarily be in (TAI) SI seconds, and
+are used internally to do time scale conversions and calendar calculations.
+User code should use `:std/time/duration/duration`s and `:std/time/instant/instant`s instead.
+*/
+module interface std/time/timestamp
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/float64 = std/num/float64 = "";
+import std/num/ddouble = std/num/ddouble = "";
+import std/num/int32 = std/num/int32 = "";
+import std/time/date = std/time/date = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// Time spans are a time duration in some time scale represented as a `:ddouble`;
+// this gives it very high precision and range to represent time very precisely.
+// (see the [`instant`](std_time_instant.html) module)
+pub alias timespan[25,1,25,28] = std/num/ddouble/ddouble = 1;
+/* A time stamp denotes an instant in time since 2000-01-01 in some time scale.
+Time stamps also keep track of possible leap seconds for
+UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
+
+- One way is as a duration in TAI SI seconds
+  but that would lead to many unnecessary conversions (and loss of precision),
+  for example for unix timestamps that need adjustments for leap seconds.
+- To avoid conversions, it is better to represent as days plus the seconds
+  into that day. However, that means that adding or subtracting seconds
+  always needs normalization.
+- To make it easier to add/subtract time spans, we can represent it as single
+  timespan `since` where `days == floor(since / 86400)` and `seconds == since - days`.
+  This is essentially the representation that Unix/Posix timestamps use too.
+- Finally, we add a separate `leap` seconds field
+  to represent time in a leap step unambiguously (and also at any time during the day).
+  The `leap` field is positive if this time is in a leap step.
+
+Here is the representation of a time in the leap second just before 2006-01-01:
+```
+time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show == "189388799.500 (+1 leap)"
+time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show-days == "2191d 86399.500s (+1 leap)"
+```
+The `leap` field also lets us represent leap times that occurred at another
+time than the last second of the day:
+```
+time(1959,1,28,18,59,59,0.01).instant.timestamp.ts-show-days == "-14948d 68399.010s"
+time(1959,1,28,18,59,60,0.01).instant.timestamp.ts-show-days == "-14948d 68399.010s (+1 leap)"
+time(1959,1,28,19, 0, 0,0.01).instant.timestamp.ts-show-days == "-14948d 68400.010s"
+```
+See `std/time/utc` for more information on leap seconds.
+
+*/
+pub type timestamp[88,1,92,1] {
+  /* A time stamp denotes an instant in time since 2000-01-01 in some time scale.
+Time stamps also keep track of possible leap seconds for
+UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
+
+- One way is as a duration in TAI SI seconds
+  but that would lead to many unnecessary conversions (and loss of precision),
+  for example for unix timestamps that need adjustments for leap seconds.
+- To avoid conversions, it is better to represent as days plus the seconds
+  into that day. However, that means that adding or subtracting seconds
+  always needs normalization.
+- To make it easier to add/subtract time spans, we can represent it as single
+  timespan `since` where `days == floor(since / 86400)` and `seconds == since - days`.
+  This is essentially the representation that Unix/Posix timestamps use too.
+- Finally, we add a separate `leap` seconds field
+  to represent time in a leap step unambiguously (and also at any time during the day).
+  The `leap` field is positive if this time is in a leap step.
+
+Here is the representation of a time in the leap second just before 2006-01-01:
+```
+time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show == "189388799.500 (+1 leap)"
+time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show-days == "2191d 86399.500s (+1 leap)"
+```
+The `leap` field also lets us represent leap times that occurred at another
+time than the last second of the day:
+```
+time(1959,1,28,18,59,59,0.01).instant.timestamp.ts-show-days == "-14948d 68399.010s"
+time(1959,1,28,18,59,60,0.01).instant.timestamp.ts-show-days == "-14948d 68399.010s (+1 leap)"
+time(1959,1,28,19, 0, 0,0.01).instant.timestamp.ts-show-days == "-14948d 68400.010s"
+```
+See `std/time/utc` for more information on leap seconds.
+
+*/
+  con Timestamp[88,17,88,25](since: (timespan == 1 std/num/ddouble/ddouble), leap32: std/core/types/int32){20,0,8} : (since : (timespan == 1 std/num/ddouble/ddouble), leap32 : std/core/types/int32) -> timestamp = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// A zero-valued timespan.
+pub val timespan0[28,9,28,17] : timespan;
+pub fun float64/timespan[33,9,33,24] : (secs : std/core/types/float64) -> timespan;
+// Timespan from a `:ddouble`. Just for convenience as `:timespan` is an alias
+pub fun ddouble/timespan[40,9,40,24] : (secs : std/num/ddouble/ddouble) -> timespan;
+// Seconds in a solar day, 86400.
+pub val isolar-secs-per-day[49,9,49,27] : std/core/types/int;
+// Automatically generated. Retrieves the `since` constructor field of the `:timestamp` type.
+fun timestamp/since[89,3,89,7] : (^ timestamp : timestamp) -> timespan;
+// Automatically generated. Retrieves the `leap32` constructor field of the `:timestamp` type.
+fun timestamp/leap32[91,3,91,8] : (^ timestamp : timestamp) -> std/core/types/int32;
+pub fun timestamp/@copy[88,17,88,25] : (@this : timestamp, since : (std/core/types/@optional :: V -> V)<timespan>, leap32 : (std/core/types/@optional :: V -> V)<std/core/types/int32>) -> timestamp;
+pub fun leap[94,9,94,12] : (t : timestamp) -> std/core/types/int;
+// Compare two `:timestamp`s.
+pub fun cmp[159,9,159,11] : (i : timestamp, j : timestamp) -> std/core/types/order;
+pub fun (==)[169,9,169,12] : (i : timestamp, j : timestamp) -> std/core/types/bool;
+pub fun (<)[165,9,165,11] : (i : timestamp, j : timestamp) -> std/core/types/bool;
+pub fun (!=)[170,9,170,12] : (i : timestamp, j : timestamp) -> std/core/types/bool;
+pub fun (<=)[166,9,166,12] : (i : timestamp, j : timestamp) -> std/core/types/bool;
+pub fun (>)[167,9,167,11] : (i : timestamp, j : timestamp) -> std/core/types/bool;
+pub fun (>=)[168,9,168,12] : (i : timestamp, j : timestamp) -> std/core/types/bool;
+// Add a time span to a time stamp.
+pub fun (+)[181,9,181,11] : (ts : timestamp, t : timespan) -> timestamp;
+pub fun int/timespan[30,9,30,20] : (seconds : std/core/types/int, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>) -> timespan;
+pub fun tuple64/timespan[36,9,36,24] : (secs : std/core/types/float64, frac : std/core/types/float64) -> timespan;
+// Divide using `div` to allow for different timespan representations
+pub fun div[44,9,44,11] : (x : timespan, y : timespan, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> timespan;
+pub val solar-secs-per-day[50,9,50,26] : timespan;
+// The time stamp at 2000-01-01
+pub val timestamp0[98,9,98,18] : timestamp;
+// Create a time stamp from a `:timespan` since 2000-01-01 and possible leap seconds.
+pub fun timestamp[101,9,101,17] : (t : timespan, leap : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> timestamp;
+// Create a time stamp from an integer timespan since 2000-01-01 and possible leap seconds.
+pub fun int/timestamp[105,9,105,21] : (t : std/core/types/int, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>, leap : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> timestamp;
+// Timestamp from days, seconds into the day and possible leap second.
+pub fun timestamp-days[109,9,109,22] : (days : std/core/types/int, secs : (std/core/types/@optional :: V -> V)<timespan>, leap : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> timestamp;
+// Add `days` days to a timestamp
+pub fun add-days[155,9,155,16] : (ts : timestamp, days : std/core/types/int) -> timestamp;
+// Subtract a time span from a time stamp.
+pub fun (-)[185,9,185,11] : (ts : timestamp, t : timespan) -> timestamp;
+// Return days and seconds into the day, disregarding leap seconds.
+pub fun days-seconds[114,9,114,20] : (ts : timestamp) -> (std/core/types/int, std/num/ddouble/ddouble);
+// Return days and clock into the day, handling possible leap seconds.
+pub fun days-clock[121,9,121,18] : (ts : timestamp) -> (std/core/types/int, std/time/date/clock);
+pub fun days[125,9,125,12] : (ts : timestamp) -> std/core/types/int;
+pub fun seconds-into-day[128,9,128,24] : (ts : timestamp) -> std/num/ddouble/ddouble;
+// The time span since 2000-01-01 including time inside a possible leap second.
+pub fun unsafe-timespan-withleap[133,9,133,32] : (ts : timestamp) -> timespan;
+// The time span since 2000-01-01 for time scales that do not have
+// leap seconds and where every day is 86400s. For time scales
+// with leap seconds, this effectively ignores any leap seconds.
+pub fun timespan-noleap[140,9,140,23] : (ts : timestamp) -> timespan;
+// Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
+pub fun round-to-prec[144,9,144,21] : (t : timestamp, prec : std/core/types/int) -> timestamp;
+// Add `leaps` leap seconds to the timestamp.
+pub fun add-leap-seconds[148,9,148,24] : (ts : timestamp, leaps : timespan) -> timestamp;
+// The minimum of two timestamps.
+pub fun min[173,9,173,11] : (i : timestamp, j : timestamp) -> timestamp;
+// The maximum of two timestamps.
+pub fun max[177,9,177,11] : (i : timestamp, j : timestamp) -> timestamp;
+// Show a time stamp.
+pub fun ts-show[189,9,189,15] : (ts : timestamp, max-prec : (std/core/types/@optional :: V -> V)<std/core/types/int>, secs-width : (std/core/types/@optional :: V -> V)<std/core/types/int>, unit : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Show a day stamp
+pub fun ts-show-days[194,9,194,20] : (ts : timestamp, prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline val timespan0 // inline size: 0
+  = std/num/ddouble/zero;
+fun float64/timespan // inline size: 1
+  = fn(secs: std/core/types/float64){
+    std/num/ddouble/Ddouble(secs, 0.0);
+  };
+inline fun ddouble/timespan // inline size: 0
+  = fn(secs: std/num/ddouble/ddouble){
+    secs;
+  };
+inline val isolar-secs-per-day // inline size: 0
+  = 86400;
+inline borrow "^" fun timestamp/since // inline size: 0
+  = fn(timestamp@0: timestamp){
+    match (timestamp@0) {
+      ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat: timestamp)
+         -> @x;
+    };
+  };
+inline borrow "^" fun timestamp/leap32 // inline size: 0
+  = fn(timestamp@0: timestamp){
+    match (timestamp@0) {
+      ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@1: std/core/types/float64) : std/core/types/float64, (@pat@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@0: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@x: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat: timestamp)
+         -> @x;
+    };
+  };
+fun timestamp/@copy // inline size: 3
+  = fn(@this: timestamp, since: (std/core/types/@optional :: V -> V)<timespan>, leap32: (std/core/types/@optional :: V -> V)<std/core/types/int32>){
+    std/time/timestamp/Timestamp((match (since) {
+        ((std/core/types/@OptArg((@uniq-since@97: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble)) : (std/core/types/@optional :: V -> V)<(timespan == 1 std/num/ddouble/ddouble)> ) as @pat: ((std/core/types/@optional :: V -> V)<(timespan == 1 std/num/ddouble/ddouble)>))
+           -> @uniq-since@97;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(timespan == 1 std/num/ddouble/ddouble)> ) as @pat@0: ((std/core/types/@optional :: V -> V)<(timespan == 1 std/num/ddouble/ddouble)>))
+           -> (match (@this) {
+            ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat@1: timestamp)
+               -> @x;
+          });
+      }), (match (leap32) {
+        ((std/core/types/@OptArg((@uniq-leap32@105: std/core/types/int32) : std/core/types/int32) : (std/core/types/@optional :: V -> V)<std/core/types/int32> ) as @pat@1@1: ((std/core/types/@optional :: V -> V)<std/core/types/int32>))
+           -> @uniq-leap32@105;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int32> ) as @pat@2@0: ((std/core/types/@optional :: V -> V)<std/core/types/int32>))
+           -> (match (@this) {
+            ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@1@2: std/core/types/float64) : std/core/types/float64, (@pat@2@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@0@1: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@x@0: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat@3: timestamp)
+               -> @x@0;
+          });
+      }));
+  };
+fun leap // inline size: 1
+  = fn(t: timestamp){
+    std/num/int32/int((match (t) {
+      ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@1: std/core/types/float64) : std/core/types/float64, (@pat@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@0: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@x: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat: timestamp)
+         -> @x;
+    }));
+  };
+fun (==) // inline size: 2
+  = fn(i: timestamp, j: timestamp){
+    std/core/order/(==)((std/time/timestamp/cmp(i, j)), std/core/types/Eq);
+  };
+fun (<) // inline size: 2
+  = fn(i: timestamp, j: timestamp){
+    std/core/order/(==)((std/time/timestamp/cmp(i, j)), std/core/types/Lt);
+  };
+fun (!=) // inline size: 2
+  = fn(i: timestamp, j: timestamp){
+    std/core/order/(!=)((std/time/timestamp/cmp(i, j)), std/core/types/Eq);
+  };
+fun (<=) // inline size: 2
+  = fn(i: timestamp, j: timestamp){
+    std/core/order/(!=)((std/time/timestamp/cmp(i, j)), std/core/types/Gt);
+  };
+fun (>) // inline size: 2
+  = fn(i: timestamp, j: timestamp){
+    std/core/order/(==)((std/time/timestamp/cmp(i, j)), std/core/types/Gt);
+  };
+fun (>=) // inline size: 2
+  = fn(i: timestamp, j: timestamp){
+    std/core/order/(!=)((std/time/timestamp/cmp(i, j)), std/core/types/Lt);
+  };
+fun (+) // inline size: 2
+  = fn(ts: timestamp, t: timespan){
+    std/time/timestamp/Timestamp((std/num/ddouble/(+)((match (ts) {
+          ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat: timestamp)
+             -> @x;
+        }), t)), (match (ts) {
+        ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@1@0: std/core/types/float64) : std/core/types/float64, (@pat@2@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@0@0: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@x@0: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat@3: timestamp)
+           -> @x@0;
+      }));
+  };
+fun tuple64/timespan // inline size: 4
+  = fn(secs: std/core/types/float64, frac: std/core/types/float64){
+    match ((std/num/float64/(==)(frac, 0.0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/num/ddouble/Ddouble(secs, 0.0);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/num/ddouble/dsum(secs, frac);
+    };
+  };
+fun div // inline size: 1
+  = fn(x: timespan, y: timespan, prec: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/num/ddouble/(/)(x, y);
+  };
+fun timestamp // inline size: 3
+  = fn(t: timespan, leap@0: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/time/timestamp/Timestamp(t, (std/num/int32/int32((match (leap@0) {
+        ((std/core/types/@OptArg((@uniq-leap@1340: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-leap@1340;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> 0;
+      }))));
+  };
+fun days-clock // inline size: 4
+  = fn(ts: timestamp){
+    match ((std/time/timestamp/days-seconds(ts))) {
+      ((@skip std/core/types/Tuple2((days@0: std/core/types/int) : std/core/types/int, ((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as secs: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : (std/core/types/int, std/num/ddouble/ddouble) ) as @pat: (std/core/types/int, std/num/ddouble/ddouble))
+         -> std/core/types/Tuple2<std/core/types/int,std/time/date/clock>(days@0, (std/time/date/#leap/clock(secs, (std/num/int32/int((match (ts) {
+              ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@1@0: std/core/types/float64) : std/core/types/float64, (@pat@2@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@0@0: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@x: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat@2: timestamp)
+                 -> @x;
+            }))))));
+    };
+  };
+fun days // inline size: 1
+  = fn(ts: timestamp){
+    val tuple2@10043[1,0,1,0] : (std/core/types/int, std/num/ddouble/ddouble)
+          = std/time/timestamp/days-seconds(ts);
+    match (tuple2@10043) {
+      ((@skip std/core/types/Tuple2((@x: std/core/types/int) : std/core/types/int, (@pat@0: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : (std/core/types/int, std/num/ddouble/ddouble) ) as @pat: (std/core/types/int, std/num/ddouble/ddouble))
+         -> @x;
+    };
+  };
+fun seconds-into-day // inline size: 4
+  = fn(ts: timestamp){
+    val tuple2@10044[1,0,1,0] : (std/core/types/int, std/num/ddouble/ddouble)
+      = std/time/timestamp/days-seconds(ts);
+    val i@10045[1,0,1,0] : std/core/types/int
+      = std/num/int32/int((match (ts) {
+        ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@1@0: std/core/types/float64) : std/core/types/float64, (@pat@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@0@0: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@x@0: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat@1: timestamp)
+           -> @x@0;
+      }));
+    std/num/ddouble/(+)((match (tuple2@10044) {
+        ((@skip std/core/types/Tuple2((@pat@0: std/core/types/int) : std/core/types/int, (@x: std/num/ddouble/ddouble) : std/num/ddouble/ddouble) : (std/core/types/int, std/num/ddouble/ddouble) ) as @pat: (std/core/types/int, std/num/ddouble/ddouble))
+           -> @x;
+      }), (std/num/ddouble/ddouble-int-exp(i@10045, 0)));
+  };
+inline fun timespan-noleap // inline size: 0
+  = fn(ts: timestamp){
+    match (ts) {
+      ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat: timestamp)
+         -> @x;
+    };
+  };
+fun round-to-prec // inline size: 2
+  = fn(t: timestamp, prec: std/core/types/int){
+    std/time/timestamp/Timestamp((std/num/ddouble/round-to-prec((match (t) {
+          ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@pat@2: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat: timestamp)
+             -> @x;
+        }), prec)), (match (t) {
+        ((@skip std/time/timestamp/Timestamp(((@skip std/num/ddouble/Ddouble((@pat@1@0: std/core/types/float64) : std/core/types/float64, (@pat@2@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@0@0: (timespan == 1 std/num/ddouble/ddouble)) : (timespan == 1 std/num/ddouble/ddouble), (@x@0: std/core/types/int32) : std/core/types/int32) : timestamp ) as @pat@3: timestamp)
+           -> @x@0;
+      }));
+  };
+fun min // inline size: 3
+  = fn(i: timestamp, j: timestamp){
+    match ((std/core/order/(!=)((std/time/timestamp/cmp(i, j)), std/core/types/Gt))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };
+fun max // inline size: 3
+  = fn(i: timestamp, j: timestamp){
+    match ((std/core/order/(!=)((std/time/timestamp/cmp(i, j)), std/core/types/Lt))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };

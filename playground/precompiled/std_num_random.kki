@@ -1,0 +1,276 @@
+/* Random numbers.
+*/
+module interface std/num/random
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/int32 = std/num/int32 = "";
+import std/num/int64 = std/num/int64 = "";
+import std/num/float64 = std/num/float64 = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+pub recursive effect type random[20,1,21,28] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-random[20,1,20,17](@cfc: std/core/types/int, @fun-random-int32: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>) -> (random :: (E, V) -> V)<(e :: E),a> = 1;
+};
+// Pseudo random number using sfc32 by Chris Doty-Humphrey.
+// It is a "chaotic" pseudo random generator that uses 32-bit operations only
+// (so we can be deterministic across architectures in results and performance).
+// It has good statistical properties and passes PractRand and Big-crush.
+// It uses a 32-bit counter to guarantee a worst-case cycle
+// of 2^32^. It has a 96-bit state, so the average period is 2^127^.
+// The chance of a cycle of less than 2^(32+max(96-k,0))^ is 2^-(32+k)^,
+// (e.g. the chance of a cycle of less than 2^48^ is 2^-80^).
+// <https://pracrand.sourceforge.net/RNG_engines.txt>
+pub value{16,0,4} type sfc[42,1,42,63] {
+  // Pseudo random number using sfc32 by Chris Doty-Humphrey.
+// It is a "chaotic" pseudo random generator that uses 32-bit operations only
+// (so we can be deterministic across architectures in results and performance).
+// It has good statistical properties and passes PractRand and Big-crush.
+// It uses a 32-bit counter to guarantee a worst-case cycle
+// of 2^32^. It has a 96-bit state, so the average period is 2^127^.
+// The chance of a cycle of less than 2^(32+max(96-k,0))^ is 2^-(32+k)^,
+// (e.g. the chance of a cycle of less than 2^48^ is 2^-80^).
+// <https://pracrand.sourceforge.net/RNG_engines.txt>
+  con Sfc[42,23,42,25](x: std/core/types/int32, y: std/core/types/int32, z: std/core/types/int32, cnt: std/core/types/int32){16,0,4} : (x : std/core/types/int32, y : std/core/types/int32, z : std/core/types/int32, cnt : std/core/types/int32) -> sfc = 1;
+};
+pub value{32,0,4} type sfc-result[44,1,44,56] {
+  pub con Sfc-result[44,18,44,27](rnd: std/core/types/int32, rstate: sfc){32,0,4} : (rnd : std/core/types/int32, rstate : sfc) -> sfc-result = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:random` type.
+fun random/@cfc[20,1,20,17] : forall<(e :: E),a> (^ random : (random :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:random`
+pub val random/@tag[20,1,20,17] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(random :: (E, V) -> V)>;
+// handler for the effect `:random`
+pub fun random/@handle[20,12,20,17] : forall<a,(e :: E),b> (hnd : (random :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// select `random-int32` operation out of effect `:random`
+pub fun random-int32/@select[21,7,21,28] : forall<(e :: E),a> (^ hnd : (random :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>;
+// Call the `fun random-int32` operation of the effect `:random`
+pub fun random-int32[21,7,21,18] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/int32;
+// Automatically generated. Retrieves the `@fun-random-int32` constructor field of the `:random` type.
+fun random/@fun-random-int32[21,7,21,28] : forall<(e :: E),a> (^ random : (random :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>;
+// Automatically generated. Retrieves the `cnt` constructor field of the `:sfc` type.
+fun sfc/cnt[42,54,42,56] : (^ sfc : sfc) -> std/core/types/int32;
+// Automatically generated. Retrieves the `x` constructor field of the `:sfc` type.
+fun sfc/x[42,27,42,27] : (^ sfc : sfc) -> std/core/types/int32;
+// Automatically generated. Retrieves the `y` constructor field of the `:sfc` type.
+fun sfc/y[42,36,42,36] : (^ sfc : sfc) -> std/core/types/int32;
+// Automatically generated. Retrieves the `z` constructor field of the `:sfc` type.
+fun sfc/z[42,45,42,45] : (^ sfc : sfc) -> std/core/types/int32;
+pub fun sfc/@copy[42,23,42,25] : (@this : sfc, x : (std/core/types/@optional :: V -> V)<std/core/types/int32>, y : (std/core/types/@optional :: V -> V)<std/core/types/int32>, z : (std/core/types/@optional :: V -> V)<std/core/types/int32>, cnt : (std/core/types/@optional :: V -> V)<std/core/types/int32>) -> sfc;
+// Automatically generated. Retrieves the `rnd` constructor field of the `:sfc-result` type.
+pub fun sfc-result/rnd[44,30,44,32] : (^ @this : sfc-result) -> std/core/types/int32;
+// Automatically generated. Retrieves the `rstate` constructor field of the `:sfc-result` type.
+pub fun sfc-result/rstate[44,43,44,48] : (^ @this : sfc-result) -> sfc;
+pub fun sfc-result/@copy[44,18,44,27] : (@this : sfc-result, rnd : (std/core/types/@optional :: V -> V)<std/core/types/int32>, rstate : (std/core/types/@optional :: V -> V)<sfc>) -> sfc-result;
+// Return a strong random `:int32`
+pub fun srandom-int32[111,12,111,24] : () -> <(std/core/types/ndet :: X)> std/core/types/int32;
+// Pick random numbers from a the best strong random source in the OS.
+// (e.g. like `/dev/urandom`, `arc4random` etc.). Use `srandom-is-strong` to test if the
+// numbers are indeed based on a strong random source.
+pub fun strong-random[29,9,29,21] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>,(std/core/types/ndet :: X)|(e :: E)> a) -> <(std/core/types/ndet :: X)|(e :: E)> a;
+pub fun @default-random[23,9,23,23] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>,(std/core/types/ndet :: X)|(e :: E)> a) -> <(std/core/types/ndet :: X)|(e :: E)> a;
+pub fun sfc-step[46,9,46,16] : (sfc : sfc) -> sfc-result;
+pub fun sfc-init32[55,9,55,18] : (seed1 : std/core/types/int32, seed2 : std/core/types/int32) -> sfc;
+pub fun sfc-init[60,9,60,16] : (seed : std/core/types/int) -> sfc;
+// monadic lift
+fun @mlift-pseudo-random@10043[1,0,1,0] : forall<(h :: H),(e :: E)> (sfc : sfc-result, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/int32;
+// monadic lift
+fun @mlift-pseudo-random@10044[1,0,1,0] : forall<(h :: H),(e :: E)> (s : (std/core/types/local-var :: (H, V) -> V)<(h :: H),sfc>, @y-x10023 : sfc) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/int32;
+// Use pseudo random numbers given some initial `seed`. At most
+// 64-bits of the initial seed are used. Do not use this for
+// cryptographic applications (use `strong-random` instead).
+// Uses _sfc32_ by Chris Doty-Humphrey which is a fast random
+// number generator with a 128-bit internal state which
+// passes PractRand and BigCrush. The worst case minimum cycle
+// is 2^32^, where a potential cycle of 2^48^ has a chance
+// of 2^-80^.
+pub fun pseudo-random[72,9,72,21] : forall<a,(e :: E)> (seed : std/core/types/int, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+// monadic lift
+fun @mlift-random-bool@10045[1,0,1,0] : (@y-x10029 : std/core/types/int32) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/bool;
+// Return a random boolean
+pub fun random-bool[82,9,82,19] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-random-int@10046[1,0,1,0] : (@y-x10030 : std/core/types/int32) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/int;
+// Return a random integer in the range [-2^31^, 2^31^).
+pub fun random-int[86,9,86,18] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-random-int64@10047[1,0,1,0] : (@y-x10031 : std/core/types/int32, @y-x10032 : std/core/types/int32) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/int64;
+// monadic lift
+fun @mlift-random-int64@10048[1,0,1,0] : (@y-x10031 : std/core/types/int32) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/int64;
+pub fun random-int64[89,9,89,20] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/int64;
+// monadic lift
+fun @mlift-random-float64@10049[1,0,1,0] : (@y-x10033 : std/core/types/int64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/float64;
+// Return a random float64 in the range [0,1) using 52-bits of randomness
+pub fun random-float64[93,9,93,22] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/float64;
+// Return a strong random boolean
+pub fun srandom-bool[103,9,103,20] : () -> <(std/core/types/ndet :: X)> std/core/types/bool;
+// Returns one of its arguments `x`  or `y`  based on a non-deterministic choice.
+pub fun choose[99,9,99,14] : forall<a> (x : a, y : a) -> <(std/core/types/ndet :: X)> a;
+// Return a strong random integer in the range [-2^31^, 2^31^).
+pub fun srandom-int[107,9,107,19] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+// Return a strong random `:float64` in the range [0,1) using 52-bits of randomness
+pub fun srandom-float64[116,12,116,26] : () -> <(std/core/types/ndet :: X)> std/core/types/float64;
+// Are the strong random numbers generated from a strong random source? (like /dev/urandom)
+pub fun srandom-is-strong[121,12,121,28] : () -> <(std/core/types/ndet :: X)> std/core/types/bool;
+// Return a strong random `:int32` uniformly distributed in the range [lo,hi)
+pub fun srandom-int32-range[126,12,126,30] : (lo : std/core/types/int32, hi : std/core/types/int32) -> <(std/core/types/ndet :: X)> std/core/types/int32;
+// Generate a strong random float64 uniformly distributed in the range [lo, hi)
+pub fun srandom-float64-range[131,9,131,29] : (lo : std/core/types/float64, hi : std/core/types/float64) -> <(std/core/types/ndet :: X)> std/core/types/float64;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun random/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(random: (random :: (E, V) -> V)<(e :: E),a>){
+    (match (random) {
+      ((@skip std/num/random/@Hnd-random((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>) : (random :: (E, V) -> V)<(e :: E),a> ) as @pat: ((random :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun random-int32/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (random :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip std/num/random/@Hnd-random((@pat@0: std/core/types/int) : std/core/types/int, (@fun-random-int32: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>) : (random :: (E, V) -> V)<(e :: E),a> ) as @pat: ((random :: (E, V) -> V)<(e :: E),a>))
+         -> @fun-random-int32;
+    });
+  };
+inline fun random-int32 // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/core/types/int32,<(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>>,(random :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(random :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(random :: (E, V) -> V)>>((std/core/hnd/@evv-at<(random :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), std/num/random/#random-int32/@select);
+  };
+inline borrow "^" fun random/@fun-random-int32 // inline size: 0
+  = forall<(e :: E),a> fn(random: (random :: (E, V) -> V)<(e :: E),a>){
+    (match (random) {
+      ((@skip std/num/random/@Hnd-random((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/int32,(random :: (E, V) -> V),(e :: E),a>) : (random :: (E, V) -> V)<(e :: E),a> ) as @pat: ((random :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun sfc/cnt // inline size: 0
+  = fn(sfc: sfc){
+    match (sfc) {
+      ((@skip std/num/random/Sfc((@pat@0: std/core/types/int32) : std/core/types/int32, (@pat@1: std/core/types/int32) : std/core/types/int32, (@pat@2: std/core/types/int32) : std/core/types/int32, (@x: std/core/types/int32) : std/core/types/int32) : sfc ) as @pat: sfc)
+         -> @x;
+    };
+  };
+inline borrow "^" fun sfc/x // inline size: 0
+  = fn(sfc: sfc){
+    match (sfc) {
+      ((@skip std/num/random/Sfc((@x: std/core/types/int32) : std/core/types/int32, (@pat@0: std/core/types/int32) : std/core/types/int32, (@pat@1: std/core/types/int32) : std/core/types/int32, (@pat@2: std/core/types/int32) : std/core/types/int32) : sfc ) as @pat: sfc)
+         -> @x;
+    };
+  };
+inline borrow "^" fun sfc/y // inline size: 0
+  = fn(sfc: sfc){
+    match (sfc) {
+      ((@skip std/num/random/Sfc((@pat@0: std/core/types/int32) : std/core/types/int32, (@x: std/core/types/int32) : std/core/types/int32, (@pat@1: std/core/types/int32) : std/core/types/int32, (@pat@2: std/core/types/int32) : std/core/types/int32) : sfc ) as @pat: sfc)
+         -> @x;
+    };
+  };
+inline borrow "^" fun sfc/z // inline size: 0
+  = fn(sfc: sfc){
+    match (sfc) {
+      ((@skip std/num/random/Sfc((@pat@0: std/core/types/int32) : std/core/types/int32, (@pat@1: std/core/types/int32) : std/core/types/int32, (@x: std/core/types/int32) : std/core/types/int32, (@pat@2: std/core/types/int32) : std/core/types/int32) : sfc ) as @pat: sfc)
+         -> @x;
+    };
+  };
+inline borrow "^" fun sfc-result/rnd // inline size: 0
+  = fn(@this: sfc-result){
+    match (@this) {
+      ((@skip std/num/random/Sfc-result((@x: std/core/types/int32) : std/core/types/int32, ((@skip std/num/random/Sfc((@pat@1: std/core/types/int32) : std/core/types/int32, (@pat@2: std/core/types/int32) : std/core/types/int32, (@pat@3: std/core/types/int32) : std/core/types/int32, (@pat@4: std/core/types/int32) : std/core/types/int32) : sfc ) as @pat@0: sfc) : sfc) : sfc-result ) as @pat: sfc-result)
+         -> @x;
+    };
+  };
+inline borrow "^" fun sfc-result/rstate // inline size: 0
+  = fn(@this: sfc-result){
+    match (@this) {
+      ((@skip std/num/random/Sfc-result((@pat@0: std/core/types/int32) : std/core/types/int32, ((@skip std/num/random/Sfc((@pat@1: std/core/types/int32) : std/core/types/int32, (@pat@2: std/core/types/int32) : std/core/types/int32, (@pat@3: std/core/types/int32) : std/core/types/int32, (@pat@4: std/core/types/int32) : std/core/types/int32) : sfc ) as @x: sfc) : sfc) : sfc-result ) as @pat: sfc-result)
+         -> @x;
+    };
+  };
+fun sfc-result/@copy // inline size: 3
+  = fn(@this: sfc-result, rnd: (std/core/types/@optional :: V -> V)<std/core/types/int32>, rstate: (std/core/types/@optional :: V -> V)<sfc>){
+    std/num/random/Sfc-result((match (rnd) {
+        ((std/core/types/@OptArg((@uniq-rnd@378: std/core/types/int32) : std/core/types/int32) : (std/core/types/@optional :: V -> V)<std/core/types/int32> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int32>))
+           -> @uniq-rnd@378;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int32> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int32>))
+           -> (match (@this) {
+            ((@skip std/num/random/Sfc-result((@x: std/core/types/int32) : std/core/types/int32, ((@skip std/num/random/Sfc((@pat@1@0: std/core/types/int32) : std/core/types/int32, (@pat@2: std/core/types/int32) : std/core/types/int32, (@pat@3: std/core/types/int32) : std/core/types/int32, (@pat@4: std/core/types/int32) : std/core/types/int32) : sfc ) as @pat@0@0: sfc) : sfc) : sfc-result ) as @pat@1: sfc-result)
+               -> @x;
+          });
+      }), (match (rstate) {
+        ((std/core/types/@OptArg((@uniq-rstate@386: sfc) : sfc) : (std/core/types/@optional :: V -> V)<sfc> ) as @pat@1@1: ((std/core/types/@optional :: V -> V)<sfc>))
+           -> @uniq-rstate@386;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<sfc> ) as @pat@2@0: ((std/core/types/@optional :: V -> V)<sfc>))
+           -> (match (@this) {
+            ((@skip std/num/random/Sfc-result((@pat@0@1: std/core/types/int32) : std/core/types/int32, ((@skip std/num/random/Sfc((@pat@1@2: std/core/types/int32) : std/core/types/int32, (@pat@2@1: std/core/types/int32) : std/core/types/int32, (@pat@3@0: std/core/types/int32) : std/core/types/int32, (@pat@4@0: std/core/types/int32) : std/core/types/int32) : sfc ) as @x@0: sfc) : sfc) : sfc-result ) as @pat@5: sfc-result)
+               -> @x@0;
+          });
+      }));
+  };
+fun @default-random // inline size: 1
+  = forall<a,(e :: E)> fn<<(std/core/types/ndet :: X)|(e :: E)>>(action: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(random :: (E, V) -> V)>,(std/core/types/ndet :: X)|(e :: E)> a){
+    std/num/random/strong-random<a,(e :: E)>(action);
+  };
+fun srandom-bool // inline size: 3
+  = fn<<(std/core/types/ndet :: X)>>(){
+    std/num/int32/(>=)((std/num/random/srandom-int32()), (std/num/int32/int32(0)));
+  };
+fun choose // inline size: 4
+  = forall<a> fn<<(std/core/types/ndet :: X)>>(x: a, y: a){
+    (match ((std/num/int32/(>=)((std/num/random/srandom-int32()), (std/num/int32/int32(0))))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> x;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> y;
+    });
+  };
+fun srandom-int // inline size: 2
+  = fn<<(std/core/types/ndet :: X)>>(){
+    std/num/int32/int((std/num/random/srandom-int32()));
+  };

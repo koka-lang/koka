@@ -1,0 +1,298 @@
+// Localization of time formats.
+module interface std/time/locale
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// The `:time-locale` describes time and date formats for a specific locale.
+pub type time-locale[17,1,30,49] {
+  // The `:time-locale` describes time and date formats for a specific locale.
+  pub con Time-locale[17,12,17,22](lang-name: std/core/types/string, day-names: (std/core/types/list :: V -> V)<std/core/types/string>, month-names: (std/core/types/list :: V -> V)<std/core/types/string>, month-names-short: (std/core/types/list :: V -> V)<std/core/types/string>, day-names-short: (std/core/types/list :: V -> V)<std/core/types/string>, day-names-min: (std/core/types/list :: V -> V)<std/core/types/string>, format-t: std/core/types/string, format-tt: std/core/types/string, format-l: std/core/types/string, format-ll: std/core/types/string, format-lll: std/core/types/string, format-llll: std/core/types/string){0,12,8} : (lang-name : std/core/types/string, day-names : (std/core/types/list :: V -> V)<std/core/types/string>, month-names : (std/core/types/list :: V -> V)<std/core/types/string>, month-names-short : (std/core/types/list :: V -> V)<std/core/types/string>, day-names-short : (std/core/types/list :: V -> V)<std/core/types/string>, day-names-min : (std/core/types/list :: V -> V)<std/core/types/string>, format-t : std/core/types/string, format-tt : std/core/types/string, format-l : std/core/types/string, format-ll : std/core/types/string, format-lll : std/core/types/string, format-llll : std/core/types/string) -> time-locale = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// The `:time-locale` describes time and date formats for a specific locale.
+pub fun @create-Time-locale[17,12,17,22] : (lang-name : std/core/types/string, day-names : (std/core/types/list :: V -> V)<std/core/types/string>, month-names : (std/core/types/list :: V -> V)<std/core/types/string>, month-names-short : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, day-names-short : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, day-names-min : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, format-t : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-tt : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-l : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-ll : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-lll : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-llll : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> time-locale;
+// Automatically generated. Retrieves the `lang-name` constructor field of the `:time-locale` type.
+pub fun time-locale/lang-name[19,3,19,11] : (^ @this : time-locale) -> std/core/types/string;
+// Automatically generated. Retrieves the `day-names` constructor field of the `:time-locale` type.
+pub fun time-locale/day-names[20,3,20,11] : (^ @this : time-locale) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Automatically generated. Retrieves the `month-names` constructor field of the `:time-locale` type.
+pub fun time-locale/month-names[21,3,21,13] : (^ @this : time-locale) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Automatically generated. Retrieves the `month-names-short` constructor field of the `:time-locale` type.
+pub fun time-locale/month-names-short[22,3,22,19] : (^ @this : time-locale) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Automatically generated. Retrieves the `day-names-short` constructor field of the `:time-locale` type.
+pub fun time-locale/day-names-short[23,3,23,17] : (^ @this : time-locale) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Automatically generated. Retrieves the `day-names-min` constructor field of the `:time-locale` type.
+pub fun time-locale/day-names-min[24,3,24,15] : (^ @this : time-locale) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Automatically generated. Retrieves the `format-t` constructor field of the `:time-locale` type.
+pub fun time-locale/format-t[25,3,25,10] : (^ @this : time-locale) -> std/core/types/string;
+// Automatically generated. Retrieves the `format-tt` constructor field of the `:time-locale` type.
+pub fun time-locale/format-tt[26,3,26,11] : (^ @this : time-locale) -> std/core/types/string;
+// Automatically generated. Retrieves the `format-l` constructor field of the `:time-locale` type.
+pub fun time-locale/format-l[27,3,27,10] : (^ @this : time-locale) -> std/core/types/string;
+// Automatically generated. Retrieves the `format-ll` constructor field of the `:time-locale` type.
+pub fun time-locale/format-ll[28,3,28,11] : (^ @this : time-locale) -> std/core/types/string;
+// Automatically generated. Retrieves the `format-lll` constructor field of the `:time-locale` type.
+pub fun time-locale/format-lll[29,3,29,12] : (^ @this : time-locale) -> std/core/types/string;
+// Automatically generated. Retrieves the `format-llll` constructor field of the `:time-locale` type.
+pub fun time-locale/format-llll[30,3,30,13] : (^ @this : time-locale) -> std/core/types/string;
+pub fun time-locale/@copy[17,12,17,22] : (@this : time-locale, lang-name : (std/core/types/@optional :: V -> V)<std/core/types/string>, day-names : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, month-names : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, month-names-short : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, day-names-short : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, day-names-min : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, format-t : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-tt : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-l : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-ll : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-lll : (std/core/types/@optional :: V -> V)<std/core/types/string>, format-llll : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> time-locale;
+// English time locale (`en`)
+pub val time-locale-en[34,9,34,22] : time-locale;
+// ISO English time locale (`en-iso`). Uses English names for
+// months and days but displays numeric dates and times using unambigious ISO format.
+pub val time-locale-en-iso[45,9,45,26] : time-locale;
+// French time locale (`fr`)
+pub val time-locale-fr[53,9,53,22] : time-locale;
+// German time locale (`de`)
+pub val time-locale-de[63,9,63,22] : time-locale;
+// Spanish time locale (`es`)
+pub val time-locale-es[76,9,76,22] : time-locale;
+// Dutch time locale (`nl`)
+pub val time-locale-nl[88,9,88,22] : time-locale;
+val locales[97,5,97,11] : (std/core/types/list :: V -> V)<time-locale>;
+// Return a builtin locale given a locale string (e.g. ``en-GB``, ``es``);
+// Use `time-locale-iso` if no particular match is found.
+// Supports ``de``,``en``,``es``,``fr``,``nl`` and ``en-iso``.
+pub fun get-time-locale[108,9,108,23] : (locale : std/core/types/string) -> time-locale;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+specialize "*" fun get-time-locale // inline size: 1
+  = fn(locale: std/core/types/string){
+    val res[109,7,109,9] : (std/core/types/maybe :: V -> V)<time-locale>
+          = std/core/list/find<time-locale,(std/core/types/total :: E)>(std/time/locale/locales, (fn(l: time-locale){
+              val maybe@10074[1,0,1,0] : ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>)
+                    = (std/core/sslice/starts-with(locale, (match (l) {
+                        ((@skip std/time/locale/Time-locale((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat@2: time-locale)
+                           -> @x;
+                      })));
+              (match (maybe@10074) {
+                ((std/core/types/Just((@pat@0: std/core/sslice/sslice) : std/core/sslice/sslice) : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+                   -> std/core/types/True;
+                ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat@1: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+                   -> std/core/types/False;
+              });
+            }));
+    match (res) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<time-locale> ) as @pat@11: ((std/core/types/maybe :: V -> V)<time-locale>))
+         -> std/time/locale/time-locale-en-iso;
+      ((@skip std/core/types/Just((x: time-locale) : time-locale) : (std/core/types/maybe :: V -> V)<time-locale> ) as @pat@0@1: ((std/core/types/maybe :: V -> V)<time-locale>))
+         -> x;
+    };
+  };
+inline fun @create-Time-locale // inline size: 22
+  = fn(lang-name: std/core/types/string, day-names: (std/core/types/list :: V -> V)<std/core/types/string>, month-names: (std/core/types/list :: V -> V)<std/core/types/string>, month-names-short: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, day-names-short: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, day-names-min: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>, format-t: (std/core/types/@optional :: V -> V)<std/core/types/string>, format-tt: (std/core/types/@optional :: V -> V)<std/core/types/string>, format-l: (std/core/types/@optional :: V -> V)<std/core/types/string>, format-ll: (std/core/types/@optional :: V -> V)<std/core/types/string>, format-lll: (std/core/types/@optional :: V -> V)<std/core/types/string>, format-llll: (std/core/types/@optional :: V -> V)<std/core/types/string>){
+    val @uniq-month-names-short@96[22,3,22,19] : (std/core/types/list :: V -> V)<std/core/types/string>
+      = match (month-names-short) {
+        ((std/core/types/@OptArg((@uniq-month-names-short@97: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> @uniq-month-names-short@97;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@0: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> std/core/list/map<std/core/types/string,std/core/types/string,(std/core/types/total :: E)>(month-names, (fn(m: std/core/types/string){
+              (std/core/sslice/string((std/core/sslice/first(m, (std/core/types/@OptArg<std/core/types/int>(3))))));
+            }));
+      };
+    val @uniq-day-names-short@161[23,3,23,17] : (std/core/types/list :: V -> V)<std/core/types/string>
+      = match (day-names-short) {
+        ((std/core/types/@OptArg((@uniq-day-names-short@162: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@1: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> @uniq-day-names-short@162;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@2: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> std/core/list/map<std/core/types/string,std/core/types/string,(std/core/types/total :: E)>(day-names, (fn(m@0: std/core/types/string){
+              (std/core/sslice/string((std/core/sslice/first(m@0, (std/core/types/@OptArg<std/core/types/int>(3))))));
+            }));
+      };
+    val @uniq-day-names-min@226[24,3,24,15] : (std/core/types/list :: V -> V)<std/core/types/string>
+      = match (day-names-min) {
+        ((std/core/types/@OptArg((@uniq-day-names-min@227: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@3: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> @uniq-day-names-min@227;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>> ) as @pat@4: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/string>>))
+           -> std/core/list/map<std/core/types/string,std/core/types/string,(std/core/types/total :: E)>(day-names, (fn(m@1: std/core/types/string){
+              (std/core/sslice/string((std/core/sslice/first(m@1, (std/core/types/@OptArg<std/core/types/int>(2))))));
+            }));
+      };
+    std/time/locale/Time-locale(lang-name, day-names, month-names, @uniq-month-names-short@96, @uniq-day-names-short@161, @uniq-day-names-min@226, (match (format-t) {
+        ((std/core/types/@OptArg((@uniq-format-t@231: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@5: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-format-t@231;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@6: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "HH:mm";
+      }), (match (format-tt) {
+        ((std/core/types/@OptArg((@uniq-format-tt@235: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@7: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-format-tt@235;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@8: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "HH:mm:ss";
+      }), (match (format-l) {
+        ((std/core/types/@OptArg((@uniq-format-l@239: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@9: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-format-l@239;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@10: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "YYYY-MM-DD";
+      }), (match (format-ll) {
+        ((std/core/types/@OptArg((@uniq-format-ll@243: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@11: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-format-ll@243;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@12: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "D MMMM YYYY";
+      }), (match (format-lll) {
+        ((std/core/types/@OptArg((@uniq-format-lll@247: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@13: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-format-lll@247;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@14: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "D MMMM YYYY t";
+      }), (match (format-llll) {
+        ((std/core/types/@OptArg((@uniq-format-llll@251: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@15: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-format-llll@251;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@16: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> "dddd D MMMM YYYY t";
+      }));
+  };
+inline borrow "^" fun time-locale/lang-name // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/day-names // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/month-names // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/month-names-short // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/day-names-short // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/day-names-min // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/format-t // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@x: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/format-tt // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@6: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/format-l // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/format-ll // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/format-lll // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+inline borrow "^" fun time-locale/format-llll // inline size: 0
+  = fn(@this: time-locale){
+    match (@this) {
+      ((@skip std/time/locale/Time-locale((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string) : time-locale ) as @pat: time-locale)
+         -> @x;
+    };
+  };
+fun get-time-locale // inline size: 4
+  = fn(locale: std/core/types/string){
+    val res[109,7,109,9] : (std/core/types/maybe :: V -> V)<time-locale>
+          = std/core/list/find<time-locale,(std/core/types/total :: E)>(std/time/locale/locales, (fn(l: time-locale){
+              val maybe@10074[1,0,1,0] : ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>)
+                    = (std/core/sslice/starts-with(locale, (match (l) {
+                        ((@skip std/time/locale/Time-locale((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@1@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@2@0: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>, (@pat@5: std/core/types/string) : std/core/types/string, (@pat@6: std/core/types/string) : std/core/types/string, (@pat@7: std/core/types/string) : std/core/types/string, (@pat@8: std/core/types/string) : std/core/types/string, (@pat@9: std/core/types/string) : std/core/types/string, (@pat@10: std/core/types/string) : std/core/types/string) : time-locale ) as @pat@2: time-locale)
+                           -> @x;
+                      })));
+              (match (maybe@10074) {
+                ((std/core/types/Just((@pat@0: std/core/sslice/sslice) : std/core/sslice/sslice) : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+                   -> std/core/types/True;
+                ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/sslice/sslice> ) as @pat@1: ((std/core/types/maybe :: V -> V)<std/core/sslice/sslice>))
+                   -> std/core/types/False;
+              });
+            }));
+    match (res) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<time-locale> ) as @pat@11: ((std/core/types/maybe :: V -> V)<time-locale>))
+         -> std/time/locale/time-locale-en-iso;
+      ((@skip std/core/types/Just((x: time-locale) : time-locale) : (std/core/types/maybe :: V -> V)<time-locale> ) as @pat@0@1: ((std/core/types/maybe :: V -> V)<time-locale>))
+         -> x;
+    };
+  };

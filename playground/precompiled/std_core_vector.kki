@@ -1,0 +1,301 @@
+// Standard vector functions.
+module interface std/core/vector
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/undiv = std/core/undiv = "";
+import std/core/hnd = std/core/hnd = "";
+import std/core/exn = std/core/exn = "";
+import std/core/int = std/core/int = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+pub fun @unsafe-vector[42,12,42,25] : forall<a> (n : std/core/types/ssize_t) -> (std/core/types/vector :: V -> V)<a>;
+// Create a new vector of length `n`  with initial elements `init`` .
+fun vector-alloc[60,8,60,19] : forall<a,(e :: E)> (n : std/core/types/ssize_t, init : a) -> (e :: E) (std/core/types/vector :: V -> V)<a>;
+// Create a new vector of length `n`  with initial elements given by a total function `f` .
+fun vector-alloc-total[66,8,66,25] : forall<a> (n : std/core/types/ssize_t, f : (std/core/types/ssize_t) -> a) -> (std/core/types/vector :: V -> V)<a>;
+// Return the element at position `index`  in vector `v`.
+// Raise an out of bounds exception if `index < 0`  or `index >= v.length`.
+pub fun @index[80,9,80,14] : forall<a> (^ v : (std/core/types/vector :: V -> V)<a>, ^ index : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> a;
+// Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
+pub fun at[85,9,85,10] : forall<a> (^ v : (std/core/types/vector :: V -> V)<a>, ^ index : std/core/types/int) -> (std/core/types/maybe :: V -> V)<a>;
+// Return the length of a vector.
+pub fun length[90,9,90,14] : forall<a> (^ v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/int;
+// Create a new vector of length `n`  with initial elements `default` .
+pub fun vector[94,9,94,14] : forall<a> (^ n : std/core/types/int, default : a) -> (std/core/types/vector :: V -> V)<a>;
+// Create a new vector of length `n`  with initial elements given by _total_ function `f`.
+// (can be more efficient than `vector-init`)
+pub fun vector-init-total[99,9,99,25] : forall<a> (^ n : std/core/types/int, f : (std/core/types/int) -> a) -> (std/core/types/vector :: V -> V)<a>;
+fip fun ssize_t/decr[207,12,207,23] : (i : std/core/types/ssize_t) -> std/core/types/ssize_t;
+fip fun ssize_t/incr[210,12,210,23] : (i : std/core/types/ssize_t) -> std/core/types/ssize_t;
+// monadic lift
+fun @mlift-lift-forz@1011@10045[1,0,1,0] : forall<(e :: E)> (action : (std/core/types/ssize_t) -> (e :: E) (), i : std/core/types/ssize_t, n : std/core/types/ssize_t, wild_ : ()) -> (e :: E) ();
+// lifted local: forz, rep
+fun @lift-forz@1011[1,0,1,0] : forall<(e :: E)> (action : (std/core/types/ssize_t) -> (e :: E) (), n : std/core/types/ssize_t, i : std/core/types/ssize_t) -> (e :: E) ();
+// Executes `action` `n` times for each integer between [`0`,`n`)  (excluding `n` ).
+// If `n <= 0`  the function returns without any call to `action` .
+fun forz[157,5,157,8] : forall<(e :: E)> (n : std/core/types/ssize_t, action : (std/core/types/ssize_t) -> (e :: E) ()) -> (e :: E) ();
+// monadic lift
+fun @mlift-vector-init@10046[1,0,1,0] : forall<a,(e :: E)> (i@0 : std/core/types/ssize_t, v : (std/core/types/vector :: V -> V)<a>, @y-x10027 : a) -> (e :: E) ();
+// monadic lift
+fun @mlift-vector-init@10047[1,0,1,0] : forall<a,(e :: E)> (v : (std/core/types/vector :: V -> V)<a>, wild_ : ()) -> (e :: E) (std/core/types/vector :: V -> V)<a>;
+// Create a new vector of length `n`  with initial elements given by function `f` which can have a control effect.
+pub fun vector-init[103,9,103,19] : forall<a,(e :: E)> (^ n : std/core/types/int, f : (std/core/types/int) -> (e :: E) a) -> (e :: E) (std/core/types/vector :: V -> V)<a>;
+fun foreach-indexedz[118,5,118,20] : forall<a,(e :: E)> (v : (std/core/types/vector :: V -> V)<a>, f : (std/core/types/ssize_t, a) -> (e :: E) ()) -> (e :: E) ();
+// Invoke a function `f` for each element in a vector `v`
+pub fun foreach[111,9,111,15] : forall<a,(e :: E)> (v : (std/core/types/vector :: V -> V)<a>, f : (a) -> (e :: E) ()) -> (e :: E) ();
+// Invoke a function `f` for each element in a vector `v`
+pub fun foreach-indexed[115,9,115,23] : forall<a,(e :: E)> (v : (std/core/types/vector :: V -> V)<a>, f : (std/core/types/int, a) -> (e :: E) ()) -> (e :: E) ();
+// monadic lift
+fun @mlift-lift-for-whilez@1012@10048[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/ssize_t) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, i : std/core/types/ssize_t, n : std/core/types/ssize_t, @y-x10035 : (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// lifted local: for-whilez, rep
+fun @lift-for-whilez@1012[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/ssize_t) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, n : std/core/types/ssize_t, i : std/core/types/ssize_t) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Executes `action` at most `n` times for each integer between `0`  upto `n`  (excluding `n` ).
+// If `n <= 0`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+fun for-whilez[167,5,167,14] : forall<a,(e :: E)> (n : std/core/types/ssize_t, action : (std/core/types/ssize_t) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Invoke a function `f` for each element in a vector `v`.
+// If `f` returns `Just`, the iteration is stopped early and the result is returned.
+pub fun foreach-while[124,9,124,21] : forall<a,b,(e :: E)> (v : (std/core/types/vector :: V -> V)<a>, f : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/maybe :: V -> V)<b>;
+// monadic lift
+fun @mlift-map@10049[1,0,1,0] : forall<a,(e :: E)> (i@0 : std/core/types/ssize_t, w : (std/core/types/vector :: V -> V)<a>, @y-x10042 : a) -> (e :: E) ();
+// monadic lift
+fun @mlift-map@10050[1,0,1,0] : forall<a,(e :: E)> (w : (std/core/types/vector :: V -> V)<a>, wild_ : ()) -> (e :: E) (std/core/types/vector :: V -> V)<a>;
+// Apply a function `f` to each element in a vector `v`
+pub fun map[129,9,129,11] : forall<a,b,(e :: E)> (v : (std/core/types/vector :: V -> V)<a>, f : (a) -> (e :: E) b) -> (e :: E) (std/core/types/vector :: V -> V)<b>;
+// Convert a vector to a list with an optional tail.
+pub fun vlist[140,12,140,16] : forall<a> (v : (std/core/types/vector :: V -> V)<a>, tail : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Convert a vector to a list.
+pub fun list[136,9,136,12] : forall<a> (v : (std/core/types/vector :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+fun unvlist[149,8,149,14] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/vector :: V -> V)<a>;
+// Convert a list to a vector.
+pub fun list/vector[146,9,146,19] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/vector :: V -> V)<a>;
+fip fun ssize_t/is-zero[203,12,203,26] : (i : std/core/types/ssize_t) -> std/core/types/bool;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// Return the element at position `index`  in vector `v`  without bounds check!
+extern unsafe-idx[27,15,27,24] : forall<a> (^ v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> a {
+  c inline "kk_vector_at_borrow(#1,#2,kk_context())";
+  cs inline "(#1)[#2]";
+  js inline "(#1)[#2]";
+};
+extern unsafe-assign[32,15,32,27] : forall<a> (v : (std/core/types/vector :: V -> V)<a>, i : std/core/types/ssize_t, x : a) -> () {
+  c inline "kk_vector_unsafe_assign(#1,#2,#3,kk_context())";
+  cs inline "(#1)[#2] = #3";
+  js inline "(#1)[#2] = #3";
+};
+extern unsafe-vector[37,15,37,27] : forall<a> (n : std/core/types/ssize_t) -> (std/core/types/vector :: V -> V)<a> {
+  c inline "kk_vector_alloc(#1,kk_box_null(),kk_context())";
+  cs inline "(new ##1[#1])";
+  js inline "Array(#1)";
+};
+// Assign to an entry in a local `:vector` variable.
+pub extern assign/@index[48,19,48,31] : forall<a,(e :: E),(h :: H)> (^ self : (std/core/types/local-var :: (H, V) -> V)<(h :: H),(std/core/types/vector :: V -> V)<a>>, ^ index : std/core/types/int, assigned : a) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> () {
+  c inline "kk_ref_vector_assign_borrow(#1,#2,#3,kk_context())";
+  cs inline "(#1)[(int)#2] = #3";
+  js inline "(#1).value[#2] = #3";
+};
+// Length of a vector.
+extern lengthz[54,15,54,21] : forall<a> (^ v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/ssize_t {
+  c inline "kk_vector_len_borrow(#1,kk_context())";
+  cs inline "((#1).Length)";
+  js inline "((#1).length)";
+};
+// Create an empty vector.
+pub extern unit/vector[72,19,72,29] : forall<a> () -> (std/core/types/vector :: V -> V)<a> {
+  c inline "kk_vector_empty()";
+  cs inline "new ##1[0]";
+  js inline "[]";
+};
+// Minimal set of operations that we need in `std/core`.
+fip extern ssize_t/(<=)[180,19,180,30] : (std/core/types/ssize_t, std/core/types/ssize_t) -> std/core/types/bool = inline "(#1 <= #2)";
+fip extern ssize_t/(>=)[183,19,183,30] : (std/core/types/ssize_t, std/core/types/ssize_t) -> std/core/types/bool = inline "(#1 >= #2)";
+fip extern ssize_t/(<)[186,19,186,29] : (std/core/types/ssize_t, std/core/types/ssize_t) -> std/core/types/bool = inline "(#1 < #2)";
+fip extern ssize_t/(+)[189,19,189,29] : (std/core/types/ssize_t, std/core/types/ssize_t) -> std/core/types/ssize_t {
+  inline "(#1 + #2)";
+  js inline "((#1 + #2)|0)";
+};
+fip extern ssize_t/(-)[193,19,193,29] : (std/core/types/ssize_t, std/core/types/ssize_t) -> std/core/types/ssize_t {
+  inline "(#1 - #2)";
+  js inline "((#1 - #2)|0)";
+};
+fip extern ssize_t/is-pos[197,19,197,32] : (i : std/core/types/ssize_t) -> std/core/types/bool = inline "(#1 > 0)";
+fip extern ssize_t/is-neg[200,19,200,32] : (i : std/core/types/ssize_t) -> std/core/types/bool = inline "(#1 < 0)";
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "*__" fun @lift-for-whilez@1012 // inline size: 11
+  = forall<a,(e :: E)> fn<(e :: E)>(action: (std/core/types/ssize_t) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, n: std/core/types/ssize_t, i: std/core/types/ssize_t){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(std/core/types/ssize_t, std/core/types/ssize_t) -> std/core/types/bool,(std/core/types/ssize_t, std/core/types/ssize_t) -> (e :: E) std/core/types/bool>(std/core/vector/#ssize_t/(<))(i, n))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> (match ((action(i))) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+             -> val i@0@10005[1,0,1,0] : std/core/types/ssize_t
+                      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/ssize_t) -> std/core/types/ssize_t,(x : std/core/types/ssize_t) -> (e :: E) std/core/types/ssize_t>((std/core/undiv/pretend-decreasing<std/core/types/ssize_t>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/ssize_t) -> std/core/types/ssize_t,(i : std/core/types/ssize_t) -> (e :: E) std/core/types/ssize_t>(std/core/vector/#ssize_t/incr)(i)));
+            std/core/vector/@lift-for-whilez@1012<a,(e :: E)>(action, n, i@0@10005);
+          ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/Just<a>(x);
+        });
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+         -> std/core/types/Nothing<a>;
+    });
+  };
+recursive specialize "*__" fun @lift-forz@1011 // inline size: 9
+  = forall<(e :: E)> fn<(e :: E)>(action: (std/core/types/ssize_t) -> (e :: E) (), n: std/core/types/ssize_t, i: std/core/types/ssize_t){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(std/core/types/ssize_t, std/core/types/ssize_t) -> std/core/types/bool,(std/core/types/ssize_t, std/core/types/ssize_t) -> (e :: E) std/core/types/bool>(std/core/vector/#ssize_t/(<))(i, n))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> val _[160,7,160,15] : ()
+              = action(i);
+            val i@0@10000[1,0,1,0] : std/core/types/ssize_t
+              = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/ssize_t) -> std/core/types/ssize_t,(x : std/core/types/ssize_t) -> (e :: E) std/core/types/ssize_t>((std/core/undiv/pretend-decreasing<std/core/types/ssize_t>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/ssize_t) -> std/core/types/ssize_t,(i : std/core/types/ssize_t) -> (e :: E) std/core/types/ssize_t>(std/core/vector/#ssize_t/incr)(i)));
+        std/core/vector/@lift-forz@1011<(e :: E)>(action, n, i@0@10000);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/Unit;
+    });
+  };
+specialize "_*" fun for-whilez // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/ssize_t, action: (std/core/types/ssize_t) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    val i[1,0,1,0] : std/core/types/ssize_t
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-for-whilez@1012<a,(e :: E)>(action, n, i);
+  };
+specialize "**" fun foreach // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(v: (std/core/types/vector :: V -> V)<a>, f: (a) -> (e :: E) ()){
+    val n@10003[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/ssize_t,(v : (std/core/types/vector :: V -> V)<a>) -> (e :: E) std/core/types/ssize_t>((std/core/vector/lengthz<a>))(v);
+    val i[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-forz@1011<(e :: E)>((fn<(e :: E)>(i@0: std/core/types/ssize_t){
+        val x@10015[1,0,1,0] : a
+              = (std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> a,(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> (e :: E) a>((std/core/vector/unsafe-idx<a>))(v, i@0));
+        (f(x@10015));
+      }), n@10003, i);
+  };
+specialize "**" fun foreach-indexed // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(v: (std/core/types/vector :: V -> V)<a>, f: (std/core/types/int, a) -> (e :: E) ()){
+    val n@10003[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/ssize_t,(v : (std/core/types/vector :: V -> V)<a>) -> (e :: E) std/core/types/ssize_t>((std/core/vector/lengthz<a>))(v);
+    val i[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-forz@1011<(e :: E)>((fn<(e :: E)>(i@0: std/core/types/ssize_t){
+        val x@10017[1,0,1,0] : a
+              = (std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> a,(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> (e :: E) a>((std/core/vector/unsafe-idx<a>))(v, i@0));
+        (f((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/ssize_t) -> std/core/types/int,(i : std/core/types/ssize_t) -> (e :: E) std/core/types/int>(std/core/int/#ssize_t/int)(i@0)), x@10017));
+      }), n@10003, i);
+  };
+specialize "**" fun foreach-indexedz // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(v: (std/core/types/vector :: V -> V)<a>, f: (std/core/types/ssize_t, a) -> (e :: E) ()){
+    val n@10003[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/ssize_t,(v : (std/core/types/vector :: V -> V)<a>) -> (e :: E) std/core/types/ssize_t>((std/core/vector/lengthz<a>))(v);
+    val i[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-forz@1011<(e :: E)>((fn<(e :: E)>(i@0: std/core/types/ssize_t){
+        (f(i@0, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> a,(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> (e :: E) a>((std/core/vector/unsafe-idx<a>))(v, i@0))));
+      }), n@10003, i);
+  };
+specialize "**" fun foreach-while // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(v: (std/core/types/vector :: V -> V)<a>, f: (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>){
+    val n@10006[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/ssize_t,(v : (std/core/types/vector :: V -> V)<a>) -> (e :: E) std/core/types/ssize_t>((std/core/vector/lengthz<a>))(v);
+    val i[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-for-whilez@1012<b,(e :: E)>((fn<(e :: E)>(i@0: std/core/types/ssize_t){
+        (f((std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> a,(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> (e :: E) a>((std/core/vector/unsafe-idx<a>))(v, i@0))));
+      }), n@10006, i);
+  };
+specialize "_*" fun forz // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(n: std/core/types/ssize_t, action: (std/core/types/ssize_t) -> (e :: E) ()){
+    val i[1,0,1,0] : std/core/types/ssize_t
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-forz@1011<(e :: E)>(action, n, i);
+  };
+specialize "**" fun map // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(v: (std/core/types/vector :: V -> V)<a>, f: (a) -> (e :: E) b){
+    val w[130,7,130,7] : (std/core/types/vector :: V -> V)<b>
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(n : std/core/types/ssize_t) -> (std/core/types/vector :: V -> V)<b>,(n : std/core/types/ssize_t) -> (e :: E) (std/core/types/vector :: V -> V)<b>>((std/core/vector/unsafe-vector<b>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)((std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/int,(v : (std/core/types/vector :: V -> V)<a>) -> (e :: E) std/core/types/int>((fn(v@0: (std/core/types/vector :: V -> V)<a>){
+        (std/core/int/#ssize_t/int((std/core/vector/lengthz<a>(v@0))));
+      }))(v)))));
+    val n@10003[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>) -> std/core/types/ssize_t,(v : (std/core/types/vector :: V -> V)<a>) -> (e :: E) std/core/types/ssize_t>((std/core/vector/lengthz<a>))(v);
+    val i[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    val _[131,3,131,20] : ()
+      = std/core/vector/@lift-forz@1011<(e :: E)>((fn<(e :: E)>(i@0: std/core/types/ssize_t){
+          val x@10019[1,0,1,0] : a
+                = (std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> a,(v : (std/core/types/vector :: V -> V)<a>, index : std/core/types/ssize_t) -> (e :: E) a>((std/core/vector/unsafe-idx<a>))(v, i@0));
+          (std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<b>, i : std/core/types/ssize_t, x : b) -> (),(v : (std/core/types/vector :: V -> V)<b>, i : std/core/types/ssize_t, x : b) -> (e :: E) ()>((std/core/vector/unsafe-assign<b>))(w, i@0, (f(x@10019))));
+        }), n@10003, i);
+    w;
+  };
+specialize "_*" borrow "^_" fun vector-init // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int, f: (std/core/types/int) -> (e :: E) a){
+    val len[104,7,104,9] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(n);
+    val v[105,7,105,7] : (std/core/types/vector :: V -> V)<a>
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(n : std/core/types/ssize_t) -> (std/core/types/vector :: V -> V)<a>,(n : std/core/types/ssize_t) -> (e :: E) (std/core/types/vector :: V -> V)<a>>((std/core/vector/unsafe-vector<a>))(len);
+    val i[1,0,1,0] : std/core/types/ssize_t
+      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    val _[106,3,106,13] : ()
+      = std/core/vector/@lift-forz@1011<(e :: E)>((fn<(e :: E)>(i@0: std/core/types/ssize_t){
+          (std/core/types/@open<(std/core/types/total :: E),(e :: E),(v : (std/core/types/vector :: V -> V)<a>, i : std/core/types/ssize_t, x : a) -> (),(v : (std/core/types/vector :: V -> V)<a>, i : std/core/types/ssize_t, x : a) -> (e :: E) ()>((std/core/vector/unsafe-assign<a>))(v, i@0, (f((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/ssize_t) -> std/core/types/int,(i : std/core/types/ssize_t) -> (e :: E) std/core/types/int>(std/core/int/#ssize_t/int)(i@0))))));
+        }), len, i);
+    v;
+  };
+borrow "^" fun length // inline size: 2
+  = forall<a> fn(v: (std/core/types/vector :: V -> V)<a>){
+    std/core/int/#ssize_t/int((std/core/vector/lengthz<a>(v)));
+  };
+borrow "^_" fun vector // inline size: 2
+  = forall<a> fn(n: std/core/types/int, default: a){
+    std/core/vector/vector-alloc<a,(std/core/types/total :: E)>((std/core/int/ssize_t(n)), default);
+  };
+borrow "^_" fun vector-init-total // inline size: 4
+  = forall<a> fn(n: std/core/types/int, f: (std/core/types/int) -> a){
+    std/core/vector/vector-alloc-total<a>((std/core/int/ssize_t(n)), (fn(i: std/core/types/ssize_t){
+        (f((std/core/int/#ssize_t/int(i))));
+      }));
+  };
+fun forz // inline size: 3
+  = forall<(e :: E)> fn<(e :: E)>(n: std/core/types/ssize_t, action: (std/core/types/ssize_t) -> (e :: E) ()){
+    val i[1,0,1,0] : std/core/types/ssize_t
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-forz@1011<(e :: E)>(action, n, i);
+  };
+fun for-whilez // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/ssize_t, action: (std/core/types/ssize_t) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    val i[1,0,1,0] : std/core/types/ssize_t
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> (e :: E) std/core/types/ssize_t>(std/core/int/ssize_t)(0);
+    std/core/vector/@lift-for-whilez@1012<a,(e :: E)>(action, n, i);
+  };
+fun list // inline size: 1
+  = forall<a> fn(v: (std/core/types/vector :: V -> V)<a>){
+    std/core/vector/vlist<a>(v, (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<a>>));
+  };
+fun list/vector // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>){
+    std/core/vector/unvlist<a>(xs);
+  };

@@ -1,0 +1,175 @@
+// Standard `:maybe` functions.
+module interface std/core/maybe
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/hnd = std/core/hnd = "";
+import std/core/exn = std/core/exn = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Match a `:maybe` value and either return a default value on `Nothing` or apply a function to the value on `Just`
+pub fun maybe[17,9,17,13] : forall<a,b,(e :: E)> (m : (std/core/types/maybe :: V -> V)<a>, onNothing : b, onJust : (a) -> (e :: E) b) -> (e :: E) b;
+// Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
+pub fun default[23,9,23,15] : forall<a> (m : (std/core/types/maybe :: V -> V)<a>, nothing : a) -> a;
+// Get the value of the `Just` constructor or raise an exception
+pub fun unjust[29,9,29,14] : forall<a> (m : (std/core/types/maybe :: V -> V)<a>, ?kk-file-line : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> a;
+// Get the value of the `Just` constructor or raise an exception with `error-msg`
+pub fun expect[35,9,35,14] : forall<a> (m : (std/core/types/maybe :: V -> V)<a>, error-msg : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> a;
+// monadic lift
+fun @mlift-map@10019[1,0,1,0] : forall<a,(e :: E)> (@y-x10006 : a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+pub fun map[40,9,40,11] : forall<a,b,(e :: E)> (m : (std/core/types/maybe :: V -> V)<a>, f : (a) -> (e :: E) b) -> (e :: E) (std/core/types/maybe :: V -> V)<b>;
+pub fun (||)[45,9,45,12] : forall<a> (m1 : (std/core/types/maybe :: V -> V)<a>, m2 : (std/core/types/maybe :: V -> V)<a>) -> (std/core/types/maybe :: V -> V)<a>;
+pub fun flatten[50,9,50,15] : forall<a> (mm : (std/core/types/maybe :: V -> V)<(std/core/types/maybe :: V -> V)<a>>) -> (std/core/types/maybe :: V -> V)<a>;
+// Equality on `:maybe`
+pub fun (==)[56,9,56,12] : forall<a,(e :: E)> (mb1 : (std/core/types/maybe :: V -> V)<a>, mb2 : (std/core/types/maybe :: V -> V)<a>, ?(==) : (a, a) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Order on `:maybe` values
+pub fun cmp[67,9,67,11] : forall<a,(e :: E)> (mb1 : (std/core/types/maybe :: V -> V)<a>, mb2 : (std/core/types/maybe :: V -> V)<a>, ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/order;
+// monadic lift
+fun @mlift-order2@10020[1,0,1,0] : forall<a,(e :: E)> (@y-x10014 : (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(std/core/types/maybe :: V -> V)<a>>;
+// Order two `:maybe` values in ascending order
+pub fip fun order2[78,13,78,18] : forall<a,(e :: E)> (mb1 : (std/core/types/maybe :: V -> V)<a>, mb2 : (std/core/types/maybe :: V -> V)<a>, ^ ?order2 : (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(std/core/types/maybe :: V -> V)<a>>;
+// monadic lift
+fun @mlift-show@10021[1,0,1,0] : forall<(e :: E)> (@y-x10017 : std/core/types/string) -> (e :: E) std/core/types/string;
+// Show a `:maybe` type
+pub fun show[91,9,91,12] : forall<a,(e :: E)> (mb : (std/core/types/maybe :: V -> V)<a>, ?show : (a) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// Convert a maybe type to a boolean, equivalent to `is-just`.
+pub fun bool[97,9,97,12] : forall<a> (mb : (std/core/types/maybe :: V -> V)<a>) -> std/core/types/bool;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun maybe // inline size: 2
+  = forall<a,b,(e :: E)> fn<(e :: E)>(m: (std/core/types/maybe :: V -> V)<a>, onNothing: b, onJust: (a) -> (e :: E) b){
+    (match (m) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> onNothing;
+      ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+         -> onJust(x);
+    });
+  };
+fun default // inline size: 1
+  = forall<a> fn(m: (std/core/types/maybe :: V -> V)<a>, nothing: a){
+    (match (m) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> nothing;
+      ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+         -> x;
+    });
+  };
+fun unjust // inline size: 4
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(m: (std/core/types/maybe :: V -> V)<a>, @implicit/kk-file-line: std/core/types/string){
+    (match (m) {
+      ((std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> x;
+      ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/exn/throw<a>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,(x : std/core/types/string, y : std/core/types/string) -> std/core/types/string,(x : std/core/types/string, y : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/string>(std/core/types/(++))("unexpected Nothing in ", @implicit/kk-file-line)), (std/core/types/@NoOptArg<std/core/exn/exception-info>));
+    });
+  };
+fun expect // inline size: 2
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(m: (std/core/types/maybe :: V -> V)<a>, error-msg: std/core/types/string){
+    (match (m) {
+      ((std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> x;
+      ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/exn/throw<a>(error-msg, (std/core/types/@NoOptArg<std/core/exn/exception-info>));
+    });
+  };
+fun map // inline size: 3
+  = forall<a,b,(e :: E)> fn<(e :: E)>(m: (std/core/types/maybe :: V -> V)<a>, f: (a) -> (e :: E) b){
+    (match (m) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/types/Nothing<b>;
+      ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/types/Just<b>((f(x)));
+    });
+  };
+fun (||) // inline size: 1
+  = forall<a> fn(m1: (std/core/types/maybe :: V -> V)<a>, m2: (std/core/types/maybe :: V -> V)<a>){
+    (match (m1) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> m2;
+      (@pat@0: ((std/core/types/maybe :: V -> V)<a>))
+         -> m1;
+    });
+  };
+fun flatten // inline size: 2
+  = forall<a> fn(mm: (std/core/types/maybe :: V -> V)<(std/core/types/maybe :: V -> V)<a>>){
+    (match (mm) {
+      ((std/core/types/Just(((std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: (std/core/types/maybe :: V -> V)<a>) : (std/core/types/maybe :: V -> V)<a>) : (std/core/types/maybe :: V -> V)<(std/core/types/maybe :: V -> V)<a>> ) as @pat: ((std/core/types/maybe :: V -> V)<(std/core/types/maybe :: V -> V)<a>>))
+         -> std/core/types/Just<a>(x);
+      (@pat@1: ((std/core/types/maybe :: V -> V)<(std/core/types/maybe :: V -> V)<a>>))
+         -> std/core/types/Nothing<a>;
+    });
+  };
+fun (==) // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(mb1: (std/core/types/maybe :: V -> V)<a>, mb2: (std/core/types/maybe :: V -> V)<a>, @implicit/(==): (a, a) -> (e :: E) std/core/types/bool){
+    (match (mb1) {
+      ((std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> (match (mb2) {
+          ((std/core/types/Just((y: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+             -> @implicit/(==)(x, y);
+          ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/False;
+        });
+      ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@2: ((std/core/types/maybe :: V -> V)<a>))
+         -> (match (mb2) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@3: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/True;
+          (@pat@4: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/False;
+        });
+    });
+  };
+fun cmp // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(mb1: (std/core/types/maybe :: V -> V)<a>, mb2: (std/core/types/maybe :: V -> V)<a>, @implicit/cmp: (a, a) -> (e :: E) std/core/types/order){
+    (match (mb1) {
+      ((std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> (match (mb2) {
+          ((std/core/types/Just((y: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+             -> @implicit/cmp(x, y);
+          ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/Gt;
+        });
+      ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@2: ((std/core/types/maybe :: V -> V)<a>))
+         -> (match (mb2) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@3: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/Eq;
+          (@pat@4: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/Lt;
+        });
+    });
+  };
+fun bool // inline size: 1
+  = forall<a> fn(mb: (std/core/types/maybe :: V -> V)<a>){
+    (match (mb) {
+      ((std/core/types/Just((@pat@0: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/types/True;
+      ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };

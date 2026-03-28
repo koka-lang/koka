@@ -1,0 +1,427 @@
+// Efficient views on strings.
+module interface std/core/sslice
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/undiv = std/core/undiv = "";
+import std/core/unsafe = std/core/unsafe = "";
+import std/core/hnd = std/core/hnd = "";
+import std/core/int = std/core/int = "";
+import std/core/string = std/core/string = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A `:sslice` represents a sub-slice of string and
+// has a specific start position and character count. It is used
+// instead of string indices to make the actual internal representation
+// of strings abstract (like UTF-8 or UTF-16). String slices are
+// returned by functions that find sub strings or patterns in
+// in strings. Use `string:(slice : sslice) -> string` to
+// create a fresh substring from a slice.
+//
+// The start and len fields of a slice are in terms of bytes.
+// Slices should only be interacted with safe methods defined in core
+// that take care to not cut strings in the middle of a utf codepoint.
+pub value{0,3,8} type sslice[36,1,36,68] {
+  // A `:sslice` represents a sub-slice of string and
+// has a specific start position and character count. It is used
+// instead of string indices to make the actual internal representation
+// of strings abstract (like UTF-8 or UTF-16). String slices are
+// returned by functions that find sub strings or patterns in
+// in strings. Use `string:(slice : sslice) -> string` to
+// create a fresh substring from a slice.
+//
+// The start and len fields of a slice are in terms of bytes.
+// Slices should only be interacted with safe methods defined in core
+// that take care to not cut strings in the middle of a utf codepoint.
+  con Sslice[36,23,36,28](str: std/core/types/string, start: std/core/types/int, len: std/core/types/int){0,3,8} : (str : std/core/types/string, start : std/core/types/int, len : std/core/types/int) -> sslice = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `len` constructor field of the `:sslice` type.
+fun sslice/len[36,58,36,60] : (^ sslice : sslice) -> std/core/types/int;
+// Automatically generated. Retrieves the `start` constructor field of the `:sslice` type.
+fun sslice/start[36,45,36,49] : (^ sslice : sslice) -> std/core/types/int;
+// Automatically generated. Retrieves the `str` constructor field of the `:sslice` type.
+fun sslice/str[36,31,36,33] : (^ sslice : sslice) -> std/core/types/string;
+pub fun sslice/@copy[36,23,36,28] : (@this : sslice, str : (std/core/types/@optional :: V -> V)<std/core/types/string>, start : (std/core/types/@optional :: V -> V)<std/core/types/int>, len : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> sslice;
+// Internal export for the regex module
+pub fun @new-sslice[39,9,39,19] : (str : std/core/types/string, start : std/core/types/int, len : std/core/types/int) -> sslice;
+// O(n). Copy the `slice` argument into a fresh string.
+// Takes O(1) time if the slice covers the entire string.
+pub fun string[182,12,182,17] : (slice : sslice) -> std/core/types/string;
+// Equality based on contents of the slice
+// O(`n`+`m`) where `n` and `m` are the lengths of the two strings
+pub fun (==)[44,9,44,12] : (slice1 : sslice, slice2 : sslice) -> std/core/types/bool;
+// Inequality based on contents of the slice
+// O(`n`+`m`) where `n` and `m` are the lengths of the two strings
+pub fun (!=)[53,9,53,12] : (slice1 : sslice, slice2 : sslice) -> std/core/types/bool;
+// Equality of slices at the same offset and length on an equal string
+// (The strings do not have to be referentially identical though)
+pub fun (===)[58,9,58,13] : (slice1 : sslice, slice2 : sslice) -> std/core/types/bool;
+// Inequality of slices at the same offset and length on the same string.
+// (The strings do not have to be referentially identical though)
+pub fun (!==)[64,9,64,13] : (slice1 : sslice, slice2 : sslice) -> std/core/types/bool;
+// O(n). Return the number of characters in a string slice
+pub fun count[68,12,68,16] : (slice : sslice) -> std/core/types/int;
+fun first1[73,8,73,13] : (s : std/core/types/string) -> sslice;
+fun last1[78,8,78,12] : (s : std/core/types/string) -> sslice;
+// O(`count`). Advance the start position of a string slice by `count` characters
+// up to the end of the string.
+// A negative `count` advances the start position backwards upto the first position
+// in a string.
+// Maintains the character count of the original slice upto the end of the string.
+// For example:
+//
+// * `"abc".first.advance(1).string == "b"`,
+// * `"abc".first.advance(3).string == ""`,
+// * `"abc".last.advance(-1).string == "b"`.
+//
+pub fun advance[151,12,151,18] : (slice : sslice, ^ count : std/core/types/int) -> sslice;
+// O(`count`). Extend a string slice by `count` characters up to the end of the string.
+// A negative `count` shrinks the slice up to the empty slice.
+// For example:
+//
+// * `"abc".first.extend(1).string == "ab"`
+// * `"abc".last.extend(-1).string == ""`
+//
+pub fun extend[163,12,163,17] : (slice : sslice, ^ count : std/core/types/int) -> sslice;
+// O(`n`). The first `n` (default = `1`) characters in a string.
+pub fun first[84,9,84,13] : (s : std/core/types/string, n : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> sslice;
+// O(`n`). The last `n` (default = `1`) characters in a string
+pub fun last[89,9,89,12] : (s : std/core/types/string, n : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> sslice;
+// O(1). Return the string slice from the start of a string up to the
+// start of `slice` argument.
+pub fun before[170,9,170,14] : (slice : sslice) -> sslice;
+// O(1). Return the string slice from the end of `slice` argument
+// to the end of the string.
+pub fun after[176,9,176,13] : (slice : sslice) -> sslice;
+// Convert the first character of a string to uppercase.
+pub fun capitalize[95,9,95,18] : (s : std/core/types/string) -> std/core/types/string;
+// O(1). The entire string as a slice
+pub fun slice[99,9,99,13] : (s : std/core/types/string) -> sslice;
+// An empty slice
+val empty[103,5,103,9] : sslice;
+// Is a slice empty?
+pub fun is-empty[106,9,106,16] : (slice : sslice) -> std/core/types/bool;
+// An invalid slice
+val invalid[110,5,110,11] : sslice;
+// Is a slice invalid?
+pub fun is-valid[113,9,113,16] : (slice : sslice) -> std/core/types/bool;
+// Is a slice not empty?
+pub fun is-notempty[117,9,117,19] : (slice : sslice) -> std/core/types/bool;
+// Return the first character of a string as a string (or the empty string)
+pub fun head[121,9,121,12] : (s : std/core/types/string) -> std/core/types/string;
+// Return the tail of a string (or the empty string)
+pub fun tail[125,9,125,12] : (s : std/core/types/string) -> std/core/types/string;
+// Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
+pub fun common-prefix[135,12,135,24] : (s : std/core/types/string, t : std/core/types/string, ^ upto : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> sslice;
+// If the slice is not empty,
+// return the first character, and a new slice that is advanced by 1.
+pub fun next[189,12,189,15] : (slice : sslice) -> (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>;
+// Truncates a slice to length 0
+pub fun slice/truncate[195,9,195,22] : (slice : sslice) -> sslice;
+// monadic lift
+fun slice/@mlift-foreach@10110[1,0,1,0] : forall<(e :: E)> (action : (c : std/core/types/char) -> (e :: E) (), rest : sslice, wild_ : ()) -> (e :: E) ();
+// Apply a function for each character in a string slice.
+pub fun slice/foreach[228,9,228,21] : forall<(e :: E)> (slice : sslice, action : (c : std/core/types/char) -> (e :: E) ()) -> (e :: E) ();
+// Invoke a function for each character in a string
+pub fun string/foreach[241,9,241,22] : forall<(e :: E)> (s : std/core/types/string, action : (c : std/core/types/char) -> (e :: E) ()) -> (e :: E) ();
+// monadic lift
+fun pred/@mlift-count@10111[1,0,1,0] : forall<(h :: H),(e :: E)> (cnt : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, @y-x10093 : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ();
+// monadic lift
+fun pred/@mlift-count@10112[1,0,1,0] : forall<(h :: H),(e :: E)> (cnt : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, @y-x10092 : std/core/types/bool) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ();
+// monadic lift
+fun pred/@mlift-count@10113[1,0,1,0] : forall<(h :: H),(e :: E)> (cnt : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/int;
+// Count the number of times a predicate is true for each character in a string
+pub fun pred/count[254,9,254,18] : forall<(e :: E)> (s : std/core/types/string, pred : (std/core/types/char) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/int;
+// Truncate a string to `count` characters.
+pub fun string/truncate[309,9,309,23] : (s : std/core/types/string, count : std/core/types/int) -> std/core/types/string;
+// Gets up to (`end`-`start`) characters from the slice beginning from `start`.
+// If either start or end is negative, returns the original slice
+pub fun subslice[200,9,200,16] : (slice : sslice, start : std/core/types/int, end : std/core/types/int) -> sslice;
+// Gets a slice that only includes up to n characters from the start of the slice.
+pub fun take[206,9,206,12] : (slice : sslice, n : std/core/types/int) -> sslice;
+// Gets a slice that drops the first n characters, shrinking the length of the slice by n accordingly.
+// If the slice does not have n characters, then the slice is shrunk to an empty slice.
+//
+// If maintaining the length of the slice is important, use `advance` instead.
+pub fun drop[213,9,213,12] : (slice : sslice, n : std/core/types/int) -> sslice;
+// monadic lift
+fun slice/@mlift-foreach-while@10114[1,0,1,0] : forall<a,(e :: E)> (action : (c : std/core/types/char) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, rest : sslice, @y-x10100 : (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Apply a function for each character in a string slice.
+// If `action` returns `Just`, the function returns immediately with that result.
+pub fun slice/foreach-while[218,9,218,27] : forall<a,(e :: E)> (slice : sslice, action : (c : std/core/types/char) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Invoke a function for each character in a string.
+// If `action` returns `Just`, the function returns immediately with that result.
+pub fun string/foreach-while[237,9,237,28] : forall<a,(e :: E)> (s : std/core/types/string, action : (c : std/core/types/char) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Return the first character of a string (or `Nothing` for the empty string).
+pub fun head-char[245,9,245,17] : (s : std/core/types/string) -> (std/core/types/maybe :: V -> V)<std/core/types/char>;
+// O(n). If it occurs, return the position of substring `sub` in `s`, tupled with
+// the position just following the substring `sub`.
+pub fun find[269,9,269,12] : (s : std/core/types/string, sub : std/core/types/string) -> (std/core/types/maybe :: V -> V)<sslice>;
+// Return the last index of substring `sub` in `s` if it occurs.
+pub fun find-last[280,9,280,17] : (s : std/core/types/string, sub : std/core/types/string) -> (std/core/types/maybe :: V -> V)<sslice>;
+// Is `pre`  a prefix of `s`? If so, returns a slice
+// of `s` following `pre` up to the end of `s`.
+pub fun starts-with[291,9,291,19] : (s : std/core/types/string, pre : std/core/types/string) -> (std/core/types/maybe :: V -> V)<sslice>;
+fun xends-with[296,8,296,17] : (s : std/core/types/string, post : std/core/types/string) -> std/core/types/bool;
+// Does string `s`  end with `post`?
+// If so, returns a slice of `s` from the start up to the `post` string at the end.
+pub fun ends-with[303,9,303,17] : (s : std/core/types/string, post : std/core/types/string) -> (std/core/types/maybe :: V -> V)<sslice>;
+// Trim off a substring `sub` while `s` starts with that string.
+pub fun trim-left[313,9,313,17] : (s : std/core/types/string, sub : std/core/types/string) -> std/core/types/string;
+// Trim off a substring `sub` while `s` ends with that string.
+pub fun trim-right[320,9,320,18] : (s : std/core/types/string, sub : std/core/types/string) -> std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// Length returns the length in the platform specific encoding (and should not be exported)
+extern length[129,15,129,20] : (s : std/core/types/string) -> std/core/types/int {
+  c inline "kk_string_len_int(#1,kk_context())";
+  cs inline "#1.Length";
+  js inline "#1.length";
+};
+// Does string `s`  contain the string `sub`  ?
+extern xindex-of[262,15,262,23] : (s : std/core/types/string, sub : std/core/types/string) -> std/core/types/ssize_t {
+  c inline "kk_string_index_of1(#1,#2,kk_context())";
+  cs inline "((#1).IndexOf(#2) + 1)";
+  js inline "((#1).indexOf(#2) + 1)";
+};
+// Does string `s`  contain the string `sub`  ?
+extern xlast-index-of[274,15,274,28] : (s : std/core/types/string, sub : std/core/types/string) -> std/core/types/ssize_t {
+  c inline "kk_string_last_index_of1(#1,#2,kk_context())";
+  cs inline "(#1.LastIndexOf(#2) + 1)";
+  js inline "((#1).lastIndexOf(#2) + 1)";
+};
+extern xstarts-with[284,15,284,26] : (s : std/core/types/string, pre : std/core/types/string) -> std/core/types/bool {
+  c inline "kk_string_starts_with(#1,#2,kk_context())";
+  cs inline "#1.StartsWith(#2)";
+  js inline "(#1.substr(0,#2.length) === #2)";
+};
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+specialize "_*" fun pred/count // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(s: std/core/types/string, pred: (std/core/types/char) -> (e :: E) std/core/types/bool){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(action : forall<(h :: H)> () -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/int) -> (() -> (e :: E) std/core/types/int),(action : forall<(h :: H)> () -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/int) -> (e :: E) (() -> (e :: E) std/core/types/int)>((std/core/types/unsafe-no-local-cast<std/core/types/int,(e :: E)>))((forall<(h :: H)> fn<<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>(){
+      std/core/hnd/local-var<std/core/types/int,std/core/types/int,(e :: E),(h :: H)>(0, (fn<<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>(cnt: (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>){
+          val _[256,3,256,11] : ()
+                = (std/core/sslice/#slice/foreach<<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>,(s : std/core/types/string) -> sslice,(s : std/core/types/string) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> sslice>((fn(s@1: std/core/types/string){
+                    (std/core/sslice/Sslice(s@1, 0, (std/core/sslice/length(s@1))));
+                  }))(s)), (fn<<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>(c: std/core/types/char){
+                    (match ((std/core/hnd/@mask-builtin<std/core/types/bool,(e :: E),<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>((fn<(e :: E)>(){
+                      (pred(c));
+                    })))) {
+                      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+                         -> std/core/types/local-set<std/core/types/int,(e :: E),(h :: H)>(cnt, (std/core/types/@open<(std/core/types/total :: E),<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>,(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+                            (std/core/int/int-add(x, y));
+                          }))((std/core/types/local-get<std/core/types/int,(h :: H),(e :: E)>(cnt, (std/core/types/@Hnodiv<(h :: H),std/core/types/int,(e :: E)>))), 1)));
+                      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+                         -> std/core/types/Unit;
+                    });
+                  })));
+          (std/core/types/local-get<std/core/types/int,(h :: H),(e :: E)>(cnt, (std/core/types/@Hnodiv<(h :: H),std/core/types/int,(e :: E)>)));
+        }));
+    }))();
+  };
+recursive specialize "_*" fun slice/foreach // inline size: 7
+  = forall<(e :: E)> fn<(e :: E)>(slice@0: sslice, action: (c : std/core/types/char) -> (e :: E) ()){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(slice : sslice) -> (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>,(slice : sslice) -> (e :: E) (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>>(std/core/sslice/next)(slice@0))) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)> ) as @pat: ((std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>))
+         -> std/core/types/Unit;
+      ((@skip std/core/types/Just(((@skip std/core/types/Tuple2((c: std/core/types/char) : std/core/types/char, ((@skip std/core/sslice/Sslice((@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: std/core/types/int) : std/core/types/int, (@pat@4: std/core/types/int) : std/core/types/int) : sslice ) as rest: sslice) : sslice) : (std/core/types/char, sslice) ) as @pat@1: (std/core/types/char, sslice)) : (std/core/types/char, sslice)) : (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)> ) as @pat@0: ((std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>))
+         -> val _[232,7,232,15] : ()
+                  = action(c);
+        std/core/sslice/#slice/foreach<(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : sslice) -> sslice,(x : sslice) -> (e :: E) sslice>((std/core/undiv/pretend-decreasing<sslice>))(rest)), action);
+    });
+  };
+recursive specialize "_*" fun slice/foreach-while // inline size: 8
+  = forall<a,(e :: E)> fn<(e :: E)>(slice@0: sslice, action: (c : std/core/types/char) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(slice : sslice) -> (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>,(slice : sslice) -> (e :: E) (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>>(std/core/sslice/next)(slice@0))) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)> ) as @pat: ((std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>))
+         -> std/core/types/Nothing<a>;
+      ((@skip std/core/types/Just(((@skip std/core/types/Tuple2((c: std/core/types/char) : std/core/types/char, ((@skip std/core/sslice/Sslice((@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: std/core/types/int) : std/core/types/int, (@pat@4: std/core/types/int) : std/core/types/int) : sslice ) as rest: sslice) : sslice) : (std/core/types/char, sslice) ) as @pat@1: (std/core/types/char, sslice)) : (std/core/types/char, sslice)) : (std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)> ) as @pat@0: ((std/core/types/maybe :: V -> V)<(std/core/types/char, sslice)>))
+         -> (match ((action(c))) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@5: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/sslice/#slice/foreach-while<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : sslice) -> sslice,(x : sslice) -> (e :: E) sslice>((std/core/undiv/pretend-decreasing<sslice>))(rest)), action);
+          (res: ((std/core/types/maybe :: V -> V)<a>))
+             -> res;
+        });
+    });
+  };
+specialize "_*" fun string/foreach // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(s: std/core/types/string, action: (c : std/core/types/char) -> (e :: E) ()){
+    std/core/sslice/#slice/foreach<(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(s : std/core/types/string) -> sslice,(s : std/core/types/string) -> (e :: E) sslice>((fn(s@0: std/core/types/string){
+        (std/core/sslice/Sslice(s@0, 0, (std/core/sslice/length(s@0))));
+      }))(s)), action);
+  };
+specialize "_*" fun string/foreach-while // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(s: std/core/types/string, action: (c : std/core/types/char) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/core/sslice/#slice/foreach-while<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(s : std/core/types/string) -> sslice,(s : std/core/types/string) -> (e :: E) sslice>((fn(s@0: std/core/types/string){
+        (std/core/sslice/Sslice(s@0, 0, (std/core/sslice/length(s@0))));
+      }))(s)), action);
+  };
+inline borrow "^" fun sslice/len // inline size: 0
+  = fn(sslice: sslice){
+    match (sslice) {
+      ((@skip std/core/sslice/Sslice((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int) : sslice ) as @pat: sslice)
+         -> @x;
+    };
+  };
+inline borrow "^" fun sslice/start // inline size: 0
+  = fn(sslice: sslice){
+    match (sslice) {
+      ((@skip std/core/sslice/Sslice((@pat@0: std/core/types/string) : std/core/types/string, (@x: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : sslice ) as @pat: sslice)
+         -> @x;
+    };
+  };
+inline borrow "^" fun sslice/str // inline size: 0
+  = fn(sslice: sslice){
+    match (sslice) {
+      ((@skip std/core/sslice/Sslice((@x: std/core/types/string) : std/core/types/string, (@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : sslice ) as @pat: sslice)
+         -> @x;
+    };
+  };
+fun sslice/@copy // inline size: 4
+  = fn(@this: sslice, str: (std/core/types/@optional :: V -> V)<std/core/types/string>, start: (std/core/types/@optional :: V -> V)<std/core/types/int>, len: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/core/sslice/Sslice((match (str) {
+        ((std/core/types/@OptArg((@uniq-str@139: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-str@139;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> (match (@this) {
+            ((@skip std/core/sslice/Sslice((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: std/core/types/int) : std/core/types/int, (@pat@1@0: std/core/types/int) : std/core/types/int) : sslice ) as @pat@1: sslice)
+               -> @x;
+          });
+      }), (match (start) {
+        ((std/core/types/@OptArg((@uniq-start@147: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@1@1: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-start@147;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@2: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/core/sslice/Sslice((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: std/core/types/int) : std/core/types/int, (@pat@1@2: std/core/types/int) : std/core/types/int) : sslice ) as @pat@3: sslice)
+               -> @x@0;
+          });
+      }), (match (len) {
+        ((std/core/types/@OptArg((@uniq-len@155: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@3@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-len@155;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@4: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> (match (@this) {
+            ((@skip std/core/sslice/Sslice((@pat@0@2: std/core/types/string) : std/core/types/string, (@pat@1@3: std/core/types/int) : std/core/types/int, (@x@1: std/core/types/int) : std/core/types/int) : sslice ) as @pat@5: sslice)
+               -> @x@1;
+          });
+      }));
+  };
+fun @new-sslice // inline size: 1
+  = fn(str: std/core/types/string, start: std/core/types/int, len: std/core/types/int){
+    std/core/sslice/Sslice(str, start, len);
+  };
+fun (!=) // inline size: 2
+  = fn(slice1: sslice, slice2: sslice){
+    val b@10003[1,0,1,0] : std/core/types/bool
+          = std/core/sslice/(==)(slice1, slice2);
+    match (b@10003) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/False;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/True;
+    };
+  };
+fun (!==) // inline size: 2
+  = fn(slice1: sslice, slice2: sslice){
+    val b@10004[1,0,1,0] : std/core/types/bool
+          = std/core/sslice/(===)(slice1, slice2);
+    match (b@10004) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/False;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/True;
+    };
+  };
+fun before // inline size: 1
+  = fn(slice@0: sslice){
+    match (slice@0) {
+      ((@skip std/core/sslice/Sslice((s: std/core/types/string) : std/core/types/string, (start: std/core/types/int) : std/core/types/int, (@pat@0: std/core/types/int) : std/core/types/int) : sslice ) as @pat: sslice)
+         -> std/core/sslice/Sslice(s, 0, start);
+    };
+  };
+fun slice // inline size: 2
+  = fn(s: std/core/types/string){
+    std/core/sslice/Sslice(s, 0, (std/core/sslice/length(s)));
+  };
+fun is-empty // inline size: 2
+  = fn(slice@0: sslice){
+    val b@10032[1,0,1,0] : std/core/types/bool
+          = std/core/int/(>)((match (slice@0) {
+              ((@skip std/core/sslice/Sslice((@pat@0@0: std/core/types/string) : std/core/types/string, (@pat@1@0: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int) : sslice ) as @pat@1: sslice)
+                 -> @x;
+            }), 0);
+    match (b@10032) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/False;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/True;
+    };
+  };
+fun is-valid // inline size: 1
+  = fn(slice@0: sslice){
+    std/core/int/(>=)((match (slice@0) {
+        ((@skip std/core/sslice/Sslice((@pat@0: std/core/types/string) : std/core/types/string, (@x: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : sslice ) as @pat: sslice)
+           -> @x;
+      }), 0);
+  };
+fun is-notempty // inline size: 1
+  = fn(slice@0: sslice){
+    std/core/int/(>)((match (slice@0) {
+        ((@skip std/core/sslice/Sslice((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/int) : std/core/types/int, (@x: std/core/types/int) : std/core/types/int) : sslice ) as @pat: sslice)
+           -> @x;
+      }), 0);
+  };
+fun slice/truncate // inline size: 1
+  = fn(slice@0: sslice){
+    std/core/sslice/Sslice((match (slice@0) {
+        ((@skip std/core/sslice/Sslice((@x: std/core/types/string) : std/core/types/string, (@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int) : sslice ) as @pat: sslice)
+           -> @x;
+      }), (match (slice@0) {
+        ((@skip std/core/sslice/Sslice((@pat@0@0: std/core/types/string) : std/core/types/string, (@x@0: std/core/types/int) : std/core/types/int, (@pat@1@0: std/core/types/int) : std/core/types/int) : sslice ) as @pat@2: sslice)
+           -> @x@0;
+      }), 0);
+  };
+fun take // inline size: 4
+  = fn(slice@0: sslice, n: std/core/types/int){
+    match ((std/core/int/(<)(n, 0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> slice@0;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/sslice/extend((std/core/sslice/Sslice((match (slice@0) {
+              ((@skip std/core/sslice/Sslice((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: std/core/types/int) : std/core/types/int, (@pat@1@0: std/core/types/int) : std/core/types/int) : sslice ) as @pat@1: sslice)
+                 -> @x;
+            }), (match (slice@0) {
+              ((@skip std/core/sslice/Sslice((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: std/core/types/int) : std/core/types/int, (@pat@1@1: std/core/types/int) : std/core/types/int) : sslice ) as @pat@2: sslice)
+                 -> @x@0;
+            }), 0)), n);
+    };
+  };
+fun head-char // inline size: 3
+  = fn(s: std/core/types/string){
+    std/core/sslice/#slice/foreach-while<std/core/types/char,(std/core/types/total :: E)>((std/core/sslice/Sslice(s, 0, (std/core/sslice/length(s)))), (std/core/types/Just<std/core/types/char>));
+  };

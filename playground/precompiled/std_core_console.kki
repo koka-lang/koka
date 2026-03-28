@@ -1,0 +1,79 @@
+// Standard output to the console.
+module interface std/core/console
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/unsafe = std/core/unsafe = "";
+import std/core/hnd = std/core/hnd = "";
+import std/core/string = std/core/string = "";
+import std/core/show = std/core/show = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// Stateful functions can manipulate heap `:h` using allocations, reads and writes.
+local alias std/core/types/st[139,1,139,47]<(h :: H)> :: H -> E = <(std/core/types/read :: H -> X)<(h :: H)>,(std/core/types/write :: H -> X)<(h :: H)>,(std/core/types/alloc :: H -> X)<(h :: H)>> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// The console effect signifies that a function may write to the console.
+pub type console[23,1,23,21] :: X ;
+ 
+//------------------------------
+//#kki: declarations
+ 
+val redirect[30,14,30,21] : (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(std/core/types/maybe :: V -> V)<(std/core/types/string) -> <(console :: X)> ()>>;
+// Redirect `print` and `println` calls to a specified function.
+fun print-redirect[34,14,34,27] : (print : (msg : std/core/types/string) -> <(console :: X)> ()) -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(console :: X),(std/core/types/ndet :: X)> ();
+// Print a string to the console, including a final newline character.
+fun xprintsln[38,8,38,16] : (s : std/core/types/string) -> <(console :: X)> ();
+// Print a string to the console
+fun xprints[44,8,44,14] : (s : std/core/types/string) -> <(console :: X)> ();
+fun prints[53,14,53,19] : (s : std/core/types/string) -> <(console :: X)> ();
+fun printsln[60,14,60,21] : (s : std/core/types/string) -> <(console :: X)> ();
+// Print a string to the console.
+pub fun string/print[70,9,70,20] : (s : std/core/types/string) -> <(console :: X)> ();
+// Print a value that has a `show` function
+pub fun default/show/print[74,9,74,26] : forall<a,(e :: E)> (x : a, ?show : (a) -> <(console :: X)|(e :: E)> std/core/types/string) -> <(console :: X)|(e :: E)> ();
+// Print a string to the console, including a final newline character.
+pub fun string/println[78,9,78,22] : (s : std/core/types/string) -> <(console :: X)> ();
+// Print a value that has a `show` function, including a final newline character.
+pub fun default/show/println[82,9,82,28] : forall<a,(e :: E)> (x : a, ?show : (a) -> <(console :: X)|(e :: E)> std/core/types/string) -> <(console :: X)|(e :: E)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// _Unsafe_. This function removes the state effect from the effect of an action
+extern unsafe-nostate[50,15,50,28] : forall<a,(h :: H)> (action : () -> <(std/core/types/st :: H -> E)<(h :: H)>,(console :: X)> a) -> (() -> <(console :: X)> a) = inline "#1";
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun string/print // inline size: 1
+  = fn<<(console :: X)>>(s: std/core/types/string){
+    std/core/console/prints(s);
+  };
+fun default/show/print // inline size: 3
+  = forall<a,(e :: E)> fn<<(console :: X)|(e :: E)>>(x: a, @implicit/show: (a) -> <(console :: X)|(e :: E)> std/core/types/string){
+    std/core/types/@open<<(console :: X)>,<(console :: X)|(e :: E)>,(s : std/core/types/string) -> <(console :: X)> (),(s : std/core/types/string) -> <(console :: X)|(e :: E)> ()>(std/core/console/prints)((@implicit/show(x)));
+  };
+fun string/println // inline size: 1
+  = fn<<(console :: X)>>(s: std/core/types/string){
+    std/core/console/printsln(s);
+  };
+fun default/show/println // inline size: 3
+  = forall<a,(e :: E)> fn<<(console :: X)|(e :: E)>>(x: a, @implicit/show: (a) -> <(console :: X)|(e :: E)> std/core/types/string){
+    std/core/types/@open<<(console :: X)>,<(console :: X)|(e :: E)>,(s : std/core/types/string) -> <(console :: X)> (),(s : std/core/types/string) -> <(console :: X)|(e :: E)> ()>(std/core/console/printsln)((@implicit/show(x)));
+  };

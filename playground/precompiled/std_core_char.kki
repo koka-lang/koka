@@ -1,0 +1,162 @@
+// Standard `:char` functions.
+//
+// Characters are unicode _codepoint_\/s.
+// This is different from a unicode _grapheme_ which represents a single displayed
+// symbol and can consists of multiple codepoints due to combining characters and marks.
+module interface std/core/char
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/int = std/core/int = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Compare character code points.
+pub fip fun cmp[50,13,50,15] : (x : std/core/types/char, y : std/core/types/char) -> std/core/types/order;
+// Order two characters in ascending order.
+pub fip fun order2[56,13,56,18] : (x : std/core/types/char, y : std/core/types/char) -> (std/core/types/order2 :: V -> V)<std/core/types/char>;
+// Add two character code points
+pub fip fun (+)[72,13,72,15] : (c : std/core/types/char, d : std/core/types/char) -> std/core/types/char;
+// Subtract two character code points
+pub fip fun (-)[76,13,76,15] : (c : std/core/types/char, d : std/core/types/char) -> std/core/types/char;
+// Is the character a lower-case ASCII character?
+pub fip fun is-lower[80,13,80,20] : (c : std/core/types/char) -> std/core/types/bool;
+// Is the character an upper-case ASCII character?
+pub fip fun is-upper[84,13,84,20] : (c : std/core/types/char) -> std/core/types/bool;
+// Is the character an ASCII digit ?
+pub fip fun is-digit[88,13,88,20] : (c : std/core/types/char) -> std/core/types/bool;
+// Is the character an ASCII hexa-decimal digit?
+pub fip fun is-hex-digit[92,13,92,24] : (c : std/core/types/char) -> std/core/types/bool;
+// Is the character an ASCII letter?
+pub fip fun is-alpha[96,13,96,20] : (c : std/core/types/char) -> std/core/types/bool;
+// Is the character ASCII letter or digit?
+pub fip fun is-alpha-num[100,13,100,24] : (c : std/core/types/char) -> std/core/types/bool;
+// Is the character an ASCII character, e.g. `c <= '\x7F'`?
+pub fip fun is-ascii[104,13,104,20] : (c : std/core/types/char) -> std/core/types/bool;
+// Is the character an ASCII control character, e.g. `c < ' '`?
+pub fip fun is-control[108,13,108,22] : (c : std/core/types/char) -> std/core/types/bool;
+// Tests if a character is an element of `" \t\n\r"`
+pub fip fun is-white[112,13,112,20] : (c : std/core/types/char) -> std/core/types/bool;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// Are two characters equal?
+pub fip extern (==)[24,23,24,26] : (std/core/types/char, std/core/types/char) -> std/core/types/bool {
+  inline "(#1 == #2)";
+  js inline "(#1 === #2)";
+};
+// Are two characters not equal?
+pub fip extern (!=)[29,23,29,26] : (std/core/types/char, std/core/types/char) -> std/core/types/bool {
+  inline "(#1 != #2)";
+  js inline "(#1 !== #2)";
+};
+// Is a character code point lower or equal to that of another?
+pub fip extern (<=)[34,23,34,26] : (std/core/types/char, std/core/types/char) -> std/core/types/bool = inline "(#1 <= #2)";
+// Is a character code point greater or equal to that of another?
+pub fip extern (>=)[38,23,38,26] : (std/core/types/char, std/core/types/char) -> std/core/types/bool = inline "(#1 >= #2)";
+// Is a character code point lower to that of another?
+pub fip extern (<)[42,23,42,25] : (std/core/types/char, std/core/types/char) -> std/core/types/bool = inline "(#1 < #2)";
+// Is a character code point greater to that of another?
+pub fip extern (>)[46,23,46,25] : (std/core/types/char, std/core/types/char) -> std/core/types/bool = inline "(#1 > #2)";
+// Convert a character to its unicode code point
+pub fip extern int[60,23,60,25] : (std/core/types/char) -> std/core/types/int {
+  inline "#1";
+  c inline "kk_integer_from_int(#1,kk_context())";
+  cs inline "new BigInteger(#1)";
+};
+// Convert a unicode code point to a character
+pub fip extern int/char[66,23,66,30] : (i : std/core/types/int) -> std/core/types/char {
+  inline "(#1)";
+  c inline "kk_integer_clamp32(#1,kk_context())";
+  cs inline "Primitive.IntToInt32(#1)";
+};
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fip fun cmp // inline size: 4
+  = fn(x: std/core/types/char, y: std/core/types/char){
+    match ((std/core/char/(<)(x, y))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Lt;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/core/char/(>)(x, y))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Eq;
+        });
+    };
+  };
+fip fun (+) // inline size: 4
+  = fn(c: std/core/types/char, d: std/core/types/char){
+    val x@10000[1,0,1,0] : std/core/types/int
+      = std/core/char/int(c);
+    val y@10001[1,0,1,0] : std/core/types/int
+      = std/core/char/int(d);
+    std/core/char/#int/char((std/core/int/int-add(x@10000, y@10001)));
+  };
+fip fun (-) // inline size: 4
+  = fn(c: std/core/types/char, d: std/core/types/char){
+    val x@10002[1,0,1,0] : std/core/types/int
+      = std/core/char/int(c);
+    val y@10003[1,0,1,0] : std/core/types/int
+      = std/core/char/int(d);
+    std/core/char/#int/char((std/core/int/int-sub(x@10002, y@10003)));
+  };
+fip fun is-lower // inline size: 3
+  = fn(c: std/core/types/char){
+    match ((std/core/char/(>=)(c, 'a'))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/char/(<=)(c, 'z');
+      (@pat@0: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fip fun is-upper // inline size: 3
+  = fn(c: std/core/types/char){
+    match ((std/core/char/(>=)(c, 'A'))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/char/(<=)(c, 'Z');
+      (@pat@0: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fip fun is-digit // inline size: 3
+  = fn(c: std/core/types/char){
+    match ((std/core/char/(>=)(c, '0'))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/char/(<=)(c, '9');
+      (@pat@0: std/core/types/bool)
+         -> std/core/types/False;
+    };
+  };
+fip fun is-ascii // inline size: 1
+  = fn(c: std/core/types/char){
+    std/core/char/(<=)(c, '\x7F');
+  };
+fip fun is-control // inline size: 1
+  = fn(c: std/core/types/char){
+    std/core/char/(<)(c, ' ');
+  };

@@ -1,0 +1,393 @@
+/* Basic effect handler examples
+   Prerequisites:
+   - learn/basic
+   - learn/var
+   - learn/with
+*/
+module interface handlers/basic
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/random = std/num/random = "";
+import std/num/int32 = std/num/int32 inline = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// Declare an effect `:input` with a single operation `ask`.
+// We use `fun` instead of general `ctl` to ensure that all handlers
+// will always resume (at most once) with the result.
+recursive effect type ask[20,1,20,25] <(e :: E),a> :: (E, V) -> V {
+  con @Hnd-ask[20,1,20,13](@cfc: std/core/types/int, @fun-ask: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>) -> (ask :: (E, V) -> V)<(e :: E),a> = 1;
+};
+recursive effect type flip[141,1,141,24] <(e :: E),a> :: (E, V) -> V {
+  con @Hnd-flip[141,1,141,14](@cfc: std/core/types/int, @ctl-flip: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>) -> (flip :: (E, V) -> V)<(e :: E),a> = 1;
+};
+recursive effect type raise[44,1,44,33] <(e :: E),a> :: (E, V) -> V {
+  con @Hnd-raise[44,1,44,15](@cfc: std/core/types/int, @ctl-raise: forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,b,(raise :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,b,(raise :: (E, V) -> V),(e :: E),a>) -> (raise :: (E, V) -> V)<(e :: E),a> = 1;
+};
+recursive effect type state[74,1,76,23] <a,(e :: E),b> :: (V, E, V) -> V {
+  con @Hnd-state[74,1,74,12](@cfc: std/core/types/int, @fun-get: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, @fun-put: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>){0,3,8} : forall<a,(e :: E),b> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) -> (state :: (V, E, V) -> V)<a,(e :: E),b> = 1;
+};
+// Now we use general ctl `ctl` as we want to enable breaking
+// the interaction (and thus not resume). Equivalent to:
+// ````
+// effect yield<a>
+//   ctl yield( item : a ) : ()
+// ````
+recursive effect type yield[111,1,111,36] <a,(e :: E),b> :: (V, E, V) -> V {
+  con @Hnd-yield[111,1,111,18](@cfc: std/core/types/int, @ctl-yield: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>){0,2,8} : forall<a,(e :: E),b> (std/core/types/int, (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) -> (yield :: (V, E, V) -> V)<a,(e :: E),b> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:ask` type.
+fun ask/@cfc[20,1,20,13] : forall<(e :: E),a> (^ ask : (ask :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// Automatically generated. Retrieves the `@fun-ask` constructor field of the `:ask` type.
+fun ask/@fun-ask[20,12,20,25] : forall<(e :: E),a> (^ ask : (ask :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>;
+// runtime tag for the effect `:ask`
+val ask/@tag[20,1,20,13] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(ask :: (E, V) -> V)>;
+// handler for the effect `:ask`
+fun ask/@handle[20,12,20,13] : forall<a,(e :: E),b> (hnd : (ask :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// select `ask` operation out of effect `:ask`
+fun ask/@select[20,12,20,25] : forall<(e :: E),a> (^ hnd : (ask :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>;
+// Call the `fun ask` operation of the effect `:ask`
+fun ask[20,12,20,14] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>> std/core/types/string;
+// monadic lift
+fun @mlift-hello@10113[1,0,1,0] : (name : std/core/types/string, @y-x10031 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-hello@10114[1,0,1,0] : (name : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>> ();
+fun hello[22,5,22,9] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>,(std/core/console/console :: X)> ();
+pub fun example2[27,9,27,16] : () -> <(std/core/console/console :: X)> ();
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:raise` type.
+fun raise/@cfc[44,1,44,15] : forall<(e :: E),a> (^ raise : (raise :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// Automatically generated. Retrieves the `@ctl-raise` constructor field of the `:raise` type.
+fun raise/@ctl-raise[44,12,44,33] : forall<(e :: E),a,b> (^ raise : (raise :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,b,(raise :: (E, V) -> V),(e :: E),a>;
+// runtime tag for the effect `:raise`
+val raise/@tag[44,1,44,15] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(raise :: (E, V) -> V)>;
+// handler for the effect `:raise`
+fun raise/@handle[44,12,44,15] : forall<a,(e :: E),b> (hnd : (raise :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// select `raise` operation out of effect `:raise`
+fun raise/@select[44,12,44,33] : forall<a,(e :: E),b> (^ hnd : (raise :: (E, V) -> V)<(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,a,(raise :: (E, V) -> V),(e :: E),b>;
+// Call the `ctl raise` operation of the effect `:raise`
+fun raise[44,12,44,16] : forall<a> (s : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>> a;
+fun safe-div[46,5,46,12] : (x : std/core/types/int, y : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>> std/core/types/int;
+fun rcatch[50,5,50,10] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>|(e :: E)> a, h : (std/core/types/string) -> (e :: E) a) -> (e :: E) a;
+fun zerodiv[55,5,55,11] : (x : std/core/types/int, y : std/core/types/int) -> std/core/types/int;
+// monadic lift
+fun @mlift-to-maybe@10115[1,0,1,0] : forall<a,(e :: E)> (@y-x10039 : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>|(e :: E)> (std/core/types/maybe :: V -> V)<a>;
+// reify the exception effect back to a `:maybe` value
+fun to-maybe[60,5,60,12] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+pub fun example1[65,9,65,16] : () -> <(std/core/console/console :: X)> ();
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:state` type.
+fun state/@cfc[74,1,74,12] : forall<a,(e :: E),b> (^ state : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> std/core/types/int;
+// runtime tag for the effect `:state`
+val state/@tag[74,1,74,12] : forall<a> (std/core/hnd/htag :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>;
+// handler for the effect `:state`
+fun state/@handle[74,8,74,12] : forall<a,b,(e :: E),c> (hnd : (state :: (V, E, V) -> V)<a,(e :: E),c>, ret : (res : b) -> (e :: E) c, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>|(e :: E)> b) -> (e :: E) c;
+// Automatically generated. Retrieves the `@fun-get` constructor field of the `:state` type.
+fun state/@fun-get[75,7,75,15] : forall<a,(e :: E),b> (^ state : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// select `get` operation out of effect `:state`
+fun get/@select[75,7,75,15] : forall<a,(e :: E),b> (^ hnd : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// Call the `fun get` operation of the effect `:state`
+fun get[75,7,75,9] : forall<a> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> a;
+// Automatically generated. Retrieves the `@fun-put` constructor field of the `:state` type.
+fun state/@fun-put[76,7,76,23] : forall<a,(e :: E),b> (^ state : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// select `put` operation out of effect `:state`
+fun put/@select[76,7,76,23] : forall<a,(e :: E),b> (^ hnd : (state :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>;
+// Call the `fun put` operation of the effect `:state`
+fun put[76,7,76,9] : forall<a> (x : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> ();
+// monadic lift
+fun @mlift-counter@10116[1,0,1,0] : (wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<std/core/types/int>>> ();
+// monadic lift
+fun @mlift-counter@10117[1,0,1,0] : (i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<std/core/types/int>>> ();
+fun counter[79,5,79,11] : () -> <(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<std/core/types/int>>> ();
+// monadic lift
+fun @mlift-state@10118[1,0,1,0] : forall<(h :: H),a,(e :: E),b> (x@0 : a, @y-x10051 : b) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/div :: X)|(e :: E)> (a, b);
+// State handler.
+fun state[88,5,88,9] : forall<a,(e :: E),b> (init : b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<b>>,(std/core/types/div :: X)|(e :: E)> a) -> <(std/core/types/div :: X)|(e :: E)> (a, b);
+pub fun example3[96,9,96,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> std/core/types/int;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:yield` type.
+fun yield/@cfc[111,1,111,18] : forall<a,(e :: E),b> (^ yield : (yield :: (V, E, V) -> V)<a,(e :: E),b>) -> std/core/types/int;
+// Automatically generated. Retrieves the `@ctl-yield` constructor field of the `:yield` type.
+fun yield/@ctl-yield[111,15,111,36] : forall<a,(e :: E),b> (^ yield : (yield :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>;
+// runtime tag for the effect `:yield`
+val yield/@tag[111,1,111,18] : forall<a> (std/core/hnd/htag :: ((E, V) -> V) -> V)<(yield :: (V, E, V) -> V)<a>>;
+// handler for the effect `:yield`
+fun yield/@handle[111,15,111,18] : forall<a,b,(e :: E),c> (hnd : (yield :: (V, E, V) -> V)<a,(e :: E),c>, ret : (res : b) -> (e :: E) c, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>|(e :: E)> b) -> (e :: E) c;
+// select `yield` operation out of effect `:yield`
+fun yield/@select[111,15,111,36] : forall<a,(e :: E),b> (^ hnd : (yield :: (V, E, V) -> V)<a,(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>;
+// Call the `ctl yield` operation of the effect `:yield`
+fun yield[111,15,111,19] : forall<a> (item : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> ();
+// monadic lift
+fun @mlift-iterate@10119[1,0,1,0] : forall<a> (xx : (std/core/types/list :: V -> V)<a>, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> ();
+fun iterate[113,5,113,11] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> ();
+// monadic lift
+fun @mlift-foreach@10120[1,0,1,0] : forall<(e :: E)> (resume : (()) -> (e :: E) (), @y-x10061 : std/core/types/bool) -> (e :: E) ();
+fun foreach[119,5,119,11] : forall<a,(e :: E)> (f : (a) -> (e :: E) std/core/types/bool, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>|(e :: E)> ()) -> (e :: E) ();
+pub fun example4[124,9,124,16] : () -> <(std/core/console/console :: X)> ();
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:flip` type.
+fun flip/@cfc[141,1,141,14] : forall<(e :: E),a> (^ flip : (flip :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// Automatically generated. Retrieves the `@ctl-flip` constructor field of the `:flip` type.
+fun flip/@ctl-flip[141,12,141,24] : forall<(e :: E),a> (^ flip : (flip :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>;
+// runtime tag for the effect `:flip`
+val flip/@tag[141,1,141,14] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(flip :: (E, V) -> V)>;
+// handler for the effect `:flip`
+fun flip/@handle[141,12,141,14] : forall<a,(e :: E),b> (hnd : (flip :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// select `flip` operation out of effect `:flip`
+fun flip/@select[141,12,141,24] : forall<(e :: E),a> (^ hnd : (flip :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>;
+// Call the `ctl flip` operation of the effect `:flip`
+fun flip[141,12,141,15] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> std/core/types/bool;
+// handler that randomly flips
+val coinflip[150,5,150,12] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>,(std/core/types/ndet :: X)|(e :: E)> a) -> <(std/core/types/ndet :: X)|(e :: E)> a;
+// monadic lift
+fun @mlift-amb@10121[1,0,1,0] : forall<a,(e :: E)> (@y-x10069 : (std/core/types/list :: V -> V)<a>, @y-x10070 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-amb@10122[1,0,1,0] : forall<a,(e :: E)> (resume : (std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>, @y-x10069 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// handler that returns all possible outcomes
+val amb[155,5,155,7] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-example4b@10123[1,0,1,0] : (resume : (()) -> <(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> (), x : std/core/types/int, @c-x10074 : ()) -> ();
+// monadic lift
+fun @mlift-example4b@10124[1,0,1,0] : (resume : (()) -> <(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> (), x : std/core/types/int, @y-x10072 : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> ();
+pub fun example4b[128,9,128,17] : () -> <(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-xor@10125[1,0,1,0] : (p : std/core/types/bool, q : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-xor@10126[1,0,1,0] : (p : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> std/core/types/bool;
+fun xor[143,5,143,7] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> std/core/types/bool;
+pub fun example5[160,9,160,16] : () -> <(std/core/console/console :: X)> ();
+// monadic lift
+fun @mlift-surprising@10127[1,0,1,0] : (i : std/core/types/int, p : std/core/types/bool, wild_ : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<std/core/types/int>>,(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-surprising@10128[1,0,1,0] : (p : std/core/types/bool, i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<std/core/types/int>>,(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> std/core/types/bool;
+// monadic lift
+fun @mlift-surprising@10129[1,0,1,0] : (p : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<std/core/types/int>>> std/core/types/bool;
+fun surprising[169,5,169,14] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<std/core/types/int>>> std/core/types/bool;
+pub fun example6[176,9,176,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+pub fun example7[179,9,179,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+// --------------------------------------------------------
+//  Testing
+// --------------------------------------------------------
+pub fun main[186,9,186,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> std/core/types/int;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun ask/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(ask@0: (ask :: (E, V) -> V)<(e :: E),a>){
+    (match (ask@0) {
+      ((@skip handlers/basic/@Hnd-ask((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>) : (ask :: (E, V) -> V)<(e :: E),a> ) as @pat: ((ask :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun ask/@fun-ask // inline size: 0
+  = forall<(e :: E),a> fn(ask@0: (ask :: (E, V) -> V)<(e :: E),a>){
+    (match (ask@0) {
+      ((@skip handlers/basic/@Hnd-ask((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>) : (ask :: (E, V) -> V)<(e :: E),a> ) as @pat: ((ask :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun ask/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (ask :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/basic/@Hnd-ask((@pat@0: std/core/types/int) : std/core/types/int, (@fun-ask: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(ask :: (E, V) -> V),(e :: E),a>) : (ask :: (E, V) -> V)<(e :: E),a> ) as @pat: ((ask :: (E, V) -> V)<(e :: E),a>))
+         -> @fun-ask;
+    });
+  };
+inline fun ask // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/core/types/string,<(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>>,(ask :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(ask :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(ask :: (E, V) -> V)>>((std/core/hnd/@evv-at<(ask :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(ask :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/basic/#ask/@select);
+  };
+fun example2 // inline size: 3
+  = fn<<(std/core/console/console :: X)>>(){
+    handlers/basic/#ask/@handle<(),<(std/core/console/console :: X)>,()>((handlers/basic/@Hnd-ask<<(std/core/console/console :: X)>,()>(1, (std/core/hnd/clause-tail-noop0<<(std/core/console/console :: X)>,(),(ask :: (E, V) -> V),std/core/types/string>((fn<<(std/core/console/console :: X)>>(){
+          "there";
+        }))))), (fn<<(std/core/console/console :: X)>>(@res: ()){
+        @res;
+      }), handlers/basic/hello);
+  };
+inline borrow "^" fun raise/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(raise@0: (raise :: (E, V) -> V)<(e :: E),a>){
+    (match (raise@0) {
+      ((@skip handlers/basic/@Hnd-raise((@x: std/core/types/int) : std/core/types/int, (@pat@0: (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,b,(raise :: (E, V) -> V),(e :: E),a>)) : (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,b,(raise :: (E, V) -> V),(e :: E),a>)) : (raise :: (E, V) -> V)<(e :: E),a> ) as @pat: ((raise :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun raise/@ctl-raise // inline size: 0
+  = forall<(e :: E),a,b> fn(raise@0: (raise :: (E, V) -> V)<(e :: E),a>){
+    (match (raise@0) {
+      ((@skip handlers/basic/@Hnd-raise((@pat@0: std/core/types/int) : std/core/types/int, (@x: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,c,(raise :: (E, V) -> V),(e :: E),a>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,c,(raise :: (E, V) -> V),(e :: E),a>)) : (raise :: (E, V) -> V)<(e :: E),a> ) as @pat: ((raise :: (E, V) -> V)<(e :: E),a>))
+         -> @x<b>;
+    });
+  };
+inline borrow "^" fun raise/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (raise :: (E, V) -> V)<(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/basic/@Hnd-raise((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-raise: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,c,(raise :: (E, V) -> V),(e :: E),b>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/string,c,(raise :: (E, V) -> V),(e :: E),b>)) : (raise :: (E, V) -> V)<(e :: E),b> ) as @pat: ((raise :: (E, V) -> V)<(e :: E),b>))
+         -> @ctl-raise<a>;
+    });
+  };
+inline fun raise // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>>>(s: std/core/types/string){
+    std/core/hnd/@perform1<std/core/types/string,a,(raise :: (E, V) -> V),<(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(raise :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(raise :: (E, V) -> V)>>((std/core/hnd/@evv-at<(raise :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/basic/#raise/@select<a,(e :: E),b>), s);
+  };
+fun zerodiv // inline size: 4
+  = fn(x: std/core/types/int, y: std/core/types/int){
+    handlers/basic/#raise/@handle<std/core/types/int,(std/core/types/total :: E),std/core/types/int>((handlers/basic/@Hnd-raise<(std/core/types/total :: E),std/core/types/int>(3, (forall<a> std/core/hnd/clause-control1<std/core/types/string,_b,(std/core/types/total :: E),(raise :: (E, V) -> V),std/core/types/int>((fn(s: std/core/types/string, resume: (a) -> std/core/types/int){
+          0;
+        }))))), (fn(@res: std/core/types/int){
+        @res;
+      }), (fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(raise :: (E, V) -> V)>>>(){
+        (handlers/basic/safe-div(x, y));
+      }));
+  };
+inline borrow "^" fun state/@cfc // inline size: 0
+  = forall<a,(e :: E),b> fn(state@0: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (state@0) {
+      ((@skip handlers/basic/@Hnd-state((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun state/@fun-get // inline size: 0
+  = forall<a,(e :: E),b> fn(state@0: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (state@0) {
+      ((@skip handlers/basic/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun get/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/basic/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@fun-get: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@pat@1: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @fun-get;
+    });
+  };
+inline fun get // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>>(){
+    std/core/hnd/@perform0<a,<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(state :: (V, E, V) -> V)<a>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>>((std/core/hnd/@evv-at<(state :: (V, E, V) -> V)<a>>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/basic/#get/@select<a,(e :: E),b>));
+  };
+inline borrow "^" fun state/@fun-put // inline size: 0
+  = forall<a,(e :: E),b> fn(state@0: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (state@0) {
+      ((@skip handlers/basic/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@x: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun put/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (state :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/basic/@Hnd-state((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(state :: (V, E, V) -> V)<a>,(e :: E),b>, (@fun-put: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(state :: (V, E, V) -> V)<a>,(e :: E),b>) : (state :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((state :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @fun-put;
+    });
+  };
+inline fun put // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>>(x: a){
+    std/core/hnd/@perform1<a,(),(state :: (V, E, V) -> V)<a>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(state :: (V, E, V) -> V)<a>>>((std/core/hnd/@evv-at<(state :: (V, E, V) -> V)<a>>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(state :: (V, E, V) -> V)<a>>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/basic/#put/@select<a,(e :: E),b>), x);
+  };
+fun example3 // inline size: 1
+  = fn<<(std/core/console/console :: X),(std/core/types/div :: X)>>(){
+    val tuple2@10011[1,0,1,0] : ((), std/core/types/int)
+          = handlers/basic/state<(),<(std/core/console/console :: X)>,std/core/types/int>(1, handlers/basic/counter);
+    match (tuple2@10011) {
+      ((@skip std/core/types/Tuple2((@pat@0: ()) : (), (@x: std/core/types/int) : std/core/types/int) : ((), std/core/types/int) ) as @pat: ((), std/core/types/int))
+         -> @x;
+    };
+  };
+inline borrow "^" fun yield/@cfc // inline size: 0
+  = forall<a,(e :: E),b> fn(yield@0: (yield :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (yield@0) {
+      ((@skip handlers/basic/@Hnd-yield((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (yield :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((yield :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun yield/@ctl-yield // inline size: 0
+  = forall<a,(e :: E),b> fn(yield@0: (yield :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (yield@0) {
+      ((@skip handlers/basic/@Hnd-yield((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (yield :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((yield :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun yield/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (yield :: (V, E, V) -> V)<a,(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/basic/@Hnd-yield((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-yield: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<a,(),(yield :: (V, E, V) -> V)<a>,(e :: E),b>) : (yield :: (V, E, V) -> V)<a,(e :: E),b> ) as @pat: ((yield :: (V, E, V) -> V)<a,(e :: E),b>))
+         -> @ctl-yield;
+    });
+  };
+inline fun yield // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>>(item: a){
+    std/core/hnd/@perform1<a,(),(yield :: (V, E, V) -> V)<a>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(yield :: (V, E, V) -> V)<a>>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(yield :: (V, E, V) -> V)<a>>>((std/core/hnd/@evv-at<(yield :: (V, E, V) -> V)<a>>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(yield :: (V, E, V) -> V)<a>>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/basic/#yield/@select<a,(e :: E),b>), item);
+  };
+inline borrow "^" fun flip/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(flip@0: (flip :: (E, V) -> V)<(e :: E),a>){
+    (match (flip@0) {
+      ((@skip handlers/basic/@Hnd-flip((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>) : (flip :: (E, V) -> V)<(e :: E),a> ) as @pat: ((flip :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun flip/@ctl-flip // inline size: 0
+  = forall<(e :: E),a> fn(flip@0: (flip :: (E, V) -> V)<(e :: E),a>){
+    (match (flip@0) {
+      ((@skip handlers/basic/@Hnd-flip((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>) : (flip :: (E, V) -> V)<(e :: E),a> ) as @pat: ((flip :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun flip/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (flip :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/basic/@Hnd-flip((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-flip: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(flip :: (E, V) -> V),(e :: E),a>) : (flip :: (E, V) -> V)<(e :: E),a> ) as @pat: ((flip :: (E, V) -> V)<(e :: E),a>))
+         -> @ctl-flip;
+    });
+  };
+inline fun flip // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/core/types/bool,<(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>>,(flip :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(flip :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(flip :: (E, V) -> V)>>((std/core/hnd/@evv-at<(flip :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(flip :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/basic/#flip/@select);
+  };
+fun example5 // inline size: 3
+  = fn<<(std/core/console/console :: X)>>(){
+    val s@10021[1,0,1,0] : std/core/types/string
+          = std/core/list/show<std/core/types/bool,<(std/core/console/console :: X)>>((handlers/basic/amb<std/core/types/bool,<(std/core/console/console :: X)>>(handlers/basic/xor)), std/core/bool/show);
+    std/core/console/printsln(s@10021);
+  };

@@ -1,0 +1,187 @@
+/* Basic syntax examples
+   See also: <https://koka-lang.github.io/koka/doc/book.html>
+*/
+module interface learn/basic
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Named function declarations use `fun`
+// while anonymous function expressions use `fn`
+fun example1[8,5,8,12] : () -> <(std/core/console/console :: X)> (std/core/types/list :: V -> V)<()>;
+// Indented blocks get automatic curly braces (if not braced explicitly)
+// We can write the previous example with just indentation:
+fun example1a[14,5,14,13] : () -> <(std/core/console/console :: X)> (std/core/types/list :: V -> V)<()>;
+// If the body of an anonymous function is an expression, we do not need curly braces:
+fun example1b[18,5,18,13] : () -> <(std/core/console/console :: X)> (std/core/types/list :: V -> V)<()>;
+// Use the dot-syntax to chain functions calls,
+// where the left-expression is passed as the first argument to the
+// right-expression:
+// ```
+// e.f(e1,...,eN)  ~>  f(e,e1,...,eN)
+// ```
+// This is also called _dot chaining_.
+fun example2[29,5,29,12] : () -> <(std/core/console/console :: X)> (std/core/types/list :: V -> V)<()>;
+// Trailing `fn` anonymous function arguments can be put outside the parenthesis following the call:
+// `f(e1,...,eN) fn(x){ ... }  ~>  f(e1,...,eN, fn(x){ ... })`
+// This is also called _trailing lambdas_
+fun example3[36,5,36,12] : () -> <(std/core/console/console :: X)> (std/core/types/list :: V -> V)<()>;
+// Of course, the indentation rule allows us to elide the braces here as well:
+fun example3a[42,5,42,13] : () -> <(std/core/console/console :: X)> (std/core/types/list :: V -> V)<()>;
+// monadic lift
+fun @mlift-twice@10038[1,0,1,0] : forall<a,(e :: E)> (f : () -> (e :: E) a, wild_ : a) -> (e :: E) a;
+// An anonymous function without arguments can be written
+// just with a pair of curly braces:
+// `{ ... }   ~>  fn(){ ... }`
+// This is also called _suspenders_ and very useful to define "control-flow" functions.
+// (The term "suspenders" was coined by Conor McBride in the Frank language).
+fun twice[52,5,52,9] : forall<a,(e :: E)> (f : () -> (e :: E) a) -> (e :: E) a;
+fun example4[56,5,56,12] : () -> <(std/core/console/console :: X)> ();
+// Or with indentation:
+fun example4a[61,5,61,13] : () -> <(std/core/console/console :: X)> ();
+// This syntax enable many control-flow operations to be defined as functions,
+// like `while`:
+fun example5[68,5,68,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+// In Koka, expressions between curly braces (_suspenders_)
+// are not directly evaluated -- and may be never evaluated, or
+// evaluated multiple times (as in `while`).
+//
+// Expressions between parenthesis are always evaluated to a value
+// (including evaluating their effects) before a call.
+//
+// This is one of the reasons why there is no ML-style currying (like `f e1 e2`)
+// as we need  to distinguish `f(e1)(e2)` versus `f(e1,e2)`: in the
+// first form there may be a side effect induced by `f` before
+// `e2` is evaluated and passed to the result of `f(e1)`
+// while in the second form both `e1` and `e2` are evaluated
+// before calling `f`.
+fun example6[89,5,89,12] : () -> <(std/core/console/console :: X)> ();
+// The body of a function `fun` or `fn` does not have to braced
+// but can directly be an expression.
+fun increment[95,5,95,13] : (xs : (std/core/types/list :: V -> V)<std/core/types/int>) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// which is equivalent to:
+fun increment2[98,5,98,14] : (xs : (std/core/types/list :: V -> V)<std/core/types/int>) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// Use trace for debug output
+fun example-trace[103,5,103,17] : () -> ();
+pub fun main[107,9,107,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun example1 // inline size: 4
+  = fn<<(std/core/console/console :: X)>>(){
+    std/core/list/map<std/core/types/int,(),<(std/core/console/console :: X)>>((std/core/list/#range/list(1, 5)), (fn<<(std/core/console/console :: X)>>(i: std/core/types/int){
+        (std/core/console/printsln((std/core/int/show(i))));
+      }));
+  };
+fun example1a // inline size: 4
+  = fn<<(std/core/console/console :: X)>>(){
+    std/core/list/map<std/core/types/int,(),<(std/core/console/console :: X)>>((std/core/list/#range/list(1, 5)), (fn<<(std/core/console/console :: X)>>(i: std/core/types/int){
+        (std/core/console/printsln((std/core/int/show(i))));
+      }));
+  };
+fun example1b // inline size: 4
+  = fn<<(std/core/console/console :: X)>>(){
+    std/core/list/map<std/core/types/int,(),<(std/core/console/console :: X)>>((std/core/list/#range/list(1, 5)), (fn<<(std/core/console/console :: X)>>(i: std/core/types/int){
+        (std/core/console/printsln((std/core/int/show(i))));
+      }));
+  };
+fun example2 // inline size: 4
+  = fn<<(std/core/console/console :: X)>>(){
+    std/core/list/map<std/core/types/int,(),<(std/core/console/console :: X)>>((std/core/list/#range/list(1, 5)), (fn<<(std/core/console/console :: X)>>(i: std/core/types/int){
+        (std/core/console/printsln((std/core/int/show(i))));
+      }));
+  };
+fun example3 // inline size: 4
+  = fn<<(std/core/console/console :: X)>>(){
+    std/core/list/map<std/core/types/int,(),<(std/core/console/console :: X)>>((std/core/list/#range/list(1, 5)), (fn<<(std/core/console/console :: X)>>(i: std/core/types/int){
+        (std/core/console/printsln((std/core/int/show(i))));
+      }));
+  };
+fun example3a // inline size: 4
+  = fn<<(std/core/console/console :: X)>>(){
+    std/core/list/map<std/core/types/int,(),<(std/core/console/console :: X)>>((std/core/list/#range/list(1, 5)), (fn<<(std/core/console/console :: X)>>(i: std/core/types/int){
+        (std/core/console/printsln((std/core/int/show(i))));
+      }));
+  };
+fun twice // inline size: 2
+  = forall<a,(e :: E)> fn<(e :: E)>(f: () -> (e :: E) a){
+    val _[53,3,53,5] : a
+          = f();
+    f();
+  };
+fun example4 // inline size: 2
+  = fn<<(std/core/console/console :: X)>>(){
+    val _[53,3,53,5] : ()
+          = std/core/console/printsln("hi");
+    std/core/console/printsln("hi");
+  };
+fun example4a // inline size: 2
+  = fn<<(std/core/console/console :: X)>>(){
+    val _[53,3,53,5] : ()
+          = std/core/console/printsln("hi");
+    std/core/console/printsln("hi");
+  };
+fun increment // inline size: 4
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/int>){
+    std/core/list/filter<std/core/types/int,(std/core/types/total :: E)>((std/core/list/map<std/core/types/int,std/core/types/int,(std/core/types/total :: E)>(xs, (fn(x: std/core/types/int){
+          (std/core/int/int-add(x, 1));
+        }))), (fn(x@0@0: std/core/types/int){
+        (std/core/int/(>)(x@0@0, 2));
+      }));
+  };
+fun increment2 // inline size: 4
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/int>){
+    std/core/list/filter<std/core/types/int,(std/core/types/total :: E)>((std/core/list/map<std/core/types/int,std/core/types/int,(std/core/types/total :: E)>(xs, (fn(x: std/core/types/int){
+          (std/core/int/int-add(x, 1));
+        }))), (fn(x@0@0: std/core/types/int){
+        (std/core/int/(>)(x@0@0, 2));
+      }));
+  };

@@ -1,0 +1,123 @@
+// Qualified names and disambiguation (static overloading)
+// Prerequisites:
+//  - learn/basic
+module interface learn/qualifiers
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// We can always use fully qualified to disambiguate plain names.
+// In VS Code, press `ctrl+alt` (or `ctrl+option` on the mac) to see
+// disambiguation with inlay-hints.
+fun example1[9,5,9,12] : () -> (std/core/types/list :: V -> V)<std/core/types/string>;
+fun example1-explicit[12,5,12,21] : () -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Qualified names can be shortened as well:
+fun example1-semi-explicit[16,5,16,26] : () -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// We can define functions (or values) of the same name
+// in the same module by using _local qualification_
+fun int/foo[21,5,21,11] : (i : std/core/types/int) -> std/core/types/int;
+fun string/foo[24,5,24,14] : (s : std/core/types/string) -> std/core/types/int;
+// We can now use qualified names to disambiguate
+// between the two top-level `foo` definitions:
+fun example2[29,5,29,12] : () -> std/core/types/int;
+// The Koka compiler uses type information
+// to disambiguate names based on the argument types.
+// This is more convenient than always writing full qualified names.
+// (press `ctrl+alt` to see the inferred qualified names as inlay hints)
+fun example3[36,5,36,12] : () -> std/core/types/int;
+// The disambiguation does not always succeed, and in such
+// case you can either add more type information:
+fun example4a[41,5,41,13] : (x : std/core/types/int) -> std/core/types/int;
+// Or disambiguate manually by writing (enough of) the qualifier.
+// This always works in Koka as the disambiguation is purely convenience.
+// In Koka, a program with fully qualified names has an _untyped dynamic semantics_,
+// i.e. we can execute a program without knowing any types (including effect handlers).
+// This is in contrast to a system with type classes (like Haskell or Lean) where the
+// types are essential (as one cannot disambiguate instances otherwise, e.g. consider `show []`
+// where the behavior depends on the type of sub-expression `[]`, like `[Char]` (=`""`) or `[Int]` (=`[]`)).
+fun example4b[51,5,51,13] : (x : std/core/types/int) -> std/core/types/int;
+// Continue reading `implicits.kk` on how to combine overloading with implicit parameters.
+pub fun main[55,9,55,12] : () -> std/core/types/int;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun example1 // inline size: 3
+  = fn(){
+    std/core/list/map<std/core/types/int,std/core/types/string,(std/core/types/total :: E)>((std/core/types/Cons<std/core/types/int>(1, (std/core/types/Cons<std/core/types/int>(2, (std/core/types/Nil<std/core/types/int>))))), std/core/int/show);
+  };
+fun example1-explicit // inline size: 3
+  = fn(){
+    std/core/list/map<std/core/types/int,std/core/types/string,(std/core/types/total :: E)>((std/core/types/Cons<std/core/types/int>(1, (std/core/types/Cons<std/core/types/int>(2, (std/core/types/Nil<std/core/types/int>))))), std/core/int/show);
+  };
+fun example1-semi-explicit // inline size: 3
+  = fn(){
+    std/core/list/map<std/core/types/int,std/core/types/string,(std/core/types/total :: E)>((std/core/types/Cons<std/core/types/int>(1, (std/core/types/Cons<std/core/types/int>(2, (std/core/types/Nil<std/core/types/int>))))), std/core/int/show);
+  };
+fun int/foo // inline size: 1
+  = fn(i: std/core/types/int){
+    std/core/int/count-digits(i);
+  };
+fun string/foo // inline size: 4
+  = fn(s: std/core/types/string){
+    val m@10001[1,0,1,0] : (std/core/types/maybe :: V -> V)<std/core/types/int>
+          = std/core/int/xparse(s, (match ((std/core/types/@NoOptArg<std/core/types/bool>)) {
+              ((std/core/types/@OptArg((@uniq-hex@581: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@1: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+                 -> @uniq-hex@581;
+              ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@0@0: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+                 -> std/core/types/False;
+            }));
+    std/core/int/count-digits((match (m@10001) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/types/int>))
+         -> 42;
+      ((@skip std/core/types/Just((x: std/core/types/int) : std/core/types/int) : (std/core/types/maybe :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/maybe :: V -> V)<std/core/types/int>))
+         -> x;
+    }));
+  };

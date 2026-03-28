@@ -1,0 +1,652 @@
+// 64-bit signed integers.
+//
+// Using 64-bit signed two's complement representation
+// with wrapping on overflow, e.g. `max-int64 + 1.int64 == min-int64`
+module interface std/num/int64
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/core/undiv = std/core/undiv = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// clamp an `:int` to fit in an `:int64_t`.
+pub fip fun int64[35,16,35,20] : (i : std/core/types/int) -> std/core/types/int64;
+// The 64-bit integer for 1.
+pub val one[189,9,189,11] : std/core/types/int64;
+// The 64-bit integer for zero.
+pub val zero[186,9,186,12] : std/core/types/int64;
+// Convert a boolean to an `:int64`.
+pub fip fun bool/int64[57,13,57,22] : (b : std/core/types/bool) -> std/core/types/int64;
+// Create an `:int64` from the given `hi` and `lo` numbers lowest 32-bits.
+// Preserves the sign of `hi`.
+pub fip fun hilo/int64[102,13,102,22] : (hi : std/core/types/int64, lo : std/core/types/int64) -> std/core/types/int64;
+// The maximal integer value before overflow happens
+pub val max-int64[21,9,21,17] : std/core/types/int64;
+// The minimal integer value before underflow happens
+pub val min-int64[24,9,24,17] : std/core/types/int64;
+// The number of bits in an `:int64` (always 64)
+pub val bits-int64[27,9,27,18] : std/core/types/int64;
+// Convenient shorthand to `int64`, e.g. `1234.i64`
+pub fip fun i64[47,20,47,22] : (i : std/core/types/int) -> std/core/types/int64;
+// Convert an `:int64` to a boolean.
+pub fun bool[52,9,52,12] : (i : std/core/types/int64) -> std/core/types/bool;
+// Return the top 32-bits of an `:int64`.
+// Preserves the sign.
+pub fip fun hi[93,13,93,14] : (i : std/core/types/int64) -> std/core/types/int64;
+// Return the low 32-bits of an `:int64`.
+pub fip fun lo[97,13,97,14] : (i : std/core/types/int64) -> std/core/types/int64;
+// Convert an `:int64` to an `:int` but interpret the `:int64` as a 64-bit unsigned value.
+pub fip fun int64/uint[115,13,115,22] : (i : std/core/types/int64) -> std/core/types/int;
+// Convert a pair `(hi,lo)` to an signed integer,
+// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fun hilo/int[445,9,445,16] : (@pat-x445_19 : (std/core/types/int64, std/core/types/int64)) -> std/core/types/int;
+// Convert a pair `(hi,lo)` to an unsigned integer,
+// where `(hi,lo).uint == hi.uint * 0x1_0000_0000_0000_0000 + lo.uint`
+pub fun hilo/uint[450,9,450,17] : (@pat-x450_20 : (std/core/types/int64, std/core/types/int64)) -> std/core/types/int;
+// Convert an `:int64` to a string
+pub fun show[30,9,30,12] : (i : std/core/types/int64) -> std/core/types/string;
+// Convert an `:int` to `:int64` but interpret the `int` as an unsigned 64-bit value.
+// `i` is clamped between `0` and `0xFFFF_FFFF_FFFF_FFFF`.\
+// `0x7FFF_FFFF_FFFF_FFFF.uint64 == 0x7FFF_FFFF_FFFF_FFFF.int64 == max-int64`\
+// `0x8000_0000_0000_0000.uint64 == -0x8000_0000_0000_0000.int64 == min-int64`\
+// `0xFFFF_FFFF_FFFF_FFFF.uint64 == -1.int64`\
+pub fun int/uint64[110,9,110,18] : (i : std/core/types/int) -> std/core/types/int64;
+// Show an `:int64` in hexadecimal notation
+// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if capital letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
+pub fun show-hex[123,9,123,16] : (i : std/core/types/int64, width : (std/core/types/@optional :: V -> V)<std/core/types/int>, use-capitals : (std/core/types/@optional :: V -> V)<std/core/types/bool>, pre : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Show an `:int64` in hexadecimal notation interpreted as an unsigned 64-bit value.
+// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if capital letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number.
+pub fun show-hex64[130,9,130,18] : (i : std/core/types/int64, width : (std/core/types/@optional :: V -> V)<std/core/types/int>, use-capitals : (std/core/types/@optional :: V -> V)<std/core/types/bool>, pre : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Compare a 64-integer to zero.
+pub fip fun sign[192,13,192,16] : (i : std/core/types/int64) -> std/core/types/order;
+// Returns `true` if the integer `i`  is an odd number.
+pub fip fun is-odd[199,13,199,18] : (i : std/core/types/int64) -> std/core/types/bool;
+// Returns `true` if the integer `i`  is an even number.
+pub fip fun is-even[204,13,204,19] : (i : std/core/types/int64) -> std/core/types/bool;
+// Increment a 64-bit integer.
+pub fip fun inc[209,13,209,15] : (i : std/core/types/int64) -> std/core/types/int64;
+// Decrement a 64-bit integer.
+pub fip fun dec[214,13,214,15] : (i : std/core/types/int64) -> std/core/types/int64;
+pub fip fun cmp[224,13,224,15] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/order;
+// Take the bitwise _xor_ of two `:int64`s
+pub fip fun (^)[262,13,262,15] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64;
+// Negate a 64-bit integer
+pub fip fun negate[478,13,478,18] : (i : std/core/types/int64) -> std/core/types/int64;
+// Return the absolute value of an integer.
+// Raises an exception if the `:int64` is `min-int64`
+// (since the negation of `min-int64` equals itself and is still negative)
+pub fun abs[233,9,233,11] : (i : std/core/types/int64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/int64;
+// Return the absolute value of an integer.
+// Returns 0 if the `:int64` is `min-int64`
+// (since the negation of `min-int64` equals itself and is still negative)
+pub fip fun abs0[242,13,242,16] : (i : std/core/types/int64) -> std/core/types/int64;
+// Shift an `:int64` `i` to the left by `n % 64` bits.
+pub fip fun shl[277,13,277,15] : (i : std/core/types/int64, shift : std/core/types/int) -> std/core/types/int64;
+// Logical shift an `:int64` to the right by `n % 64` bits. Shift in zeros from the left.
+pub fip fun shr[287,13,287,15] : (i : std/core/types/int64, shift : std/core/types/int) -> std/core/types/int64;
+// Arithmetic shift an `:int64` to the right by `n % 64` bits. Shift in the sign bit from the left.
+pub fip fun sar[297,13,297,15] : (i : std/core/types/int64, shift : std/core/types/int) -> std/core/types/int64;
+// Bitwise rotate an `:int64` `n % 64` bits to the left.
+pub fun rotl[306,9,306,12] : (i : std/core/types/int64, shift : std/core/types/int) -> std/core/types/int64;
+// Bitwise rotate an `:int64` `n % 64` bits to the right.
+pub fip fun rotr[315,13,315,16] : (i : std/core/types/int64, shift : std/core/types/int) -> std/core/types/int64;
+// Count number of 1-bits.
+pub fip fun popcount[343,13,343,20] : (i : std/core/types/int64) -> std/core/types/int;
+// Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`,
+// where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`.
+// See also <https://en.wikipedia.org/wiki/Carry-less_product>.
+pub fip fun clmul-wide[410,16,410,25] : (x : std/core/types/int64, y : std/core/types/int64) -> (std/core/types/int64, std/core/types/int64);
+// Return the minimum of two integers
+pub fip fun min[423,13,423,15] : (i : std/core/types/int64, j : std/core/types/int64) -> std/core/types/int64;
+// Return the maximum of two integers
+pub fip fun max[427,13,427,15] : (i : std/core/types/int64, j : std/core/types/int64) -> std/core/types/int64;
+// Full 64x64 to 128-bit unsigned multiply to `(hi,lo)`.
+// where `umul(x,y).uint == x.uint * y.uint`
+pub fip fun umul[433,16,433,19] : (i : std/core/types/int64, j : std/core/types/int64) -> (std/core/types/int64, std/core/types/int64);
+// Full 64x64 to 128-bit signed multiply to `(hi,lo)`.
+// where `imul(x,y).int == x.int * y.int`
+pub fip fun imul[439,16,439,19] : (i : std/core/types/int64, j : std/core/types/int64) -> (std/core/types/int64, std/core/types/int64);
+// Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.
+pub fun cdiv[454,9,454,12] : (i : std/core/types/int64, j : std/core/types/int64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/int64;
+// Truncated modulus (as in C). See also `(%):(x : int64, y : int64) -> int64`.
+pub fun cmod[461,9,461,12] : (i : std/core/types/int64, j : std/core/types/int64) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/int64;
+// Negate an 64-bit integer
+pub fip fun (~)[483,13,483,15] : (i : std/core/types/int64) -> std/core/types/int64;
+/*
+Euclidean-0 division.
+Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
+
+1. `D == d*(D/d) + (D%d)`
+2. `D%d`  is always positive where `0 <= D%d < abs(d)`
+
+Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
+that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
+Useful laws that hold for Euclidean-0 division:
+
+* `D/(-d) == -(D/d)`
+* `D%(-d) == D%d`
+* `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 63`)
+* `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 63`)
+
+Note that an interesting edge case is `min-int64 / -1` which equals `min-int64` since in modulo 64-bit
+arithmetic `min-int64 == -1 * min-int64 == -1 * (min-int64 / -1) + (min-int64 % -1)` satisfying property (1).
+Of course `(min-int64 + 1) / -1` is again positive (namely `max-int64`).
+
+See also _Division and modulus for computer scientists, Daan Leijen, 2001_
+[pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf) .
+*/
+pub fip fun (/)[510,13,510,15] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64;
+// Euclidean-0 modulus. See `(/):(x : int64, y : int64) -> int64` division for more information.
+pub fip fun (%)[521,13,521,15] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64;
+pub fip fun divmod[529,13,529,18] : (x : std/core/types/int64, y : std/core/types/int64) -> (std/core/types/int64, std/core/types/int64);
+// monadic lift
+fun range/@mlift-fold-int64@10100[1,0,1,0] : forall<a,(e :: E)> (end : std/core/types/int64, f : (std/core/types/int64, a) -> (e :: E) a, start : std/core/types/int64, x : a) -> (e :: E) a;
+pub fun range/fold-int64[539,9,539,24] : forall<a,(e :: E)> (start : std/core/types/int64, end : std/core/types/int64, init : a, f : (std/core/types/int64, a) -> (e :: E) a) -> (e :: E) a;
+pub fun fold-int64[544,9,544,18] : forall<a,(e :: E)> (n : std/core/types/int64, init : a, f : (std/core/types/int64, a) -> (e :: E) a) -> (e :: E) a;
+// monadic lift
+fun range/@mlift-lift-for-while64@4375@10101[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end : std/core/types/int64, i : std/core/types/int64, @y-x10082 : (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// lifted local: range/for-while64, rep
+fun range/@lift-for-while64@4375[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end : std/core/types/int64, i : std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun range/for-while64[551,9,551,25] : forall<a,(e :: E)> (start : std/core/types/int64, end : std/core/types/int64, ^ action : (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+pub fun for-while64[560,9,560,19] : forall<a,(e :: E)> (n : std/core/types/int64, ^ action : (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+pub fun @trmc-list64[564,9,564,14] : (lo : std/core/types/int64, hi : std/core/types/int64, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/int64>>) -> (std/core/types/list :: V -> V)<std/core/types/int64>;
+pub fun list64[564,9,564,14] : (lo : std/core/types/int64, hi : std/core/types/int64) -> (std/core/types/list :: V -> V)<std/core/types/int64>;
+fun sumacc64[573,5,573,12] : (xs : (std/core/types/list :: V -> V)<std/core/types/int64>, acc : std/core/types/int64) -> std/core/types/int64;
+pub fun sum64[569,9,569,13] : (xs : (std/core/types/list :: V -> V)<std/core/types/int64>) -> std/core/types/int64;
+// carry-less multiply by -1 gives the _prefix sum_
+fun test-prefix-sum[580,5,580,19] : () -> std/core/types/string;
+// carry-less multiply of x by x spreads the bits
+fun test-bit-spread1[586,5,586,20] : () -> std/core/types/string;
+fun test-bit-spread2[590,5,590,20] : () -> std/core/types/string;
+fun zip-clmul[594,5,594,13] : (x : std/core/types/int64) -> std/core/types/int64;
+fun test-clmulr1[597,5,597,16] : () -> std/core/types/string;
+fun test-clmulr2[601,5,601,16] : () -> std/core/types/string;
+fun clmulrev[605,5,605,12] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64;
+fun test-clmulrev1[608,5,608,18] : () -> std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// Convert an `:int64_t` to an `:int`.
+pub fip extern int[41,23,41,25] : (i : std/core/types/int64) -> std/core/types/int {
+  c inline "kk_integer_from_int64(#1,kk_context())";
+  cs inline "(new BigInteger(#1))";
+  js inline "$std_core_types._int_from_int64(#1)";
+};
+// Convert an `:int32` to an `:int64` (using sign extension).
+pub fip extern int32/int64[61,23,61,33] : (i : std/core/types/int32) -> std/core/types/int64 {
+  c inline "(int64_t)(#1)";
+  js inline "$std_core_types._int64_from_int32(#1)";
+};
+// Convert an `:int32` to an `:int64` interpreting the `:int32` as unsigned.
+pub fip extern uint64[66,23,66,28] : (i : std/core/types/int32) -> std/core/types/int64 {
+  c inline "(int64_t)((uint32_t)(#1))";
+  js inline "$std_core_types._int64_from_uint32(#1)";
+};
+// Clamp an `:int64` to an `:int32`
+// `-1.int64.int32 == -1.int32`
+// `0x8000_0000.int64.int32 == 0x7FFF_FFFF.int32` (clamped)
+pub fip extern int32[73,23,73,27] : (i : std/core/types/int64) -> std/core/types/int32 {
+  c inline "kk_int64_clamp_int32(#1,kk_context())";
+  js inline "$std_core_types._int64_clamp_int32(#1)";
+};
+// Clamp an `:int64` to an `:int32` but interpreting the `:int32` as unsigned
+// (and thus clamp between 0 and 0xFFFFFFFF).
+// `-1.int64.uint32 == 0.int32` (clamped)
+// `0xFFFFFFFF.int64.uint32 == -1.int32`
+pub fip extern uint32[81,23,81,28] : (i : std/core/types/int64) -> std/core/types/int32 {
+  c inline "kk_int64_clamp_uint32(#1,kk_context())";
+  js inline "$std_core_types._int64_clamp_uint32(#1)";
+};
+// Create an `:int64` `i` from the bits of `lo` and `hi` such
+// that `i.int = hi.int * 0x1_0000_0000 + lo.uint`.
+pub fip extern hilo32/int64[87,23,87,34] : (hi : std/core/types/int32, lo : std/core/types/int32) -> std/core/types/int64 {
+  c inline "kk_int64_hi_lo(#1,#2)";
+  js inline "$std_core_types._int64_hi_lo(#1,#2)";
+};
+// Are two 64-bit integers equal?
+pub fip extern (==)[135,23,135,26] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool {
+  inline "(#1 == #2)";
+  js inline "(#1 === #2)";
+};
+// Are two 64-bit integers not equal?
+pub fip extern (!=)[140,23,140,26] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool {
+  inline "(#1 != #2)";
+  js inline "(#1 !== #2)";
+};
+// Is the first 64-bit integer smaller or equal to the second?
+pub fip extern (<=)[145,23,145,26] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool = inline "(#1 <= #2)";
+// Is the first 64-bit integer larger or equal to the second?
+pub fip extern (>=)[149,23,149,26] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool = inline "(#1 >= #2)";
+// Is the first 64-bit integer smaller than the second?
+pub fip extern (<)[153,23,153,25] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool = inline "(#1 < #2)";
+// Is the first 64-bit integer larger than the second?
+pub fip extern (>)[157,23,157,25] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool = inline "(#1 > #2)";
+// Add two 64-bit integers.
+pub fip extern (+)[161,23,161,25] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)((uint64_t)#1 + (uint64_t)#2)";
+  js inline "BigInt.asIntN(64,#1 + #2)";
+};
+// Subtract two 64-bit integers.
+pub fip extern (-)[166,23,166,25] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)((uint64_t)#1 - (uint64_t)#2)";
+  js inline "BigInt.asIntN(64,#1 - #2)";
+};
+// Is the 64-bit integer negative?
+pub fip extern is-neg[171,23,171,28] : (i : std/core/types/int64) -> std/core/types/bool {
+  inline "0 > #1";
+  js inline "0n > #1";
+};
+// Is the 64-bit integer positive? (i.e. larger than zero)
+pub fip extern is-pos[176,23,176,28] : (i : std/core/types/int64) -> std/core/types/bool {
+  inline "0 < #1";
+  js inline "0n < #1";
+};
+// Is the 64-bit integer zero?
+pub fip extern is-zero[181,23,181,29] : (i : std/core/types/int64) -> std/core/types/bool {
+  inline "0 == #1";
+  js inline "0n === #1";
+};
+// Multiply two 64-bit integers.
+pub fip extern (*)[219,23,219,25] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)((uint64_t)#1 * (uint64_t)#2)";
+  js inline "BigInt.asIntN(64,#1 * #2)";
+};
+// Take the bitwise _and_ of two `:int64`s
+pub fip extern and[250,23,250,25] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 = inline "#1 & #2";
+// Take the bitwise _or_ of two `:int64`s
+pub fip extern or[254,23,254,24] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 = inline "#1 | #2";
+// Take the bitwise _xor_ of two `:int64`s
+pub fip extern xor[258,23,258,25] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 = inline "#1 ^ #2";
+// Bitwise _not_ of an `:int64`, i.e. flips all bits.
+pub fip extern not[266,23,266,25] : (i : std/core/types/int64) -> std/core/types/int64 {
+  inline "~#1";
+  js inline "BigInt.asIntN(64, ~#1)";
+};
+// Shift an `:int64` `i` to the left by `n % 64` bits.
+fip extern shl64[272,19,272,23] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_shl64(#1,#2)";
+  js inline "$std_core_types._int64_shl(#1,#2)";
+};
+// Logical shift an `:int64` to the right by `n % 64` bits. Shift in zeros from the left.
+fip extern shr64[281,19,281,23] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)kk_shr64(#1,#2)";
+  cs inline "(int64)(((Uint64)#1)>>#2)";
+  js inline "$std_core_types._int64_shr(#1,#2)";
+};
+// Arithmetic shift an `:int64` to the right by `n % 64` bits. Preserves the sign bit.
+fip extern sar64[292,19,292,23] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_sar64(#1,#2)";
+  js inline "$std_core_types._int64_sar(#1,#2)";
+};
+// Bitwise rotate an `:int64` `n % 64` bits to the left.
+fip extern rotl64[301,19,301,24] : (i : std/core/types/int64, n : std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)kk_bits_rotl64(#1,(int)#2)";
+  js inline "$std_core_types._int64_rotl(#1,#2)";
+};
+// Bitwise rotate an `:int64` `n % 64` bits to the right.
+fip extern rotr64[310,19,310,24] : (i : std/core/types/int64, n : std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)kk_bits_rotr64(#1,(int)#2)";
+  js inline "$std_core_types._int64_rotr(#1,#2)";
+};
+// Count trailing zero bits. Returns 64 if `i` is zero.
+pub fip extern ctz[320,23,320,25] : (i : std/core/types/int64) -> std/core/types/int {
+  c inline "kk_integer_from_small(kk_bits_ctz64(#1))";
+  js inline "$std_core_types._int64_ctz(#1)";
+};
+// Count leading zero bits. Returns 64 if `i` is zero.
+pub fip extern clz[325,23,325,25] : (i : std/core/types/int64) -> std/core/types/int {
+  c inline "kk_integer_from_small(kk_bits_clz64(#1))";
+  js inline "$std_core_types._int64_clz(#1)";
+};
+// Count leading redundant sign bits (i.e. the number of bits
+// following the most significant bit that are identical to it).
+pub fip extern clrsb[332,23,332,27] : (i : std/core/types/int64) -> std/core/types/int {
+  c inline "kk_integer_from_small(kk_bits_clrsb64(#1))";
+  js inline "$std_core_types._int64_clrsb(#1)";
+};
+// Count number of 1-bits.
+fip extern popcount64[338,19,338,28] : (i : std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)kk_bits_popcount64(#1)";
+  js inline "$std_core_types._int64_popcount(#1)";
+};
+// Is the `popcount` even?
+pub fip extern parity[347,23,347,28] : (i : std/core/types/int64) -> std/core/types/bool {
+  c inline "kk_bits_parity64(#1)";
+  js inline "$std_core_types._int64_parity(#1)";
+};
+// Reverse the bytes in an `:int64`.
+pub fip extern byte-reverse[352,23,352,34] : (i : std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_bits_bswap64(#1)";
+  js inline "$std_core_types._int64_bswap(#1)";
+};
+// Reverse the bits in an `:int64`.
+pub fip extern bit-reverse[357,23,357,33] : (i : std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_bits_reverse64(#1)";
+  js inline "$std_core_types._int64_breverse(#1)";
+};
+// Bit gather (also known as _pext_ or parallel bit extract).
+// For each 1-bit in mask `m`, extract the corresponding bit from `i` and write it
+// into contiguous lower bits in the result. The remaining bits in the result are zero.
+//
+// `bit-gather(0x1234.int64, 0x0F0F.int64).show-hex == "0x24"`
+pub fip extern bit-gather[366,23,366,32] : (i : std/core/types/int64, m : std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_bits_gather64(#1,#2)";
+};
+// Bit scatter (also known as _pdep_ or parallel bit deposit).
+// For each 1-bit in mask `m`, set the corresponding bit in the result from the
+// contiguous lower bits of `i`. Any bits not set according to the mask are set to zero.
+//
+// `bit-scatter(0x1234.int64, 0x0F0F.int64).show-hex == "0x304"`
+pub fip extern bit-scatter[374,23,374,33] : (i : std/core/types/int64, m : std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_bits_scatter64(#1,#2)";
+};
+// Interleave the hi 32-bits with the lo 32-bits of the argument `i` such
+// that the hi bits are spread over the odd bits and the lo bits over the even bits
+// of the result (starting at bit 0).
+// `bit-zip(x.and(0xFFFF_FFFF.int64)) == bit-scatter(x,0x5555_5555_5555_5555.int64)`
+pub fip extern bit-zip[381,23,381,29] : (i : std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_bits_zip64(#1)";
+};
+// De-interleave the bits in `i` such that the odd bits are gathered in the
+// hi 32-bits of the result, and the even bits (starting at bit 0)
+// end up in the lo 32-bits of the result.
+// `bit-unzip(x).and(0xFFFF_FFFF.int64) == bit-gather(x,0x5555_5555_5555_5555.int64)`
+pub fip extern bit-unzip[388,23,388,31] : (i : std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_bits_unzip64(#1)";
+};
+// Or-combine: for every byte `b` in the argument `i`, the corresponding
+// byte in the result becomes 0 if `b==0`, and `0xFF` otherwise.
+pub fip extern orc[393,23,393,25] : (i : std/core/types/int64) -> std/core/types/int64 {
+  c inline "kk_bits_orc64(#1)";
+};
+// Carry-less multiplication (or _xor_ multiplication).
+// See also <https://en.wikipedia.org/wiki/Carry-less_product>
+// Interesting cases:
+// - `clmul(x,x)` : _bit spread_, where a zero bit is put in between each input bit.
+//   `clmul(x,x) == bit-scatter(x,0x5555_5555_5555_5555.int64) == bit-zip(and(x,0xFFFF_FFFF.int64))`
+// - `clmul(x,-1.int32)`: _prefix xor_, where each bit is the parity of the corresponding input bit
+//    and all input bits before it (the _xor sum_).
+//    `clmul(x,-1.int64).shr(63).bool == x.parity`
+pub fip extern clmul[404,23,404,27] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)kk_clmul64((uint64_t)#1,(uint64_t)#2)";
+};
+// Reverse carry-less multiplication.
+// Defined as `clmulr(x,y) == clmul(x.bit-reverse,y.bitreverse).bitreverse`
+// Interesting cases:
+// - `clmulr(x,x) == zip(x.and(0xFFFF_FFFF_0000_0000.int64)`, and
+// - `zip(x) == clmul(x,x) | clmulr(x,x)`.
+pub fip extern clmulr[418,23,418,28] : (x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/int64 {
+  c inline "(int64_t)kk_clmulr64((uint64_t)#1,(uint64_t)#2)";
+};
+// Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.
+fip extern unsafe-cdiv[468,19,468,29] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 = inline "#1 / #2";
+// Truncated modulus (as in C). See also `(%):(x : int64, y : int64) -> int64`.
+fip extern unsafe-cmod[473,19,473,29] : (std/core/types/int64, std/core/types/int64) -> std/core/types/int64 = inline "#1 % #2";
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "*__" fun range/@lift-for-while64@4375 // inline size: 13
+  = forall<a,(e :: E)> fn<(e :: E)>(action: (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end: std/core/types/int64, i: std/core/types/int64){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool,(x : std/core/types/int64, y : std/core/types/int64) -> (e :: E) std/core/types/bool>(std/num/int64/(<=))(i, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> (match ((action(i))) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+             -> val i@0@10018[1,0,1,0] : std/core/types/int64
+                      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int64) -> std/core/types/int64,(x : std/core/types/int64) -> (e :: E) std/core/types/int64>((std/core/undiv/pretend-decreasing<std/core/types/int64>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int64) -> std/core/types/int64,(i : std/core/types/int64) -> (e :: E) std/core/types/int64>((fn(i@1: std/core/types/int64){
+                        (std/num/int64/(+)(i@1, (std/num/int64/int64(1))));
+                      }))(i)));
+            std/num/int64/#range/@lift-for-while64@4375<a,(e :: E)>(action, end, i@0@10018);
+          ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/Just<a>(x);
+        });
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+         -> std/core/types/Nothing<a>;
+    });
+  };
+specialize "__*" fun fold-int64 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int64, init: a, f: (std/core/types/int64, a) -> (e :: E) a){
+    std/num/int64/#range/fold-int64<a,(e :: E)>(std/num/int64/zero, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int64) -> std/core/types/int64,(i : std/core/types/int64) -> (e :: E) std/core/types/int64>((fn(i: std/core/types/int64){
+        (std/num/int64/(-)(i, (std/num/int64/int64(1))));
+      }))(n)), init, f);
+  };
+recursive specialize "___*" fun range/fold-int64 // inline size: 11
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int64, end: std/core/types/int64, init: a, f: (std/core/types/int64, a) -> (e :: E) a){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int64, y : std/core/types/int64) -> std/core/types/bool,(x : std/core/types/int64, y : std/core/types/int64) -> (e :: E) std/core/types/bool>(std/num/int64/(>))(start, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> init;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> val x[541,9,541,9] : a
+                  = f(start, init);
+        std/num/int64/#range/fold-int64<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int64) -> std/core/types/int64,(x : std/core/types/int64) -> (e :: E) std/core/types/int64>((std/core/undiv/pretend-decreasing<std/core/types/int64>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int64) -> std/core/types/int64,(i : std/core/types/int64) -> (e :: E) std/core/types/int64>((fn(i: std/core/types/int64){
+            (std/num/int64/(+)(i, (std/num/int64/int64(1))));
+          }))(start)))), end, x, f);
+    });
+  };
+specialize "_*" borrow "_^" fun for-while64 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int64, action: (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    val end@10020[1,0,1,0] : std/core/types/int64
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int64) -> std/core/types/int64,(i : std/core/types/int64) -> (e :: E) std/core/types/int64>((fn(i@0: std/core/types/int64){
+            (std/num/int64/(-)(i@0, (std/num/int64/int64(1))));
+          }))(n);
+    std/num/int64/#range/@lift-for-while64@4375<a,(e :: E)>(action, end@10020, std/num/int64/zero);
+  };
+specialize "__*" borrow "__^" fun range/for-while64 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int64, end: std/core/types/int64, action: (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/num/int64/#range/@lift-for-while64@4375<a,(e :: E)>(action, end, start);
+  };
+fip fun bool/int64 // inline size: 1
+  = fn(b: std/core/types/bool){
+    match (b) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/num/int64/one;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/num/int64/zero;
+    };
+  };
+inline fip fun i64 // inline size: 1
+  = fn(i: std/core/types/int){
+    std/num/int64/int64(i);
+  };
+fun bool // inline size: 1
+  = fn(i: std/core/types/int64){
+    std/num/int64/(!=)(i, std/num/int64/zero);
+  };
+fip fun hi // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/sar64(i, (std/num/int64/int64(32)));
+  };
+fip fun lo // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/and(i, (std/num/int64/int64(4294967295)));
+  };
+fun hilo/int // inline size: 4
+  = fn(@pat-x445_19: (std/core/types/int64, std/core/types/int64)){
+    match (@pat-x445_19) {
+      ((@skip std/core/types/Tuple2((hi@0: std/core/types/int64) : std/core/types/int64, (lo@0: std/core/types/int64) : std/core/types/int64) : (std/core/types/int64, std/core/types/int64) ) as @pat: (std/core/types/int64, std/core/types/int64))
+         -> val x@10002[1,0,1,0] : std/core/types/int
+              = std/core/int/(*)((std/num/int64/int(hi@0)), 18446744073709551616);
+            val y@10003[1,0,1,0] : std/core/types/int
+              = std/num/int64/#int64/uint(lo@0);
+        std/core/int/int-add(x@10002, y@10003);
+    };
+  };
+fun hilo/uint // inline size: 4
+  = fn(@pat-x450_20: (std/core/types/int64, std/core/types/int64)){
+    match (@pat-x450_20) {
+      ((@skip std/core/types/Tuple2((hi@0: std/core/types/int64) : std/core/types/int64, (lo@0: std/core/types/int64) : std/core/types/int64) : (std/core/types/int64, std/core/types/int64) ) as @pat: (std/core/types/int64, std/core/types/int64))
+         -> val x@10004[1,0,1,0] : std/core/types/int
+              = std/core/int/(*)((std/num/int64/#int64/uint(hi@0)), 18446744073709551616);
+            val y@10005[1,0,1,0] : std/core/types/int
+              = std/num/int64/#int64/uint(lo@0);
+        std/core/int/int-add(x@10004, y@10005);
+    };
+  };
+fun show // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/core/int/show((std/num/int64/int(i)));
+  };
+fip fun sign // inline size: 4
+  = fn(i: std/core/types/int64){
+    match ((std/num/int64/is-pos(i))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Gt;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/num/int64/is-neg(i))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Lt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Eq;
+        });
+    };
+  };
+fip fun is-odd // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/(==)((std/num/int64/and(i, std/num/int64/one)), std/num/int64/one);
+  };
+fip fun is-even // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/(==)((std/num/int64/and(i, std/num/int64/one)), std/num/int64/zero);
+  };
+fip fun inc // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/(+)(i, (std/num/int64/int64(1)));
+  };
+fip fun dec // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/(-)(i, (std/num/int64/int64(1)));
+  };
+fip fun cmp // inline size: 4
+  = fn(x: std/core/types/int64, y: std/core/types/int64){
+    match ((std/num/int64/(<)(x, y))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Lt;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/num/int64/(>)(x, y))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Eq;
+        });
+    };
+  };
+fip fun (^) // inline size: 1
+  = fn(x: std/core/types/int64, y: std/core/types/int64){
+    std/num/int64/xor(x, y);
+  };
+fip fun negate // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/(-)((std/num/int64/int64(0)), i);
+  };
+fip fun shl // inline size: 2
+  = fn(i: std/core/types/int64, shift: std/core/types/int){
+    std/num/int64/shl64(i, (std/num/int64/int64(shift)));
+  };
+fip fun shr // inline size: 2
+  = fn(i: std/core/types/int64, shift: std/core/types/int){
+    std/num/int64/shr64(i, (std/num/int64/int64(shift)));
+  };
+fip fun sar // inline size: 2
+  = fn(i: std/core/types/int64, shift: std/core/types/int){
+    std/num/int64/sar64(i, (std/num/int64/int64(shift)));
+  };
+fun rotl // inline size: 2
+  = fn(i: std/core/types/int64, shift: std/core/types/int){
+    std/num/int64/rotl64(i, (std/num/int64/int64(shift)));
+  };
+fip fun rotr // inline size: 2
+  = fn(i: std/core/types/int64, shift: std/core/types/int){
+    std/num/int64/rotr64(i, (std/num/int64/int64(shift)));
+  };
+fip fun popcount // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/int((std/num/int64/popcount64(i)));
+  };
+fip fun min // inline size: 2
+  = fn(i: std/core/types/int64, j: std/core/types/int64){
+    match ((std/num/int64/(<=)(i, j))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };
+fip fun max // inline size: 2
+  = fn(i: std/core/types/int64, j: std/core/types/int64){
+    match ((std/num/int64/(>=)(i, j))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };
+fip fun (~) // inline size: 2
+  = fn(i: std/core/types/int64){
+    std/num/int64/(-)((std/num/int64/int64(0)), i);
+  };
+borrow "__^" fun range/for-while64 // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int64, end: std/core/types/int64, action: (std/core/types/int64) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/num/int64/#range/@lift-for-while64@4375<a,(e :: E)>(action, end, start);
+  };
+fun sum64 // inline size: 2
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/int64>){
+    std/num/int64/sumacc64(xs, (std/num/int64/int64(0)));
+  };
+fun zip-clmul // inline size: 3
+  = fn(x: std/core/types/int64){
+    std/num/int64/or((std/num/int64/clmul(x, x)), (std/num/int64/clmulr(x, x)));
+  };
+fun clmulrev // inline size: 4
+  = fn(x: std/core/types/int64, y: std/core/types/int64){
+    std/num/int64/bit-reverse((std/num/int64/clmul((std/num/int64/bit-reverse(x)), (std/num/int64/bit-reverse(y)))));
+  };

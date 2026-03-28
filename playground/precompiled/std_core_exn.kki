@@ -1,0 +1,279 @@
+// Standard exception (`:exn`) effect.
+module interface std/core/exn
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/hnd = std/core/hnd = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// Exception information
+pub open type exception-info[35,1,42,30] {
+  pub con ExnError[36,3,36,10]{0,1,8} : exception-info = 1;
+  // Generic error
+  pub con ExnAssert[37,3,37,11]{0,1,8} : exception-info = 2;
+  pub con ExnTodo[38,3,38,9]{0,1,8} : exception-info = 3;
+  pub con ExnRange[39,3,39,10]{0,1,8} : exception-info = 4;
+  pub con ExnPattern[40,3,40,12](location: std/core/types/string, definition: std/core/types/string){0,3,8} : (location : std/core/types/string, definition : std/core/types/string) -> exception-info = 5;
+  pub con ExnSystem[41,3,41,11](errno: std/core/types/int){0,2,8} : (errno : std/core/types/int) -> exception-info = 6;
+  pub con ExnInternal[42,3,42,13](name: std/core/types/string){0,2,8} : (name : std/core/types/string) -> exception-info = 7;
+};
+// The exception data type
+pub value{0,2,8} type exception[32,1,32,67] {
+  // The exception data type
+  pub con Exception[32,18,32,26](message: std/core/types/string, info: exception-info){0,2,8} : (message : std/core/types/string, info : exception-info) -> exception = 1;
+};
+// An `:error<a>` type represents a first-class exception result as a `:result<a,exception>`.
+pub alias error[65,1,65,40]<a> :: V -> V = (std/core/types/result :: (V, V) -> V)<a,exception> = 1;
+// Exceptions
+pub recursive effect type exn[21,1,23,44] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-exn[21,1,21,14](@cfc: std/core/types/int, @brk-throw-exn: forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>) -> (exn :: (E, V) -> V)<(e :: E),a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:exn` type.
+fun exn/@cfc[21,1,21,14] : forall<(e :: E),a> (^ exn : (exn :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:exn`
+pub val exn/@tag[21,1,21,14] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(exn :: (E, V) -> V)>;
+// handler for the effect `:exn`
+pub fun exn/@handle[21,12,21,14] : forall<a,(e :: E),b> (hnd : (exn :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@brk-throw-exn` constructor field of the `:exn` type.
+fun exn/@brk-throw-exn[23,13,23,44] : forall<(e :: E),a,b> (^ exn : (exn :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>;
+// select `throw-exn` operation out of effect `:exn`
+pub fun throw-exn/@select[23,13,23,44] : forall<a,(e :: E),b> (^ hnd : (exn :: (E, V) -> V)<(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,a,(exn :: (E, V) -> V),(e :: E),b>;
+// Throw an exception
+
+// Call the `final ctl throw-exn` operation of the effect `:exn`
+pub fun throw-exn[23,13,23,21] : forall<a> (exn : exception) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>> a;
+// Automatically generated. Retrieves the `info` constructor field of the `:exception` type.
+pub fun exception/info[32,46,32,49] : (^ exception : exception) -> exception-info;
+// Automatically generated. Retrieves the `message` constructor field of the `:exception` type.
+pub fun exception/message[32,29,32,35] : (^ exception : exception) -> std/core/types/string;
+pub fun exception/@copy[32,18,32,26] : (@this : exception, message : (std/core/types/@optional :: V -> V)<std/core/types/string>, info : (std/core/types/@optional :: V -> V)<exception-info>) -> exception;
+pub val @tag-ExnError[36,3,36,10] : std/core/types/string;
+pub val @tag-ExnAssert[37,3,37,11] : std/core/types/string;
+pub val @tag-ExnTodo[38,3,38,9] : std/core/types/string;
+pub val @tag-ExnRange[39,3,39,10] : std/core/types/string;
+pub val @tag-ExnPattern[40,3,40,12] : std/core/types/string;
+pub val @tag-ExnSystem[41,3,41,11] : std/core/types/string;
+pub val @tag-ExnInternal[42,3,42,13] : std/core/types/string;
+// Throw an exception with a specified message.
+pub fun throw[49,9,49,13] : forall<a> (message : std/core/types/string, info : (std/core/types/@optional :: V -> V)<exception-info>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>> a;
+// Raise a pattern match exception. This is function is used internally by the
+// compiler to generate error messages on pattern match failures.
+pub fun error-pattern[27,9,27,21] : forall<a> (location : std/core/types/string, definition : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>> a;
+// Automatically generated. Tests for the `ExnError` constructor of the `:exception-info` type.
+pub fip fun is-exnError[36,3,36,10] : (^ exception-info : exception-info) -> std/core/types/bool;
+// Automatically generated. Tests for the `ExnAssert` constructor of the `:exception-info` type.
+pub fip fun is-exnAssert[37,3,37,11] : (^ exception-info : exception-info) -> std/core/types/bool;
+// Automatically generated. Tests for the `ExnTodo` constructor of the `:exception-info` type.
+pub fip fun is-exnTodo[38,3,38,9] : (^ exception-info : exception-info) -> std/core/types/bool;
+// Automatically generated. Tests for the `ExnRange` constructor of the `:exception-info` type.
+pub fip fun is-exnRange[39,3,39,10] : (^ exception-info : exception-info) -> std/core/types/bool;
+// Automatically generated. Tests for the `ExnPattern` constructor of the `:exception-info` type.
+pub fip fun is-exnPattern[40,3,40,12] : (^ exception-info : exception-info) -> std/core/types/bool;
+// Automatically generated. Tests for the `ExnSystem` constructor of the `:exception-info` type.
+pub fip fun is-exnSystem[41,3,41,11] : (^ exception-info : exception-info) -> std/core/types/bool;
+// Automatically generated. Tests for the `ExnInternal` constructor of the `:exception-info` type.
+pub fip fun is-exnInternal[42,3,42,13] : (^ exception-info : exception-info) -> std/core/types/bool;
+// Show the exception message
+pub fun show[45,9,45,12] : (exn : exception) -> std/core/types/string;
+// Catch any exception raised in `action` and handle it.
+// Use `on-exit` when appropriate.
+pub fun handle/try[54,9,54,18] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>|(e :: E)> a, hndl : (exception) -> (e :: E) a) -> (e :: E) a;
+// monadic lift
+fun @mlift-try@10029[1,0,1,0] : forall<a,(e :: E)> (@y-x10022 : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>|(e :: E)> (std/core/types/result :: (V, V) -> V)<a,exception>;
+// Transform an exception effect to an  `:error` type.
+pub fun try[68,9,68,11] : forall<a,(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (error :: V -> V)<a>;
+// Catch an exception raised by `throw` and handle it.
+// This is `try` but with the arguments reversed, and is
+// often convenient to use as `with catch fn(e) ...`
+pub fun catch[61,16,61,20] : forall<a,(e :: E)> (hndl : (exception) -> (e :: E) a, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) a;
+// Transform an exception result type back to an `exn` effect (by throwing on an `Error`)
+pub fun untry[72,9,72,13] : forall<a> (err : (error :: V -> V)<a>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>> a;
+// Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
+pub fun on-exit[78,9,78,15] : forall<a,(e :: E)> (hndler : () -> (e :: E) (), action : () -> (e :: E) a) -> (e :: E) a;
+pub fun exn-error-range[81,9,81,23] : forall<a> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>> a;
+// Prepend `exn`'s message with `pre`.
+pub fun prepend[85,9,85,15] : (exn : exception, pre : std/core/types/string) -> exception;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun exn/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(exn: (exn :: (E, V) -> V)<(e :: E),a>){
+    (match (exn) {
+      ((@skip std/core/exn/@Hnd-exn((@x: std/core/types/int) : std/core/types/int, (@pat@0: (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>)) : (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>)) : (exn :: (E, V) -> V)<(e :: E),a> ) as @pat: ((exn :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun exn/@brk-throw-exn // inline size: 0
+  = forall<(e :: E),a,b> fn(exn: (exn :: (E, V) -> V)<(e :: E),a>){
+    (match (exn) {
+      ((@skip std/core/exn/@Hnd-exn((@pat@0: std/core/types/int) : std/core/types/int, (@x: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,c,(exn :: (E, V) -> V),(e :: E),a>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,c,(exn :: (E, V) -> V),(e :: E),a>)) : (exn :: (E, V) -> V)<(e :: E),a> ) as @pat: ((exn :: (E, V) -> V)<(e :: E),a>))
+         -> @x<b>;
+    });
+  };
+inline borrow "^" fun throw-exn/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (exn :: (E, V) -> V)<(e :: E),b>){
+    (match (hnd) {
+      ((@skip std/core/exn/@Hnd-exn((@pat@0: std/core/types/int) : std/core/types/int, (@brk-throw-exn: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,c,(exn :: (E, V) -> V),(e :: E),b>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,c,(exn :: (E, V) -> V),(e :: E),b>)) : (exn :: (E, V) -> V)<(e :: E),b> ) as @pat: ((exn :: (E, V) -> V)<(e :: E),b>))
+         -> @brk-throw-exn<a>;
+    });
+  };
+inline fun throw-exn // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>>>(exn: exception){
+    std/core/hnd/@perform1<exception,a,(exn :: (E, V) -> V),<(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(exn :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(exn :: (E, V) -> V)>>((std/core/hnd/@evv-at<(exn :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> std/core/exn/#throw-exn/@select<a,(e :: E),b>), exn);
+  };
+inline borrow "^" fun exception/info // inline size: 0
+  = fn(exception: exception){
+    match (exception) {
+      ((@skip std/core/exn/Exception((@pat@0: std/core/types/string) : std/core/types/string, (@x: exception-info) : exception-info) : exception ) as @pat: exception)
+         -> @x;
+    };
+  };
+inline borrow "^" fun exception/message // inline size: 0
+  = fn(exception: exception){
+    match (exception) {
+      ((@skip std/core/exn/Exception((@x: std/core/types/string) : std/core/types/string, (@pat@0: exception-info) : exception-info) : exception ) as @pat: exception)
+         -> @x;
+    };
+  };
+fun exception/@copy // inline size: 3
+  = fn(@this: exception, message: (std/core/types/@optional :: V -> V)<std/core/types/string>, info: (std/core/types/@optional :: V -> V)<exception-info>){
+    std/core/exn/Exception((match (message) {
+        ((std/core/types/@OptArg((@uniq-message@354: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-message@354;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> (match (@this) {
+            ((@skip std/core/exn/Exception((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: exception-info) : exception-info) : exception ) as @pat@1: exception)
+               -> @x;
+          });
+      }), (match (info) {
+        ((std/core/types/@OptArg((@uniq-info@362: exception-info) : exception-info) : (std/core/types/@optional :: V -> V)<exception-info> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<exception-info>))
+           -> @uniq-info@362;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<exception-info> ) as @pat@2: ((std/core/types/@optional :: V -> V)<exception-info>))
+           -> (match (@this) {
+            ((@skip std/core/exn/Exception((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: exception-info) : exception-info) : exception ) as @pat@3: exception)
+               -> @x@0;
+          });
+      }));
+  };
+inline borrow "^" fip fun is-exnError // inline size: 1
+  = fn(exception-info: exception-info){
+    match (exception-info) {
+      ((std/core/exn/ExnError() : exception-info ) as @pat: exception-info)
+         -> std/core/types/True;
+      (@pat@0: exception-info)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-exnAssert // inline size: 1
+  = fn(exception-info: exception-info){
+    match (exception-info) {
+      ((std/core/exn/ExnAssert() : exception-info ) as @pat: exception-info)
+         -> std/core/types/True;
+      (@pat@0: exception-info)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-exnTodo // inline size: 1
+  = fn(exception-info: exception-info){
+    match (exception-info) {
+      ((std/core/exn/ExnTodo() : exception-info ) as @pat: exception-info)
+         -> std/core/types/True;
+      (@pat@0: exception-info)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-exnRange // inline size: 1
+  = fn(exception-info: exception-info){
+    match (exception-info) {
+      ((std/core/exn/ExnRange() : exception-info ) as @pat: exception-info)
+         -> std/core/types/True;
+      (@pat@0: exception-info)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-exnPattern // inline size: 1
+  = fn(exception-info: exception-info){
+    match (exception-info) {
+      ((std/core/exn/ExnPattern((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string) : exception-info ) as @pat: exception-info)
+         -> std/core/types/True;
+      (@pat@2: exception-info)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-exnSystem // inline size: 1
+  = fn(exception-info: exception-info){
+    match (exception-info) {
+      ((std/core/exn/ExnSystem((@pat@0: std/core/types/int) : std/core/types/int) : exception-info ) as @pat: exception-info)
+         -> std/core/types/True;
+      (@pat@1: exception-info)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-exnInternal // inline size: 1
+  = fn(exception-info: exception-info){
+    match (exception-info) {
+      ((std/core/exn/ExnInternal((@pat@0: std/core/types/string) : std/core/types/string) : exception-info ) as @pat: exception-info)
+         -> std/core/types/True;
+      (@pat@1: exception-info)
+         -> std/core/types/False;
+    };
+  };
+inline fun show // inline size: 0
+  = fn(exn: exception){
+    match (exn) {
+      ((@skip std/core/exn/Exception((@x: std/core/types/string) : std/core/types/string, (@pat@0: exception-info) : exception-info) : exception ) as @pat: exception)
+         -> @x;
+    };
+  };
+fun handle/try // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(action: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>|(e :: E)> a, hndl: (exception) -> (e :: E) a){
+    std/core/exn/#exn/@handle<a,(e :: E),a>((std/core/exn/@Hnd-exn<(e :: E),a>(0, (forall<b> std/core/types/@open<(std/core/types/total :: E),(e :: E),(op : (exception) -> (e :: E) a) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>,(op : (exception) -> (e :: E) a) -> (e :: E) (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>>((std/core/hnd/clause-never1<exception,b,(e :: E),(exn :: (E, V) -> V),a>))(hndl)))), (fn<(e :: E)>(@res: a){
+        @res;
+      }), action);
+  };
+inline fun catch // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(hndl: (exception) -> (e :: E) a, action: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(exn :: (E, V) -> V)>|(e :: E)> a){
+    std/core/exn/#exn/@handle<a,(e :: E),a>((std/core/exn/@Hnd-exn<(e :: E),a>(0, (forall<b> std/core/types/@open<(std/core/types/total :: E),(e :: E),(op : (exception) -> (e :: E) a) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>,(op : (exception) -> (e :: E) a) -> (e :: E) (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<exception,b,(exn :: (E, V) -> V),(e :: E),a>>((std/core/hnd/clause-never1<exception,b,(e :: E),(exn :: (E, V) -> V),a>))(hndl)))), (fn<(e :: E)>(@res: a){
+        @res;
+      }), action);
+  };
+fun on-exit // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(hndler: () -> (e :: E) (), action: () -> (e :: E) a){
+    std/core/hnd/finally<a,(e :: E)>(hndler, action);
+  };
+fun prepend // inline size: 3
+  = fn(exn: exception, pre: std/core/types/string){
+    std/core/exn/Exception((std/core/types/(++)(pre, (std/core/types/(++)(": ", (match (exn) {
+            ((@skip std/core/exn/Exception((@x: std/core/types/string) : std/core/types/string, (@pat@0: exception-info) : exception-info) : exception ) as @pat: exception)
+               -> @x;
+          }))))), (match (exn) {
+        ((@skip std/core/exn/Exception((@pat@0@0: std/core/types/string) : std/core/types/string, (@x@0: exception-info) : exception-info) : exception ) as @pat@1: exception)
+           -> @x@0;
+      }));
+  };

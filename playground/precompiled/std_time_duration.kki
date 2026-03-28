@@ -1,0 +1,541 @@
+/* Time durations in SI seconds.
+
+   Durations use SI seconds.
+*/
+module interface std/time/duration
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/ddouble = std/num/ddouble = "";
+import std/time/timestamp = std/time/timestamp = "";
+import std/num/float64 = std/num/float64 inline = "";
+import std/num/int32 = std/num/int32 inline = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// Time spans are a time duration in some time scale represented as a `:ddouble`;
+// this gives it very high precision and range to represent time very precisely.
+// (see the [`instant`](std_time_instant.html) module)
+local alias std/time/timestamp/timespan[25,1,25,28] = std/num/ddouble/ddouble = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A duration in time in (TAI) SI seconds (as measured on the earth's geoid).\
+// A duration is represented by a `:ddouble` giving it a high range and precision (see the [`instant`](std_time_instant.html) module)
+pub value{16,0,8} type duration[24,1,25,17] {
+  // A duration in time in (TAI) SI seconds (as measured on the earth's geoid).\
+// A duration is represented by a `:ddouble` giving it a high range and precision (see the [`instant`](std_time_instant.html) module)
+  con Duration[24,23,24,30](secs: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)){16,0,8} : (secs : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> duration = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `secs` constructor field of the `:duration` type.
+fun duration/secs[25,3,25,6] : (^ duration : duration) -> std/time/timestamp/timespan;
+pub fun duration/@copy[24,23,24,30] : (@this : duration, secs : (std/core/types/@optional :: V -> V)<std/time/timestamp/timespan>) -> duration;
+// A zero duration.
+pub val zero[29,9,29,12] : duration;
+pub val duration0[30,9,30,17] : duration;
+// Convert a `:timespan` to a `:duration`. Be careful to only use
+// use this on timespan's that are in TAI SI seconds!
+pub fun duration[34,9,34,16] : (t : std/time/timestamp/timespan) -> duration;
+// Convert a `:timestamp` to a `:duration`. Be careful to only use
+// use this on timestamp's that are in TAI SI seconds and do not
+// contain leap seconds!
+pub fun unsafe-duration[41,9,41,23] : (t : std/time/timestamp/timestamp) -> duration;
+// Return the duration in SI seconds.
+pub fun seconds[66,9,66,15] : (d : duration) -> std/time/timestamp/timespan;
+// Create a duration from seconds as a `:float64`.
+pub fun float64/duration[50,9,50,24] : (secs : std/core/types/float64) -> duration;
+// Create a duration from seconds and a fraction as a `:float64`'s.
+pub fun float64frac/duration[54,9,54,28] : (secs : std/core/types/float64, frac : std/core/types/float64) -> duration;
+// Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
+pub fun int/duration[46,9,46,20] : (secs : std/core/types/int, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>) -> duration;
+// Create a `:duration` of `n` seconds.
+pub fun int/seconds[137,9,137,19] : (n : std/core/types/int) -> duration;
+// Convert a duration to a `:timespan`.
+pub fun timespan[58,9,58,16] : (d : duration) -> std/time/timestamp/timespan;
+// Convert a duration to a `:timespan`.
+pub fun timestamp[62,9,62,17] : (d : duration) -> std/time/timestamp/timestamp;
+// Return the duration in rounded SI milli-seconds.
+pub fun milli-seconds[70,9,70,21] : (d : duration) -> std/core/types/int;
+// Return the duration in rounded SI nano-seconds.
+pub fun nano-seconds[74,9,74,20] : (d : duration) -> std/core/types/int;
+// The whole seconds (in some time unit) of the duration as `:int``. Rounds towards zero.
+pub fun truncate[78,9,78,16] : (d : duration) -> std/core/types/int;
+// The fractional seconds of a duration as a `:float64`.
+// `d.seconds == d.truncate.fixed + d.fraction.fixed
+pub fun fraction[83,9,83,16] : (d : duration) -> std/core/types/float64;
+// Is this a negative duration?
+pub fun is-neg[87,9,87,14] : (d : duration) -> std/core/types/bool;
+// Is this a zero duration?
+pub fun is-zero[91,9,91,15] : (d : duration) -> std/core/types/bool;
+// Is this a positive duration?
+pub fun is-pos[95,9,95,14] : (d : duration) -> std/core/types/bool;
+// Compare two `:duration`s.
+pub fun cmp[99,9,99,11] : (i : duration, j : duration) -> std/core/types/order;
+pub fun (==)[106,9,106,12] : (i : duration, j : duration) -> std/core/types/bool;
+pub fun (<)[102,9,102,11] : (i : duration, j : duration) -> std/core/types/bool;
+pub fun (!=)[107,9,107,12] : (i : duration, j : duration) -> std/core/types/bool;
+pub fun (<=)[103,9,103,12] : (i : duration, j : duration) -> std/core/types/bool;
+pub fun (>)[104,9,104,11] : (i : duration, j : duration) -> std/core/types/bool;
+pub fun (>=)[105,9,105,12] : (i : duration, j : duration) -> std/core/types/bool;
+// The minimum of two durations.
+pub fun min[110,9,110,11] : (i : duration, j : duration) -> duration;
+// The maximum of two durations.
+pub fun max[114,9,114,11] : (i : duration, j : duration) -> duration;
+// Add two durations.
+pub fun (+)[118,9,118,11] : (d : duration, e : duration) -> duration;
+// Negate a duration.
+pub fun (~)[122,9,122,11] : (d : duration) -> duration;
+// Subtract a duration from a duration.
+pub fun (-)[126,9,126,11] : (d : duration, e : duration) -> duration;
+// Show a duration in SI seconds.
+pub fun show[130,9,130,12] : (d : duration, max-prec : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+// Create a `:duration` of `n` milli-seconds.
+pub fun int/milli-seconds[134,9,134,25] : (n : std/core/types/int) -> duration;
+// Create a `:duration` of `n` minutes.
+pub fun minutes[140,9,140,15] : (n : std/core/types/int) -> duration;
+// Create a `:duration` of `n` hours.
+pub fun hours[143,9,143,13] : (n : std/core/types/int) -> duration;
+// Create a `:duration` of `n` "days" (assuming 86400s in a day).
+pub fun days[146,9,146,12] : (n : std/core/types/int) -> duration;
+// Create a `:duration` of `n` "weeks" (assuming 7 days of 86400s).
+pub fun weeks[149,9,149,13] : (n : std/core/types/int) -> duration;
+// Create a `:duration` of `n` "years" (assuming 365 days of 86400s).
+pub fun years[152,9,152,13] : (n : std/core/types/int) -> duration;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun duration/secs // inline size: 0
+  = fn(duration@0: duration){
+    match (duration@0) {
+      ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat: duration)
+         -> @x;
+    };
+  };
+fun duration/@copy // inline size: 2
+  = fn(@this: duration, secs: (std/core/types/@optional :: V -> V)<std/time/timestamp/timespan>){
+    std/time/duration/Duration((match (secs) {
+      ((std/core/types/@OptArg((@uniq-secs@64: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/core/types/@optional :: V -> V)<(std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)> ) as @pat: ((std/core/types/@optional :: V -> V)<(std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>))
+         -> @uniq-secs@64;
+      ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)> ) as @pat@0: ((std/core/types/@optional :: V -> V)<(std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>))
+         -> (match (@this) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@1: duration)
+             -> @x;
+        });
+    }));
+  };
+fun duration // inline size: 1
+  = fn(t: std/time/timestamp/timespan){
+    std/time/duration/Duration(t);
+  };
+fun unsafe-duration // inline size: 2
+  = fn(t: std/time/timestamp/timestamp){
+    std/time/duration/Duration((std/time/timestamp/unsafe-timespan-withleap(t)));
+  };
+inline fun seconds // inline size: 0
+  = fn(d: duration){
+    match (d) {
+      ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat: duration)
+         -> @x;
+    };
+  };
+fun float64/duration // inline size: 2
+  = fn(secs: std/core/types/float64){
+    std/time/duration/Duration((std/num/ddouble/Ddouble(secs, 0.0)));
+  };
+fun int/duration // inline size: 4
+  = fn(secs: std/core/types/int, frac: (std/core/types/@optional :: V -> V)<std/core/types/float64>){
+    std/time/duration/Duration((std/time/timestamp/#int/timespan(secs, (std/core/types/@OptArg<std/core/types/float64>((match (frac) {
+        ((std/core/types/@OptArg((@uniq-frac@155: std/core/types/float64) : std/core/types/float64) : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> @uniq-frac@155;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> 0.0;
+      }))))));
+  };
+fun int/seconds // inline size: 4
+  = fn(n: std/core/types/int){
+    std/time/duration/Duration((std/time/timestamp/#int/timespan(n, (std/core/types/@OptArg<std/core/types/float64>((match ((std/core/types/@NoOptArg<std/core/types/float64>)) {
+        ((std/core/types/@OptArg((@uniq-frac@155: std/core/types/float64) : std/core/types/float64) : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> @uniq-frac@155;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/float64> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/float64>))
+           -> 0.0;
+      }))))));
+  };
+inline fun timespan // inline size: 0
+  = fn(d: duration){
+    match (d) {
+      ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat: duration)
+         -> @x;
+    };
+  };
+fun timestamp // inline size: 3
+  = fn(d: duration){
+    std/time/timestamp/Timestamp((match (d) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@1: duration)
+           -> @x;
+      }), (std/num/int32/int32((match ((std/core/types/@NoOptArg<std/core/types/int>)) {
+        ((std/core/types/@OptArg((@uniq-leap@1340: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> @uniq-leap@1340;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+           -> 0;
+      }))));
+  };
+fun milli-seconds // inline size: 3
+  = fn(d: duration){
+    std/num/ddouble/int((std/num/ddouble/(*)((match (d) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat: duration)
+             -> @x;
+        }), (std/time/timestamp/#int/timespan(1000, (std/core/types/@NoOptArg<std/core/types/float64>))))), (std/core/types/@NoOptArg<std/core/types/int>));
+  };
+fun nano-seconds // inline size: 3
+  = fn(d: duration){
+    std/num/ddouble/int((std/num/ddouble/(*)((match (d) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat: duration)
+             -> @x;
+        }), (std/time/timestamp/#int/timespan(1000000000, (std/core/types/@NoOptArg<std/core/types/float64>))))), (std/core/types/@NoOptArg<std/core/types/int>));
+  };
+fun fraction // inline size: 1
+  = fn(d: duration){
+    val x@10017[1,0,1,0] : std/num/ddouble/ddouble
+          = std/num/ddouble/fraction((match (d) {
+            ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@1: duration)
+               -> @x@0;
+          }));
+    match (x@10017) {
+      ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+         -> @x;
+    };
+  };
+fun is-neg // inline size: 1
+  = fn(d: duration){
+    std/num/float64/(<)((match (d) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@1: duration)
+           -> (match (@x@0) {
+            ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+               -> @x;
+          });
+      }), 0.0);
+  };
+fun is-zero // inline size: 1
+  = fn(d: duration){
+    std/num/float64/(==)((match (d) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@1: duration)
+           -> (match (@x@0) {
+            ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+               -> @x;
+          });
+      }), 0.0);
+  };
+fun is-pos // inline size: 1
+  = fn(d: duration){
+    std/num/float64/(>)((match (d) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@1: duration)
+           -> (match (@x@0) {
+            ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+               -> @x;
+          });
+      }), 0.0);
+  };
+fun cmp // inline size: 3
+  = fn(i: duration, j: duration){
+    match ((std/num/float64/cmp((match (i) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5: duration)
+           -> (match (@x@3) {
+            ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+               -> @x;
+          });
+      }), (match (j) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4: std/core/types/float64) : std/core/types/float64, (@pat@1@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6: duration)
+           -> (match (@x@4) {
+            ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+               -> @x@0;
+          });
+      })))) {
+      ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+         -> std/num/float64/cmp((match (i) {
+            ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5@0: duration)
+               -> (match (@x@3@0) {
+                ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: std/num/ddouble/ddouble)
+                   -> @x@1;
+              });
+          }), (match (j) {
+            ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4@0: std/core/types/float64) : std/core/types/float64, (@pat@1@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6@0: duration)
+               -> (match (@x@4@0) {
+                ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@4: std/num/ddouble/ddouble)
+                   -> @x@2;
+              });
+          }));
+      (ord: std/core/types/order)
+         -> ord;
+    };
+  };
+fun (==) // inline size: 4
+  = fn(i: duration, j: duration){
+    std/core/order/(==)((match ((std/num/float64/cmp((match (i) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5: duration)
+             -> (match (@x@3) {
+              ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+                 -> @x;
+            });
+        }), (match (j) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4: std/core/types/float64) : std/core/types/float64, (@pat@1@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6: duration)
+             -> (match (@x@4) {
+              ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+                 -> @x@0;
+            });
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (i) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5@0: duration)
+                 -> (match (@x@3@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: std/num/ddouble/ddouble)
+                     -> @x@1;
+                });
+            }), (match (j) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4@0: std/core/types/float64) : std/core/types/float64, (@pat@1@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6@0: duration)
+                 -> (match (@x@4@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@4: std/num/ddouble/ddouble)
+                     -> @x@2;
+                });
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Eq);
+  };
+fun (<) // inline size: 4
+  = fn(i: duration, j: duration){
+    std/core/order/(==)((match ((std/num/float64/cmp((match (i) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5: duration)
+             -> (match (@x@3) {
+              ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+                 -> @x;
+            });
+        }), (match (j) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4: std/core/types/float64) : std/core/types/float64, (@pat@1@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6: duration)
+             -> (match (@x@4) {
+              ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+                 -> @x@0;
+            });
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (i) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5@0: duration)
+                 -> (match (@x@3@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: std/num/ddouble/ddouble)
+                     -> @x@1;
+                });
+            }), (match (j) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4@0: std/core/types/float64) : std/core/types/float64, (@pat@1@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6@0: duration)
+                 -> (match (@x@4@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@4: std/num/ddouble/ddouble)
+                     -> @x@2;
+                });
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Lt);
+  };
+fun (!=) // inline size: 4
+  = fn(i: duration, j: duration){
+    std/core/order/(!=)((match ((std/num/float64/cmp((match (i) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5: duration)
+             -> (match (@x@3) {
+              ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+                 -> @x;
+            });
+        }), (match (j) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4: std/core/types/float64) : std/core/types/float64, (@pat@1@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6: duration)
+             -> (match (@x@4) {
+              ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+                 -> @x@0;
+            });
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (i) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5@0: duration)
+                 -> (match (@x@3@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: std/num/ddouble/ddouble)
+                     -> @x@1;
+                });
+            }), (match (j) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4@0: std/core/types/float64) : std/core/types/float64, (@pat@1@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6@0: duration)
+                 -> (match (@x@4@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@4: std/num/ddouble/ddouble)
+                     -> @x@2;
+                });
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Eq);
+  };
+fun (<=) // inline size: 4
+  = fn(i: duration, j: duration){
+    std/core/order/(!=)((match ((std/num/float64/cmp((match (i) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5: duration)
+             -> (match (@x@3) {
+              ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+                 -> @x;
+            });
+        }), (match (j) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4: std/core/types/float64) : std/core/types/float64, (@pat@1@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6: duration)
+             -> (match (@x@4) {
+              ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+                 -> @x@0;
+            });
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (i) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5@0: duration)
+                 -> (match (@x@3@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: std/num/ddouble/ddouble)
+                     -> @x@1;
+                });
+            }), (match (j) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4@0: std/core/types/float64) : std/core/types/float64, (@pat@1@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6@0: duration)
+                 -> (match (@x@4@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@4: std/num/ddouble/ddouble)
+                     -> @x@2;
+                });
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Gt);
+  };
+fun (>) // inline size: 4
+  = fn(i: duration, j: duration){
+    std/core/order/(==)((match ((std/num/float64/cmp((match (i) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5: duration)
+             -> (match (@x@3) {
+              ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+                 -> @x;
+            });
+        }), (match (j) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4: std/core/types/float64) : std/core/types/float64, (@pat@1@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6: duration)
+             -> (match (@x@4) {
+              ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+                 -> @x@0;
+            });
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (i) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5@0: duration)
+                 -> (match (@x@3@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: std/num/ddouble/ddouble)
+                     -> @x@1;
+                });
+            }), (match (j) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4@0: std/core/types/float64) : std/core/types/float64, (@pat@1@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6@0: duration)
+                 -> (match (@x@4@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@4: std/num/ddouble/ddouble)
+                     -> @x@2;
+                });
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Gt);
+  };
+fun (>=) // inline size: 4
+  = fn(i: duration, j: duration){
+    std/core/order/(!=)((match ((std/num/float64/cmp((match (i) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5: duration)
+             -> (match (@x@3) {
+              ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+                 -> @x;
+            });
+        }), (match (j) {
+          ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4: std/core/types/float64) : std/core/types/float64, (@pat@1@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6: duration)
+             -> (match (@x@4) {
+              ((@skip std/num/ddouble/Ddouble((@x@0: std/core/types/float64) : std/core/types/float64, (@pat@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+                 -> @x@0;
+            });
+        })))) {
+        ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+           -> std/num/float64/cmp((match (i) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@3@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@3@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@5@0: duration)
+                 -> (match (@x@3@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@x@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@3: std/num/ddouble/ddouble)
+                     -> @x@1;
+                });
+            }), (match (j) {
+              ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@4@0: std/core/types/float64) : std/core/types/float64, (@pat@1@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@4@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@6@0: duration)
+                 -> (match (@x@4@0) {
+                  ((@skip std/num/ddouble/Ddouble((@pat@0@2: std/core/types/float64) : std/core/types/float64, (@x@2: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@4: std/num/ddouble/ddouble)
+                     -> @x@2;
+                });
+            }));
+        (ord: std/core/types/order)
+           -> ord;
+      }), std/core/types/Lt);
+  };
+fun (+) // inline size: 2
+  = fn(d: duration, e: duration){
+    std/time/duration/Duration((std/num/ddouble/(+)((match (d) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0: std/core/types/float64) : std/core/types/float64, (@pat@1: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat: duration)
+           -> @x;
+      }), (match (e) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@2: duration)
+           -> @x@0;
+      }))));
+  };
+fun (~) // inline size: 4
+  = fn(d: duration){
+    std/time/duration/Duration((std/num/ddouble/Ddouble((std/num/float64/(~)((match (d) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@1: std/core/types/float64) : std/core/types/float64, (@pat@1@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@1: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@2: duration)
+           -> (match (@x@1) {
+            ((@skip std/num/ddouble/Ddouble((@x: std/core/types/float64) : std/core/types/float64, (@pat@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat: std/num/ddouble/ddouble)
+               -> @x;
+          });
+      }))), (std/num/float64/(~)((match (d) {
+        ((@skip std/time/duration/Duration(((@skip std/num/ddouble/Ddouble((@pat@0@1@0: std/core/types/float64) : std/core/types/float64, (@pat@1@0@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @x@1@0: (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : duration ) as @pat@2@0: duration)
+           -> (match (@x@1@0) {
+            ((@skip std/num/ddouble/Ddouble((@pat@0@0: std/core/types/float64) : std/core/types/float64, (@x@0: std/core/types/float64) : std/core/types/float64) : std/num/ddouble/ddouble ) as @pat@1: std/num/ddouble/ddouble)
+               -> @x@0;
+          });
+      }))))));
+  };
+fun int/milli-seconds // inline size: 4
+  = fn(n: std/core/types/int){
+    std/time/duration/Duration((std/num/ddouble/(/)((std/time/timestamp/#int/timespan(n, (std/core/types/@NoOptArg<std/core/types/float64>))), (std/time/timestamp/#int/timespan(1000, (std/core/types/@NoOptArg<std/core/types/float64>))))));
+  };

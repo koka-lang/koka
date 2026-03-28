@@ -1,0 +1,1187 @@
+// Standard `:list` functions.
+module interface std/core/list
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/undiv = std/core/undiv = "";
+import std/core/hnd = std/core/hnd = "";
+import std/core/exn = std/core/exn = "";
+import std/core/char = std/core/char = "";
+import std/core/string = std/core/string = "";
+import std/core/int = std/core/int = "";
+import std/core/vector = std/core/vector = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// A first-class constructor context where the hole is of the same type as the root of the structure.
+local alias std/core/types/ctx[503,1,503,28]<a> :: V -> V = (std/core/types/cctx :: (V, V) -> V)<a,a> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Return the head of list if the list is not empty.
+pub fbip fun maybe/head[23,14,23,23] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/maybe :: V -> V)<a>;
+// Return the head of list with a default value in case the list is empty.
+pub fbip fun head[29,14,29,17] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, default : a) -> a;
+// Return the tail of list. Returns the empty list if `xs` is empty.
+pub fbip fun tail[35,14,35,17] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Is the list empty?
+pub fip fun is-empty[41,13,41,20] : forall<a> (^ xs : (std/core/types/list :: V -> V)<a>) -> std/core/types/bool;
+// Returns a singleton list.
+pub fip(1) fun single[52,16,52,21] : forall<a> (x : a) -> (std/core/types/list :: V -> V)<a>;
+// lifted local: length, len
+fun @lift-length@6003[1,0,1,0] : forall<a> (ys : (std/core/types/list :: V -> V)<a>, acc : std/core/types/int) -> std/core/types/int;
+// Returns the length of a list.
+pub fun length[56,9,56,14] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> std/core/types/int;
+// monadic lift
+fun (@mlift-x@10410==)[1,0,1,0] : forall<a,(e :: E)> (?(==) : (a, a) -> (e :: E) std/core/types/bool, xx : (std/core/types/list :: V -> V)<a>, yy : (std/core/types/list :: V -> V)<a>, @y-x10140 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Element-wise list equality
+pub fun (==)[98,9,98,12] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>, ?(==) : (a, a) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun @mlift-cmp@10411[1,0,1,0] : forall<a,(e :: E)> (?cmp : (a, a) -> (e :: E) std/core/types/order, xx : (std/core/types/list :: V -> V)<a>, yy : (std/core/types/list :: V -> V)<a>, @y-x10145 : std/core/types/order) -> (e :: E) std/core/types/order;
+// Order on lists
+pub fun cmp[108,9,108,11] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>, ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/order;
+// Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
+pub fun @trmc-take[205,9,205,12] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, n : std/core/types/int, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
+pub fun take[205,9,205,12] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, n : std/core/types/int) -> (std/core/types/list :: V -> V)<a>;
+// Drop the first `n` elements of a list (or fewer if the list is shorter than `n`)
+pub fun drop[211,9,211,12] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, n : std/core/types/int) -> (std/core/types/list :: V -> V)<a>;
+fip fun reverse-acc[258,9,258,19] : forall<a> (acc : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Efficiently reverse a list `xs` and append it to `tl`:
+// `reverse-append(xs,tl) == reverse(xs) ++ tl
+pub fip fun reverse-append[255,13,255,26] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, tl : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Reverse a list.
+pub fip fun reverse[250,13,250,19] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Append two lists.
+pub fip fun @trmc-append[268,13,268,18] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Append two lists.
+pub fip fun append[268,13,268,18] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Append two lists.
+pub fip fun (++)[264,13,264,16] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-foldl@10412[1,0,1,0] : forall<a,b,(e :: E)> (f : (b, a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @y-x10150 : b) -> (e :: E) b;
+// Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2`
+// Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f`
+pub fun foldl[280,9,280,13] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, z : b, f : (b, a) -> (e :: E) b) -> (e :: E) b;
+// Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)`
+// Note, `foldr` is less efficient than `foldl` as it reverses the list first.
+pub fun foldr[275,9,275,13] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, z : b, f : (a, b) -> (e :: E) b) -> (e :: E) b;
+pub fun foldl1[285,9,285,14] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a, a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a;
+pub fun foldr1[290,9,290,14] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a, a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a;
+// split a list at position `n`
+pub fun split[300,9,300,13] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, n : std/core/types/int) -> ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+// monadic lift
+fun @mlift-drop-while@10413[1,0,1,0] : forall<a,(e :: E)> (predicate : (a) -> (e :: E) std/core/types/bool, xs : (std/core/types/list :: V -> V)<a>, xx : (std/core/types/list :: V -> V)<a>, @y-x10161 : std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Drop all initial elements that satisfy `predicate`
+pub fun drop-while[317,9,317,18] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-trmc-filter@10414[1,0,1,0] : forall<a,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, pred : (a) -> (e :: E) std/core/types/bool, x : a, xx : (std/core/types/list :: V -> V)<a>, @y-x10165 : std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-trmcm-filter@10415[1,0,1,0] : forall<a,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool, x : a, xx : (std/core/types/list :: V -> V)<a>, @y-x10170 : std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filter([1,2,3],odd?) == [1,3]`
+pub fun @trmc-filter[324,9,324,14] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filter([1,2,3],odd?) == [1,3]`
+pub fun @trmcm-filter[324,9,324,14] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool, @accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filter([1,2,3],odd?) == [1,3]`
+pub fun filter[324,9,324,14] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-trmc-filter-map@10416[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, pred : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, xx : (std/core/types/list :: V -> V)<a>, @y-x10178 : (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-filter-map@10417[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, pred : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, xx : (std/core/types/list :: V -> V)<a>, @y-x10183 : (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`
+pub fun @trmc-filter-map[349,9,349,18] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`
+pub fun @trmcm-filter-map[349,9,349,18] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`
+pub fun filter-map[349,9,349,18] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-foreach-while@10418[1,0,1,0] : forall<a,b,(e :: E)> (action : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, xx : (std/core/types/list :: V -> V)<a>, @y-x10191 : (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/maybe :: V -> V)<b>;
+// Invoke `action` for each element of a list while `action` return `Nothing`
+pub fun foreach-while[394,9,394,21] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, action : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/maybe :: V -> V)<b>;
+// monadic lift
+fun @mlift-find@10419[1,0,1,0] : forall<a,(e :: E)> (x : a, @y-x10195 : std/core/types/bool) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Find the first element satisfying some predicate
+pub fun find[357,9,357,12] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Find the first element satisfying some predicate and return it.
+pub fun find-maybe[362,9,362,18] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/maybe :: V -> V)<b>;
+// Convert a `:maybe` type to a list type.
+pub fun maybe/list[372,9,372,18] : forall<a> (m : (std/core/types/maybe :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Returns an integer list of increasing elements from `lo`  to `hi`
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
+pub fun range/@trmc-list[66,9,66,18] : (lo : std/core/types/int, hi : std/core/types/int, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/int>>) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// Returns an integer list of increasing elements from `lo`  to `hi`
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
+pub fun range/list[66,9,66,18] : (lo : std/core/types/int, hi : std/core/types/int) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// monadic lift
+fun @mlift-trmc-map@10420[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @trmc-x10062 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-map@10421[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (a) -> (e :: E) b, xx : (std/core/types/list :: V -> V)<a>, @trmc-x10067 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Apply a function `f` to each element of the input list in sequence.
+pub fip fun @trmc-map[217,13,217,15] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Apply a function `f` to each element of the input list in sequence.
+pub fip fun @trmcm-map[217,13,217,15] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Apply a function `f` to each element of the input list in sequence.
+pub fip fun map[217,13,217,15] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ f : (a) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Create a list of characters from `lo`  to `hi`  (including `hi`).
+pub fun char/list[94,9,94,17] : (lo : std/core/types/char, hi : std/core/types/char) -> (std/core/types/list :: V -> V)<std/core/types/char>;
+// monadic lift
+fun function/@mlift-trmc-list@10422[1,0,1,0] : forall<a,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, f : (std/core/types/int) -> (e :: E) a, hi : std/core/types/int, lo : std/core/types/int, @trmc-x10068 : a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun function/@mlift-trmcm-list@10423[1,0,1,0] : forall<a,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>, f : (std/core/types/int) -> (e :: E) a, hi : std/core/types/int, lo : std/core/types/int, @trmc-x10073 : a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Applies a function `f` to list of increasing elements from `lo`  to `hi`
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
+pub fun function/@trmc-list[81,9,81,21] : forall<a,(e :: E)> (lo : std/core/types/int, hi : std/core/types/int, f : (std/core/types/int) -> (e :: E) a, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Applies a function `f` to list of increasing elements from `lo`  to `hi`
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
+pub fun function/@trmcm-list[81,9,81,21] : forall<a,(e :: E)> (lo : std/core/types/int, hi : std/core/types/int, f : (std/core/types/int) -> (e :: E) a, @accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Applies a function `f` to list of increasing elements from `lo`  to `hi`
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
+pub fun function/list[81,9,81,21] : forall<a,(e :: E)> (lo : std/core/types/int, hi : std/core/types/int, f : (std/core/types/int) -> (e :: E) a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+pub fun stride/@trmc-list[73,9,73,19] : (lo : std/core/types/int, hi : std/core/types/int, stride : std/core/types/int, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/int>>) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+pub fun stride/list[73,9,73,19] : (lo : std/core/types/int, hi : std/core/types/int, stride : std/core/types/int) -> (std/core/types/list :: V -> V)<std/core/types/int>;
+// monadic lift
+fun stridefunction/@mlift-trmc-list@10424[1,0,1,0] : forall<a,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, f : (std/core/types/int) -> (e :: E) a, hi : std/core/types/int, lo : std/core/types/int, stride : std/core/types/int, @trmc-x10076 : a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun stridefunction/@mlift-trmcm-list@10425[1,0,1,0] : forall<a,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>, f : (std/core/types/int) -> (e :: E) a, hi : std/core/types/int, lo : std/core/types/int, stride : std/core/types/int, @trmc-x10081 : a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+pub fun stridefunction/@trmc-list[88,9,88,27] : forall<a,(e :: E)> (lo : std/core/types/int, hi : std/core/types/int, stride : std/core/types/int, f : (std/core/types/int) -> (e :: E) a, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+pub fun stridefunction/@trmcm-list[88,9,88,27] : forall<a,(e :: E)> (lo : std/core/types/int, hi : std/core/types/int, stride : std/core/types/int, f : (std/core/types/int) -> (e :: E) a, @accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+pub fun stridefunction/list[88,9,88,27] : forall<a,(e :: E)> (lo : std/core/types/int, hi : std/core/types/int, stride : std/core/types/int, f : (std/core/types/int) -> (e :: E) a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Apply a function `f` to each character in a string
+pub fun string/map[558,9,558,18] : forall<(e :: E)> (s : std/core/types/string, f : (std/core/types/char) -> (e :: E) std/core/types/char) -> (e :: E) std/core/types/string;
+// monadic lift
+fun @mlift-order2@10426[1,0,1,0] : forall<a,(e :: E)> (z : a, @y-x10227 : (std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>>;
+// monadic lift
+fun @mlift-order2@10427[1,0,1,0] : forall<a,(e :: E)> (?order2 : (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>, xx : (std/core/types/list :: V -> V)<a>, yy : (std/core/types/list :: V -> V)<a>, @y-x10226 : (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>>;
+// Order2 on lists
+pub fun order2[120,9,120,14] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<a>, ^ ?order2 : (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>) -> (e :: E) (std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>>;
+// monadic lift
+fun @mlift-trmc-lift-map-indexed@6004@10428[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (idx : std/core/types/int, value : a) -> (e :: E) b, i@0@10018 : std/core/types/int, yy : (std/core/types/list :: V -> V)<a>, @trmc-x10082 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-lift-map-indexed@6004@10429[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (idx : std/core/types/int, value : a) -> (e :: E) b, i@0@10018 : std/core/types/int, yy : (std/core/types/list :: V -> V)<a>, @trmc-x10087 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-indexed, map-idx
+fun @trmc-lift-map-indexed@6004[1,0,1,0] : forall<a,b,(e :: E)> (f : (idx : std/core/types/int, value : a) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, i : std/core/types/int, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-indexed, map-idx
+fun @trmcm-lift-map-indexed@6004[1,0,1,0] : forall<a,b,(e :: E)> (f : (idx : std/core/types/int, value : a) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, i : std/core/types/int, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-indexed, map-idx
+fun @lift-map-indexed@6004[1,0,1,0] : forall<a,b,(e :: E)> (f : (idx : std/core/types/int, value : a) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, i : std/core/types/int) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Apply a function `f` to each element of the input list in sequence where takes
+// both the index of the current element and the element itself as arguments.
+pub fun map-indexed[224,9,224,19] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (idx : std/core/types/int, value : a) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmc-lift-map-peek@6005@10430[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, yy : (std/core/types/list :: V -> V)<a>, @trmc-x10088 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-lift-map-peek@6005@10431[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, yy : (std/core/types/list :: V -> V)<a>, @trmc-x10093 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-peek, mappeek
+fun @trmc-lift-map-peek@6005[1,0,1,0] : forall<a,b,(e :: E)> (f : (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-peek, mappeek
+fun @trmcm-lift-map-peek@6005[1,0,1,0] : forall<a,b,(e :: E)> (f : (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-peek, mappeek
+fun @lift-map-peek@6005[1,0,1,0] : forall<a,b,(e :: E)> (f : (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Apply a function `f` to each element of the input list in sequence where `f` takes
+// both the current element and the tail list as arguments.
+pub fun map-peek[233,9,233,16] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmc-lift-map-indexed-peek@6006@10432[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, i@0@10021 : std/core/types/int, yy : (std/core/types/list :: V -> V)<a>, @trmc-x10094 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-lift-map-indexed-peek@6006@10433[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, i@0@10021 : std/core/types/int, yy : (std/core/types/list :: V -> V)<a>, @trmc-x10099 : b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-indexed-peek, mapidx
+fun @trmc-lift-map-indexed-peek@6006[1,0,1,0] : forall<a,b,(e :: E)> (f : (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, i : std/core/types/int, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-indexed-peek, mapidx
+fun @trmcm-lift-map-indexed-peek@6006[1,0,1,0] : forall<a,b,(e :: E)> (f : (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, i : std/core/types/int, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: map-indexed-peek, mapidx
+fun @lift-map-indexed-peek@6006[1,0,1,0] : forall<a,b,(e :: E)> (f : (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, i : std/core/types/int) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Apply a function `f` to each element of the input list in sequence where takes
+// both the index of the current element, the element itself, and the tail list as arguments.
+pub fun map-indexed-peek[242,9,242,24] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Create a list of `n` repeated elements `x`
+pub fun @trmc-replicate[294,9,294,17] : forall<a> (x : a, n : std/core/types/int, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Create a list of `n` repeated elements `x`
+pub fun replicate[294,9,294,17] : forall<a> (x : a, n : std/core/types/int) -> (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-remove@10434[1,0,1,0] : forall<(e :: E)> (@y-x10261 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Remove those elements of a list that satisfy the given predicate `pred`.
+// For example: `remove([1,2,3],odd?) == [2]`
+pub fun remove[331,9,331,14] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-partition-acc@10435[1,0,1,0] : forall<a,(e :: E)> (acc1 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, acc2 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, pred : (a) -> (e :: E) std/core/types/bool, x : a, xx : (std/core/types/list :: V -> V)<a>, @y-x10263 : std/core/types/bool) -> (e :: E) ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+fun partition-acc[340,5,340,17] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ pred : (a) -> (e :: E) std/core/types/bool, acc1 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, acc2 : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (e :: E) ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+// Partition a list in two lists where the first list contains
+// those elements that satisfy the given predicate `pred`.
+// For example: `partition([1,2,3],odd?) == ([1,3],[2])`
+pub fun partition[337,9,337,17] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ^ pred : (a) -> (e :: E) std/core/types/bool) -> (e :: E) ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+// monadic lift
+fun @mlift-lookup@10436[1,0,1,0] : forall<a,b,(e :: E)> (kv : (a, b), @y-x10269 : std/core/types/bool) -> (e :: E) (std/core/types/maybe :: V -> V)<b>;
+// Lookup the first element satisfying some predicate
+pub fun lookup[366,9,366,14] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<(a, b)>, pred : (a) -> (e :: E) std/core/types/bool) -> (e :: E) (std/core/types/maybe :: V -> V)<b>;
+// monadic lift
+fun @mlift-index-of-acc@10437[1,0,1,0] : forall<a,(e :: E)> (idx : std/core/types/int, pred : (a) -> (e :: E) std/core/types/bool, xx : (std/core/types/list :: V -> V)<a>, @y-x10272 : std/core/types/bool) -> (e :: E) std/core/types/int;
+fun index-of-acc[377,5,377,16] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool, idx : std/core/types/int) -> (e :: E) std/core/types/int;
+// Returns the index of the first element where `pred` holds, or `-1` if no such element exists.
+pub fun index-of[384,9,384,16] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, pred : (a) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/int;
+// monadic lift
+fun @mlift-foreach@10438[1,0,1,0] : forall<a,(e :: E)> (action : (a) -> (e :: E) (), xx : (std/core/types/list :: V -> V)<a>, wild_ : ()) -> (e :: E) ();
+// Invoke `action` for each element of a list
+pub fun foreach[388,9,388,15] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, action : (a) -> (e :: E) ()) -> (e :: E) ();
+// monadic lift
+fun @mlift-trmc-map-while@10439[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, action : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, xx : (std/core/types/list :: V -> V)<a>, @y-x10280 : (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-map-while@10440[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, action : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, xx : (std/core/types/list :: V -> V)<a>, @y-x10284 : (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Invoke `action` on each element of a list while `action` returns `Just`
+pub fun @trmc-map-while[403,9,403,17] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, action : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Invoke `action` on each element of a list while `action` returns `Just`
+pub fun @trmcm-map-while[403,9,403,17] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, action : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Invoke `action` on each element of a list while `action` returns `Just`
+pub fun map-while[403,9,403,17] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, action : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-foreach-indexed@10441[1,0,1,0] : forall<(h :: H),(e :: E)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, @y-x10294 : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ();
+// monadic lift
+fun @mlift-foreach-indexed@10442[1,0,1,0] : forall<(h :: H),(e :: E)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ();
+// monadic lift
+fun @mlift-foreach-indexed@10443[1,0,1,0] : forall<(h :: H),a,(e :: E)> (action : (std/core/types/int, a) -> (e :: E) (), i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, x : a, j : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ();
+// Invoke `action` for each element of a list, passing also the position of the element.
+pub fun foreach-indexed[413,9,413,23] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, action : (std/core/types/int, a) -> (e :: E) ()) -> (e :: E) ();
+// lifted local: intersperse, before
+fun @trmc-lift-intersperse@6007[1,0,1,0] : forall<a> (sep : a, ys : (std/core/types/list :: V -> V)<a>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// lifted local: intersperse, before
+fun @lift-intersperse@6007[1,0,1,0] : forall<a> (sep : a, ys : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Insert a separator `sep`  between all elements of a list `xs` .
+pub fun intersperse[421,9,421,19] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, sep : a) -> (std/core/types/list :: V -> V)<a>;
+// Concatenate all strings in a list
+fun joinsep[431,5,431,11] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>, sep : std/core/types/string) -> std/core/types/string;
+// Concatenate all strings in a list
+pub fun concat/join[439,9,439,19] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Concatenate all strings in a list using a specific separator
+pub fun joinsep/join[447,9,447,20] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>, sep : std/core/types/string) -> std/core/types/string;
+// monadic lift
+fun @mlift-show@10444[1,0,1,0] : forall<(e :: E)> (@y-x10299 : (std/core/types/list :: V -> V)<std/core/types/string>) -> (e :: E) std/core/types/string;
+// Show a list
+pub fun show[139,9,139,12] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ?show : (a) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// _deprecated_, use `list/show` instead.
+pub fun show-list[144,9,144,17] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, show-elem : (a) -> (e :: E) std/core/types/string) -> (e :: E) std/core/types/string;
+// Zip two lists together by pairing the corresponding elements.
+// The returned list is only as long as the smallest input list.
+pub fbip fun @trmc-zip[151,14,151,16] : forall<a,b> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<(a, b)>>) -> (std/core/types/list :: V -> V)<(a, b)>;
+// Zip two lists together by pairing the corresponding elements.
+// The returned list is only as long as the smallest input list.
+pub fbip fun zip[151,14,151,16] : forall<a,b> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<(a, b)>;
+// monadic lift
+fun @mlift-trmc-zipwith@10445[1,0,1,0] : forall<a,b,c,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<c>>, f : (a, b) -> (e :: E) c, xx : (std/core/types/list :: V -> V)<a>, yy : (std/core/types/list :: V -> V)<b>, @trmc-x10110 : c) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+// monadic lift
+fun @mlift-trmcm-zipwith@10446[1,0,1,0] : forall<a,b,c,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<c>) -> (std/core/types/list :: V -> V)<c>, f : (a, b) -> (e :: E) c, xx : (std/core/types/list :: V -> V)<a>, yy : (std/core/types/list :: V -> V)<b>, @trmc-x10115 : c) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+// Zip two lists together by apply a function `f` to all corresponding elements.
+// The returned list is only as long as the smallest input list.
+pub fbip fun @trmc-zipwith[160,14,160,20] : forall<a,b,c,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, ^ f : (a, b) -> (e :: E) c, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<c>>) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+// Zip two lists together by apply a function `f` to all corresponding elements.
+// The returned list is only as long as the smallest input list.
+pub fbip fun @trmcm-zipwith[160,14,160,20] : forall<a,b,c,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, ^ f : (a, b) -> (e :: E) c, @accm : ((std/core/types/list :: V -> V)<c>) -> (std/core/types/list :: V -> V)<c>) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+// Zip two lists together by apply a function `f` to all corresponding elements.
+// The returned list is only as long as the smallest input list.
+pub fbip fun zipwith[160,14,160,20] : forall<a,b,c,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, ^ f : (a, b) -> (e :: E) c) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+// monadic lift
+fun @mlift-trmc-zipwith-iter@10447[1,0,1,0] : forall<a,b,c,d,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, f : (std/core/types/int, b, c) -> (e :: E) d, i : std/core/types/int, xx : (std/core/types/list :: V -> V)<b>, yy : (std/core/types/list :: V -> V)<c>, @trmc-x10116 : d) -> (e :: E) (std/core/types/list :: V -> V)<d>;
+// monadic lift
+fun @mlift-trmcm-zipwith-iter@10448[1,0,1,0] : forall<a,b,c,d,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>, f : (std/core/types/int, b, c) -> (e :: E) d, i : std/core/types/int, xx : (std/core/types/list :: V -> V)<b>, yy : (std/core/types/list :: V -> V)<c>, @trmc-x10121 : d) -> (e :: E) (std/core/types/list :: V -> V)<d>;
+fbip fun @trmc-zipwith-iter[173,10,173,21] : forall<a,b,c,(e :: E)> (i : std/core/types/int, xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, ^ f : (std/core/types/int, a, b) -> (e :: E) c, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<c>>) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+fbip fun @trmcm-zipwith-iter[173,10,173,21] : forall<a,b,c,(e :: E)> (i : std/core/types/int, xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, ^ f : (std/core/types/int, a, b) -> (e :: E) c, @accm : ((std/core/types/list :: V -> V)<c>) -> (std/core/types/list :: V -> V)<c>) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+fbip fun zipwith-iter[173,10,173,21] : forall<a,b,c,(e :: E)> (i : std/core/types/int, xs : (std/core/types/list :: V -> V)<a>, ys : (std/core/types/list :: V -> V)<b>, ^ f : (std/core/types/int, a, b) -> (e :: E) c) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+// Zip two lists together by apply a function `f` to all corresponding elements
+// and their index in the list.
+// The returned list is only as long as the smallest input list.
+pub fbip fun zipwith-indexed[170,14,170,28] : forall<a,b,c,(e :: E)> (xs0 : (std/core/types/list :: V -> V)<a>, ys0 : (std/core/types/list :: V -> V)<b>, ^ f : (std/core/types/int, a, b) -> (e :: E) c) -> (e :: E) (std/core/types/list :: V -> V)<c>;
+// lifted local: unzip, iter
+fun @lift-unzip@6008[1,0,1,0] : forall<a,b,c,d> (ys : (std/core/types/list :: V -> V)<(a, b)>, acc1 : (std/core/types/cctx :: (V, V) -> V)<c,(std/core/types/list :: V -> V)<a>>, acc2 : (std/core/types/cctx :: (V, V) -> V)<d,(std/core/types/list :: V -> V)<b>>) -> (c, d);
+// Unzip a list of pairs into two lists
+pub fun unzip[181,9,181,13] : forall<a,b> (xs : (std/core/types/list :: V -> V)<(a, b)>) -> ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<b>);
+// lifted local: unzip3, iter
+fun @lift-unzip3@6009[1,0,1,0] : forall<a,b,c,d,a1,b1> (ys : (std/core/types/list :: V -> V)<(a, b, c)>, acc1 : (std/core/types/cctx :: (V, V) -> V)<d,(std/core/types/list :: V -> V)<a>>, acc2 : (std/core/types/cctx :: (V, V) -> V)<a1,(std/core/types/list :: V -> V)<b>>, acc3 : (std/core/types/cctx :: (V, V) -> V)<b1,(std/core/types/list :: V -> V)<c>>) -> (d, a1, b1);
+// Unzip a list of triples into three lists
+pub fun unzip3[189,9,189,14] : forall<a,b,c> (xs : (std/core/types/list :: V -> V)<(a, b, c)>) -> ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<b>, (std/core/types/list :: V -> V)<c>);
+// lifted local: unzip4, iter
+fun @lift-unzip4@6010[1,0,1,0] : forall<a,b,c,d,a1,b1,c1,d1> (ys : (std/core/types/list :: V -> V)<(a, b, c, d)>, acc1 : (std/core/types/cctx :: (V, V) -> V)<a1,(std/core/types/list :: V -> V)<a>>, acc2 : (std/core/types/cctx :: (V, V) -> V)<b1,(std/core/types/list :: V -> V)<b>>, acc3 : (std/core/types/cctx :: (V, V) -> V)<c1,(std/core/types/list :: V -> V)<c>>, acc4 : (std/core/types/cctx :: (V, V) -> V)<d1,(std/core/types/list :: V -> V)<d>>) -> (a1, b1, c1, d1);
+// Unzip a list of quadruples into four lists
+pub fun unzip4[197,9,197,14] : forall<a,b,c,d> (xs : (std/core/types/list :: V -> V)<(a, b, c, d)>) -> ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<b>, (std/core/types/list :: V -> V)<c>, (std/core/types/list :: V -> V)<d>);
+// monadic lift
+fun @mlift-lift-span@6011@10449[1,0,1,0] : forall<a,b,(e :: E)> (acc : (std/core/types/cctx :: (V, V) -> V)<a,(std/core/types/list :: V -> V)<b>>, predicate : (b) -> (e :: E) std/core/types/bool, y : b, ys : (std/core/types/list :: V -> V)<b>, yy : (std/core/types/list :: V -> V)<b>, @y-x10324 : std/core/types/bool) -> (e :: E) (a, (std/core/types/list :: V -> V)<b>);
+// lifted local: span, span-acc
+fun @lift-span@6011[1,0,1,0] : forall<a,(e :: E),b> (predicate : (a) -> (e :: E) std/core/types/bool, ys : (std/core/types/list :: V -> V)<a>, acc : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>) -> (e :: E) (b, (std/core/types/list :: V -> V)<a>);
+pub fun span[303,9,303,12] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool) -> (e :: E) ((std/core/types/list :: V -> V)<a>, (std/core/types/list :: V -> V)<a>);
+// monadic lift
+fun @mlift-trmc-take-while@10450[1,0,1,0] : forall<a,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, predicate : (a) -> (e :: E) std/core/types/bool, x : a, xx : (std/core/types/list :: V -> V)<a>, @y-x10329 : std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-trmcm-take-while@10451[1,0,1,0] : forall<a,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool, x : a, xx : (std/core/types/list :: V -> V)<a>, @y-x10333 : std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Keep only those initial elements that satisfy `predicate`
+pub fun @trmc-take-while[311,9,311,18] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Keep only those initial elements that satisfy `predicate`
+pub fun @trmcm-take-while[311,9,311,18] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool, @accm : ((std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Keep only those initial elements that satisfy `predicate`
+pub fun take-while[311,9,311,18] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Concatenate all strings in a list in reverse order
+pub fun reverse-join[451,9,451,20] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Append `end` to each string in the list `xs` and join them all together.\
+// `join-end([],end) === ""`\
+// `join-end(["a","b"],"/") === "a/b/"`
+pub fun join-end[457,9,457,16] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>, end : std/core/types/string) -> std/core/types/string;
+// lifted local: concat, concat-pre
+fun @trmc-lift-concat@6012[1,0,1,0] : forall<a> (ys : (std/core/types/list :: V -> V)<a>, zss : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// lifted local: concat, concat-pre
+fun @lift-concat@6012[1,0,1,0] : forall<a> (ys : (std/core/types/list :: V -> V)<a>, zss : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Concatenate all lists in a list (e.g. flatten the list). (tail-recursive)
+pub fun concat[463,9,463,14] : forall<a> (xss : (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-trmc-lift-flatmap@6013@10452[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (a) -> (e :: E) (std/core/types/list :: V -> V)<b>, zz : (std/core/types/list :: V -> V)<a>, ys@1@10038 : (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-lift-flatmap@6013@10453[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (a) -> (e :: E) (std/core/types/list :: V -> V)<b>, zz : (std/core/types/list :: V -> V)<a>, ys@1@10038 : (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: flatmap, flatmap-pre
+fun @trmc-lift-flatmap@6013[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) (std/core/types/list :: V -> V)<b>, ys : (std/core/types/list :: V -> V)<b>, zs : (std/core/types/list :: V -> V)<a>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: flatmap, flatmap-pre
+fun @trmcm-lift-flatmap@6013[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) (std/core/types/list :: V -> V)<b>, ys : (std/core/types/list :: V -> V)<b>, zs : (std/core/types/list :: V -> V)<a>, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// lifted local: flatmap, flatmap-pre
+fun @lift-flatmap@6013[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) (std/core/types/list :: V -> V)<b>, ys : (std/core/types/list :: V -> V)<b>, zs : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Concatenate the result lists from applying a function to all elements.
+pub fun flatmap[473,9,473,15] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a) -> (e :: E) (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmc-flatmap-maybe@10454[1,0,1,0] : forall<a,b,(e :: E)> (@acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>, f : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, xx : (std/core/types/list :: V -> V)<a>, @y-x10354 : (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// monadic lift
+fun @mlift-trmcm-flatmap-maybe@10455[1,0,1,0] : forall<a,b,(e :: E)> (@accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>, f : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, xx : (std/core/types/list :: V -> V)<a>, @y-x10359 : (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Concatenate the `Just` result elements from applying a function to all elements.
+pub fun @trmc-flatmap-maybe[483,9,483,21] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<b>>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Concatenate the `Just` result elements from applying a function to all elements.
+pub fun @trmcm-flatmap-maybe[483,9,483,21] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>, @accm : ((std/core/types/list :: V -> V)<b>) -> (std/core/types/list :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Concatenate the `Just` result elements from applying a function to all elements.
+pub fun flatmap-maybe[483,9,483,21] : forall<a,b,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, f : (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>) -> (e :: E) (std/core/types/list :: V -> V)<b>;
+// Concatenate a list of `:maybe` values
+pub fun @trmc-concat-maybe[491,9,491,20] : forall<a> (xs : (std/core/types/list :: V -> V)<(std/core/types/maybe :: V -> V)<a>>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Concatenate a list of `:maybe` values
+pub fun concat-maybe[491,9,491,20] : forall<a> (xs : (std/core/types/list :: V -> V)<(std/core/types/maybe :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Return the last element of a list (or `Nothing` for the empty list)
+pub fun last[499,9,499,12] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/maybe :: V -> V)<a>;
+// Return the list without its last element.
+// Return an empty list for an empty list.
+pub fun @trmc-init[507,9,507,12] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (std/core/types/list :: V -> V)<a>;
+// Return the list without its last element.
+// Return an empty list for an empty list.
+pub fun init[507,9,507,12] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+// Get (zero-based) element `n`  of a list. Return a `:maybe` type.
+pub fun @index[513,9,513,14] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, n : std/core/types/int) -> (std/core/types/maybe :: V -> V)<a>;
+// monadic lift
+fun @mlift-all@10456[1,0,1,0] : forall<a,(e :: E)> (predicate : (a) -> (e :: E) std/core/types/bool, xx : (std/core/types/list :: V -> V)<a>, @y-x10367 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Do all elements satisfy a predicate ?
+pub fun all[521,9,521,11] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun @mlift-any@10457[1,0,1,0] : forall<a,(e :: E)> (predicate : (a) -> (e :: E) std/core/types/bool, xx : (std/core/types/list :: V -> V)<a>, @y-x10371 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Are there any elements in a list that satisfy a predicate ?
+pub fun any[527,9,527,11] : forall<a,(e :: E)> (xs : (std/core/types/list :: V -> V)<a>, predicate : (a) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Return the sum of a list of integers
+pub fun sum[533,9,533,11] : (xs : (std/core/types/list :: V -> V)<std/core/types/int>) -> std/core/types/int;
+// Returns the smallest element of a list of integers (or `default` (=`0`) for the empty list)
+pub fun minimum[537,9,537,15] : (xs : (std/core/types/list :: V -> V)<std/core/types/int>, default : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/int;
+// Returns the largest element of a list of integers (or `default` (=`0`) for the empty list)
+pub fun maximum[543,9,543,15] : (xs : (std/core/types/list :: V -> V)<std/core/types/int>, default : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/int;
+// Split a string into a list of lines
+pub fun lines[550,9,550,13] : (s : std/core/types/string) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Join a list of strings with newlines
+pub fun unlines[554,9,554,15] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> std/core/types/string;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "__*" fun (==) // inline size: 6
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<a>, @implicit/(==): (a, a) -> (e :: E) std/core/types/bool){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/False;
+          ((@skip std/core/types/Cons((y: a) : a, (yy: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+             -> (match ((@implicit/(==)(x, y))) {
+              ((std/core/types/True() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+                 -> std/core/list/(==)<a,(e :: E)>(xx, yy, @implicit/(==));
+              (@pat@3: std/core/types/bool)
+                 -> std/core/types/False;
+            });
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@4: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@5: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/True;
+          ((@skip std/core/types/Cons((@pat@7: a) : a, (@pat@8: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@6: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/False;
+        });
+    });
+  };
+recursive specialize "*__" fun @lift-flatmap@6013 // inline size: 6
+  = forall<a,b,(e :: E)> fn<(e :: E)>(f: (a) -> (e :: E) (std/core/types/list :: V -> V)<b>, ys: (std/core/types/list :: V -> V)<b>, zs: (std/core/types/list :: V -> V)<a>){
+    (match (ys) {
+      ((std/core/types/Cons((y: b) : b, (yy: (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b> ) as @pat: ((std/core/types/list :: V -> V)<b>))
+         -> std/core/types/Cons<b>(y, (std/core/list/@lift-flatmap@6013<a,b,(e :: E)>(f, yy, zs)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<b> ) as @pat@0: ((std/core/types/list :: V -> V)<b>))
+         -> (match (zs) {
+          ((std/core/types/Cons((z: a) : a, (zz: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+             -> val ys@1@10038[1,0,1,0] : (std/core/types/list :: V -> V)<b>
+                      = f(z);
+            std/core/list/@lift-flatmap@6013<a,b,(e :: E)>(f, ys@1@10038, zz);
+          ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/Nil<b>;
+        });
+    });
+  };
+recursive specialize "*__" fun @lift-map-indexed-peek@6006 // inline size: 7
+  = forall<a,b,(e :: E)> fn<(e :: E)>(f: (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys: (std/core/types/list :: V -> V)<a>, i: std/core/types/int){
+    (match (ys) {
+      ((std/core/types/Cons((y: a) : a, (yy: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> val i@0@10021[1,0,1,0] : std/core/types/int
+                  = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y@0: std/core/types/int){
+                    (std/core/int/int-add(x, y@0));
+                  }))(i, 1);
+        std/core/types/Cons<b>((f(i, y, yy)), (std/core/list/@lift-map-indexed-peek@6006<a,b,(e :: E)>(f, yy, i@0@10021)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+    });
+  };
+recursive specialize "*__" fun @lift-map-indexed@6004 // inline size: 7
+  = forall<a,b,(e :: E)> fn<(e :: E)>(f: (idx : std/core/types/int, value : a) -> (e :: E) b, ys: (std/core/types/list :: V -> V)<a>, i: std/core/types/int){
+    (match (ys) {
+      ((std/core/types/Cons((y: a) : a, (yy: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> val i@0@10018[1,0,1,0] : std/core/types/int
+                  = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y@0: std/core/types/int){
+                    (std/core/int/int-add(x, y@0));
+                  }))(i, 1);
+        std/core/types/Cons<b>((f(i, y)), (std/core/list/@lift-map-indexed@6004<a,b,(e :: E)>(f, yy, i@0@10018)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+    });
+  };
+recursive specialize "*_" fun @lift-map-peek@6005 // inline size: 4
+  = forall<a,b,(e :: E)> fn<(e :: E)>(f: (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b, ys: (std/core/types/list :: V -> V)<a>){
+    (match (ys) {
+      ((std/core/types/Cons((y: a) : a, (yy: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Cons<b>((f(y, yy)), (std/core/list/@lift-map-peek@6005<a,b,(e :: E)>(f, yy)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+    });
+  };
+recursive specialize "*__" fun @lift-span@6011 // inline size: 17
+  = forall<a,(e :: E),b> fn<(e :: E)>(predicate: (a) -> (e :: E) std/core/types/bool, ys: (std/core/types/list :: V -> V)<a>, acc: (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>){
+    (match (ys) {
+      ((std/core/types/Cons((y: a) : a, (yy: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((predicate(y))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> val @cctx-x5097[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+                  = std/core/types/Cons<a>(y, (std/core/types/@open<(std/core/types/total :: E),(e :: E),() -> (std/core/types/list :: V -> V)<a>,() -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/@cctx-hole-create<(std/core/types/list :: V -> V)<a>>))()));
+                val @cctx-x5098[1,0,1,0] : (std/core/types/@field-addr :: V -> V)<(std/core/types/list :: V -> V)<a>>
+                  = std/core/types/@field-addr-of<(std/core/types/list :: V -> V)<a>>(@cctx-x5097, "(\x22std/core/types\x22,\x22\x22,\x22Cons\x22)", "(\x22\x22,\x22\x22,\x22tail\x22)");
+                val acc@0@10030[1,0,1,0] : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>
+                  = std/core/types/@open<(std/core/types/total :: E),(e :: E),(c1 : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>,(c1 : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>>((std/core/types/#cctx/(++)<b,(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc, (std/core/types/@cctx-create<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>(@cctx-x5097, @cctx-x5098)));
+            std/core/list/@lift-span@6011<a,(e :: E),b>(predicate, yy, acc@0@10030);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Tuple2<b,(std/core/types/list :: V -> V)<a>>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(c : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> b,(c : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (e :: E) b>((std/core/types/#cctx/(++.)<b,(std/core/types/list :: V -> V)<a>>))(acc, (std/core/types/Nil<a>))), ys);
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Tuple2<b,(std/core/types/list :: V -> V)<a>>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(c : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> b,(c : (std/core/types/cctx :: (V, V) -> V)<b,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (e :: E) b>((std/core/types/#cctx/(++.)<b,(std/core/types/list :: V -> V)<a>>))(acc, (std/core/types/Nil<a>))), ys);
+    });
+  };
+recursive specialize "_*" fun all // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, predicate: (a) -> (e :: E) std/core/types/bool){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((predicate(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/list/all<a,(e :: E)>(xx, predicate);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/False;
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/True;
+    });
+  };
+recursive specialize "_*" fun any // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, predicate: (a) -> (e :: E) std/core/types/bool){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((predicate(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/types/True;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/list/any<a,(e :: E)>(xx, predicate);
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+recursive specialize "__*" fun cmp // inline size: 6
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<a>, @implicit/cmp: (a, a) -> (e :: E) std/core/types/order){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/Gt;
+          ((@skip std/core/types/Cons((y: a) : a, (yy: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+             -> (match ((@implicit/cmp(x, y))) {
+              ((std/core/types/Eq() : std/core/types/order ) as @pat@2: std/core/types/order)
+                 -> std/core/list/cmp<a,(e :: E)>(xx, yy, @implicit/cmp);
+              (lg: std/core/types/order)
+                 -> lg;
+            });
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@3: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@4: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/Eq;
+          ((@skip std/core/types/Cons((@pat@6: a) : a, (@pat@7: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@5: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/Lt;
+        });
+    });
+  };
+recursive specialize "_*" fun drop-while // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, predicate: (a) -> (e :: E) std/core/types/bool){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((predicate(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/list/drop-while<a,(e :: E)>(xx, predicate);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> xs;
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<a>;
+    });
+  };
+recursive specialize "_*" fun filter // inline size: 6
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((pred(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/types/Cons<a>(x, (std/core/list/filter<a,(e :: E)>(xx, pred)));
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/list/filter<a,(e :: E)>(xx, pred);
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<a>;
+    });
+  };
+recursive specialize "_*" fun filter-map // inline size: 6
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+      ((@skip std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((pred(x))) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<b> ) as @pat@1: ((std/core/types/maybe :: V -> V)<b>))
+             -> std/core/list/filter-map<a,b,(e :: E)>(xx, pred);
+          ((@skip std/core/types/Just((y: b) : b) : (std/core/types/maybe :: V -> V)<b> ) as @pat@2: ((std/core/types/maybe :: V -> V)<b>))
+             -> std/core/types/Cons<b>(y, (std/core/list/filter-map<a,b,(e :: E)>(xx, pred)));
+        });
+    });
+  };
+specialize "_*" fun find // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/foreach-while<a,a,(e :: E)>(xs, (fn<(e :: E)>(x: a){
+        (match ((pred(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+             -> std/core/types/Just<a>(x);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/types/Nothing<a>;
+        });
+      }));
+  };
+specialize "_*" fun find-maybe // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>){
+    std/core/list/foreach-while<a,b,(e :: E)>(xs, pred);
+  };
+specialize "_*" fun flatmap // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) (std/core/types/list :: V -> V)<b>){
+    std/core/list/@lift-flatmap@6013<a,b,(e :: E)>(f, (std/core/types/Nil<b>), xs);
+  };
+recursive specialize "_*" fun flatmap-maybe // inline size: 6
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((f(x))) {
+          ((std/core/types/Just((y: b) : b) : (std/core/types/maybe :: V -> V)<b> ) as @pat@0: ((std/core/types/maybe :: V -> V)<b>))
+             -> std/core/types/Cons<b>(y, (std/core/list/flatmap-maybe<a,b,(e :: E)>(xx, f)));
+          ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<b> ) as @pat@1: ((std/core/types/maybe :: V -> V)<b>))
+             -> std/core/list/flatmap-maybe<a,b,(e :: E)>(xx, f);
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+    });
+  };
+recursive specialize "__*" fun foldl // inline size: 3
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, z: b, f: (b, a) -> (e :: E) b){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/list/foldl<a,b,(e :: E)>(xx, (f(z, x)), f);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> z;
+    });
+  };
+specialize "_*" fun foldl1 // inline size: 1
+  = forall<a,(e :: E)> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>>(xs: (std/core/types/list :: V -> V)<a>, f: (a, a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/list/foldl<a,a,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>>(xx, x, f);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/@open<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>,(message : std/core/types/string, info : (std/core/types/@optional :: V -> V)<std/core/exn/exception-info>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> a,(message : std/core/types/string, info : (std/core/types/@optional :: V -> V)<std/core/exn/exception-info>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a>((std/core/exn/throw<a>))("unexpected Nil in std/core/foldl1", (std/core/types/@NoOptArg<std/core/exn/exception-info>));
+    });
+  };
+specialize "__*" fun foldr // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, z: b, f: (a, b) -> (e :: E) b){
+    std/core/list/foldl<a,b,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>,(xs : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>>((fn(xs@0: (std/core/types/list :: V -> V)<a>){
+        (std/core/list/reverse-acc<a>((std/core/types/Nil<a>), xs@0));
+      }))(xs)), z, (fn<(e :: E)>(x: b, y: a){
+        (f(y, x));
+      }));
+  };
+specialize "_*" fun foldr1 // inline size: 1
+  = forall<a,(e :: E)> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>>(xs: (std/core/types/list :: V -> V)<a>, f: (a, a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a){
+    val xs@0@10010[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+          = std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>,(xs : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>,(xs : (std/core/types/list :: V -> V)<a>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> (std/core/types/list :: V -> V)<a>>((fn(xs@1: (std/core/types/list :: V -> V)<a>){
+            (std/core/list/reverse-acc<a>((std/core/types/Nil<a>), xs@1));
+          }))(xs);
+    (match (xs@0@10010) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/list/foldl<a,a,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>>(xx, x, f);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/@open<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>,(message : std/core/types/string, info : (std/core/types/@optional :: V -> V)<std/core/exn/exception-info>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> a,(message : std/core/types/string, info : (std/core/types/@optional :: V -> V)<std/core/exn/exception-info>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a>((std/core/exn/throw<a>))("unexpected Nil in std/core/foldl1", (std/core/types/@NoOptArg<std/core/exn/exception-info>));
+    });
+  };
+recursive specialize "_*" fun foreach // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, action: (a) -> (e :: E) ()){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> val _[390,21,390,29] : ()
+                  = action(x);
+        std/core/list/foreach<a,(e :: E)>(xx, action);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Unit;
+    });
+  };
+specialize "_*" fun foreach-indexed // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, action: (std/core/types/int, a) -> (e :: E) ()){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(action : forall<(h :: H)> () -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ()) -> (() -> (e :: E) ()),(action : forall<(h :: H)> () -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> ()) -> (e :: E) (() -> (e :: E) ())>((std/core/types/unsafe-no-local-cast<(),(e :: E)>))((forall<(h :: H)> fn<<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>(){
+      std/core/hnd/local-var<std/core/types/int,(),(e :: E),(h :: H)>(0, (fn<<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>(i: (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>){
+          (std/core/list/foreach<a,<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>(xs, (fn<<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>(x: a){
+              val j[416,9,416,9] : std/core/types/int
+                = (std/core/types/local-get<std/core/types/int,(h :: H),(e :: E)>(i, (std/core/types/@Hnodiv<(h :: H),std/core/types/int,(e :: E)>)));
+              val _[417,5,417,15] : ()
+                = (std/core/hnd/@mask-builtin<(),(e :: E),<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>>((fn<(e :: E)>(){
+                  (action(j, x));
+                })));
+              (std/core/types/local-set<std/core/types/int,(e :: E),(h :: H)>(i, (std/core/types/@open<(std/core/types/total :: E),<(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)>,(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> std/core/types/int>((fn(x@0: std/core/types/int, y: std/core/types/int){
+                  (std/core/int/int-add(x@0, y));
+                }))((std/core/types/local-get<std/core/types/int,(h :: H),(e :: E)>(i, (std/core/types/@Hnodiv<(h :: H),std/core/types/int,(e :: E)>))), 1))));
+            })));
+        }));
+    }))();
+  };
+recursive specialize "_*" fun foreach-while // inline size: 4
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, action: (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nothing<b>;
+      ((@skip std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((action(x))) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<b> ) as @pat@1: ((std/core/types/maybe :: V -> V)<b>))
+             -> std/core/list/foreach-while<a,b,(e :: E)>(xx, action);
+          (just: ((std/core/types/maybe :: V -> V)<b>))
+             -> just;
+        });
+    });
+  };
+specialize "_*" fun index-of // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/index-of-acc<a,(e :: E)>(xs, pred, 0);
+  };
+recursive specialize "_*_" fun index-of-acc // inline size: 7
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool, idx: std/core/types/int){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((pred(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> idx;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/list/index-of-acc<a,(e :: E)>(xx, pred, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x@0: std/core/types/int, y: std/core/types/int){
+                (std/core/int/int-add(x@0, y));
+              }))(idx, 1)));
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> -1;
+    });
+  };
+recursive specialize "__*" fun function/list // inline size: 11
+  = forall<a,(e :: E)> fn<(e :: E)>(lo: std/core/types/int, hi: std/core/types/int, f: (std/core/types/int) -> (e :: E) a){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/bool,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/bool>(std/core/int/(<=))(lo, hi))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Cons<a>((f(lo)), (std/core/list/#function/list<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int) -> std/core/types/int,(x : std/core/types/int) -> (e :: E) std/core/types/int>((std/core/undiv/pretend-decreasing<std/core/types/int>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i: std/core/types/int){
+              (std/core/int/int-add(i, 1));
+            }))(lo)))), hi, f)));
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/Nil<a>;
+    });
+  };
+recursive specialize "___*" fun stridefunction/list // inline size: 11
+  = forall<a,(e :: E)> fn<(e :: E)>(lo: std/core/types/int, hi: std/core/types/int, stride: std/core/types/int, f: (std/core/types/int) -> (e :: E) a){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/bool,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/bool>(std/core/int/(<=))(lo, hi))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Cons<a>((f(lo)), (std/core/list/#stridefunction/list<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int) -> std/core/types/int,(x : std/core/types/int) -> (e :: E) std/core/types/int>((std/core/undiv/pretend-decreasing<std/core/types/int>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+              (std/core/int/int-add(x, y));
+            }))(lo, stride)))), hi, stride, f)));
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/Nil<a>;
+    });
+  };
+specialize "_*" fun lookup // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<(a, b)>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/foreach-while<(a, b),b,(e :: E)>(xs, (fn<(e :: E)>(kv: (a, b)){
+        (match ((pred((std/core/types/@open<(std/core/types/total :: E),(e :: E),(tuple2 : (a, b)) -> a,(tuple2 : (a, b)) -> (e :: E) a>((fn(tuple2: (a, b)){
+          (match (tuple2) {
+            ((@skip std/core/types/Tuple2((@x: a) : a, (@pat@0: b) : b) : (a, b) ) as @pat: (a, b))
+               -> @x;
+          });
+        }))(kv))))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Just<b>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(tuple2 : (a, b)) -> b,(tuple2 : (a, b)) -> (e :: E) b>((fn(tuple2@0: (a, b)){
+              (match (tuple2@0) {
+                ((@skip std/core/types/Tuple2((@pat@0@0: a) : a, (@x@0: b) : b) : (a, b) ) as @pat@2: (a, b))
+                   -> @x@0;
+              });
+            }))(kv)));
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0@1: std/core/types/bool)
+             -> std/core/types/Nothing<b>;
+        });
+      }));
+  };
+recursive specialize "_*" borrow "_^" fip fun map // inline size: 4
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) b){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Cons<b>((f(x)), (std/core/list/map<a,b,(e :: E)>(xx, f)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+    });
+  };
+specialize "_*" fun string/map // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(s: std/core/types/string, f: (std/core/types/char) -> (e :: E) std/core/types/char){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(cs : (std/core/types/list :: V -> V)<std/core/types/char>) -> std/core/types/string,(cs : (std/core/types/list :: V -> V)<std/core/types/char>) -> (e :: E) std/core/types/string>(std/core/string/#listchar/string)((std/core/list/map<std/core/types/char,std/core/types/char,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(s : std/core/types/string) -> (std/core/types/list :: V -> V)<std/core/types/char>,(s : std/core/types/string) -> (e :: E) (std/core/types/list :: V -> V)<std/core/types/char>>(std/core/string/list)(s)), f)));
+  };
+specialize "_*" fun map-indexed // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (idx : std/core/types/int, value : a) -> (e :: E) b){
+    std/core/list/@lift-map-indexed@6004<a,b,(e :: E)>(f, xs, 0);
+  };
+specialize "_*" fun map-indexed-peek // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b){
+    std/core/list/@lift-map-indexed-peek@6006<a,b,(e :: E)>(f, xs, 0);
+  };
+specialize "_*" fun map-peek // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b){
+    std/core/list/@lift-map-peek@6005<a,b,(e :: E)>(f, xs);
+  };
+recursive specialize "_*" fun map-while // inline size: 5
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, action: (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<b>;
+      ((@skip std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((action(x))) {
+          ((std/core/types/Just((y: b) : b) : (std/core/types/maybe :: V -> V)<b> ) as @pat@1: ((std/core/types/maybe :: V -> V)<b>))
+             -> std/core/types/Cons<b>(y, (std/core/list/map-while<a,b,(e :: E)>(xx, action)));
+          ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<b> ) as @pat@2: ((std/core/types/maybe :: V -> V)<b>))
+             -> std/core/types/Nil<b>;
+        });
+    });
+  };
+recursive specialize "__*" borrow "__^" fun order2 // inline size: 27
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<a>, @implicit/order2: (a, a) -> (e :: E) (std/core/types/order2 :: V -> V)<a>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/Eq2<(std/core/types/list :: V -> V)<a>>((std/core/types/Nil<a>));
+          (ys': ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/Lt2<(std/core/types/list :: V -> V)<a>>((std/core/types/Nil<a>), ys');
+        });
+      ((@skip std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+             -> std/core/types/Gt2<(std/core/types/list :: V -> V)<a>>((std/core/types/Nil<a>), (std/core/types/Cons<a>(x, xx)));
+          ((@skip std/core/types/Cons((y: a) : a, (yy: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@3: ((std/core/types/list :: V -> V)<a>))
+             -> (match ((@implicit/order2(x, y))) {
+              ((std/core/types/Eq2((z: a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@4: ((std/core/types/order2 :: V -> V)<a>))
+                 -> (match ((std/core/list/order2<a,(e :: E)>(xx, yy, @implicit/order2))) {
+                  ((std/core/types/Eq2((zz: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>> ) as @pat@5: ((std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>>))
+                     -> std/core/types/Eq2<(std/core/types/list :: V -> V)<a>>((std/core/types/Cons<a>(z, zz)));
+                  ((std/core/types/Lt2((xx': (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>, (yy': (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>> ) as @pat@6: ((std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>>))
+                     -> std/core/types/Lt2<(std/core/types/list :: V -> V)<a>>((std/core/types/Cons<a>(z, xx')), (std/core/types/Cons<a>(z, yy')));
+                  ((@skip std/core/types/Gt2((yy@0': (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>, (xx@0': (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>> ) as @pat@7: ((std/core/types/order2 :: V -> V)<(std/core/types/list :: V -> V)<a>>))
+                     -> std/core/types/Gt2<(std/core/types/list :: V -> V)<a>>((std/core/types/Cons<a>(z, yy@0')), (std/core/types/Cons<a>(z, xx@0')));
+                });
+              ((std/core/types/Lt2((x': a) : a, (y': a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@8: ((std/core/types/order2 :: V -> V)<a>))
+                 -> std/core/types/Lt2<(std/core/types/list :: V -> V)<a>>((std/core/types/Cons<a>(x', xx)), (std/core/types/Cons<a>(y', yy)));
+              ((@skip std/core/types/Gt2((y@0': a) : a, (x@0': a) : a) : (std/core/types/order2 :: V -> V)<a> ) as @pat@9: ((std/core/types/order2 :: V -> V)<a>))
+                 -> std/core/types/Gt2<(std/core/types/list :: V -> V)<a>>((std/core/types/Cons<a>(y@0', yy)), (std/core/types/Cons<a>(x@0', xx)));
+            });
+        });
+    });
+  };
+specialize "_*" borrow "_^" fun partition // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/partition-acc<a,(e :: E)>(xs, pred, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()), (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()));
+  };
+recursive specialize "_*__" borrow "_^__" fun partition-acc // inline size: 24
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool, acc1: (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>, acc2: (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<a>>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Tuple2<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>,(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/#cctx/(++.)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc1, (std/core/types/Nil<a>))), (std/core/types/@open<(std/core/types/total :: E),(e :: E),(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>,(c : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, x : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/#cctx/(++.)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc2, (std/core/types/Nil<a>))));
+      ((@skip std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((pred(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> val @cctx-x2924[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+                  = std/core/types/Cons<a>(x, (std/core/types/@open<(std/core/types/total :: E),(e :: E),() -> (std/core/types/list :: V -> V)<a>,() -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/@cctx-hole-create<(std/core/types/list :: V -> V)<a>>))()));
+                val @cctx-x2925[1,0,1,0] : (std/core/types/@field-addr :: V -> V)<(std/core/types/list :: V -> V)<a>>
+                  = std/core/types/@field-addr-of<(std/core/types/list :: V -> V)<a>>(@cctx-x2924, "(\x22std/core/types\x22,\x22\x22,\x22Cons\x22)", "(\x22\x22,\x22\x22,\x22tail\x22)");
+            std/core/list/partition-acc<a,(e :: E)>(xx, pred, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>,(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>>((std/core/types/#cctx/(++)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc1, (std/core/types/@cctx-create<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>(@cctx-x2924, @cctx-x2925)))), acc2);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> val @cctx-x2971[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+                  = std/core/types/Cons<a>(x, (std/core/types/@open<(std/core/types/total :: E),(e :: E),() -> (std/core/types/list :: V -> V)<a>,() -> (e :: E) (std/core/types/list :: V -> V)<a>>((std/core/types/@cctx-hole-create<(std/core/types/list :: V -> V)<a>>))()));
+                val @cctx-x2972[1,0,1,0] : (std/core/types/@field-addr :: V -> V)<(std/core/types/list :: V -> V)<a>>
+                  = std/core/types/@field-addr-of<(std/core/types/list :: V -> V)<a>>(@cctx-x2971, "(\x22std/core/types\x22,\x22\x22,\x22Cons\x22)", "(\x22\x22,\x22\x22,\x22tail\x22)");
+            std/core/list/partition-acc<a,(e :: E)>(xx, pred, acc1, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>,(c1 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>, c2 : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>) -> (e :: E) (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>>((std/core/types/#cctx/(++)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>))(acc2, (std/core/types/@cctx-create<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>(@cctx-x2971, @cctx-x2972)))));
+        });
+    });
+  };
+specialize "_*" fun remove // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/filter<a,(e :: E)>(xs, (fn<(e :: E)>(x: a){
+        (std/core/types/@open<(std/core/types/total :: E),(e :: E),(b : std/core/types/bool) -> std/core/types/bool,(b : std/core/types/bool) -> (e :: E) std/core/types/bool>((fn(b: std/core/types/bool){
+          (match (b) {
+            ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+               -> std/core/types/False;
+            ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+               -> std/core/types/True;
+          });
+        }))((pred(x))));
+      }));
+  };
+specialize "_*" fun show // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, @implicit/show: (a) -> (e :: E) std/core/types/string){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/string, y : std/core/types/string) -> std/core/types/string,(x : std/core/types/string, y : std/core/types/string) -> (e :: E) std/core/types/string>(std/core/types/(++))("[", (std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/string, y : std/core/types/string) -> std/core/types/string,(x : std/core/types/string, y : std/core/types/string) -> (e :: E) std/core/types/string>(std/core/types/(++))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(xs : (std/core/types/list :: V -> V)<std/core/types/string>, sep : std/core/types/string) -> std/core/types/string,(xs : (std/core/types/list :: V -> V)<std/core/types/string>, sep : std/core/types/string) -> (e :: E) std/core/types/string>((fn(xs@0: (std/core/types/list :: V -> V)<std/core/types/string>, sep: std/core/types/string){
+          (match (xs@0) {
+            ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/list :: V -> V)<std/core/types/string>))
+               -> "";
+            ((@skip std/core/types/Cons((x: std/core/types/string) : std/core/types/string, ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@1: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+               -> x;
+            ((std/core/types/Cons((x@0: std/core/types/string) : std/core/types/string, ((std/core/types/Cons((y: std/core/types/string) : std/core/types/string, ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@4: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@3: (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string>) : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/types/string>))
+               | std/core/string/(==)(sep, "") -> std/core/types/(++)(x@0, y);
+            (@pat@5: ((std/core/types/list :: V -> V)<std/core/types/string>))
+               -> std/core/string/#vectorsep/join((std/core/vector/unvlist<std/core/types/string>(xs@0)), sep);
+          });
+        }))((std/core/list/map<a,std/core/types/string,(e :: E)>(xs, @implicit/show)), ",")), "]")));
+  };
+specialize "_*" fun show-list // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, show-elem: (a) -> (e :: E) std/core/types/string){
+    std/core/list/show<a,(e :: E)>(xs, show-elem);
+  };
+specialize "_*" fun span // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, predicate: (a) -> (e :: E) std/core/types/bool){
+    val acc[1,0,1,0] : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>
+          = std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>();
+    std/core/list/@lift-span@6011<a,(e :: E),(std/core/types/list :: V -> V)<a>>(predicate, xs, acc);
+  };
+recursive specialize "_*" fun take-while // inline size: 5
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, predicate: (a) -> (e :: E) std/core/types/bool){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match ((predicate(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/types/Cons<a>(x, (std/core/list/take-while<a,(e :: E)>(xx, predicate)));
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Nil<a>;
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<a>;
+    });
+  };
+recursive specialize "__*" borrow "__^" fbip fun zipwith // inline size: 5
+  = forall<a,b,c,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<b>, f: (a, b) -> (e :: E) c){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Cons((y: b) : b, (yy: (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b> ) as @pat@0: ((std/core/types/list :: V -> V)<b>))
+             -> std/core/types/Cons<c>((f(x, y)), (std/core/list/zipwith<a,b,c,(e :: E)>(xx, yy, f)));
+          ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<b> ) as @pat@1: ((std/core/types/list :: V -> V)<b>))
+             -> std/core/types/Nil<c>;
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<c>;
+    });
+  };
+specialize "__*" borrow "__^" fbip fun zipwith-indexed // inline size: 1
+  = forall<a,b,c,(e :: E)> fn<(e :: E)>(xs0: (std/core/types/list :: V -> V)<a>, ys0: (std/core/types/list :: V -> V)<b>, f: (std/core/types/int, a, b) -> (e :: E) c){
+    std/core/list/zipwith-iter<a,b,c,(e :: E)>(0, xs0, ys0, f);
+  };
+recursive specialize "___*" borrow "___^" fbip fun zipwith-iter // inline size: 8
+  = forall<a,b,c,(e :: E)> fn<(e :: E)>(i: std/core/types/int, xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<b>, f: (std/core/types/int, a, b) -> (e :: E) c){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> (match (ys) {
+          ((std/core/types/Cons((y: b) : b, (yy: (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b> ) as @pat@0: ((std/core/types/list :: V -> V)<b>))
+             -> std/core/types/Cons<c>((f(i, x, y)), (std/core/list/zipwith-iter<a,b,c,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x@0: std/core/types/int, y@0: std/core/types/int){
+                  (std/core/int/int-add(x@0, y@0));
+                }))(i, 1)), xx, yy, f)));
+          ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<b> ) as @pat@1: ((std/core/types/list :: V -> V)<b>))
+             -> std/core/types/Nil<c>;
+        });
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<c>;
+    });
+  };
+fbip fun maybe/head // inline size: 2
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (@pat@0: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Just<a>(x);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nothing<a>;
+    });
+  };
+fbip fun head // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>, default: a){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (@pat@0: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> x;
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+         -> default;
+    });
+  };
+fbip fun tail // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>){
+    (match (xs) {
+      ((std/core/types/Cons((@pat@0: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> xx;
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<a>;
+    });
+  };
+borrow "^" fip fun is-empty // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>){
+    (match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+fip(1) fun single // inline size: 1
+  = forall<a> fn(x: a){
+    std/core/types/Cons<a>(x, (std/core/types/Nil<a>));
+  };
+fun length // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>){
+    std/core/list/@lift-length@6003<a>(xs, 0);
+  };
+fip fun reverse-append // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>, tl: (std/core/types/list :: V -> V)<a>){
+    std/core/list/reverse-acc<a>(tl, xs);
+  };
+fip fun reverse // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>){
+    std/core/list/reverse-acc<a>((std/core/types/Nil<a>), xs);
+  };
+fip fun (++) // inline size: 1
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>, ys: (std/core/types/list :: V -> V)<a>){
+    std/core/list/append<a>(xs, ys);
+  };
+fun foldl1 // inline size: 4
+  = forall<a,(e :: E)> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>>(xs: (std/core/types/list :: V -> V)<a>, f: (a, a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/list/foldl<a,a,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>>(xx, x, f);
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@0: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/@open<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)>,(message : std/core/types/string, info : (std/core/types/@optional :: V -> V)<std/core/exn/exception-info>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> a,(message : std/core/types/string, info : (std/core/types/@optional :: V -> V)<std/core/exn/exception-info>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>|(e :: E)> a>((std/core/exn/throw<a>))("unexpected Nil in std/core/foldl1", (std/core/types/@NoOptArg<std/core/exn/exception-info>));
+    });
+  };
+fun split // inline size: 3
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>, n: std/core/types/int){
+    std/core/types/Tuple2<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>((std/core/list/take<a>(xs, n)), (std/core/list/drop<a>(xs, n)));
+  };
+fun find // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/foreach-while<a,a,(e :: E)>(xs, (fn<(e :: E)>(x: a){
+        (match ((pred(x))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+             -> std/core/types/Just<a>(x);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+             -> std/core/types/Nothing<a>;
+        });
+      }));
+  };
+fun find-maybe // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) (std/core/types/maybe :: V -> V)<b>){
+    std/core/list/foreach-while<a,b,(e :: E)>(xs, pred);
+  };
+fun maybe/list // inline size: 2
+  = forall<a> fn(m: (std/core/types/maybe :: V -> V)<a>){
+    (match (m) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/types/Nil<a>;
+      ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+         -> std/core/types/Cons<a>(x, (std/core/types/Nil<a>));
+    });
+  };
+fun char/list // inline size: 4
+  = fn(lo: std/core/types/char, hi: std/core/types/char){
+    std/core/list/map<std/core/types/int,std/core/types/char,(std/core/types/total :: E)>((std/core/list/#range/list((std/core/char/int(lo)), (std/core/char/int(hi)))), std/core/char/#int/char);
+  };
+fun map-indexed // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (idx : std/core/types/int, value : a) -> (e :: E) b){
+    std/core/list/@lift-map-indexed@6004<a,b,(e :: E)>(f, xs, 0);
+  };
+fun map-peek // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b){
+    std/core/list/@lift-map-peek@6005<a,b,(e :: E)>(f, xs);
+  };
+fun map-indexed-peek // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (idx : std/core/types/int, value : a, rest : (std/core/types/list :: V -> V)<a>) -> (e :: E) b){
+    std/core/list/@lift-map-indexed-peek@6006<a,b,(e :: E)>(f, xs, 0);
+  };
+borrow "_^" fun partition // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/partition-acc<a,(e :: E)>(xs, pred, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()), (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()));
+  };
+fun index-of // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, pred: (a) -> (e :: E) std/core/types/bool){
+    std/core/list/index-of-acc<a,(e :: E)>(xs, pred, 0);
+  };
+fun intersperse // inline size: 3
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>, sep: a){
+    (match (xs) {
+      ((std/core/types/Cons((x: a) : a, (xx: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a> ) as @pat@1: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Cons<a>(x, (std/core/list/@lift-intersperse@6007<a>(sep, xx)));
+      ((@skip std/core/types/Nil() : (std/core/types/list :: V -> V)<a> ) as @pat@2: ((std/core/types/list :: V -> V)<a>))
+         -> std/core/types/Nil<a>;
+    });
+  };
+fun joinsep/join // inline size: 1
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/string>, sep: std/core/types/string){
+    std/core/list/joinsep(xs, sep);
+  };
+fun show-list // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, show-elem: (a) -> (e :: E) std/core/types/string){
+    std/core/list/show<a,(e :: E)>(xs, show-elem);
+  };
+borrow "__^" fbip fun zipwith-indexed // inline size: 1
+  = forall<a,b,c,(e :: E)> fn<(e :: E)>(xs0: (std/core/types/list :: V -> V)<a>, ys0: (std/core/types/list :: V -> V)<b>, f: (std/core/types/int, a, b) -> (e :: E) c){
+    std/core/list/zipwith-iter<a,b,c,(e :: E)>(0, xs0, ys0, f);
+  };
+fun unzip // inline size: 3
+  = forall<a,b> fn(xs: (std/core/types/list :: V -> V)<(a, b)>){
+    std/core/list/@lift-unzip@6008<a,b,(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<b>>(xs, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()), (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<b>>()));
+  };
+fun unzip3 // inline size: 4
+  = forall<a,b,c> fn(xs: (std/core/types/list :: V -> V)<(a, b, c)>){
+    std/core/list/@lift-unzip3@6009<a,b,c,(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<b>,(std/core/types/list :: V -> V)<c>>(xs, (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>()), (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<b>>()), (std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<c>>()));
+  };
+fun span // inline size: 2
+  = forall<a,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, predicate: (a) -> (e :: E) std/core/types/bool){
+    val acc[1,0,1,0] : (std/core/types/cctx :: (V, V) -> V)<(std/core/types/list :: V -> V)<a>,(std/core/types/list :: V -> V)<a>>
+          = std/core/types/#cctx/empty<(std/core/types/list :: V -> V)<a>>();
+    std/core/list/@lift-span@6011<a,(e :: E),(std/core/types/list :: V -> V)<a>>(predicate, xs, acc);
+  };
+fun join-end // inline size: 3
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/string>, end: std/core/types/string){
+    match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/list :: V -> V)<std/core/types/string>))
+         -> "";
+      (@pat@0: ((std/core/types/list :: V -> V)<std/core/types/string>))
+         -> std/core/types/(++)((std/core/list/joinsep(xs, end)), end);
+    };
+  };
+fun concat // inline size: 1
+  = forall<a> fn(xss: (std/core/types/list :: V -> V)<(std/core/types/list :: V -> V)<a>>){
+    std/core/list/@lift-concat@6012<a>((std/core/types/Nil<a>), xss);
+  };
+fun flatmap // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (std/core/types/list :: V -> V)<a>, f: (a) -> (e :: E) (std/core/types/list :: V -> V)<b>){
+    std/core/list/@lift-flatmap@6013<a,b,(e :: E)>(f, (std/core/types/Nil<b>), xs);
+  };
+fun sum // inline size: 1
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/int>){
+    std/core/list/foldl<std/core/types/int,std/core/types/int,(std/core/types/total :: E)>(xs, 0, std/core/int/(+));
+  };
+fun minimum // inline size: 3
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/int>, default: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/int> ) as @pat@1: ((std/core/types/list :: V -> V)<std/core/types/int>))
+         -> (match (default) {
+          ((std/core/types/@OptArg((@uniq-default@5916: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> @uniq-default@5916;
+          ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> 0;
+        });
+      ((@skip std/core/types/Cons((x: std/core/types/int) : std/core/types/int, (xx: (std/core/types/list :: V -> V)<std/core/types/int>) : (std/core/types/list :: V -> V)<std/core/types/int>) : (std/core/types/list :: V -> V)<std/core/types/int> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/types/int>))
+         -> std/core/list/foldl<std/core/types/int,std/core/types/int,(std/core/types/total :: E)>(xx, x, std/core/int/min);
+    };
+  };
+fun maximum // inline size: 3
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/int>, default: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/int> ) as @pat@1: ((std/core/types/list :: V -> V)<std/core/types/int>))
+         -> (match (default) {
+          ((std/core/types/@OptArg((@uniq-default@5950: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> @uniq-default@5950;
+          ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+             -> 0;
+        });
+      ((@skip std/core/types/Cons((x: std/core/types/int) : std/core/types/int, (xx: (std/core/types/list :: V -> V)<std/core/types/int>) : (std/core/types/list :: V -> V)<std/core/types/int>) : (std/core/types/list :: V -> V)<std/core/types/int> ) as @pat@2: ((std/core/types/list :: V -> V)<std/core/types/int>))
+         -> std/core/list/foldl<std/core/types/int,std/core/types/int,(std/core/types/total :: E)>(xx, x, std/core/int/max);
+    };
+  };
+fun lines // inline size: 2
+  = fn(s: std/core/types/string){
+    val v@10011[1,0,1,0] : (std/core/types/vector :: V -> V)<std/core/types/string>
+          = std/core/string/splitv(s, "\x0A");
+    std/core/vector/vlist<std/core/types/string>(v@10011, (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<std/core/types/string>>));
+  };

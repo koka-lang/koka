@@ -1,0 +1,178 @@
+// Caesar encoding/decoding.
+//
+// This is inspired by an example in Graham Hutton's most excellent "Programming in Haskell" book.
+// (at <https://www.cs.nott.ac.uk/~pszgmh/pih.html>)
+module interface basic/caesar
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/float64 = std/num/float64 = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+fun encode[9,5,9,10] : (s : std/core/types/string, shift : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> std/core/types/string;
+fun caesar[18,5,18,10] : (s : std/core/types/string) -> std/core/types/string;
+// The letter frequency table for English
+val english[23,5,23,11] : (std/core/types/list :: V -> V)<std/core/types/float64>;
+// Small helper functions
+fun percent[29,5,29,11] : (n : std/core/types/int, m : std/core/types/int) -> std/core/types/float64;
+fun rotate[33,5,33,10] : forall<a> (xs : (std/core/types/list :: V -> V)<a>, n : std/core/types/int) -> (std/core/types/list :: V -> V)<a>;
+// Calculate a frequency table for a string
+fun freqs[38,5,38,9] : (s : std/core/types/string) -> (std/core/types/list :: V -> V)<std/core/types/float64>;
+// Calculate how well two frequency tables match according
+// to the _chi-square_ statistic.
+fun chisqr[47,5,47,10] : (xs : (std/core/types/list :: V -> V)<std/core/types/float64>, ys : (std/core/types/list :: V -> V)<std/core/types/float64>) -> std/core/types/float64;
+// Crack a Caesar encoded string
+fun uncaesar[52,5,52,12] : (s : std/core/types/string) -> std/core/types/string;
+// test an example
+fun example-uncaesar[62,5,62,20] : () -> <(std/core/console/console :: X)> ();
+pub fun main[65,9,65,12] : () -> <(std/core/console/console :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+specialize "_*" fun encode // inline size: 1
+  = fn(s: std/core/types/string, shift: (std/core/types/@optional :: V -> V)<std/core/types/int>){
+    std/core/list/#string/map<(std/core/types/total :: E)>(s, (fn(c: std/core/types/char){
+        (match ((std/core/char/(<)(c, 'a'))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> c;
+          (@pat@2: std/core/types/bool)
+             -> (match ((std/core/char/(>)(c, 'z'))) {
+              ((std/core/types/True() : std/core/types/bool ) as @pat@3: std/core/types/bool)
+                 -> c;
+              ((@skip std/core/types/False() : std/core/types/bool ) as @pat@4: std/core/types/bool)
+                 -> val x@10002[1,0,1,0] : std/core/types/int
+                      = std/core/char/int(c);
+                    val y@10003[1,0,1,0] : std/core/types/int
+                      = std/core/char/int('a');
+                    val base[12,9,12,12] : std/core/types/int
+                      = std/core/char/int((std/core/char/#int/char((std/core/int/int-sub(x@10002, y@10003)))));
+                    val rot[13,9,13,11] : std/core/types/int
+                      = std/core/int/(%)((std/core/int/int-add(base, (match (shift) {
+                            ((std/core/types/@OptArg((@uniq-shift@36: std/core/types/int) : std/core/types/int) : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+                               -> @uniq-shift@36;
+                            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/int>))
+                               -> 3;
+                          }))), 26);
+                    val c@1@10004[1,0,1,0] : std/core/types/char
+                      = std/core/char/#int/char(rot);
+                    val x@10000[1,0,1,0] : std/core/types/int
+                      = std/core/char/int(c@1@10004);
+                    val y@10001[1,0,1,0] : std/core/types/int
+                      = std/core/char/int('a');
+                std/core/char/#int/char((std/core/int/int-add(x@10000, y@10001)));
+            });
+        });
+      }));
+  };
+specialize "*" fun freqs // inline size: 1
+  = fn(s: std/core/types/string){
+    val lowers[39,7,39,12] : (std/core/types/list :: V -> V)<std/core/types/char>
+      = std/core/list/map<std/core/types/int,std/core/types/char,(std/core/types/total :: E)>((std/core/list/#range/list((std/core/char/int('a')), (std/core/char/int('z')))), std/core/char/#int/char);
+    val occurs[40,7,40,12] : (std/core/types/list :: V -> V)<std/core/types/int>
+      = std/core/list/map<std/core/types/char,std/core/types/int,(std/core/types/total :: E)>(lowers, (fn(c: std/core/types/char){
+          (std/core/string/#stringpat/count(s, (std/core/string/#char/string(c))));
+        }));
+    val total[41,7,41,11] : std/core/types/int
+      = std/core/list/foldl<std/core/types/int,std/core/types/int,(std/core/types/total :: E)>(occurs, 0, std/core/int/(+));
+    std/core/list/map<std/core/types/int,std/core/types/float64,(std/core/types/total :: E)>(occurs, (fn(i: std/core/types/int){
+        (std/num/float64/(*)(100.0, (std/num/float64/(/)((std/num/float64/float64(i)), (std/num/float64/float64(total))))));
+      }));
+  };
+specialize "*" fun uncaesar // inline size: 1
+  = fn(s: std/core/types/string){
+    val table[53,7,53,11] : (std/core/types/list :: V -> V)<std/core/types/float64>
+      = basic/caesar/freqs(s);
+    val chitab[54,7,54,12] : (std/core/types/list :: V -> V)<std/core/types/float64>
+      = std/core/list/map<std/core/types/int,std/core/types/float64,(std/core/types/total :: E)>((std/core/list/#range/list(0, 25)), (fn(n: std/core/types/int){
+          val xs@1@10017[1,0,1,0] : ((std/core/types/list :: V -> V)<std/core/types/float64>)
+            = (std/core/list/drop<std/core/types/float64>(table, n));
+          val ys@0@10018[1,0,1,0] : ((std/core/types/list :: V -> V)<std/core/types/float64>)
+            = (std/core/list/take<std/core/types/float64>(table, n));
+          val xs@10013[1,0,1,0] : ((std/core/types/list :: V -> V)<std/core/types/float64>)
+            = (std/core/list/append<std/core/types/float64>(xs@1@10017, ys@0@10018));
+          (std/num/float64/sum((std/core/list/zipwith<std/core/types/float64,std/core/types/float64,std/core/types/float64,(std/core/types/total :: E)>(xs@10013, basic/caesar/english, (fn(x: std/core/types/float64, y: std/core/types/float64){
+              (std/num/float64/(/)((std/num/float64/(^)((std/num/float64/(-)(x, y)), 2.0)), y));
+            })))));
+        }));
+    val min[56,7,56,9] : std/core/types/float64
+      = match (chitab) {
+        ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/float64> ) as @pat: ((std/core/types/list :: V -> V)<std/core/types/float64>))
+           -> 0.0;
+        ((@skip std/core/types/Cons((x@0: std/core/types/float64) : std/core/types/float64, (xx: (std/core/types/list :: V -> V)<std/core/types/float64>) : (std/core/types/list :: V -> V)<std/core/types/float64>) : (std/core/types/list :: V -> V)<std/core/types/float64> ) as @pat@0: ((std/core/types/list :: V -> V)<std/core/types/float64>))
+           -> std/core/list/foldl<std/core/types/float64,std/core/types/float64,(std/core/types/total :: E)>(xx, x@0, std/num/float64/min);
+      };
+    val shift[57,7,57,11] : std/core/types/int
+      = std/core/list/index-of<std/core/types/float64,(std/core/types/total :: E)>(chitab, (fn(f: std/core/types/float64){
+          (std/num/float64/(==)(f, min));
+        }));
+    basic/caesar/encode(s, (std/core/types/@OptArg<std/core/types/int>((std/core/int/(~)(shift)))));
+  };
+fun caesar // inline size: 2
+  = fn(s: std/core/types/string){
+    basic/caesar/encode(s, (std/core/types/@OptArg<std/core/types/int>(3)));
+  };
+fun percent // inline size: 4
+  = fn(n: std/core/types/int, m: std/core/types/int){
+    std/num/float64/(*)(100.0, (std/num/float64/(/)((std/num/float64/float64(n)), (std/num/float64/float64(m)))));
+  };
+fun rotate // inline size: 3
+  = forall<a> fn(xs: (std/core/types/list :: V -> V)<a>, n: std/core/types/int){
+    val xs@0@10006[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+      = std/core/list/drop<a>(xs, n);
+    val ys@10007[1,0,1,0] : (std/core/types/list :: V -> V)<a>
+      = std/core/list/take<a>(xs, n);
+    std/core/list/append<a>(xs@0@10006, ys@10007);
+  };
+fun example-uncaesar // inline size: 2
+  = fn<<(std/core/console/console :: X)>>(){
+    val s@10020[1,0,1,0] : std/core/types/string
+          = basic/caesar/uncaesar("nrnd lv d ixq odqjxdjh");
+    std/core/console/printsln(s@10020);
+  };

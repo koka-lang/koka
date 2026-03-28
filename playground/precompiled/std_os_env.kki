@@ -1,0 +1,140 @@
+/*
+Access to the program environment and command line arguments.
+
+Print the environment: `get-env().map(fn(p) { p.fst ++ "=" ++ p.snd }).join("\n").print`
+*/
+module interface std/os/env
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/os/path = std/os/path = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+pub alias env[18,1,18,37] = (std/core/types/list :: V -> V)<(std/core/types/string, std/core/types/string)> = 1;
+ 
+//------------------------------
+//#kki: declarations
+ 
+fun @trmc-to-tuples[22,5,22,13] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>, @acc : (std/core/types/ctx :: V -> V)<env>) -> env;
+fun to-tuples[22,5,22,13] : (xs : (std/core/types/list :: V -> V)<std/core/types/string>) -> env;
+fun os-get-env[28,8,28,17] : () -> <(std/core/types/ndet :: X)> (std/core/types/vector :: V -> V)<std/core/types/string>;
+val environ[20,5,20,11] : (std/core/delayed/delayed :: (E, V) -> V)<<(std/core/types/ndet :: X)>,env>;
+// Get the environment variables for this program
+pub fun get-env[33,9,33,15] : () -> <(std/core/types/ndet :: X)> env;
+// Returns the value of an environment variable `name` (or `Nothing` if not present)
+pub fun get-env-value[37,9,37,21] : (name : std/core/types/string) -> <(std/core/types/ndet :: X)> (std/core/types/maybe :: V -> V)<std/core/types/string>;
+fun os-get-argv[43,8,43,18] : () -> <(std/core/types/ndet :: X)> (std/core/types/vector :: V -> V)<std/core/types/string>;
+val argv[40,5,40,8] : (std/core/delayed/delayed :: (E, V) -> V)<<(std/core/types/ndet :: X)>,(std/core/types/list :: V -> V)<std/core/types/string>>;
+// The unprocessed command line that was used to start this program.
+// On ''Node'' the first arguments will often be of the form `["node","interactive.js",...]`.
+pub fun get-argv[51,9,51,16] : () -> <(std/core/types/ndet :: X)> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Return the arguments that were passed to program itself.
+// Strips off the initial program from the unprocessed command line.
+// i.e. If a program started as:
+// ````
+// > node myprogram.js --flag bla
+// ````
+// The `arguments` list will be `["--flag","bla"]`
+pub fun get-args[62,9,62,16] : () -> <(std/core/types/ndet :: X)> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Return the main OS name: windows, linux, macos, unix, posix, ios, tvos, watchos, unknown.
+// Sometimes has a _dash_ subsystem, like: unix-&lt;freebsd,openbsd,dragonfly,bsd&gt;, and windows-mingw.
+pub fun get-os-name[70,12,70,22] : () -> <(std/core/types/ndet :: X)> std/core/types/string;
+// Return the main processor architecture: x64, x86, arm64, arm32, riscv32, riscv64, alpha64, ppc64, etc.
+pub fun get-cpu-arch[75,12,75,23] : () -> <(std/core/types/ndet :: X)> std/core/types/string;
+// Return the available CPU's.
+// This is the logical core count including hyper-threaded cores.
+pub fun get-cpu-count[81,12,81,24] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+// The current compiler version.
+pub fun get-compiler-version[86,12,86,31] : () -> <(std/core/types/ndet :: X)> std/core/types/string;
+// The backend compiler name, like `gcc`, `clang`, `cl`, `clang-cl`, `mingw`, or `icc` (and `js` for JavaScript).
+pub fun get-cc-name[91,12,91,22] : () -> <(std/core/types/ndet :: X)> std/core/types/string;
+// Is the byte-order little-endian?
+// If not, it is big-endian; other byte orders are not supported.
+pub fun get-cpu-is-little-endian[98,12,98,35] : () -> <(std/core/types/ndet :: X)> std/core/types/bool;
+// Return the processor natural integer register size in bits.
+//
+// Note: Usually this equals the `get-cpu-size-bits` and `get-cpu-pointer-bits` on modern cpu's
+// but they can differ on segmented architectures.
+// For example, on the old x86 FAR-NEAR model, the addresses are 32-bit but the integer register size is 16-bit.
+// Or on the more recent-[x32 ABI](https://en.wikipedia.org/wiki/X32_ABI)
+// the addresses and object sizes are 32-bits but the architecture has 64-bit integer registers.
+pub fun get-cpu-int-bits[109,12,109,27] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+// Return the processor maximum object size in bits (`8*sizeof(size_t)`). This is usually
+// equal to the `get-cpu-int-bits` but may be different on segmented architectures.
+pub fun get-cpu-size-bits[115,12,115,28] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+// Return the processor maximum address size in bits (`8*sizeof(vaddr_t)`). This is usually
+// equal to the `get-cpu-pointer-bits` but may be smaller on capability architectures like ARM CHERI.
+pub fun get-cpu-address-bits[121,12,121,31] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+// Return the processor maximum pointer size in bits (`8*sizeof(void*)`). This is usually
+// equal to the `get-cpu-address-bits` but may be larger on capability architectures like ARM CHERI.
+pub fun get-cpu-pointer-bits[127,12,127,31] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+// Return the size of boxed values in the heap (`8*sizeof(kk_box_t)`). This is usually
+// equal to `8*sizeof(void*)` but can be less if compressed pointers are used (when
+// compiled with `--target=c64c` for example).
+pub fun get-cpu-boxed-bits[134,12,134,29] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+specialize "*" fun get-env-value // inline size: 1
+  = fn<<(std/core/types/ndet :: X)>>(name: std/core/types/string){
+    std/core/list/lookup<std/core/types/string,std/core/types/string,<(std/core/types/ndet :: X)>>((std/core/delayed/unsafe-no-state-div-cast<env,<(std/core/types/ndet :: X)>>((fn<<(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X),(std/core/types/ndet :: X)>>(){
+        (std/core/delayed/#force/go<env,<(std/core/types/ndet :: X)>>(std/os/env/environ));
+      }))()), (fn<<(std/core/types/ndet :: X)>>(nm: std/core/types/string){
+        (std/core/string/(==)(nm, name));
+      }));
+  };
+fun get-env // inline size: 3
+  = fn<<(std/core/types/ndet :: X)>>(){
+    std/core/delayed/unsafe-no-state-div-cast<env,<(std/core/types/ndet :: X)>>((fn<<(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X),(std/core/types/ndet :: X)>>(){
+      (std/core/delayed/#force/go<env,<(std/core/types/ndet :: X)>>(std/os/env/environ));
+    }))();
+  };
+fun get-argv // inline size: 3
+  = fn<<(std/core/types/ndet :: X)>>(){
+    std/core/delayed/unsafe-no-state-div-cast<(std/core/types/list :: V -> V)<std/core/types/string>,<(std/core/types/ndet :: X)>>((fn<<(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X),(std/core/types/ndet :: X)>>(){
+      (std/core/delayed/#force/go<(std/core/types/list :: V -> V)<std/core/types/string>,<(std/core/types/ndet :: X)>>(std/os/env/argv));
+    }))();
+  };

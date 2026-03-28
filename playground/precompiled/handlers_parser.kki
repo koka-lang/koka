@@ -1,0 +1,285 @@
+module interface handlers/parser
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// First define the `many` effect to describe multiple of results and failure
+pub recursive effect type many[8,1,12,16] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-many[8,1,8,11](@cfc: std/core/types/int, @ctl-fail: forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>, @ctl-flip: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>){0,3,8} : forall<(e :: E),a> (std/core/types/int, forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) -> (many :: (E, V) -> V)<(e :: E),a> = 1;
+};
+pub recursive effect type parse[55,1,56,57] <(e :: E),a> :: (E, V) -> V {
+  pub con @Hnd-parse[55,1,55,12](@cfc: std/core/types/int, @fun-satisfy: forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(b, std/core/types/string)>,b,(parse :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(b, std/core/types/string)>,b,(parse :: (E, V) -> V),(e :: E),a>) -> (parse :: (E, V) -> V)<(e :: E),a> = 1;
+};
+pub alias mparse[59,1,59,27] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> = 1;
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:many` type.
+fun many/@cfc[8,1,8,11] : forall<(e :: E),a> (^ many : (many :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:many`
+pub val many/@tag[8,1,8,11] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(many :: (E, V) -> V)>;
+// handler for the effect `:many`
+pub fun many/@handle[8,8,8,11] : forall<a,(e :: E),b> (hnd : (many :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@ctl-flip` constructor field of the `:many` type.
+fun many/@ctl-flip[10,7,10,19] : forall<(e :: E),a> (^ many : (many :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>;
+// select `flip` operation out of effect `:many`
+pub fun flip/@select[10,7,10,19] : forall<(e :: E),a> (^ hnd : (many :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>;
+// flip a coin and return either `True` or `False` .. or both
+
+// Call the `ctl flip` operation of the effect `:many`
+pub fun flip[10,7,10,10] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> std/core/types/bool;
+// Automatically generated. Retrieves the `@ctl-fail` constructor field of the `:many` type.
+fun many/@ctl-fail[12,7,12,16] : forall<(e :: E),a,b> (^ many : (many :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>;
+// select `fail` operation out of effect `:many`
+pub fun fail/@select[12,7,12,16] : forall<a,(e :: E),b> (^ hnd : (many :: (E, V) -> V)<(e :: E),b>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<a,(many :: (E, V) -> V),(e :: E),b>;
+// fail the current computation
+
+// Call the `ctl fail` operation of the effect `:many`
+pub fun fail[12,7,12,10] : forall<a> () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> a;
+// monadic lift
+fun @mlift-select@10107[1,0,1,0] : forall<a> (x : a, xx : (std/core/types/list :: V -> V)<a>, @y-x10018 : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> a;
+pub fun select[15,5,15,10] : forall<a> (xs : (std/core/types/list :: V -> V)<a>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> a;
+// monadic lift
+fun @mlift-solutions@10108[1,0,1,0] : forall<a,(e :: E)> (@y-x10022 : (std/core/types/list :: V -> V)<a>, @y-x10023 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-solutions@10109[1,0,1,0] : forall<a,(e :: E)> (resume@0 : (std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>, @y-x10022 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Return all solutions
+pub val solutions[22,5,22,13] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-eager@10110[1,0,1,0] : forall<a,(e :: E)> (resume@0 : (std/core/types/bool) -> (e :: E) (std/core/types/list :: V -> V)<a>, @y-x10025 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// Return the first solution
+pub val eager[29,5,29,9] : forall<a,(e :: E)> (() -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-choice@10111[1,0,1,0] : forall<a,(e :: E)> (p1 : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a, p2 : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a, @y-x10030 : std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a;
+// Choice is now defined over `flip` to possibly return multiple results
+pub fun choice[38,5,38,10] : forall<a,(e :: E)> (p1 : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a, p2 : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a;
+// monadic lift
+fun @mlift-many1@10112[1,0,1,0] : forall<a,(e :: E)> (@y-x10036 : a, @y-x10037 : (std/core/types/list :: V -> V)<a>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-many1@10113[1,0,1,0] : forall<a,(e :: E)> (p@0 : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)> a, @y-x10036 : a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)> (std/core/types/list :: V -> V)<a>;
+// Basic combinators
+pub fun many[43,5,43,8] : forall<a,(e :: E)> (p : () -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> (std/core/types/list :: V -> V)<a>;
+pub fun many1[47,5,47,9] : forall<a,(e :: E)> (p : () -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> (std/core/types/list :: V -> V)<a>;
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:parse` type.
+fun parse/@cfc[55,1,55,12] : forall<(e :: E),a> (^ parse : (parse :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:parse`
+pub val parse/@tag[55,1,55,12] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(parse :: (E, V) -> V)>;
+// handler for the effect `:parse`
+pub fun parse/@handle[55,8,55,12] : forall<a,(e :: E),b> (hnd : (parse :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>|(e :: E)> a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@fun-satisfy` constructor field of the `:parse` type.
+fun parse/@fun-satisfy[56,7,56,57] : forall<(e :: E),a,b> (^ parse : (parse :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(b, std/core/types/string)>,b,(parse :: (E, V) -> V),(e :: E),a>;
+// select `satisfy` operation out of effect `:parse`
+pub fun satisfy/@select[56,7,56,57] : forall<a,(e :: E),b> (^ hnd : (parse :: (E, V) -> V)<(e :: E),b>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(a, std/core/types/string)>,a,(parse :: (E, V) -> V),(e :: E),b>;
+// Call the `fun satisfy` operation of the effect `:parse`
+pub fun satisfy[56,7,56,13] : forall<a> (pred : (std/core/types/string) -> (std/core/types/maybe :: V -> V)<(a, std/core/types/string)>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> a;
+// monadic lift
+fun @mlift-parse@10114[1,0,1,0] : forall<a,(h :: H),(e :: E)> (res : a, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a;
+// monadic lift
+fun @mlift-parse@10115[1,0,1,0] : forall<a,(h :: H),(e :: E)> (input : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/string>, pred : (std/core/types/string) -> (std/core/types/maybe :: V -> V)<(a, std/core/types/string)>, @y-x10040 : std/core/types/string) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a;
+// monadic lift
+fun @mlift-parse@10116[1,0,1,0] : forall<(h :: H),a,(e :: E)> (x : a, @y-x10045 : std/core/types/string) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> (a, std/core/types/string);
+// The parse handler uses the `many` effect to return results
+// and local state to keep track of the current parser state
+// (which is saved/restored among multiple parser strands when using multiple resumptions)
+pub fun parse[64,5,64,9] : forall<a,(e :: E)> (inp : std/core/types/string, action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> (a, std/core/types/string);
+pub fun char[74,5,74,8] : (p : (std/core/types/char) -> std/core/types/bool) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/char;
+// monadic lift
+fun @mlift-symbol@10117[1,0,1,0] : (wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> ();
+// Expression parsers
+pub fun symbol[82,5,82,10] : (c : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-digit@10118[1,0,1,0] : (@y-x10052 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+pub fun digit[87,5,87,9] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-alpha@10119[1,0,1,0] : (@y-x10053 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+pub fun alpha[91,5,91,9] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-number@10120[1,0,1,0] : (@y-x10054 : std/core/types/int, @y-x10056 : (std/core/types/list :: V -> V)<std/core/types/int>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-number@10121[1,0,1,0] : (p@0@10002 : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int, @y-x10054 : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+pub fun number[95,5,95,10] : () -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-expr@10122[1,0,1,0] : (i : std/core/types/int, j : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-expr@10123[1,0,1,0] : (wild_ : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-expr@10124[1,0,1,0] : (i : std/core/types/int, wild_@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X)> std/core/types/int;
+// monadic lift
+fun @mlift-expr@10125[1,0,1,0] : (i : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-factor@10126[1,0,1,0] : (wild_@2 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-factor@10127[1,0,1,0] : (i@0 : std/core/types/int, wild_@0@0@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-factor@10128[1,0,1,0] : (i@0 : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-factor@10129[1,0,1,0] : (wild_@1 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-factor@10130[1,0,1,0] : (wild_@0@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-term@10131[1,0,1,0] : (i@1 : std/core/types/int, j@0 : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-term@10132[1,0,1,0] : (wild_@3 : std/core/types/char) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-term@10133[1,0,1,0] : (i@1 : std/core/types/int, wild_@1@0 : ()) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> std/core/types/int;
+// monadic lift
+fun @mlift-term@10134[1,0,1,0] : (i@1 : std/core/types/int) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+pub fun expr[99,5,99,8] : () -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+pub fun factor[119,5,119,10] : () -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+pub fun term[109,5,109,8] : () -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/int;
+// Testing
+// Parse for all solutions
+pub fun mparse[130,5,130,10] : forall<a,(e :: E)> (p : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>|(e :: E)> a, input : std/core/types/string) -> (e :: E) (std/core/types/list :: V -> V)<(a, std/core/types/string)>;
+// Parse eagerly
+pub fun eparse[135,5,135,10] : forall<a,(e :: E)> (p : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>|(e :: E)> a, input : std/core/types/string) -> (e :: E) (std/core/types/list :: V -> V)<(a, std/core/types/string)>;
+pub fun example1[140,9,140,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+pub fun example2[144,9,144,16] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+pub fun main[148,9,148,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun many/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(many@0: (many :: (E, V) -> V)<(e :: E),a>){
+    (match (many@0) {
+      ((@skip handlers/parser/@Hnd-many((@x: std/core/types/int) : std/core/types/int, (@pat@0: forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>) : forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (many :: (E, V) -> V)<(e :: E),a> ) as @pat: ((many :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun many/@ctl-flip // inline size: 0
+  = forall<(e :: E),a> fn(many@0: (many :: (E, V) -> V)<(e :: E),a>){
+    (match (many@0) {
+      ((@skip handlers/parser/@Hnd-many((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>) : forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (many :: (E, V) -> V)<(e :: E),a> ) as @pat: ((many :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun flip/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (many :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/parser/@Hnd-many((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>) : forall<b> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<b,(many :: (E, V) -> V),(e :: E),a>, (@ctl-flip: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (many :: (E, V) -> V)<(e :: E),a> ) as @pat: ((many :: (E, V) -> V)<(e :: E),a>))
+         -> @ctl-flip;
+    });
+  };
+inline fun flip // inline size: 5
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<std/core/types/bool,<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>,(many :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(many :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(many :: (E, V) -> V)>>((std/core/hnd/@evv-at<(many :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), handlers/parser/#flip/@select);
+  };
+inline borrow "^" fun many/@ctl-fail // inline size: 0
+  = forall<(e :: E),a,b> fn(many@0: (many :: (E, V) -> V)<(e :: E),a>){
+    (match (many@0) {
+      ((@skip handlers/parser/@Hnd-many((@pat@0: std/core/types/int) : std/core/types/int, (@x: forall<c> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<c,(many :: (E, V) -> V),(e :: E),a>) : forall<c> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<c,(many :: (E, V) -> V),(e :: E),a>, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),a>) : (many :: (E, V) -> V)<(e :: E),a> ) as @pat: ((many :: (E, V) -> V)<(e :: E),a>))
+         -> @x<b>;
+    });
+  };
+inline borrow "^" fun fail/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (many :: (E, V) -> V)<(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/parser/@Hnd-many((@pat@0: std/core/types/int) : std/core/types/int, (@ctl-fail: forall<c> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<c,(many :: (E, V) -> V),(e :: E),b>) : forall<c> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<c,(many :: (E, V) -> V),(e :: E),b>, (@pat@1: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),b>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/bool,(many :: (E, V) -> V),(e :: E),b>) : (many :: (E, V) -> V)<(e :: E),b> ) as @pat: ((many :: (E, V) -> V)<(e :: E),b>))
+         -> @ctl-fail<a>;
+    });
+  };
+inline fun fail // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>>(){
+    std/core/hnd/@perform0<a,<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>,(many :: (E, V) -> V)>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(many :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(many :: (E, V) -> V)>>((std/core/hnd/@evv-at<(many :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/parser/#fail/@select<a,(e :: E),b>));
+  };
+fun many // inline size: 2
+  = forall<a,(e :: E)> fn<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)>>(p: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)> a){
+    handlers/parser/choice<(std/core/types/list :: V -> V)<a>,<(std/core/types/div :: X)|(e :: E)>>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>>(){
+        (handlers/parser/many1<a,(e :: E)>(p));
+      }), (fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)>>(){
+        (std/core/types/Nil<a>);
+      }));
+  };
+fun many1 // inline size: 3
+  = forall<a,(e :: E)> fn<<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)>>(p@0: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>,(std/core/types/div :: X)|(e :: E)> a){
+    std/core/types/Cons<a>((p@0()), (handlers/parser/many<a,(e :: E)>(p@0)));
+  };
+inline borrow "^" fun parse/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(parse@0: (parse :: (E, V) -> V)<(e :: E),a>){
+    (match (parse@0) {
+      ((@skip handlers/parser/@Hnd-parse((@x: std/core/types/int) : std/core/types/int, (@pat@0: (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(b, std/core/types/string)>,b,(parse :: (E, V) -> V),(e :: E),a>)) : (forall<b> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(b, std/core/types/string)>,b,(parse :: (E, V) -> V),(e :: E),a>)) : (parse :: (E, V) -> V)<(e :: E),a> ) as @pat: ((parse :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun parse/@fun-satisfy // inline size: 0
+  = forall<(e :: E),a,b> fn(parse@0: (parse :: (E, V) -> V)<(e :: E),a>){
+    (match (parse@0) {
+      ((@skip handlers/parser/@Hnd-parse((@pat@0: std/core/types/int) : std/core/types/int, (@x: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(c, std/core/types/string)>,c,(parse :: (E, V) -> V),(e :: E),a>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(c, std/core/types/string)>,c,(parse :: (E, V) -> V),(e :: E),a>)) : (parse :: (E, V) -> V)<(e :: E),a> ) as @pat: ((parse :: (E, V) -> V)<(e :: E),a>))
+         -> @x<b>;
+    });
+  };
+inline borrow "^" fun satisfy/@select // inline size: 0
+  = forall<a,(e :: E),b> fn(hnd: (parse :: (E, V) -> V)<(e :: E),b>){
+    (match (hnd) {
+      ((@skip handlers/parser/@Hnd-parse((@pat@0: std/core/types/int) : std/core/types/int, (@fun-satisfy: (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(c, std/core/types/string)>,c,(parse :: (E, V) -> V),(e :: E),b>)) : (forall<c> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(c, std/core/types/string)>,c,(parse :: (E, V) -> V),(e :: E),b>)) : (parse :: (E, V) -> V)<(e :: E),b> ) as @pat: ((parse :: (E, V) -> V)<(e :: E),b>))
+         -> @fun-satisfy<a>;
+    });
+  };
+inline fun satisfy // inline size: 5
+  = forall<a> fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>>>(pred: (std/core/types/string) -> (std/core/types/maybe :: V -> V)<(a, std/core/types/string)>){
+    std/core/hnd/@perform1<(std/core/types/string) -> (std/core/types/maybe :: V -> V)<(a, std/core/types/string)>,a,(parse :: (E, V) -> V),<(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>>>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(parse :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(parse :: (E, V) -> V)>>((std/core/hnd/@evv-at<(parse :: (E, V) -> V)>))((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>> std/core/types/ssize_t>(std/core/types/@make-ssize_t)(0)))), (forall<(e :: E),b> handlers/parser/#satisfy/@select<a,(e :: E),b>), pred);
+  };
+fun symbol // inline size: 2
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>>>(c: std/core/types/char){
+    val _[83,3,83,20] : std/core/types/char
+          = handlers/parser/char((fn(d: std/core/types/char){
+            (std/core/char/(==)(c, d));
+          }));
+    std/core/types/Unit;
+  };
+fun mparse // inline size: 2
+  = forall<a,(e :: E)> fn<(e :: E)>(p: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a, input: std/core/types/string){
+    handlers/parser/solutions<(a, std/core/types/string),(e :: E)>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)>>(){
+      (handlers/parser/parse<a,(e :: E)>(input, p));
+    }));
+  };
+fun eparse // inline size: 2
+  = forall<a,(e :: E)> fn<(e :: E)>(p: () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(parse :: (E, V) -> V)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)> a, input: std/core/types/string){
+    handlers/parser/eager<(a, std/core/types/string),(e :: E)>((fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(many :: (E, V) -> V)>|(e :: E)>>(){
+      (handlers/parser/parse<a,(e :: E)>(input, p));
+    }));
+  };

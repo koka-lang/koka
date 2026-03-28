@@ -1,0 +1,409 @@
+// Standard integer `:int` functions.
+//
+// These are arbitrary precision signed integer with an efficient runtime representation.
+// For more details, see:
+//
+// >   "What About the Integer Numbers?
+// >   "Fast Arithmetic with Tagged Integers -- A Plea for Hardware Support"
+// >   Daan Leijen, Technical report MSR-TR-2022-17, 2022-07-11, v1.0. Presented at the ML workshop 2022."
+// >   <https://www.microsoft.com/en-us/research/uploads/prod/2022/07/int.pdf>
+//
+module interface std/core/int
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+pub fip fun order[27,13,27,17] : (i : std/core/types/int) -> std/core/types/order;
+// Compare two integers
+pub fip fun cmp[33,20,33,22] : (^ x : std/core/types/int, ^ y : std/core/types/int) -> std/core/types/order;
+// Order two integers in ascending order.
+pub fip fun order2[40,20,40,25] : (x : std/core/types/int, y : std/core/types/int) -> (std/core/types/order2 :: V -> V)<std/core/types/int>;
+// Add two integers.
+pub fip fun (+)[85,13,85,15] : (x : std/core/types/int, y : std/core/types/int) -> std/core/types/int;
+// Subtract two integers.
+pub fip fun (-)[94,13,94,15] : (x : std/core/types/int, y : std/core/types/int) -> std/core/types/int;
+/* Euclidean-0 division & modulus.
+Euclidean division is defined as: For any `D`  and `d`  where ``d!=0`` , we have:
+
+1. ``D == d*(D/d) + (D%d)``
+2. ``D%d``  is always positive where ``0 <= D%d < abs(d)``
+
+Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
+that ``D%0 == D``  and ``D/0 == 0`` . So property (1) still holds, but not property (2).
+
+Useful laws that hold for Euclidean-0 division:
+
+* ``D/(-d) == -(D/d)``
+* ``D%(-d) == D%d``
+* ``D/(2^n) == sar(D,n)         ``  (where ``2^n`` means ``2`` to the power of ``n``)
+* ``D%(2^n) == D & ((2^n) - 1)  ``
+
+See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
+(available at: <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf>).
+*/
+pub fip fun divmod[134,16,134,21] : (x : std/core/types/int, y : std/core/types/int) -> (std/core/types/int, std/core/types/int);
+pub fip fun negate[139,13,139,18] : (i : std/core/types/int) -> std/core/types/int;
+// Increment
+pub fip fun inc[169,13,169,15] : (i : std/core/types/int) -> std/core/types/int;
+// Decrement
+pub fip fun dec[173,13,173,15] : (i : std/core/types/int) -> std/core/types/int;
+// Raise an integer `i` to the power of `exp`.
+pub fip fun pow[181,16,181,18] : (i : std/core/types/int, exp : std/core/types/int) -> std/core/types/int;
+// Raise an integer `i` to the power of `exp`.
+pub fip fun (^)[187,13,187,15] : (i : std/core/types/int, exp : std/core/types/int) -> std/core/types/int;
+// Return the number of decimal digits of `i`. Return `0` when `i==0`.
+pub fip fun count-digits[201,16,201,27] : (i : std/core/types/int) -> std/core/types/int;
+pub fip fun mul-exp10[206,16,206,24] : (i : std/core/types/int, n : std/core/types/int) -> std/core/types/int;
+// Calculate ``10^exp``
+pub fip fun exp10[177,13,177,17] : (exp : std/core/types/int) -> std/core/types/int;
+// Calculate ``2^exp``.
+pub fip fun exp2[191,13,191,16] : (exp : std/core/types/int) -> std/core/types/int;
+// Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
+pub fip fun is-exp10[195,16,195,23] : (i : std/core/types/int) -> std/core/types/int;
+pub fip fun cdiv-exp10[211,16,211,25] : (i : std/core/types/int, n : std/core/types/int) -> std/core/types/int;
+pub fun cdivmod-exp10[216,9,216,21] : (i : std/core/types/int, n : std/core/types/int) -> (std/core/types/int, std/core/types/int);
+// Is the integer negative (strictly smaller than zero)
+pub fip fun is-neg[235,13,235,18] : (i : std/core/types/int) -> std/core/types/bool;
+pub fun divmod-exp10[222,9,222,20] : (i : std/core/types/int, n : std/core/types/int) -> (std/core/types/int, std/core/types/int);
+// Is this an even integer?
+pub fip fun is-even[227,13,227,19] : (i : std/core/types/int) -> std/core/types/bool;
+// Is the integer positive (strictly greater than zero)
+pub fip fun is-pos[231,13,231,18] : (i : std/core/types/int) -> std/core/types/bool;
+// Compare an integer `i` with zero
+pub fip fun sign[239,20,239,23] : (^ i : std/core/types/int) -> std/core/types/order;
+// Return the minimum of two integers
+pub fip fun min[246,13,246,15] : (i : std/core/types/int, j : std/core/types/int) -> std/core/types/int;
+// Return the maximum of two integers
+pub fip fun max[250,13,250,15] : (i : std/core/types/int, j : std/core/types/int) -> std/core/types/int;
+// Transform an integer to a maybe type, using `Nothing` for `0`
+pub fun maybe[254,9,254,13] : (i : std/core/types/int) -> (std/core/types/maybe :: V -> V)<std/core/types/int>;
+// Convert an `:int` to a string
+pub fun show[258,12,258,15] : (i : std/core/types/int) -> std/core/types/string;
+// Convert an int to a boolean, using `False` for 0 and `True` otherwise.
+pub fun bool[264,9,264,12] : (i : std/core/types/int) -> std/core/types/bool;
+// Convert a `:maybe<int>` to an `:int` using zero for `Nothing`
+pub fip fun mbint[268,13,268,17] : (m : (std/core/types/maybe :: V -> V)<std/core/types/int>) -> std/core/types/int;
+fun xparse[291,17,291,22] : (s : std/core/types/string, hex : std/core/types/bool) -> (std/core/types/maybe :: V -> V)<std/core/types/int>;
+// Parse an integer.
+// If an illegal digit character is encountered `Nothing` is returned.
+// An empty string, or a string starting with white space will result in `Nothing`
+// A string can start with a `-` sign for negative numbers,
+// and with `0x` or `0X` for hexadecimal numbers (in which case the `hex` parameter is ignored).
+pub fun parse-int[288,9,288,17] : (s : std/core/types/string, hex : (std/core/types/@optional :: V -> V)<std/core/types/bool>) -> (std/core/types/maybe :: V -> V)<std/core/types/int>;
+// clamp an `:int` to fit in an `:int8`.
+pub fip fun int8[303,16,303,19] : (i : std/core/types/int) -> std/core/types/int8;
+// clamp an `:int` to fit in an `:int8` but interpret the `:int` as an unsigned 8-bit value,
+// and clamp between 0 and 255.
+pub fip fun uint8[317,16,317,20] : (i : std/core/types/int) -> std/core/types/int8;
+// clamp an `:int` to fit in an `:int16`.
+pub fip fun int16[330,16,330,20] : (i : std/core/types/int) -> std/core/types/int16;
+// clamp an `:int` to fit in an `:intptr_t`.
+pub fip fun intptr_t[343,16,343,23] : (i : std/core/types/int) -> std/core/types/intptr_t;
+// Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
+// value if it is outside the range of an `:ssize_t`.
+// Needed for evidence indices in `module std/core/hnd`
+pub fip fun ssize_t[357,16,357,22] : (i : std/core/types/int) -> std/core/types/ssize_t;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// Are two integers equal?
+pub fip extern (==)[44,23,44,26] : (^ x : std/core/types/int, ^ y : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_eq_borrow(#1,#2,kk_context())";
+  cs inline "(#1 == #2)";
+  js inline "$std_core_types._int_eq(#1,#2)";
+};
+// Are two integers not equal?
+pub fip extern (!=)[50,23,50,26] : (^ x : std/core/types/int, ^ y : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_neq_borrow(#1,#2,kk_context())";
+  cs inline "(#1 != #2)";
+  js inline "$std_core_types._int_ne(#1,#2)";
+};
+// Is the first integer smaller or equal to the second?
+pub fip extern (<=)[56,23,56,26] : (^ x : std/core/types/int, ^ y : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_lte_borrow(#1,#2,kk_context())";
+  cs inline "(#1 <= #2)";
+  js inline "$std_core_types._int_le(#1,#2)";
+};
+// Is the first integer greater or equal to the second?
+pub fip extern (>=)[62,23,62,26] : (^ x : std/core/types/int, ^ y : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_gte_borrow(#1,#2,kk_context())";
+  cs inline "(#1 >= #2)";
+  js inline "$std_core_types._int_ge(#1,#2)";
+};
+// Is the first integer smaller than the second?
+pub fip extern (<)[68,23,68,25] : (^ x : std/core/types/int, ^ y : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_lt_borrow(#1,#2,kk_context())";
+  cs inline "(#1 < #2)";
+  js inline "$std_core_types._int_lt(#1,#2)";
+};
+// Is the first integer greater than the second?
+pub fip extern (>)[74,23,74,25] : (^ x : std/core/types/int, ^ y : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_gt_borrow(#1,#2,kk_context())";
+  cs inline "(#1 > #2)";
+  js inline "$std_core_types._int_gt(#1,#2)";
+};
+fip extern int-add[79,19,79,25] : (std/core/types/int, std/core/types/int) -> std/core/types/int {
+  c inline "kk_integer_add(#1,#2,kk_context())";
+  cs inline "(#1 + #2)";
+  js inline "$std_core_types._int_add(#1,#2)";
+};
+fip extern int-sub[88,19,88,25] : (std/core/types/int, std/core/types/int) -> std/core/types/int {
+  c inline "kk_integer_sub(#1,#2,kk_context())";
+  cs inline "(#1 - #2)";
+  js inline "$std_core_types._int_sub(#1,#2)";
+};
+// Multiply two integers.
+pub fip extern (*)[98,23,98,25] : (std/core/types/int, std/core/types/int) -> std/core/types/int {
+  c inline "kk_integer_mul(#1,#2,kk_context())";
+  cs inline "(#1 * #2)";
+  js inline "$std_core_types._int_mul(#1,#2)";
+};
+// Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
+pub fip extern (/)[104,23,104,25] : (x : std/core/types/int, y : std/core/types/int) -> std/core/types/int {
+  c inline "kk_integer_div(#1,#2,kk_context())";
+  cs inline "Primitive.IntDiv(#1,#2)";
+  js inline "$std_core_types._int_div(#1,#2)";
+};
+// Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
+pub fip extern (%)[110,23,110,25] : (std/core/types/int, std/core/types/int) -> std/core/types/int {
+  c inline "kk_integer_mod(#1,#2,kk_context())";
+  cs inline "Primitive.IntMod(#1,#2)";
+  js inline "$std_core_types._int_mod(#1,#2)";
+};
+// Negate an integer.
+pub fip extern (~)[143,23,143,25] : (i : std/core/types/int) -> std/core/types/int {
+  c inline "kk_integer_neg(#1,kk_context())";
+  cs inline "(-#1)";
+  js inline "$std_core_types._int_negate(#1)";
+};
+// Is this an odd integer?
+pub fip extern is-odd[149,23,149,28] : (i : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_is_odd(#1,kk_context())";
+  cs inline "!(#1.IsEven)";
+  js inline "$std_core_types._int_isodd(#1)";
+};
+// Is this equal to zero?
+pub fip extern is-zero[155,23,155,29] : (^ x : std/core/types/int) -> std/core/types/bool {
+  c inline "kk_integer_is_zero_borrow(#1)";
+  cs inline "(#1.IsZero)";
+  js inline "$std_core_types._int_iszero(#1)";
+};
+// Return the absolute value of an integer.
+pub fip extern abs[161,23,161,25] : (i : std/core/types/int) -> std/core/types/int {
+  c inline "kk_integer_abs(#1,kk_context())";
+  cs inline "BigInteger.Abs(#1)";
+  js inline "$std_core_types._int_abs(#1)";
+};
+// Convert an `:int8` to an `:int`.
+pub fip extern int8/int[309,23,309,30] : (i : std/core/types/int8) -> std/core/types/int {
+  c inline "kk_integer_from_int8(#1,kk_context())";
+  cs inline "(new BigInteger(#1))";
+  js inline "$std_core_types._int_from_int32(#1)";
+};
+// Convert an `:int8` to an `:int` but interpret the `:int8` as an unsigned 8-bit value between 0 and 255.
+pub fip extern int8/uint[323,23,323,31] : (i : std/core/types/int8) -> std/core/types/int {
+  c inline "kk_integer_from_uint8(#1,kk_context())";
+  cs inline "(new BigInteger(#1 >= 0 ? #1 : 256 + #1))";
+  js inline "$std_core_types._int_from_int32(#1)";
+};
+// Convert an `:int16` to an `:int`.
+pub fip extern int16/int[336,23,336,31] : (i : std/core/types/int16) -> std/core/types/int {
+  c inline "kk_integer_from_int16(#1,kk_context())";
+  cs inline "(new BigInteger(#1))";
+  js inline "$std_core_types._int_from_int32(#1)";
+};
+// Convert an `:intptr_t` to an `:int`.
+pub fip extern intptr_t/int[349,23,349,34] : (i : std/core/types/intptr_t) -> std/core/types/int {
+  c inline "kk_integer_from_intptr_t(#1,kk_context())";
+  cs inline "(new BigInteger(#1))";
+  js inline "$std_core_types._int_from_int64(#1)";
+};
+// Convert an `:ssize_t` to an `:int`.
+pub fip extern ssize_t/int[363,23,363,33] : (i : std/core/types/ssize_t) -> std/core/types/int {
+  c inline "kk_integer_from_ssize_t(#1,kk_context())";
+  cs inline "(new BigInteger(#1))";
+  js inline "$std_core_types._int_from_int32(#1)";
+};
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fip fun order // inline size: 4
+  = fn(i: std/core/types/int){
+    match ((std/core/int/(<)(i, 0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Lt;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/core/int/(>)(i, 0))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Eq;
+        });
+    };
+  };
+inline borrow "^^" fip fun cmp // inline size: 4
+  = fn(x: std/core/types/int, y: std/core/types/int){
+    match ((std/core/int/(==)(x, y))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Eq;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/core/int/(>)(x, y))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Lt;
+        });
+    };
+  };
+inline fip fun order2 // inline size: 7
+  = fn(x: std/core/types/int, y: std/core/types/int){
+    match ((std/core/int/(==)(x, y))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Eq2<std/core/types/int>(x);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/core/int/(<)(x, y))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Lt2<std/core/types/int>(x, y);
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Gt2<std/core/types/int>(y, x);
+        });
+    };
+  };
+fip fun (+) // inline size: 1
+  = fn(x: std/core/types/int, y: std/core/types/int){
+    std/core/int/int-add(x, y);
+  };
+fip fun (-) // inline size: 1
+  = fn(x: std/core/types/int, y: std/core/types/int){
+    std/core/int/int-sub(x, y);
+  };
+fip fun negate // inline size: 1
+  = fn(i: std/core/types/int){
+    std/core/int/(~)(i);
+  };
+fip fun inc // inline size: 1
+  = fn(i: std/core/types/int){
+    std/core/int/int-add(i, 1);
+  };
+fip fun dec // inline size: 1
+  = fn(i: std/core/types/int){
+    std/core/int/int-sub(i, 1);
+  };
+fip fun (^) // inline size: 1
+  = fn(i: std/core/types/int, exp: std/core/types/int){
+    std/core/int/pow(i, exp);
+  };
+fip fun exp10 // inline size: 1
+  = fn(exp: std/core/types/int){
+    std/core/int/mul-exp10(1, exp);
+  };
+fip fun exp2 // inline size: 1
+  = fn(exp: std/core/types/int){
+    std/core/int/pow(2, exp);
+  };
+fip fun is-neg // inline size: 1
+  = fn(i: std/core/types/int){
+    std/core/int/(<)(i, 0);
+  };
+fip fun is-even // inline size: 2
+  = fn(i: std/core/types/int){
+    val b@10014[1,0,1,0] : std/core/types/bool
+          = std/core/int/is-odd(i);
+    match (b@10014) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/False;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/True;
+    };
+  };
+fip fun is-pos // inline size: 1
+  = fn(i: std/core/types/int){
+    std/core/int/(>)(i, 0);
+  };
+inline borrow "^" fip fun sign // inline size: 4
+  = fn(i: std/core/types/int){
+    match ((std/core/int/(==)(i, 0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Eq;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/core/int/(>)(i, 0))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> std/core/types/Gt;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> std/core/types/Lt;
+        });
+    };
+  };
+fip fun min // inline size: 2
+  = fn(i: std/core/types/int, j: std/core/types/int){
+    match ((std/core/int/(<=)(i, j))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };
+fip fun max // inline size: 2
+  = fn(i: std/core/types/int, j: std/core/types/int){
+    match ((std/core/int/(>=)(i, j))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> i;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> j;
+    };
+  };
+fun maybe // inline size: 3
+  = fn(i: std/core/types/int){
+    match ((std/core/int/(==)(i, 0))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> std/core/types/Nothing<std/core/types/int>;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/Just<std/core/types/int>(i);
+    };
+  };
+fun bool // inline size: 1
+  = fn(i: std/core/types/int){
+    std/core/int/(!=)(i, 0);
+  };
+fip fun mbint // inline size: 1
+  = fn(m: (std/core/types/maybe :: V -> V)<std/core/types/int>){
+    match (m) {
+      ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<std/core/types/int> ) as @pat: ((std/core/types/maybe :: V -> V)<std/core/types/int>))
+         -> 0;
+      ((@skip std/core/types/Just((i: std/core/types/int) : std/core/types/int) : (std/core/types/maybe :: V -> V)<std/core/types/int> ) as @pat@0: ((std/core/types/maybe :: V -> V)<std/core/types/int>))
+         -> i;
+    };
+  };
+fun parse-int // inline size: 2
+  = fn(s: std/core/types/string, hex: (std/core/types/@optional :: V -> V)<std/core/types/bool>){
+    std/core/int/xparse(s, (match (hex) {
+        ((std/core/types/@OptArg((@uniq-hex@581: std/core/types/bool) : std/core/types/bool) : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+           -> @uniq-hex@581;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/bool> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/bool>))
+           -> std/core/types/False;
+      }));
+  };

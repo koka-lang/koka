@@ -1,0 +1,72 @@
+// Internal functions to support lazy constructors
+//
+module interface std/core/lazy
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// internal: marker for lazy values that will be memoized (used to for correct reuse and reference counting)
+pub fip fun memoize-target[19,16,19,29] : forall<a> (^ target : a, size : std/core/types/int, scan-size : std/core/types/int) -> ();
+// internal: explicitly force update-in-place for lazy values
+pub fip fun memoize[23,16,23,22] : forall<a> (target : a, x : a) -> a;
+val internal[57,5,57,12] : std/core/types/int;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// internal: atomically set a lazy value to locked (or return `false` if already memoized)
+pub fip extern atomic-enter[27,23,27,34] : forall<a> (^ target : a, lazy-tag : std/core/types/int32) -> std/core/types/bool {
+  c inline "kk_lazy_atomic_enter(#1,#2,kk_context())";
+};
+// internal: release an atomically memoized lazy value
+pub fip extern atomic-leave[31,23,31,34] : forall<a> (target : a) -> () {
+  c inline "kk_lazy_atomic_leave(#1,kk_context())";
+};
+// internal: test if a lazy value is in whnf
+pub fip extern datatype-is-whnf[36,23,36,38] : forall<a> (^ x : a, lazy-tag : std/core/types/int32) -> std/core/types/bool {
+  c inline "kk_datatype_is_whnf(#1,#2,kk_context())";
+};
+// internal: test if a heap allocated lazy value is in whnf
+pub fip extern datatype-ptr-is-whnf[40,23,40,42] : forall<a> (^ x : a, lazy-tag : std/core/types/int32) -> std/core/types/bool {
+  c inline "kk_datatype_ptr_is_whnf(#1,#2,kk_context())";
+};
+// internal: test if a heap allocated data type is unique
+pub fip extern datatype-ptr-is-unique[45,23,45,44] : forall<a> (^ x : a) -> std/core/types/bool {
+  c inline "kk_datatype_ptr_is_unique(#1,kk_context())";
+};
+// internal: test if a heap allocated data type is thread-shared
+pub fip extern datatype-ptr-is-thread-shared[49,23,49,51] : forall<a> (^ x : a) -> std/core/types/bool {
+  c inline "kk_datatype_ptr_is_thread_shared(#1,kk_context())";
+};
+// internal: compress indirection chains
+pub fip extern indirect-compress[54,23,54,39] : forall<a> (value : a, lazy-tag : std/core/types/int32) -> a {
+  c inline "kk_indirect_compress(#1,#2,kk_context())";
+};
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline val internal // inline size: 0
+  = 42;

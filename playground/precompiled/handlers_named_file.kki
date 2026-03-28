@@ -1,0 +1,137 @@
+/* Shows the use of a named effect handlers to model files.
+
+   Prerequisites:
+   - learn/var
+   - learn/with
+   - handlers/basic
+   - handlers/named/ask
+*/
+module interface handlers/named/file
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/os/path = std/os/path = "";
+import std/os/file = std/os/file = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+recursive named effect type file[13,7,14,26] <(e :: E),a> :: (E, V) -> V {
+  con @Hnd-file[13,7,13,17](@cfc: std/core/types/int, @fun-read-line: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>){0,2,8} : forall<(e :: E),a> (std/core/types/int, (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>) -> (file :: (E, V) -> V)<(e :: E),a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `@cfc` constructor field of the `:file` type.
+fun file/@cfc[13,7,13,17] : forall<(e :: E),a> (^ file : (file :: (E, V) -> V)<(e :: E),a>) -> std/core/types/int;
+// runtime tag for the effect `:file`
+val file/@tag[13,7,13,17] : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>;
+// handler for the effect `:file`
+fun file/@handle[13,14,13,17] : forall<a,(e :: E),b> (hnd : (file :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : (hname : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>) -> (e :: E) a) -> (e :: E) b;
+// Automatically generated. Retrieves the `@fun-read-line` constructor field of the `:file` type.
+fun file/@fun-read-line[14,7,14,26] : forall<(e :: E),a> (^ file : (file :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>;
+// select `read-line` operation out of effect `:file`
+fun read-line/@select[14,7,14,26] : forall<(e :: E),a> (^ hnd : (file :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>;
+// Call the `fun read-line` operation of the effect `:file`
+fun read-line[14,7,14,15] : (@hname : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/string;
+// monadic lift
+fun @mlift-file@10028[1,0,1,0] : forall<(h :: H),(e :: E)> (x : std/core/types/string, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)|(e :: E)> std/core/types/string;
+// monadic lift
+fun @mlift-file@10029[1,0,1,0] : forall<(h :: H),(e :: E)> (content : (std/core/types/local-var :: (H, V) -> V)<(h :: H),(std/core/types/list :: V -> V)<std/core/types/string>>, @y-x10007 : (std/core/types/list :: V -> V)<std/core/types/string>) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)|(e :: E)> std/core/types/string;
+// monadic lift
+fun @mlift-file@10030[1,0,1,0] : forall<(h :: H),a,(e :: E)> (action : ((std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)|(e :: E)> a, @y-x10006 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/local :: H -> X)<(h :: H)>|(e :: E)> a;
+// a (named) handler instance for files
+fun file[18,5,18,8] : forall<a,(e :: E)> (fname : std/core/types/string, action : ((std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)|(e :: E)> a) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)|(e :: E)> a;
+// monadic lift
+fun @mlift-main@10031[1,0,1,0] : (@y-x10015 : std/core/types/string, @y-x10016 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+// monadic lift
+fun @mlift-main@10032[1,0,1,0] : (f2 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>, @y-x10015 : std/core/types/string) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> ();
+pub fun main[28,9,28,12] : () -> <(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)> ();
+fun wrong-escape1[34,5,34,17] : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>;
+// monadic lift
+fun @mlift-example-wrong@10033[1,0,1,0] : (f@0 : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)> ();
+pub fun example-wrong[38,9,38,21] : () -> <(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun file/@cfc // inline size: 0
+  = forall<(e :: E),a> fn(file@0: (file :: (E, V) -> V)<(e :: E),a>){
+    (match (file@0) {
+      ((@skip handlers/named/file/@Hnd-file((@x: std/core/types/int) : std/core/types/int, (@pat@0: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>) : (file :: (E, V) -> V)<(e :: E),a> ) as @pat: ((file :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun file/@fun-read-line // inline size: 0
+  = forall<(e :: E),a> fn(file@0: (file :: (E, V) -> V)<(e :: E),a>){
+    (match (file@0) {
+      ((@skip handlers/named/file/@Hnd-file((@pat@0: std/core/types/int) : std/core/types/int, (@x: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>) : (file :: (E, V) -> V)<(e :: E),a> ) as @pat: ((file :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun read-line/@select // inline size: 0
+  = forall<(e :: E),a> fn(hnd: (file :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((@skip handlers/named/file/@Hnd-file((@pat@0: std/core/types/int) : std/core/types/int, (@fun-read-line: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<std/core/types/string,(file :: (E, V) -> V),(e :: E),a>) : (file :: (E, V) -> V)<(e :: E),a> ) as @pat: ((file :: (E, V) -> V)<(e :: E),a>))
+         -> @fun-read-line;
+    });
+  };
+inline fun read-line // inline size: 1
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(@hname: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>){
+    std/core/hnd/@perform0<std/core/types/string,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,(file :: (E, V) -> V)>(@hname, handlers/named/file/#read-line/@select);
+  };
+fun wrong-escape1 // inline size: 1
+  = fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)>>(){
+    handlers/named/file/file<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>,(std/core/types/total :: E)>("stack.yaml", (fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)>>(f: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>){
+        f;
+      }));
+  };
+fun example-wrong // inline size: 4
+  = fn<<(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)>>(){
+    val f@0[39,7,39,7] : (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>
+          = handlers/named/file/file<(std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>,(std/core/types/total :: E)>("stack.yaml", (fn<<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)>>(f: (std/core/hnd/ev :: ((E, V) -> V) -> V)<(file :: (E, V) -> V)>){
+              f;
+            }));
+    std/core/types/@open<<(std/core/console/console :: X)>,<(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)>,(s : std/core/types/string) -> <(std/core/console/console :: X)> (),(s : std/core/types/string) -> <(std/core/console/console :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X)> ()>(std/core/console/printsln)((std/core/hnd/@perform0<std/core/types/string,<(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,(file :: (E, V) -> V)>(f@0, handlers/named/file/#read-line/@select)));
+  };

@@ -1,0 +1,131 @@
+// Delayed computations.
+module interface std/core/delayed
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+import std/core/hnd = std/core/hnd = "";
+import std/core/unsafe = std/core/unsafe = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// Stateful functions can manipulate heap `:h` using allocations, reads and writes.
+local alias std/core/types/st[139,1,139,47]<(h :: H)> :: H -> E = <(std/core/types/read :: H -> X)<(h :: H)>,(std/core/types/write :: H -> X)<(h :: H)>,(std/core/types/alloc :: H -> X)<(h :: H)>> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+type computation[20,1,23,15] <(e :: E),a> :: (E, V) -> V {
+  con XComputation[21,7,21,18](action: () -> (e :: E) a){0,1,8} : forall<(e :: E),a> (action : () -> (e :: E) a) -> (computation :: (E, V) -> V)<(e :: E),a> = 1;
+  con XDone[22,7,22,11](value: a){0,1,8} : forall<(e :: E),a> (value : a) -> (computation :: (E, V) -> V)<(e :: E),a> = 2;
+  con XBlocking[23,7,23,15]{0,0,0} : forall<(e :: E),a> (computation :: (E, V) -> V)<(e :: E),a> = 3;
+};
+// Delayed (or _lazy_) values are computed (with effect `:e`) only the first time
+// `force` is called and cached afterwards.
+pub value{0,1,8} type delayed[27,1,28,51] <(e :: E),a> :: (E, V) -> V {
+  con XDelay[28,7,28,12](dref: (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>){0,1,8} : forall<(e :: E),a> (dref : (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>) -> (delayed :: (E, V) -> V)<(e :: E),a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Tests for the `XComputation` constructor of the `:computation` type.
+fip fun is-xcomputation[21,7,21,18] : forall<a,(e :: E)> (^ computation : (computation :: (E, V) -> V)<(e :: E),a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `XDone` constructor of the `:computation` type.
+fip fun is-xdone[22,7,22,11] : forall<a,(e :: E)> (^ computation : (computation :: (E, V) -> V)<(e :: E),a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `XBlocking` constructor of the `:computation` type.
+fip fun is-xblocking[23,7,23,15] : forall<a,(e :: E)> (^ computation : (computation :: (E, V) -> V)<(e :: E),a>) -> std/core/types/bool;
+// Automatically generated. Retrieves the `dref` constructor field of the `:delayed` type.
+fun delayed/dref[28,15,28,18] : forall<(e :: E),a> (^ delayed : (delayed :: (E, V) -> V)<(e :: E),a>) -> (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>;
+pub fun delayed/@copy[28,7,28,12] : forall<(e :: E),a> (@this : (delayed :: (E, V) -> V)<(e :: E),a>, dref : (std/core/types/@optional :: V -> V)<(std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>>) -> (delayed :: (E, V) -> V)<(e :: E),a>;
+// Create a new `:delayed` value.
+pub fun delay[31,9,31,13] : forall<a,(e :: E)> (action : () -> (e :: E) a) -> (delayed :: (E, V) -> V)<(e :: E),a>;
+// Create a new `:delayed` value.
+pub fun memo[37,9,37,12] : forall<a,(e :: E)> (value : a) -> (delayed :: (E, V) -> V)<(e :: E),a>;
+// monadic lift
+fun force/@mlift-go@10015[1,0,1,0] : forall<a,(e :: E)> (r : (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>, x@0 : a) -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a;
+pub fun force/go[42,9,42,16] : forall<a,(e :: E)> (delayed : (delayed :: (E, V) -> V)<(e :: E),a>) -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a;
+fun unsafe-no-state-div-cast[56,8,56,31] : forall<a,(e :: E)> (f : () -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a) -> (() -> (e :: E) a);
+fun unsafe-no-state-div[53,5,53,23] : forall<a,(e :: E)> (f : () -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a) -> (e :: E) a;
+// Force a delayed value; the value is computed only on the first
+// call to `force` and cached afterwards.
+pub fun force[61,9,61,13] : forall<a,(e :: E)> (delayed : (delayed :: (E, V) -> V)<(e :: E),a>) -> (e :: E) a;
+// Given a total function to calculate a value `:a`, return
+// a total function that only calculates the value once and then
+// returns the cached result.
+pub fun once[68,9,68,12] : forall<a> (calc : () -> a) -> (() -> a);
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fip fun is-xcomputation // inline size: 1
+  = forall<a,(e :: E)> fn(computation: (computation :: (E, V) -> V)<(e :: E),a>){
+    (match (computation) {
+      ((std/core/delayed/XComputation((@pat@0: () -> (e :: E) a) : () -> (e :: E) a) : (computation :: (E, V) -> V)<(e :: E),a> ) as @pat: ((computation :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/True;
+      (@pat@1: ((computation :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-xdone // inline size: 1
+  = forall<a,(e :: E)> fn(computation: (computation :: (E, V) -> V)<(e :: E),a>){
+    (match (computation) {
+      ((std/core/delayed/XDone((@pat@0: a) : a) : (computation :: (E, V) -> V)<(e :: E),a> ) as @pat: ((computation :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/True;
+      (@pat@1: ((computation :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-xblocking // inline size: 1
+  = forall<a,(e :: E)> fn(computation: (computation :: (E, V) -> V)<(e :: E),a>){
+    (match (computation) {
+      ((std/core/delayed/XBlocking() : (computation :: (E, V) -> V)<(e :: E),a> ) as @pat: ((computation :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/True;
+      (@pat@0: ((computation :: (E, V) -> V)<(e :: E),a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fun delayed/dref // inline size: 0
+  = forall<(e :: E),a> fn(delayed: (delayed :: (E, V) -> V)<(e :: E),a>){
+    (match (delayed) {
+      ((@skip std/core/delayed/XDelay((@x: (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>) : (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>) : (delayed :: (E, V) -> V)<(e :: E),a> ) as @pat: ((delayed :: (E, V) -> V)<(e :: E),a>))
+         -> @x;
+    });
+  };
+fun delayed/@copy // inline size: 2
+  = forall<(e :: E),a> fn(@this: (delayed :: (E, V) -> V)<(e :: E),a>, dref: (std/core/types/@optional :: V -> V)<(std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>>){
+    std/core/delayed/XDelay<(e :: E),a>((match (dref) {
+      ((std/core/types/@OptArg((@uniq-dref@232: (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>) : (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>) : (std/core/types/@optional :: V -> V)<(std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>> ) as @pat: ((std/core/types/@optional :: V -> V)<(std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>>))
+         -> @uniq-dref@232;
+      ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>> ) as @pat@0: ((std/core/types/@optional :: V -> V)<(std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>>))
+         -> (match (@this) {
+          ((@skip std/core/delayed/XDelay((@x: (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>) : (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),(computation :: (E, V) -> V)<(e :: E),a>>) : (delayed :: (E, V) -> V)<(e :: E),a> ) as @pat@1: ((delayed :: (E, V) -> V)<(e :: E),a>))
+             -> @x;
+        });
+    }));
+  };
+fun unsafe-no-state-div // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(f: () -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(f : () -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a) -> (() -> (e :: E) a),(f : () -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a) -> (e :: E) (() -> (e :: E) a)>((std/core/delayed/unsafe-no-state-div-cast<a,(e :: E)>))(f)();
+  };
+fun force // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(delayed: (delayed :: (E, V) -> V)<(e :: E),a>){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(f : () -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a) -> (() -> (e :: E) a),(f : () -> <(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)> a) -> (e :: E) (() -> (e :: E) a)>((std/core/delayed/unsafe-no-state-div-cast<a,(e :: E)>))((fn<<(std/core/types/st :: H -> E)<(std/core/types/global :: H)>,(std/core/types/div :: X)|(e :: E)>>(){
+      (std/core/delayed/#force/go<a,(e :: E)>(delayed));
+    }))();
+  };

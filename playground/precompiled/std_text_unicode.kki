@@ -1,0 +1,196 @@
+/* Basic unicode support.
+
+*/
+module interface std/text/unicode
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/core/undiv = std/core/undiv = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// Grapheme's are an alias for `:string`.
+// Each grapheme is a self-contained symbol consisting of
+// a unicode character followed by combining characters and/or
+//  combining marks.
+pub alias grapheme[20,1,20,27] = std/core/types/string = 1;
+// Type of unicode [normalization](https://www.unicode.org/reports/tr15)
+pub value{1,0,1} type normalization[66,1,75,1] {
+  // Canonical composition (default). Use composed characters when possible.
+  pub con NFC[68,7,68,9]{0,0,0} : normalization = 1;
+  // Canonical decomposition.
+  pub con NFD[70,7,70,9]{0,0,0} : normalization = 2;
+  // Compatibility composition.
+  pub con NFKC[72,7,72,10]{0,0,0} : normalization = 3;
+  // Compatibility decomposition.
+  pub con NFKD[74,7,74,10]{0,0,0} : normalization = 4;
+};
+// Type of range trees
+recursive type rtree[201,1,204,1] {
+  con Tip[202,3,202,5]{0,0,0} : rtree = 1;
+  con Bin[203,3,203,5](lo: std/core/types/int, hi: std/core/types/int, left: rtree, right: rtree){0,4,8} : (lo : std/core/types/int, hi : std/core/types/int, left : rtree, right : rtree) -> rtree = 2;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Is this a combining character?
+pub fun is-combining[32,9,32,20] : (c : std/core/types/char) -> std/core/types/bool;
+fun consrev[50,5,50,11] : (xs : (std/core/types/list :: V -> V)<std/core/types/char>, xss : (std/core/types/list :: V -> V)<std/core/types/string>) -> (std/core/types/list :: V -> V)<std/core/types/string>;
+// Join combining characters with their base into a grapheme.
+fun join-combining[42,5,42,18] : (cs : (std/core/types/list :: V -> V)<std/core/types/char>, comb : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<std/core/types/char>>, acc : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<grapheme>>) -> (std/core/types/list :: V -> V)<grapheme>;
+fun normalizex[78,8,78,17] : (s : std/core/types/string, norm : std/core/types/string) -> std/core/types/string;
+// Normalize a unicode string. If no normalization form is given, `NFC` is used.
+pub fun normalize[85,9,85,17] : (s : std/core/types/string, norm : (std/core/types/@optional :: V -> V)<normalization>) -> std/core/types/string;
+// Convert a string to a list of graphemes.
+// Each grapheme will be in `NFC` normalized form.
+pub fun graphemes[56,9,56,17] : (s : std/core/types/string) -> (std/core/types/list :: V -> V)<grapheme>;
+// Automatically generated. Tests for the `NFC` constructor of the `:normalization` type.
+pub fip fun is-nfc[68,7,68,9] : (^ normalization : normalization) -> std/core/types/bool;
+// Automatically generated. Tests for the `NFD` constructor of the `:normalization` type.
+pub fip fun is-nfd[70,7,70,9] : (^ normalization : normalization) -> std/core/types/bool;
+// Automatically generated. Tests for the `NFKC` constructor of the `:normalization` type.
+pub fip fun is-nfkc[72,7,72,10] : (^ normalization : normalization) -> std/core/types/bool;
+// Automatically generated. Tests for the `NFKD` constructor of the `:normalization` type.
+pub fip fun is-nfkd[74,7,74,10] : (^ normalization : normalization) -> std/core/types/bool;
+fun bin[226,5,226,7] : (x : rtree, y : rtree) -> rtree;
+fun @trmc-combine-pairs[242,5,242,17] : (xs : (std/core/types/list :: V -> V)<rtree>, @acc : (std/core/types/ctx :: V -> V)<(std/core/types/list :: V -> V)<rtree>>) -> (std/core/types/list :: V -> V)<rtree>;
+fun combine-pairs[242,5,242,17] : (xs : (std/core/types/list :: V -> V)<rtree>) -> (std/core/types/list :: V -> V)<rtree>;
+fun combine[234,5,234,11] : (xs : (std/core/types/list :: V -> V)<rtree>) -> rtree;
+fun build-rtree[218,5,218,15] : (xs : (std/core/types/list :: V -> V)<rtree>) -> rtree;
+fun single[222,5,222,10] : (lo : std/core/types/int, hi : std/core/types/int) -> rtree;
+// These characters are considered wide, i.e. 2 columns wide.
+val asian-wide[122,5,122,14] : (std/core/delayed/delayed :: (E, V) -> V)<(std/core/types/total :: E),rtree>;
+// These characters have zero width
+val zero-widths[141,5,141,15] : (std/core/delayed/delayed :: (E, V) -> V)<(std/core/types/total :: E),rtree>;
+// Automatically generated. Tests for the `Tip` constructor of the `:rtree` type.
+fip fun is-tip[202,3,202,5] : (^ rtree : rtree) -> std/core/types/bool;
+// Automatically generated. Tests for the `Bin` constructor of the `:rtree` type.
+fip fun is-bin[203,3,203,5] : (^ rtree : rtree) -> std/core/types/bool;
+// Is a value contained in a range tree?
+fun contains[207,5,207,12] : (t : rtree, i : std/core/types/int) -> std/core/types/bool;
+// Return the column-width of a unicode character.
+// Equivalent to ``wcwidth``
+pub fun char/width[102,9,102,18] : (c : std/core/types/char) -> std/core/types/int;
+// Return the total column-width of a string.
+pub fun string/width[109,9,109,20] : (s : std/core/types/string) -> std/core/types/int;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun consrev // inline size: 4
+  = fn(xs: (std/core/types/list :: V -> V)<std/core/types/char>, xss: (std/core/types/list :: V -> V)<std/core/types/string>){
+    match (xs) {
+      ((std/core/types/Nil() : (std/core/types/list :: V -> V)<std/core/types/char> ) as @pat: ((std/core/types/list :: V -> V)<std/core/types/char>))
+         -> xss;
+      (@pat@0: ((std/core/types/list :: V -> V)<std/core/types/char>))
+         -> std/core/types/Cons<std/core/types/string>((std/core/string/#listchar/string((std/core/list/reverse-acc<std/core/types/char>((std/core/types/Nil<std/core/types/char>), xs)))), xss);
+    };
+  };
+fun graphemes // inline size: 3
+  = fn(s: std/core/types/string){
+    std/text/unicode/join-combining((std/core/string/list((std/text/unicode/normalizex(s, "NFC")))), (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<std/core/types/char>>), (std/core/types/@NoOptArg<(std/core/types/list :: V -> V)<grapheme>>));
+  };
+inline borrow "^" fip fun is-nfc // inline size: 1
+  = fn(normalization: normalization){
+    match (normalization) {
+      ((std/text/unicode/NFC() : normalization ) as @pat: normalization)
+         -> std/core/types/True;
+      (@pat@0: normalization)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-nfd // inline size: 1
+  = fn(normalization: normalization){
+    match (normalization) {
+      ((std/text/unicode/NFD() : normalization ) as @pat: normalization)
+         -> std/core/types/True;
+      (@pat@0: normalization)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-nfkc // inline size: 1
+  = fn(normalization: normalization){
+    match (normalization) {
+      ((std/text/unicode/NFKC() : normalization ) as @pat: normalization)
+         -> std/core/types/True;
+      (@pat@0: normalization)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-nfkd // inline size: 1
+  = fn(normalization: normalization){
+    match (normalization) {
+      ((std/text/unicode/NFKD() : normalization ) as @pat: normalization)
+         -> std/core/types/True;
+      (@pat@0: normalization)
+         -> std/core/types/False;
+    };
+  };
+fun build-rtree // inline size: 1
+  = fn(xs: (std/core/types/list :: V -> V)<rtree>){
+    std/text/unicode/combine(xs);
+  };
+fun single // inline size: 1
+  = fn(lo: std/core/types/int, hi: std/core/types/int){
+    std/text/unicode/Bin(lo, hi, std/text/unicode/Tip, std/text/unicode/Tip);
+  };
+inline borrow "^" fip fun is-tip // inline size: 1
+  = fn(rtree: rtree){
+    match (rtree) {
+      ((std/text/unicode/Tip() : rtree ) as @pat: rtree)
+         -> std/core/types/True;
+      ((@skip std/text/unicode/Bin((@pat@1: std/core/types/int) : std/core/types/int, (@pat@2: std/core/types/int) : std/core/types/int, (@pat@3: rtree) : rtree, (@pat@4: rtree) : rtree) : rtree ) as @pat@0: rtree)
+         -> std/core/types/False;
+    };
+  };
+inline borrow "^" fip fun is-bin // inline size: 1
+  = fn(rtree: rtree){
+    match (rtree) {
+      ((std/text/unicode/Bin((@pat@0: std/core/types/int) : std/core/types/int, (@pat@1: std/core/types/int) : std/core/types/int, (@pat@2: rtree) : rtree, (@pat@3: rtree) : rtree) : rtree ) as @pat: rtree)
+         -> std/core/types/True;
+      ((@skip std/text/unicode/Tip() : rtree ) as @pat@4: rtree)
+         -> std/core/types/False;
+    };
+  };

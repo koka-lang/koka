@@ -1,0 +1,546 @@
+/* Calendars.
+
+  A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time
+  with respect to a `:timezone`. These functions turn `:instant`'s into "human" dates.
+  Months, days etc. are always 1-based.
+*/
+module interface std/time/calendar
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/ddouble = std/num/ddouble = "";
+import std/time/timestamp = std/time/timestamp = "";
+import std/time/duration = std/time/duration = "";
+import std/time/instant = std/time/instant = "";
+import std/time/utc = std/time/utc = "";
+import std/time/date = std/time/date = "";
+import std/num/float64 = std/num/float64 inline = "";
+import std/num/int32 = std/num/int32 inline = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// Time spans are a time duration in some time scale represented as a `:ddouble`;
+// this gives it very high precision and range to represent time very precisely.
+// (see the [`instant`](std_time_instant.html) module)
+local alias std/time/timestamp/timespan[25,1,25,28] = std/num/ddouble/ddouble = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A `:timezone` determines a time offset with respect to the UTC / GMT timezone. For
+// using general time zones, see the [`std/time/timezone`](std_time_timezone.html) module.\
+// The `tz-utc` and `tz-local` time zones are used for UTC/GMT time and the local system time.\
+// The `name` field contains the time zone name as IANA timezone identifier.
+// The `utc-delta` field returns the time zone offset
+// relative to UTC (for GMT-08:00 it returns a duration of `-8*3600` seconds) and the abbreviated
+// time zone name (``PDT`` for example).\
+// The optional `utc-inverse` field returns for an instant in the time zone, the associated UTC time.
+// By default it returns `Nothing` in which case a generic algorithm is used to determine the
+// inverse.
+pub type timezone[60,1,63,63] {
+  // A `:timezone` determines a time offset with respect to the UTC / GMT timezone. For
+// using general time zones, see the [`std/time/timezone`](std_time_timezone.html) module.\
+// The `tz-utc` and `tz-local` time zones are used for UTC/GMT time and the local system time.\
+// The `name` field contains the time zone name as IANA timezone identifier.
+// The `utc-delta` field returns the time zone offset
+// relative to UTC (for GMT-08:00 it returns a duration of `-8*3600` seconds) and the abbreviated
+// time zone name (``PDT`` for example).\
+// The optional `utc-inverse` field returns for an instant in the time zone, the associated UTC time.
+// By default it returns `Nothing` in which case a generic algorithm is used to determine the
+// inverse.
+  con Timezone[60,17,60,24](name: std/core/types/string, utc-delta: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), utc-inverse: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>){0,3,8} : (name : std/core/types/string, utc-delta : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), utc-inverse : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) -> timezone = 1;
+};
+// A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time.
+pub type calendar[30,1,39,36] {
+  // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time.
+  con Calendar[30,17,30,24](name: std/core/types/string, long-name: std/core/types/string, month-prefix: std/core/types/string, show-era: (std/time/date/date) -> std/core/types/string, instant-to-dc: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), dc-to-instant: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, days-to-date: (days : std/core/types/int) -> std/time/date/date, date-to-days: (date : std/time/date/date) -> std/core/types/int){0,8,8} : (name : std/core/types/string, long-name : std/core/types/string, month-prefix : std/core/types/string, show-era : (std/time/date/date) -> std/core/types/string, instant-to-dc : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), dc-to-instant : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, days-to-date : (days : std/core/types/int) -> std/time/date/date, date-to-days : (date : std/time/date/date) -> std/core/types/int) -> calendar = 1;
+};
+// A local timezone structure provided by the host system
+type local-timezone[112,1,112,19] ;
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `name` constructor field of the `:calendar` type.
+pub fun calendar/name[31,7,31,10] : (^ calendar : calendar) -> std/core/types/string;
+// Automatically generated. Retrieves the `long-name` constructor field of the `:calendar` type.
+pub fun calendar/long-name[32,7,32,15] : (^ calendar : calendar) -> std/core/types/string;
+// Automatically generated. Retrieves the `month-prefix` constructor field of the `:calendar` type.
+pub fun calendar/month-prefix[34,7,34,18] : (^ calendar : calendar) -> std/core/types/string;
+// Automatically generated. Retrieves the `show-era` constructor field of the `:calendar` type.
+pub fun calendar/show-era[35,7,35,14] : (^ calendar : calendar) -> ((std/time/date/date) -> std/core/types/string);
+// Automatically generated. Retrieves the `instant-to-dc` constructor field of the `:calendar` type.
+fun calendar/instant-to-dc[36,3,36,15] : (^ calendar : calendar) -> ((i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock));
+// Automatically generated. Retrieves the `dc-to-instant` constructor field of the `:calendar` type.
+fun calendar/dc-to-instant[37,3,37,15] : (^ calendar : calendar) -> ((std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant);
+// Automatically generated. Retrieves the `days-to-date` constructor field of the `:calendar` type.
+fun calendar/days-to-date[38,3,38,14] : (^ calendar : calendar) -> ((days : std/core/types/int) -> std/time/date/date);
+// Automatically generated. Retrieves the `date-to-days` constructor field of the `:calendar` type.
+fun calendar/date-to-days[39,3,39,14] : (^ calendar : calendar) -> ((date : std/time/date/date) -> std/core/types/int);
+pub fun calendar/@copy[30,17,30,24] : (@this : calendar, name : (std/core/types/@optional :: V -> V)<std/core/types/string>, long-name : (std/core/types/@optional :: V -> V)<std/core/types/string>, month-prefix : (std/core/types/@optional :: V -> V)<std/core/types/string>, show-era : (std/core/types/@optional :: V -> V)<(std/time/date/date) -> std/core/types/string>, instant-to-dc : (std/core/types/@optional :: V -> V)<(i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)>, dc-to-instant : (std/core/types/@optional :: V -> V)<(std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant>, days-to-date : (std/core/types/@optional :: V -> V)<(days : std/core/types/int) -> std/time/date/date>, date-to-days : (std/core/types/@optional :: V -> V)<(date : std/time/date/date) -> std/core/types/int>) -> calendar;
+// Automatically generated. Retrieves the `name` constructor field of the `:timezone` type.
+pub fun timezone/name[61,7,61,10] : (^ timezone : timezone) -> std/core/types/string;
+// Check if two calendars use the same date calculations. (Display of era names etc. may differ)
+pub fun (==)[43,9,43,12] : (c1 : calendar, c2 : calendar) -> std/core/types/bool;
+// Same timezone?
+pub fun timezone/(==)[67,9,67,21] : (tz1 : timezone, tz2 : timezone) -> std/core/types/bool;
+// A `:timezone` determines a time offset with respect to the UTC / GMT timezone. For
+// using general time zones, see the [`std/time/timezone`](std_time_timezone.html) module.\
+// The `tz-utc` and `tz-local` time zones are used for UTC/GMT time and the local system time.\
+// The `name` field contains the time zone name as IANA timezone identifier.
+// The `utc-delta` field returns the time zone offset
+// relative to UTC (for GMT-08:00 it returns a duration of `-8*3600` seconds) and the abbreviated
+// time zone name (``PDT`` for example).\
+// The optional `utc-inverse` field returns for an instant in the time zone, the associated UTC time.
+// By default it returns `Nothing` in which case a generic algorithm is used to determine the
+// inverse.
+fun @create-Timezone[60,17,60,24] : (name : std/core/types/string, utc-delta : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), utc-inverse : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>) -> timezone;
+// Automatically generated. Retrieves the `utc-delta` constructor field of the `:timezone` type.
+fun timezone/utc-delta[62,3,62,11] : (^ timezone : timezone) -> ((std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string));
+// Automatically generated. Retrieves the `utc-inverse` constructor field of the `:timezone` type.
+fun timezone/utc-inverse[63,3,63,13] : (^ timezone : timezone) -> ((std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>);
+pub fun timezone/@copy[60,17,60,24] : (@this : timezone, name : (std/core/types/@optional :: V -> V)<std/core/types/string>, utc-delta : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)>, utc-inverse : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>) -> timezone;
+fun string/tz-fixed[91,5,91,19] : (name : std/core/types/string, delta : std/time/duration/duration, abbrv : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> timezone;
+// The standard UTC time zone with a 0 delta.
+pub val tz-utc[98,9,98,14] : timezone;
+// Create a time zone with a fixed number of hours and optional minutes (=`0`) difference from UTC/GMT.
+// The time zone name and abbreviation is optional, and the default name
+// will reflect the offset from UTC, for example `"UTC+1:20"`, or `"UTC-8"`.
+// The default abbreviation is the empty string.
+// The sign of the minutes will be matched to the hours (unless `hours` is `0`).
+// For example, `tz-fixed(-1,30)` gives a time zone offset of -90 minutes, "UTC-1:30".
+// Returns `tz-utc` if both `hours` and `mins` are zero.
+pub fun tz-fixed[81,9,81,16] : (hours : std/core/types/int, mins : (std/core/types/@optional :: V -> V)<std/core/types/int>, name : (std/core/types/@optional :: V -> V)<std/core/types/string>, abbrv : (std/core/types/@optional :: V -> V)<std/core/types/string>, hourwidth : (std/core/types/@optional :: V -> V)<std/core/types/int>) -> timezone;
+// Is this the UTC timezone?
+pub fun is-tz-utc[71,9,71,17] : (tz : timezone) -> std/core/types/bool;
+// Get the current local timezone structure.
+// The timezone name is allowed to be the empty string.
+fun local-get-timezone[116,8,116,25] : () -> <(std/core/types/ndet :: X)> local-timezone;
+// Return the utc delta in fractional seconds given a local timezone structure
+// and time `i` in fractional seconds since the UNIX epoch (1970-01-01).
+// Also returns time zone abbreviation.
+fun local-utc-delta[124,8,124,22] : (tz : local-timezone, i : std/core/types/float64) -> (std/core/types/float64, std/core/types/string);
+// Return the local timezone on the current system.
+pub fun tz-local[101,9,101,16] : () -> <(std/core/types/ndet :: X)> timezone;
+fun earth-timestamp-to-dc[239,5,239,25] : (t : std/time/timestamp/timestamp, tzdelta : std/time/timestamp/timespan, days-to-date : (std/core/types/int) -> std/time/date/date) -> (std/time/date/date, std/time/date/clock);
+fun dc-timestamp[265,5,265,16] : (d : std/time/date/date, c : std/time/date/clock, date-to-days : (std/time/date/date) -> std/core/types/int, has-leap-seconds : (std/core/types/@optional :: V -> V)<std/core/types/bool>) -> std/time/timestamp/timestamp;
+fun iso-is-leap[499,5,499,15] : (year : std/core/types/int) -> std/core/types/bool;
+fun iso-adjust[496,5,496,14] : (is-before-march : std/core/types/bool, year : std/core/types/int) -> std/core/types/int;
+fun iso-days-before-month[488,5,488,25] : (year : std/core/types/int, month : std/core/types/int) -> std/core/types/int;
+fun iso-doy-to-month[492,5,492,20] : (year : std/core/types/int, doy : std/core/types/int) -> std/core/types/int;
+fun iso-days-before-year[502,5,502,24] : (year : std/core/types/int) -> std/core/types/int;
+fun iso-estimate-year[507,5,507,21] : (days : std/core/types/int) -> (std/core/types/int, (std/core/types/maybe :: V -> V)<std/core/types/int>);
+fun earth-timestamp-to-instant[244,5,244,30] : (t : std/time/timestamp/timestamp, tz : timezone, ts : std/time/instant/timescale) -> std/time/instant/instant;
+// Create a calendar where we assume that each
+// day has 24 hours with 60 minutes, and where minutes are 60 seconds
+// (with possibly leap seconds). The function takes care of timezones,
+// epoch shifts, and leap seconds, and only needs a calendar `name`,
+// a function `days-to-date` to calculate a date given a number of days since the `epoch`,
+// a function `date-to-days` to calculate days since the `epoch` for a given date,
+// and an optional time scale to be used (=`ts-utc`).\
+// `month-prefix` (=`""`) is used when displaying numeric months and is set for
+// the ISO week dates to `"W"` for example. The `show-era` function can be given
+// to display the era of a date.
+pub fun earth-calendar[218,9,218,22] : (name : std/core/types/string, long-name : std/core/types/string, days-to-date : (days : std/core/types/int) -> std/time/date/date, date-to-days : (std/time/date/date) -> std/core/types/int, month-prefix : (std/core/types/@optional :: V -> V)<std/core/types/string>, show-era : (std/core/types/@optional :: V -> V)<(std/time/date/date) -> std/core/types/string>) -> calendar;
+// An abstraction over solar calendars. Almost all calendars can be defined
+// in terms of this function (and `solar-ecalendar`). Given functions to
+// convert days to and from a year, and day-of-the-year to and from month
+// and month day, this constructs a full calendar.\
+// Also needs an `epoch-shift` that gives the number of days from the
+// calendar epoch to the date ``2000-01-01``. By default this is `730119`
+// which corresponds to a ``0001-01-01`` ISO calendar epoch. The
+// `has-year-zero` (=`True`) parameter is used when the calendar has a
+// year zero. The `month-prefix` (=`""`) is used for displaying numeric
+// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function
+// can be given to display an era for a given date. Finally the `ts` (=`ts-ti`)
+// gives the time scale for the calendar.
+pub fun solar-calendar[344,9,344,22] : (name : std/core/types/string, long-name : std/core/types/string, days-before-year : (year : std/core/types/int) -> std/core/types/int, days-to-yeardoy : (days : std/core/types/int) -> (std/core/types/int, std/core/types/int), days-before-month : (year : std/core/types/int, month : std/core/types/int) -> std/core/types/int, days-to-month : (year : std/core/types/int, doy : std/core/types/int) -> std/core/types/int, epoch-shift : (std/core/types/@optional :: V -> V)<std/core/types/int>, has-year-zero : (std/core/types/@optional :: V -> V)<std/core/types/bool>, month-prefix : (std/core/types/@optional :: V -> V)<std/core/types/string>, show-era : (std/core/types/@optional :: V -> V)<(std/time/date/date) -> std/core/types/string>) -> calendar;
+// An abstraction over solar calendars. Almost all calendars can be defined
+// in terms of this function (and `solar-calendar`). Given functions to
+// convert days to and from a year, and day-of-the-year to and from month
+// and month day, this constructs a full calendar. In contrast to `solar-calendar`
+// this function just needs an estimation function from days to a year -- for most
+// calendars this is much more convenient. The estimation function returns a
+// conservative (i.e. lowest) estimate for the year and a `maybe<int>` that
+// is the `safe-day`: if the day of the year is lower or equal to that the estimate
+// is surely correct. Otherwise the wrapper will calculate the start day for the next
+// year until the correct year is found.\
+// Also needs an `epoch-shift` that gives the number of days from the
+// calendar epoch to the date ``2000-01-01``. By default this is `730119`
+// which corresponds to a ``0001-01-01`` ISO calendar epoch. The
+// `has-year-zero` (=`True`) parameter is used when the calendar has a
+// year zero. The `month-prefix` (=`""`) is used for displaying numeric
+// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function
+// can be given to display an era for a given date. Finally the `ts` (=`ts-utc`)
+// gives the time scale for the calendar.
+pub fun solar-ecalendar[391,9,391,23] : (name : std/core/types/string, long-name : std/core/types/string, days-before-year : (year : std/core/types/int) -> std/core/types/int, estimate-year : (days : std/core/types/int) -> (std/core/types/int, (std/core/types/maybe :: V -> V)<std/core/types/int>), days-before-month : (year : std/core/types/int, month : std/core/types/int) -> std/core/types/int, days-to-month : (year : std/core/types/int, doy : std/core/types/int) -> std/core/types/int, epoch-shift : (std/core/types/@optional :: V -> V)<std/core/types/int>, has-year-zero : (std/core/types/@optional :: V -> V)<std/core/types/bool>, month-prefix : (std/core/types/@optional :: V -> V)<std/core/types/string>, show-era : (std/core/types/@optional :: V -> V)<(std/time/date/date) -> std/core/types/string>) -> calendar;
+// Create a standard ISO calendar using a particular time scale
+// and calendar `name` (=`ts.name`).
+pub fun iso-calendar[422,9,422,20] : (@_wildcard-x422_23 : std/time/instant/timescale, name : std/core/types/string, long-name : (std/core/types/@optional :: V -> V)<std/core/types/string>) -> calendar;
+// The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+// using TI time (`ts-ti`). This is a proleptic Gregorian
+// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc.
+//
+// This is the default calendar used in the library as it guarantees deterministic
+// date calculations while still taking historical leap seconds into account.
+pub val cal-iso[435,9,435,15] : calendar;
+// Return the instant in time for a given `:date` and `:clock` (= `clock0`) interpreted by
+// calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
+pub fun date/instant[136,9,136,20] : (ts : std/time/instant/timescale, d : std/time/date/date, c : (std/core/types/@optional :: V -> V)<std/time/date/clock>, tz : (std/core/types/@optional :: V -> V)<timezone>, cal : (std/core/types/@optional :: V -> V)<calendar>) -> std/time/instant/instant;
+/* Return the instant in time for a given date and clock interpreted by
+   calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
+
+  The `month`, `day`, `hour`, `minutes` may be outside their usual ranges
+  and will be normalized during the conversion. For example, January 33 converts to February 2.
+  This makes it very easy to add- or subtract days or months to an existing time.
+  When the `seconds` or fraction of seconds `frac` add up over 60 those extra seconds are
+  interpreted as leap seconds.
+
+  Due to timezone transitions, or leap seconds, it is possible to specify dates that never
+  happened (as it was skipped by a timezone change), or ambiguous times (as a timezone springs back).
+  In such cases, the time is always interpreted in the earlier timezone.
+*/
+pub fun timescale/instant[163,9,163,25] : (tscale : std/time/instant/timescale, year : std/core/types/int, month : (std/core/types/@optional :: V -> V)<std/core/types/int>, day : (std/core/types/@optional :: V -> V)<std/core/types/int>, hours : (std/core/types/@optional :: V -> V)<std/core/types/int>, minutes : (std/core/types/@optional :: V -> V)<std/core/types/int>, seconds : (std/core/types/@optional :: V -> V)<std/core/types/int>, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>, tz : (std/core/types/@optional :: V -> V)<timezone>, cal : (std/core/types/@optional :: V -> V)<calendar>) -> std/time/instant/instant;
+// monadic lift
+fun utc/@mlift-instant@10252[1,0,1,0] : (cal : (std/core/types/@optional :: V -> V)<calendar>, day : (std/core/types/@optional :: V -> V)<std/core/types/int>, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>, hours : (std/core/types/@optional :: V -> V)<std/core/types/int>, minutes : (std/core/types/@optional :: V -> V)<std/core/types/int>, month : (std/core/types/@optional :: V -> V)<std/core/types/int>, seconds : (std/core/types/@optional :: V -> V)<std/core/types/int>, tz : (std/core/types/@optional :: V -> V)<timezone>, year : std/core/types/int, @c-x10227 : std/time/instant/timescale) -> std/time/instant/instant;
+pub fun utc/instant[172,9,172,19] : (year : std/core/types/int, month : (std/core/types/@optional :: V -> V)<std/core/types/int>, day : (std/core/types/@optional :: V -> V)<std/core/types/int>, hours : (std/core/types/@optional :: V -> V)<std/core/types/int>, minutes : (std/core/types/@optional :: V -> V)<std/core/types/int>, seconds : (std/core/types/@optional :: V -> V)<std/core/types/int>, frac : (std/core/types/@optional :: V -> V)<std/core/types/float64>, tz : (std/core/types/@optional :: V -> V)<timezone>, cal : (std/core/types/@optional :: V -> V)<calendar>, ts : (std/core/types/@optional :: V -> V)<std/time/instant/timescale>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/instant/instant;
+// monadic lift
+fun utcdate/@mlift-instant@10253[1,0,1,0] : (c : (std/core/types/@optional :: V -> V)<std/time/date/clock>, cal : (std/core/types/@optional :: V -> V)<calendar>, d : std/time/date/date, tz : (std/core/types/@optional :: V -> V)<timezone>, @c-x10229 : std/time/instant/timescale) -> std/time/instant/instant;
+pub fun utcdate/instant[139,9,139,23] : (d : std/time/date/date, c : (std/core/types/@optional :: V -> V)<std/time/date/clock>, tz : (std/core/types/@optional :: V -> V)<timezone>, cal : (std/core/types/@optional :: V -> V)<calendar>, ts : (std/core/types/@optional :: V -> V)<std/time/instant/timescale>) -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/time/utc/utc :: (E, V) -> V)>> std/time/instant/instant;
+// Convert an `:instant` to a `:date`, `:clock`, timezone delta and abbreviation,
+// for a given timezone `tz` (=`tz-utc` by default) and calendar (=`cal-iso` by default).
+pub fun instant-dc[144,9,144,18] : (i : std/time/instant/instant, tz : (std/core/types/@optional :: V -> V)<timezone>, cal : (std/core/types/@optional :: V -> V)<calendar>) -> (std/time/date/date, std/time/date/clock, std/time/duration/duration, std/core/types/string);
+// Return the day of the week for a calendar `cal` (=`cal-iso`).
+fun weekday[180,5,180,11] : (d : std/time/date/date, cal : calendar) -> std/time/date/weekday;
+// Return the days between two dates interpreted by calendar `cal`.
+pub fun days-until[191,9,191,18] : (cal : calendar, d1 : std/time/date/date, d2 : std/time/date/date) -> std/core/types/int;
+pub fun cal-timestamp[262,9,262,21] : (cal : calendar, ts : std/time/instant/timescale, d : std/time/date/date, c : std/time/date/clock) -> std/time/timestamp/timestamp;
+// Create a new calendar from by combining two other calendars. The `switch-date`
+// is in terms of the second calendar (`cal2`) and time after (and including) the switch
+// date is displayed in `cal2` while times before it in `cal1`. This function is used
+// for example for the Julian Gregorian calendar.
+pub fun combine-earth-calendars[284,9,284,31] : (name : std/core/types/string, long-name : std/core/types/string, switch-date : std/time/date/date, cal1 : calendar, cal2 : calendar, mb-show-era : (std/core/types/@optional :: V -> V)<(std/core/types/maybe :: V -> V)<(std/time/date/date) -> std/core/types/string>>) -> calendar;
+// Create a new calendar from anoter calendar `cal` by adding an offset to the
+// years (`year-shift`). This is used for example to create the Ethiopian calendar
+// from the Coptic calendar, by using:
+// `year-shift-earth-calendar( "EC", "Ethiopian", ~276, cal-coptic )`
+pub fun year-shift-earth-calendar[307,9,307,33] : (name : std/core/types/string, long-name : std/core/types/string, year-shift : std/core/types/int, cal : calendar, month-prefix : (std/core/types/@optional :: V -> V)<std/core/types/string>, show-era : (std/core/types/@optional :: V -> V)<(std/time/date/date) -> std/core/types/string>) -> calendar;
+// Create a standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+// using UTC time (`ts-utc-create`) given a provide leap second table (`:leaps-table`).
+// This is a proleptic Gregorian
+// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc.
+//
+// You can create an ISO 8601 UTC calendar using the latest IERS leap
+// second data using [`cal-utc-load`](std_time_download.html#cal_utc_load).
+pub fun cal-utc-create[444,9,444,22] : (leaps : std/time/utc/leaps-table) -> calendar;
+/* The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+but using TI-SLS time (`ts-ti-sls`), i.e. TI with
+[smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
+
+This calendar is equivalent to the ISO calendar except for the last 1000 seconds of a day where
+a leap second occurs. On such day, the leap second time step (positive or negative)
+is distributed over the last 1000 seconds of the day. On the full hour, ISO and ISO-SLS are equal again.
+
+This is a recommended calendar to use for
+time stamps or communication with other services since it avoids any potential trouble
+with leap seconds while still being quite precise.
+
+Other good properties include:
+
+- All days have 86400 seconds, and the time 23:59:60 never appears
+- The time never differs more than one second from UTC
+- Time as always equal to UTC on the full and half hour
+*/
+pub val cal-iso-sls[467,9,467,19] : calendar;
+// Create a new ISO 8601 calendar based on UTC-SLS time, i.e. UTC with smoothed leap
+// seconds.
+pub fun cal-utc-sls-create[471,9,471,26] : (leaps : std/time/utc/leaps-table) -> calendar;
+// The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
+// Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)
+// we have 1 CE (=`1`).
+// The calendar short name is ``GC``.
+pub val cal-gregorian[480,9,480,21] : calendar;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun calendar/name // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@x: std/core/types/string) : std/core/types/string, (@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@3: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@4: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun calendar/long-name // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@3: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@4: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun calendar/month-prefix // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@2: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@3: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@4: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun calendar/show-era // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@x: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@3: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@4: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun calendar/instant-to-dc // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@x: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@4: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun calendar/dc-to-instant // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@x: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun calendar/days-to-date // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@5: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@x: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun calendar/date-to-days // inline size: 0
+  = fn(calendar: calendar){
+    match (calendar) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@5: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@6: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@x: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x;
+    };
+  };
+inline borrow "^" fun timezone/name // inline size: 0
+  = fn(timezone: timezone){
+    match (timezone) {
+      ((@skip std/time/calendar/Timezone((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat: timezone)
+         -> @x;
+    };
+  };
+fun (==) // inline size: 1
+  = fn(c1: calendar, c2: calendar){
+    std/core/string/(==)((match (c1) {
+        ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@x: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@3: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@4: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+           -> @x;
+      }), (match (c2) {
+        ((@skip std/time/calendar/Calendar((@pat@0@0: std/core/types/string) : std/core/types/string, (@x@0: std/core/types/string) : std/core/types/string, (@pat@1@0: std/core/types/string) : std/core/types/string, (@pat@2@0: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@3@0: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@4@0: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5@0: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6@0: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat@7: calendar)
+           -> @x@0;
+      }));
+  };
+fun timezone/(==) // inline size: 1
+  = fn(tz1: timezone, tz2: timezone){
+    std/core/string/(==)((match (tz1) {
+        ((@skip std/time/calendar/Timezone((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat: timezone)
+           -> @x;
+      }), (match (tz2) {
+        ((@skip std/time/calendar/Timezone((@x@0: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1@0: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat@2: timezone)
+           -> @x@0;
+      }));
+  };
+inline fun @create-Timezone // inline size: 2
+  = fn(name: std/core/types/string, utc-delta: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), utc-inverse: (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>){
+    std/time/calendar/Timezone(name, utc-delta, (match (utc-inverse) {
+        ((std/core/types/@OptArg((@uniq-utc-inverse@719: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>> ) as @pat: ((std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>))
+           -> @uniq-utc-inverse@719;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>> ) as @pat@0: ((std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>))
+           -> fn(i: std/time/instant/instant){
+            std/core/types/Nothing<std/time/instant/instant>;
+          };
+      }));
+  };
+inline borrow "^" fun timezone/utc-delta // inline size: 0
+  = fn(timezone: timezone){
+    match (timezone) {
+      ((@skip std/time/calendar/Timezone((@pat@0: std/core/types/string) : std/core/types/string, (@x: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat: timezone)
+         -> @x;
+    };
+  };
+inline borrow "^" fun timezone/utc-inverse // inline size: 0
+  = fn(timezone: timezone){
+    match (timezone) {
+      ((@skip std/time/calendar/Timezone((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@x: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat: timezone)
+         -> @x;
+    };
+  };
+fun timezone/@copy // inline size: 4
+  = fn(@this: timezone, name: (std/core/types/@optional :: V -> V)<std/core/types/string>, utc-delta: (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)>, utc-inverse: (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>){
+    std/time/calendar/Timezone((match (name) {
+        ((std/core/types/@OptArg((@uniq-name@761: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-name@761;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> (match (@this) {
+            ((@skip std/time/calendar/Timezone((@x: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1@0: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat@1: timezone)
+               -> @x;
+          });
+      }), (match (utc-delta) {
+        ((std/core/types/@OptArg((@uniq-utc-delta@772: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)> ) as @pat@1@1: ((std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)>))
+           -> @uniq-utc-delta@772;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)> ) as @pat@2: ((std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)>))
+           -> (match (@this) {
+            ((@skip std/time/calendar/Timezone((@pat@0@1: std/core/types/string) : std/core/types/string, (@x@0: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1@2: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat@3: timezone)
+               -> @x@0;
+          });
+      }), (match (utc-inverse) {
+        ((std/core/types/@OptArg((@uniq-utc-inverse@783: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>> ) as @pat@3@0: ((std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>))
+           -> @uniq-utc-inverse@783;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>> ) as @pat@4: ((std/core/types/@optional :: V -> V)<(std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>>))
+           -> (match (@this) {
+            ((@skip std/time/calendar/Timezone((@pat@0@2: std/core/types/string) : std/core/types/string, (@pat@1@3: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@x@1: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat@5: timezone)
+               -> @x@1;
+          });
+      }));
+  };
+fun is-tz-utc // inline size: 1
+  = fn(tz: timezone){
+    std/core/string/(==)((match (tz) {
+        ((@skip std/time/calendar/Timezone((@x: std/core/types/string) : std/core/types/string, (@pat@0: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat: timezone)
+           -> @x;
+      }), (match (std/time/calendar/tz-utc) {
+        ((@skip std/time/calendar/Timezone((@x@0: std/core/types/string) : std/core/types/string, (@pat@0@0: (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string)) : (std/time/instant/instant) -> (std/time/duration/duration, std/core/types/string), (@pat@1@0: (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : (std/time/instant/instant) -> (std/core/types/maybe :: V -> V)<std/time/instant/instant>) : timezone ) as @pat@2: timezone)
+           -> @x@0;
+      }));
+  };
+fun iso-adjust // inline size: 3
+  = fn(is-before-march: std/core/types/bool, year: std/core/types/int){
+    match (is-before-march) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> 0;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((std/time/calendar/iso-is-leap(year))) {
+          ((std/core/types/True() : std/core/types/bool ) as @pat@1: std/core/types/bool)
+             -> 1;
+          ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+             -> 2;
+        });
+    };
+  };
+fun iso-calendar // inline size: 2
+  = fn(@_wildcard-x422_23: std/time/instant/timescale, name: std/core/types/string, long-name: (std/core/types/@optional :: V -> V)<std/core/types/string>){
+    std/time/calendar/solar-ecalendar(name, (match (long-name) {
+        ((std/core/types/@OptArg((@uniq-long-name@2540: std/core/types/string) : std/core/types/string) : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> @uniq-long-name@2540;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/string> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/string>))
+           -> name;
+      }), std/time/calendar/iso-days-before-year, std/time/calendar/iso-estimate-year, std/time/calendar/iso-days-before-month, std/time/calendar/iso-doy-to-month, (std/core/types/@NoOptArg<std/core/types/int>), (std/core/types/@NoOptArg<std/core/types/bool>), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<(std/time/date/date) -> std/core/types/string>));
+  };
+fun date/instant // inline size: 4
+  = fn(ts: std/time/instant/timescale, d: std/time/date/date, c: (std/core/types/@optional :: V -> V)<std/time/date/clock>, tz: (std/core/types/@optional :: V -> V)<timezone>, cal: (std/core/types/@optional :: V -> V)<calendar>){
+    match ((match (cal) {
+      ((std/core/types/@OptArg((@uniq-cal@2598: calendar) : calendar) : (std/core/types/@optional :: V -> V)<calendar> ) as @pat@3@0: ((std/core/types/@optional :: V -> V)<calendar>))
+         -> @uniq-cal@2598;
+      ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<calendar> ) as @pat@4@0: ((std/core/types/@optional :: V -> V)<calendar>))
+         -> std/time/calendar/cal-iso;
+    })) {
+      ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@x: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@5: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@pat@6: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+         -> @x(d, (match (c) {
+            ((std/core/types/@OptArg((@uniq-c@2590: std/time/date/clock) : std/time/date/clock) : (std/core/types/@optional :: V -> V)<std/time/date/clock> ) as @pat@7: ((std/core/types/@optional :: V -> V)<std/time/date/clock>))
+               -> @uniq-c@2590;
+            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/time/date/clock> ) as @pat@0@0: ((std/core/types/@optional :: V -> V)<std/time/date/clock>))
+               -> std/time/date/clock0;
+          }), (match (tz) {
+            ((std/core/types/@OptArg((@uniq-tz@2594: timezone) : timezone) : (std/core/types/@optional :: V -> V)<timezone> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<timezone>))
+               -> @uniq-tz@2594;
+            ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<timezone> ) as @pat@2@0: ((std/core/types/@optional :: V -> V)<timezone>))
+               -> std/time/calendar/tz-utc;
+          }), ts);
+    };
+  };
+fun weekday // inline size: 4
+  = fn(d: std/time/date/date, cal: calendar){
+    val x@10163[1,0,1,0] : std/core/types/int
+      = match (cal) {
+        ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@5: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@6: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@x: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+           -> @x(d);
+      };
+    val dow[187,7,187,9] : std/core/types/int
+      = std/core/int/(%)((std/core/int/int-add(x@10163, 6)), 7);
+    std/time/date/weekday(dow);
+  };
+fun days-until // inline size: 3
+  = fn(cal: calendar, d1: std/time/date/date, d2: std/time/date/date){
+    val x[1,0,1,0] : std/core/types/int
+      = match (cal) {
+        ((@skip std/time/calendar/Calendar((@pat@0@0: std/core/types/string) : std/core/types/string, (@pat@1@0: std/core/types/string) : std/core/types/string, (@pat@2@0: std/core/types/string) : std/core/types/string, (@pat@3@0: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4@0: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@5@0: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@6@0: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@x@0: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat@7: calendar)
+           -> @x@0(d2);
+      };
+    val y[1,0,1,0] : std/core/types/int
+      = match (cal) {
+        ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@5: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@6: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@x: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+           -> @x(d1);
+      };
+    std/core/int/int-sub(x, y);
+  };
+fun cal-timestamp // inline size: 3
+  = fn(cal: calendar, ts: std/time/instant/timescale, d: std/time/date/date, c: std/time/date/clock){
+    std/time/calendar/dc-timestamp(d, c, (match (cal) {
+        ((@skip std/time/calendar/Calendar((@pat@0: std/core/types/string) : std/core/types/string, (@pat@1: std/core/types/string) : std/core/types/string, (@pat@2: std/core/types/string) : std/core/types/string, (@pat@3: (std/time/date/date) -> std/core/types/string) : (std/time/date/date) -> std/core/types/string, (@pat@4: (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock)) : (i : std/time/instant/instant, tzdelta : std/time/duration/duration) -> (std/time/date/date, std/time/date/clock), (@pat@5: (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant) : (std/time/date/date, std/time/date/clock, timezone, std/time/instant/timescale) -> std/time/instant/instant, (@pat@6: (days : std/core/types/int) -> std/time/date/date) : (days : std/core/types/int) -> std/time/date/date, (@x: (date : std/time/date/date) -> std/core/types/int) : (date : std/time/date/date) -> std/core/types/int) : calendar ) as @pat: calendar)
+           -> @x;
+      }), (std/core/types/@OptArg<std/core/types/bool>((match (ts) {
+        ((@skip std/time/instant/Timescale((@pat@0@0: std/core/types/string) : std/core/types/string, (@pat@1@0: std/core/types/string) : std/core/types/string, (@pat@2@0@0: (std/time/duration/duration) -> std/time/timestamp/timestamp) : (std/time/duration/duration) -> std/time/timestamp/timestamp, (@pat@3@0: (std/time/timestamp/timestamp) -> std/time/duration/duration) : (std/time/timestamp/timestamp) -> std/time/duration/duration, (@x@0: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>, (@pat@4@0: (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp, tzdelta : (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) -> std/num/ddouble/ddouble>, (@pat@5@0: (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : (std/core/types/maybe :: V -> V)<(days : std/core/types/int, frac : std/num/ddouble/ddouble) -> std/time/timestamp/timestamp>) : std/time/instant/timescale ) as @pat@2@0: std/time/instant/timescale)
+           -> (match (@x@0) {
+            ((std/core/types/Just((@pat@0@1: (t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)) : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)> ) as @pat@7: ((std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>))
+               -> std/core/types/True;
+            ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)> ) as @pat@1@1: ((std/core/types/maybe :: V -> V)<(t : std/time/timestamp/timestamp) -> (std/time/timestamp/timespan == 1 std/num/ddouble/ddouble)>))
+               -> std/core/types/False;
+          });
+      }))));
+  };
+fun cal-utc-create // inline size: 2
+  = fn(leaps: std/time/utc/leaps-table){
+    val ts-utc[445,7,445,12] : std/time/instant/timescale
+          = std/time/utc/utc-timescale("UTC", leaps);
+    std/time/calendar/solar-ecalendar("", "ISO", std/time/calendar/iso-days-before-year, std/time/calendar/iso-estimate-year, std/time/calendar/iso-days-before-month, std/time/calendar/iso-doy-to-month, (std/core/types/@NoOptArg<std/core/types/int>), (std/core/types/@NoOptArg<std/core/types/bool>), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<(std/time/date/date) -> std/core/types/string>));
+  };
+fun cal-utc-sls-create // inline size: 2
+  = fn(leaps: std/time/utc/leaps-table){
+    val ts-utc-sls[472,7,472,16] : std/time/instant/timescale
+          = std/time/utc/ts-utc-sls-create(leaps);
+    std/time/calendar/solar-ecalendar("SLS", "ISO-SLS", std/time/calendar/iso-days-before-year, std/time/calendar/iso-estimate-year, std/time/calendar/iso-days-before-month, std/time/calendar/iso-doy-to-month, (std/core/types/@NoOptArg<std/core/types/int>), (std/core/types/@NoOptArg<std/core/types/bool>), (std/core/types/@NoOptArg<std/core/types/string>), (std/core/types/@NoOptArg<(std/time/date/date) -> std/core/types/string>));
+  };

@@ -1,0 +1,182 @@
+module interface basic/garsia-wachs
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// A list with at least one element.
+pub value{0,2,8} type list1[43,1,45,35] <a> :: V -> V {
+  // The head of a list with at least one element.
+  pub con Cons1[45,3,45,7](head: a, tail: (std/core/types/list :: V -> V)<a>){0,2,8} : forall<a> (head : a, tail : (std/core/types/list :: V -> V)<a>) -> (list1 :: V -> V)<a> = 1;
+};
+// A tree with all values in the leaves.
+pub recursive type tree[27,1,29,39] <a> :: V -> V {
+  pub con Leaf[28,3,28,6](value: a){0,1,8} : forall<a> (value : a) -> (tree :: V -> V)<a> = 1;
+  pub con Node[29,3,29,6](left: (tree :: V -> V)<a>, right: (tree :: V -> V)<a>){0,2,8} : forall<a> (left : (tree :: V -> V)<a>, right : (tree :: V -> V)<a>) -> (tree :: V -> V)<a> = 2;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Tests for the `Leaf` constructor of the `:tree` type.
+pub fip fun is-leaf[28,3,28,6] : forall<a> (^ tree : (tree :: V -> V)<a>) -> std/core/types/bool;
+// Automatically generated. Tests for the `Node` constructor of the `:tree` type.
+pub fip fun is-node[29,3,29,6] : forall<a> (^ tree : (tree :: V -> V)<a>) -> std/core/types/bool;
+pub fun tree/show[32,5,32,13] : (t : (tree :: V -> V)<std/core/types/string>) -> std/core/types/string;
+// Automatically generated. Retrieves the `head` constructor field of the `:list1` type.
+pub fun list1/head[45,10,45,13] : forall<a> (^ list1 : (list1 :: V -> V)<a>) -> a;
+// Automatically generated. Retrieves the `tail` constructor field of the `:list1` type.
+pub fun list1/tail[45,20,45,23] : forall<a> (^ list1 : (list1 :: V -> V)<a>) -> (std/core/types/list :: V -> V)<a>;
+pub fun list1/@copy[45,3,45,7] : forall<a> (@this : (list1 :: V -> V)<a>, head : (std/core/types/@optional :: V -> V)<a>, tail : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<a>>) -> (list1 :: V -> V)<a>;
+// monadic lift
+fun @mlift-map@10049[1,0,1,0] : forall<a,(e :: E)> (@y-x10046 : a, @y-x10047 : (std/core/types/list :: V -> V)<a>) -> (e :: E) (list1 :: V -> V)<a>;
+// monadic lift
+fun @mlift-map@10050[1,0,1,0] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) b, ys : (std/core/types/list :: V -> V)<a>, @y-x10046 : b) -> (e :: E) (list1 :: V -> V)<b>;
+pub fun map[48,5,48,7] : forall<a,b,(e :: E)> (xs : (list1 :: V -> V)<a>, f : (a) -> (e :: E) b) -> (e :: E) (list1 :: V -> V)<b>;
+pub fun zip[53,5,53,7] : forall<a,b> (xs : (list1 :: V -> V)<a>, ys : (list1 :: V -> V)<b>) -> (list1 :: V -> V)<(a, b)>;
+pub fun extract[72,5,72,11] : forall<a> (before : (std/core/types/list :: V -> V)<((tree :: V -> V)<a>, std/core/types/int)>, after : (list1 :: V -> V)<((tree :: V -> V)<a>, std/core/types/int)>) -> <(std/core/types/div :: X)> (tree :: V -> V)<a>;
+pub fun insert[62,5,62,10] : forall<a> (after : (std/core/types/list :: V -> V)<((tree :: V -> V)<a>, std/core/types/int)>, t : ((tree :: V -> V)<a>, std/core/types/int), before : (std/core/types/list :: V -> V)<((tree :: V -> V)<a>, std/core/types/int)>) -> <(std/core/types/div :: X)> (tree :: V -> V)<a>;
+pub fun balance[84,5,84,11] : forall<a> (xs : (list1 :: V -> V)<((tree :: V -> V)<a>, std/core/types/int)>) -> <(std/core/types/div :: X)> (tree :: V -> V)<a>;
+pub fun mark[88,5,88,8] : forall<a,(h :: H)> (depth : std/core/types/int, t : (tree :: V -> V)<(a, (std/core/types/ref :: (H, V) -> V)<(h :: H),std/core/types/int>)>) -> <(std/core/types/write :: H -> X)<(h :: H)>> ();
+pub fun build[94,5,94,9] : forall<a,(h :: H)> (depth : std/core/types/int, xs : (list1 :: V -> V)<(a, (std/core/types/ref :: (H, V) -> V)<(h :: H),std/core/types/int>)>) -> <(std/core/types/div :: X),(std/core/types/read :: H -> X)<(h :: H)>> ((tree :: V -> V)<a>, (std/core/types/list :: V -> V)<(a, (std/core/types/ref :: (H, V) -> V)<(h :: H),std/core/types/int>)>);
+pub fun garsia-wachs[110,5,110,16] : forall<a> (xs : (list1 :: V -> V)<(a, std/core/types/int)>) -> <(std/core/types/div :: X)> (tree :: V -> V)<a>;
+pub fun example[104,5,104,11] : () -> <(std/core/types/div :: X)> std/core/types/string;
+pub fun main[18,9,18,12] : () -> <(std/core/console/console :: X),(std/core/types/div :: X)> ();
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+specialize "_*" fun map // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (list1 :: V -> V)<a>, f: (a) -> (e :: E) b){
+    (match (xs) {
+      ((@skip basic/garsia-wachs/Cons1((y: a) : a, (ys: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat: ((list1 :: V -> V)<a>))
+         -> basic/garsia-wachs/Cons1<b>((f(y)), (std/core/list/map<a,b,(e :: E)>(ys, f)));
+    });
+  };
+inline borrow "^" fip fun is-leaf // inline size: 1
+  = forall<a> fn(tree: (tree :: V -> V)<a>){
+    (match (tree) {
+      ((basic/garsia-wachs/Leaf((@pat@0: a) : a) : (tree :: V -> V)<a> ) as @pat: ((tree :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@1: ((tree :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fip fun is-node // inline size: 1
+  = forall<a> fn(tree: (tree :: V -> V)<a>){
+    (match (tree) {
+      ((basic/garsia-wachs/Node((@pat@0: (tree :: V -> V)<a>) : (tree :: V -> V)<a>, (@pat@1: (tree :: V -> V)<a>) : (tree :: V -> V)<a>) : (tree :: V -> V)<a> ) as @pat: ((tree :: V -> V)<a>))
+         -> std/core/types/True;
+      (@pat@2: ((tree :: V -> V)<a>))
+         -> std/core/types/False;
+    });
+  };
+inline borrow "^" fun list1/head // inline size: 0
+  = forall<a> fn(list1: (list1 :: V -> V)<a>){
+    (match (list1) {
+      ((@skip basic/garsia-wachs/Cons1((@x: a) : a, (@pat@0: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat: ((list1 :: V -> V)<a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun list1/tail // inline size: 0
+  = forall<a> fn(list1: (list1 :: V -> V)<a>){
+    (match (list1) {
+      ((@skip basic/garsia-wachs/Cons1((@pat@0: a) : a, (@x: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat: ((list1 :: V -> V)<a>))
+         -> @x;
+    });
+  };
+fun list1/@copy // inline size: 3
+  = forall<a> fn(@this: (list1 :: V -> V)<a>, head: (std/core/types/@optional :: V -> V)<a>, tail: (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<a>>){
+    basic/garsia-wachs/Cons1<a>((match (head) {
+        ((std/core/types/@OptArg((@uniq-head@448: a) : a) : (std/core/types/@optional :: V -> V)<a> ) as @pat: ((std/core/types/@optional :: V -> V)<a>))
+           -> @uniq-head@448;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<a> ) as @pat@0: ((std/core/types/@optional :: V -> V)<a>))
+           -> (match (@this) {
+            ((@skip basic/garsia-wachs/Cons1((@x: a) : a, (@pat@0@0: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat@1: ((list1 :: V -> V)<a>))
+               -> @x;
+          });
+      }), (match (tail) {
+        ((std/core/types/@OptArg((@uniq-tail@459: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<a>> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<a>>))
+           -> @uniq-tail@459;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<a>> ) as @pat@2: ((std/core/types/@optional :: V -> V)<(std/core/types/list :: V -> V)<a>>))
+           -> (match (@this) {
+            ((@skip basic/garsia-wachs/Cons1((@pat@0@1: a) : a, (@x@0: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat@3: ((list1 :: V -> V)<a>))
+               -> @x@0;
+          });
+      }));
+  };
+fun map // inline size: 3
+  = forall<a,b,(e :: E)> fn<(e :: E)>(xs: (list1 :: V -> V)<a>, f: (a) -> (e :: E) b){
+    (match (xs) {
+      ((@skip basic/garsia-wachs/Cons1((y: a) : a, (ys: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat: ((list1 :: V -> V)<a>))
+         -> basic/garsia-wachs/Cons1<b>((f(y)), (std/core/list/map<a,b,(e :: E)>(ys, f)));
+    });
+  };
+fun zip // inline size: 3
+  = forall<a,b> fn(xs: (list1 :: V -> V)<a>, ys: (list1 :: V -> V)<b>){
+    basic/garsia-wachs/Cons1<(a, b)>((std/core/types/Tuple2<a,b>((match (xs) {
+          ((@skip basic/garsia-wachs/Cons1((@x: a) : a, (@pat@0: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat: ((list1 :: V -> V)<a>))
+             -> @x;
+        }), (match (ys) {
+          ((@skip basic/garsia-wachs/Cons1((@x@0: b) : b, (@pat@0@0: (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b>) : (list1 :: V -> V)<b> ) as @pat@1: ((list1 :: V -> V)<b>))
+             -> @x@0;
+        }))), (std/core/list/zip<a,b>((match (xs) {
+          ((@skip basic/garsia-wachs/Cons1((@pat@0@1: a) : a, (@x@1: (std/core/types/list :: V -> V)<a>) : (std/core/types/list :: V -> V)<a>) : (list1 :: V -> V)<a> ) as @pat@2: ((list1 :: V -> V)<a>))
+             -> @x@1;
+        }), (match (ys) {
+          ((@skip basic/garsia-wachs/Cons1((@pat@0@2: b) : b, (@x@2: (std/core/types/list :: V -> V)<b>) : (std/core/types/list :: V -> V)<b>) : (list1 :: V -> V)<b> ) as @pat@3: ((list1 :: V -> V)<b>))
+             -> @x@2;
+        }))));
+  };
+fun balance // inline size: 1
+  = forall<a> fn<<(std/core/types/div :: X)>>(xs: (list1 :: V -> V)<((tree :: V -> V)<a>, std/core/types/int)>){
+    basic/garsia-wachs/extract<a>((std/core/types/Nil<((tree :: V -> V)<a>, std/core/types/int)>), xs);
+  };
+fun main // inline size: 2
+  = fn<<(std/core/console/console :: X),(std/core/types/div :: X)>>(){
+    val s@10044[1,0,1,0] : std/core/types/string
+          = basic/garsia-wachs/example();
+    std/core/console/printsln(s@10044);
+  };

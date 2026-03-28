@@ -1,0 +1,422 @@
+/* Core functions.
+
+   This module is implicitly imported and all functions and types
+   are always available.
+   Some types and operations are required to be defined for the compiler
+   to work correctly (i.e. types like `:exn` or `:list`)
+*/
+module interface std/core
+ 
+//------------------------------
+//#kki: import declarations
+ 
+pub import std/core/types = std/core/types = "";
+import std/core/undiv = std/core/undiv = "";
+import std/core/unsafe = std/core/unsafe = "";
+pub import std/core/hnd = std/core/hnd = "";
+pub import std/core/exn = std/core/exn = "";
+pub import std/core/bool = std/core/bool = "";
+pub import std/core/order = std/core/order = "";
+pub import std/core/char = std/core/char = "";
+pub import std/core/int = std/core/int = "";
+pub import std/core/vector = std/core/vector = "";
+pub import std/core/string = std/core/string = "";
+pub import std/core/sslice = std/core/sslice = "";
+pub import std/core/list = std/core/list = "";
+pub import std/core/maybe = std/core/maybe = "";
+pub import std/core/maybe2 = std/core/maybe2 = "";
+pub import std/core/either = std/core/either = "";
+pub import std/core/result = std/core/result = "";
+pub import std/core/tuple = std/core/tuple = "";
+pub import std/core/lazy = std/core/lazy = "";
+pub import std/core/show = std/core/show = "";
+pub import std/core/debug = std/core/debug = "";
+pub import std/core/delayed = std/core/delayed = "";
+pub import std/core/console = std/core/console = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// The `:blocking` effect signifies that a function may block
+pub type blocking[70,1,70,22] :: X ;
+// The `:fsys` effect signifies a function may access the file system
+pub type fsys[64,1,64,18] :: X ;
+// The `:global-scope` is a special type constant to denote the global scope
+pub type global-scope[58,1,58,26] :: S ;
+// The `:net` effect signifies a function may access the network
+pub type net[61,1,61,17] :: X ;
+// The `:ui` effect signifies a function may access the graphics system
+pub type ui[67,1,67,16] :: X ;
+// The `:io-total` effect is used for functions that perform arbitrary I/O operations, but are terminating without raising exceptions.
+pub alias io-total[73,1,73,58] :: E = <(std/core/types/ndet :: X),(std/core/console/console :: X),(net :: X),(fsys :: X),(ui :: X),((std/core/types/st :: H -> E)<(std/core/types/global :: H)> == 1 <(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/types/write :: H -> X)<(std/core/types/global :: H)>,(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>>)> = 2;
+// The `:io-noexn` effect is used for functions that perform arbitrary I/O operations, but raise no exceptions
+pub alias io-noexn[76,1,76,35] :: E = <(std/core/types/div :: X),((io-total :: E) == 2 <(std/core/types/ndet :: X),(std/core/console/console :: X),(net :: X),(fsys :: X),(ui :: X),((std/core/types/st :: H -> E)<(std/core/types/global :: H)> == 1 <(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/types/write :: H -> X)<(std/core/types/global :: H)>,(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>>)>)> = 3;
+// The `:io` effect is used for functions that perform arbitrary I/O operations.
+pub alias io[79,1,79,29] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,((io-noexn :: E) == 3 <(std/core/types/div :: X),((io-total :: E) == 2 <(std/core/types/ndet :: X),(std/core/console/console :: X),(net :: X),(fsys :: X),(ui :: X),((std/core/types/st :: H -> E)<(std/core/types/global :: H)> == 1 <(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/types/write :: H -> X)<(std/core/types/global :: H)>,(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>>)>)>)> = 4;
+// The `:named` effect is the default umbrella effect for named effects
+pub type nmd[82,1,82,17] :: X ;
+// An alias for pure effects: a pure function always returns the same result
+// when called with the same arguments but may not terminate or raise an exception.
+pub alias pure[55,1,55,26] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/div :: X)> = 1;
+// The `:scope` effect is used to ensure named effects cannot escape the scope of their handler
+pub type scope[85,1,85,24] <(s :: S)> :: S -> X ;
+// A `:stream` is a co-inductive type representing an infinite list of elements.
+pub recursive co type stream[261,1,262,36] <a> :: V -> V {
+  pub con Next[262,7,262,10](head: a, tail: (stream :: V -> V)<a>){0,2,8} : forall<a> (head : a, tail : (stream :: V -> V)<a>) -> (stream :: V -> V)<a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Apply a function `f` to a specified argument `x`.
+pub fun apply[93,9,93,13] : forall<a,b,(e :: E)> (f : (a) -> (e :: E) b, x : a) -> (e :: E) b;
+// Compose two functions `f` and `g`.
+pub fun o[97,9,97,9] : forall<a,b,c,(e :: E)> (f : (a) -> (e :: E) b, g : (c) -> (e :: E) a) -> ((x : c) -> (e :: E) b);
+// The `ignore` function ignores its argument.
+pub fun ignore[101,9,101,14] : forall<a> (x : a) -> ();
+// Return a 'constant' function that ignores its argument and always returns the same result
+pub fun const[105,9,105,13] : forall<a,b> (default : a) -> ((x : b) -> a);
+// Concise way to ensure two expressions have the same type.
+pub fun same-type[109,9,109,17] : forall<a> (x : a, y : a) -> a;
+// monadic lift
+fun @mlift-while@10080[1,0,1,0] : forall<(e :: E)> (action : () -> <(std/core/types/div :: X)|(e :: E)> (), predicate : () -> <(std/core/types/div :: X)|(e :: E)> std/core/types/bool, wild_ : ()) -> <(std/core/types/div :: X)|(e :: E)> ();
+// monadic lift
+fun @mlift-while@10081[1,0,1,0] : forall<(e :: E)> (action : () -> <(std/core/types/div :: X)|(e :: E)> (), predicate : () -> <(std/core/types/div :: X)|(e :: E)> std/core/types/bool, @y-x10028 : std/core/types/bool) -> <(std/core/types/div :: X)|(e :: E)> ();
+// The `while` fun executes `action`  as long as `pred`  is `true`.
+pub fun while[117,9,117,13] : forall<(e :: E)> (predicate : () -> <(std/core/types/div :: X)|(e :: E)> std/core/types/bool, action : () -> <(std/core/types/div :: X)|(e :: E)> ()) -> <(std/core/types/div :: X)|(e :: E)> ();
+// monadic lift
+fun default/cmp/(@mlift-x@10082==)[1,0,1,0] : forall<(e :: E)> (@y-x10032 : std/core/types/order) -> (e :: E) std/core/types/bool;
+// Generic equality if `cmp` exists
+pub fun default/cmp/(==)[194,9,194,24] : forall<a,(e :: E)> (x : a, y : a, ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun default/(@mlift-x@10083!=)[1,0,1,0] : forall<(e :: E)> (@y-x10033 : std/core/types/bool) -> (e :: E) std/core/types/bool;
+// Generic inequality
+pub fun default/(!=)[190,9,190,20] : forall<a,(e :: E)> (x : a, y : a, ?(==) : (a, a) -> (e :: E) std/core/types/bool) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun default/cmp/(@mlift-x@10084>)[1,0,1,0] : forall<(e :: E)> (@y-x10034 : std/core/types/order) -> (e :: E) std/core/types/bool;
+// Generic greater than
+pub fun default/cmp/(>)[200,9,200,23] : forall<a,(e :: E)> (x : a, y : a, ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun range/@mlift-fold@10085[1,0,1,0] : forall<a,(e :: E)> (end : std/core/types/int, f : (std/core/types/int, a) -> (e :: E) a, start : std/core/types/int, x : a) -> (e :: E) a;
+// Fold over the integers between [`start`,`end`] (including `end`).
+pub fun range/fold[163,9,163,18] : forall<a,(e :: E)> (start : std/core/types/int, end : std/core/types/int, init : a, f : (std/core/types/int, a) -> (e :: E) a) -> (e :: E) a;
+// Fold over the integers between [0,`upto`)  (excluding `upto`).
+pub fun fold[169,9,169,12] : forall<a,(e :: E)> (upto : std/core/types/int, init : a, f : (std/core/types/int, a) -> (e :: E) a) -> (e :: E) a;
+// monadic lift
+fun range/@mlift-fold-while@10086[1,0,1,0] : forall<a,(e :: E)> (end : std/core/types/int, f : (std/core/types/int, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, init : a, start : std/core/types/int, @y-x10039 : (std/core/types/maybe :: V -> V)<a>) -> (e :: E) a;
+// Fold over the integers between [`start`,`end`] (including `end`) or until `f` returns `Nothing`
+pub fun range/fold-while[174,9,174,24] : forall<a,(e :: E)> (start : std/core/types/int, end : std/core/types/int, init : a, f : (std/core/types/int, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) a;
+// Fold over the integers between [0,`n`) (excluding `n`) or until `f` returns `Nothing`
+pub fun fold-while[181,9,181,18] : forall<a,(e :: E)> (n : std/core/types/int, init : a, f : (std/core/types/int, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) a;
+// monadic lift
+fun default/cmp/(@mlift-x@10087<)[1,0,1,0] : forall<(e :: E)> (@y-x10044 : std/core/types/order) -> (e :: E) std/core/types/bool;
+// Generic lower than
+pub fun default/cmp/(<)[204,9,204,23] : forall<a,(e :: E)> (x : a, y : a, ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun default/cmp/(@mlift-x@10088>=)[1,0,1,0] : forall<(e :: E)> (@y-x10045 : std/core/types/order) -> (e :: E) std/core/types/bool;
+// Generic greater than or equal
+pub fun default/cmp/(>=)[208,9,208,24] : forall<a,(e :: E)> (x : a, y : a, ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun default/cmp/(@mlift-x@10089<=)[1,0,1,0] : forall<(e :: E)> (@y-x10046 : std/core/types/order) -> (e :: E) std/core/types/bool;
+// Generic lower than or equal
+pub fun default/cmp/(<=)[212,9,212,24] : forall<a,(e :: E)> (x : a, y : a, ?cmp : (a, a) -> (e :: E) std/core/types/order) -> (e :: E) std/core/types/bool;
+// monadic lift
+fun range/@mlift-lift-for@1931@10090[1,0,1,0] : forall<(e :: E)> (action : (std/core/types/int) -> (e :: E) (), end : std/core/types/int, i : std/core/types/int, wild_ : ()) -> (e :: E) ();
+// lifted local: range/for, rep
+fun range/@lift-for@1931[1,0,1,0] : forall<(e :: E)> (action : (std/core/types/int) -> (e :: E) (), end : std/core/types/int, i : std/core/types/int) -> (e :: E) ();
+// Executes `action`  for each integer from `start` to `end` (including `end` ).
+// If `start > end`  the function returns without any call to `action` .
+pub fun range/for[130,9,130,17] : forall<(e :: E)> (^ start : std/core/types/int, end : std/core/types/int, action : (std/core/types/int) -> (e :: E) ()) -> (e :: E) ();
+// Executes `action` `n` times for each integer from `0` to `n - 1`.
+// If `n <= 0`  the function returns without any call to `action` .
+pub fun for[139,9,139,11] : forall<(e :: E)> (^ n : std/core/types/int, action : (std/core/types/int) -> (e :: E) ()) -> (e :: E) ();
+// The `repeat` fun executes `action`  `n`  times.
+pub fun repeat[123,9,123,14] : forall<(e :: E)> (^ n : std/core/types/int, action : () -> (e :: E) ()) -> (e :: E) ();
+// monadic lift
+fun range/@mlift-lift-for-while@1932@10091[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end : std/core/types/int, i : std/core/types/int, @y-x10054 : (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// lifted local: range/for-while, rep
+fun range/@lift-for-while@1932[1,0,1,0] : forall<a,(e :: E)> (action : (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end : std/core/types/int, i : std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Executes `action`  for each integer between `start`  to `end`  (including `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun range/for-while[146,9,146,23] : forall<a,(e :: E)> (start : std/core/types/int, end : std/core/types/int, action : (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Executes `action`  for each integer between [0,`n`)  (excluding `n` ).
+// If `n <= 0`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+pub fun for-while[158,9,158,17] : forall<a,(e :: E)> (n : std/core/types/int, action : (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>) -> (e :: E) (std/core/types/maybe :: V -> V)<a>;
+// Used by the compiler to wrap main console applications
+pub fun main-console[221,12,221,23] : forall<a,(e :: E)> (main : () -> (e :: E) a) -> (e :: E) a;
+// Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `libc`.
+pub fun host[228,12,228,15] : () -> <(std/core/types/ndet :: X)> std/core/types/string;
+// The default exception handler
+pub fun @default-exn[235,9,235,20] : forall<(e :: E)> (action : () -> <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/console/console :: X)|(e :: E)> ()) -> <(std/core/console/console :: X)|(e :: E)> ();
+val unique-count[246,14,246,25] : (std/core/types/ref :: (H, V) -> V)<(std/core/types/global :: H),std/core/types/int>;
+// Returns a unique integer (modulo 32-bits).
+pub fun unique[249,9,249,14] : () -> <(std/core/types/ndet :: X)> std/core/types/int;
+// Automatically generated. Retrieves the `head` constructor field of the `:stream` type.
+pub fun stream/head[262,12,262,15] : forall<a> (^ stream : (stream :: V -> V)<a>) -> a;
+// Automatically generated. Retrieves the `tail` constructor field of the `:stream` type.
+pub fun stream/tail[262,20,262,23] : forall<a> (^ stream : (stream :: V -> V)<a>) -> (stream :: V -> V)<a>;
+pub fun stream/@copy[262,7,262,10] : forall<a> (@this : (stream :: V -> V)<a>, head : (std/core/types/@optional :: V -> V)<a>, tail : (std/core/types/@optional :: V -> V)<(stream :: V -> V)<a>>) -> (stream :: V -> V)<a>;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+recursive specialize "*__" fun range/@lift-for-while@1932 // inline size: 12
+  = forall<a,(e :: E)> fn<(e :: E)>(action: (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>, end: std/core/types/int, i: std/core/types/int){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/bool,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/bool>(std/core/int/(<=))(i, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> (match ((action(i))) {
+          ((std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@0: ((std/core/types/maybe :: V -> V)<a>))
+             -> val i@0@10015[1,0,1,0] : std/core/types/int
+                      = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int) -> std/core/types/int,(x : std/core/types/int) -> (e :: E) std/core/types/int>((std/core/undiv/pretend-decreasing<std/core/types/int>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i@1: std/core/types/int){
+                        (std/core/int/int-add(i@1, 1));
+                      }))(i)));
+            std/core/#range/@lift-for-while@1932<a,(e :: E)>(action, end, i@0@10015);
+          ((@skip std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/types/Just<a>(x);
+        });
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@2: std/core/types/bool)
+         -> std/core/types/Nothing<a>;
+    });
+  };
+recursive specialize "*__" fun range/@lift-for@1931 // inline size: 10
+  = forall<(e :: E)> fn<(e :: E)>(action: (std/core/types/int) -> (e :: E) (), end: std/core/types/int, i: std/core/types/int){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/bool,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/bool>(std/core/int/(<=))(i, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> val _[133,7,133,15] : ()
+              = action(i);
+            val i@0@10006[1,0,1,0] : std/core/types/int
+              = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int) -> std/core/types/int,(x : std/core/types/int) -> (e :: E) std/core/types/int>((std/core/undiv/pretend-decreasing<std/core/types/int>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i@1: std/core/types/int){
+                (std/core/int/int-add(i@1, 1));
+              }))(i)));
+        std/core/#range/@lift-for@1931<(e :: E)>(action, end, i@0@10006);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/Unit;
+    });
+  };
+specialize "__*" fun fold // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(upto: std/core/types/int, init: a, f: (std/core/types/int, a) -> (e :: E) a){
+    std/core/#range/fold<a,(e :: E)>(0, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i: std/core/types/int){
+        (std/core/int/int-sub(i, 1));
+      }))(upto)), init, f);
+  };
+specialize "__*" fun fold-while // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int, init: a, f: (std/core/types/int, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/core/#range/fold-while<a,(e :: E)>(0, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i: std/core/types/int){
+        (std/core/int/int-sub(i, 1));
+      }))(n)), init, f);
+  };
+recursive specialize "___*" fun range/fold // inline size: 10
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int, end: std/core/types/int, init: a, f: (std/core/types/int, a) -> (e :: E) a){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/bool,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/bool>(std/core/int/(>))(start, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> init;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> val x[165,9,165,9] : a
+                  = f(start, init);
+        std/core/#range/fold<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int) -> std/core/types/int,(x : std/core/types/int) -> (e :: E) std/core/types/int>((std/core/undiv/pretend-decreasing<std/core/types/int>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i: std/core/types/int){
+            (std/core/int/int-add(i, 1));
+          }))(start)))), end, x, f);
+    });
+  };
+recursive specialize "___*" fun range/fold-while // inline size: 11
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int, end: std/core/types/int, init: a, f: (std/core/types/int, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    (match ((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/bool,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/bool>(std/core/int/(>))(start, end))) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> init;
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> (match ((f(start, init))) {
+          ((std/core/types/Just((x: a) : a) : (std/core/types/maybe :: V -> V)<a> ) as @pat@1: ((std/core/types/maybe :: V -> V)<a>))
+             -> std/core/#range/fold-while<a,(e :: E)>((std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int) -> std/core/types/int,(x : std/core/types/int) -> (e :: E) std/core/types/int>((std/core/undiv/pretend-decreasing<std/core/types/int>))((std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i: std/core/types/int){
+                (std/core/int/int-add(i, 1));
+              }))(start)))), end, x, f);
+          ((@skip std/core/types/Nothing() : (std/core/types/maybe :: V -> V)<a> ) as @pat@2: ((std/core/types/maybe :: V -> V)<a>))
+             -> init;
+        });
+    });
+  };
+specialize "_*" borrow "^_" fun for // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(n: std/core/types/int, action: (std/core/types/int) -> (e :: E) ()){
+    val end@10008[1,0,1,0] : std/core/types/int
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+            (std/core/int/int-sub(x, y));
+          }))(n, 1);
+    std/core/#range/@lift-for@1931<(e :: E)>(action, end@10008, 0);
+  };
+specialize "__*" borrow "^__" fun range/for // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(start: std/core/types/int, end: std/core/types/int, action: (std/core/types/int) -> (e :: E) ()){
+    std/core/#range/@lift-for@1931<(e :: E)>(action, end, start);
+  };
+specialize "_*" fun for-while // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int, action: (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    val end@10017[1,0,1,0] : std/core/types/int
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+            (std/core/int/int-sub(x, y));
+          }))(n, 1);
+    std/core/#range/@lift-for-while@1932<a,(e :: E)>(action, end@10017, 0);
+  };
+specialize "__*" fun range/for-while // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int, end: std/core/types/int, action: (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/core/#range/@lift-for-while@1932<a,(e :: E)>(action, end, start);
+  };
+specialize "_*" borrow "^_" fun repeat // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(n: std/core/types/int, action: () -> (e :: E) ()){
+    val end@10013[1,0,1,0] : std/core/types/int
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+            (std/core/int/int-sub(x, y));
+          }))(n, 1);
+    std/core/#range/@lift-for@1931<(e :: E)>((fn<(e :: E)>(i@0: std/core/types/int){
+        (action());
+      }), end@10013, 0);
+  };
+recursive specialize "**" fun while // inline size: 4
+  = forall<(e :: E)> fn<<(std/core/types/div :: X)|(e :: E)>>(predicate: () -> <(std/core/types/div :: X)|(e :: E)> std/core/types/bool, action: () -> <(std/core/types/div :: X)|(e :: E)> ()){
+    (match ((predicate())) {
+      ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+         -> val _[119,5,119,12] : ()
+                  = action();
+        std/core/while<(e :: E)>(predicate, action);
+      ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+         -> std/core/types/Unit;
+    });
+  };
+fun apply // inline size: 1
+  = forall<a,b,(e :: E)> fn<(e :: E)>(f: (a) -> (e :: E) b, x: a){
+    f(x);
+  };
+fun o // inline size: 2
+  = forall<a,b,c,(e :: E)> fn(f: (a) -> (e :: E) b, g: (c) -> (e :: E) a){
+    fn<(e :: E)>(x: c){
+      f((g(x)));
+    };
+  };
+inline fun ignore // inline size: 0
+  = forall<a> fn(x: a){
+    std/core/types/Unit;
+  };
+inline fun const // inline size: 0
+  = forall<a,b> fn(default: a){
+    fn(@_wildcard-x106_6: b){
+      default;
+    };
+  };
+inline fun same-type // inline size: 0
+  = forall<a> fn(x: a, y: a){
+    x;
+  };
+fun default/cmp/(==) // inline size: 2
+  = forall<a,(e :: E)> fn<(e :: E)>(x: a, y: a, @implicit/cmp: (a, a) -> (e :: E) std/core/types/order){
+    (match ((@implicit/cmp(x, y))) {
+      ((std/core/types/Eq() : std/core/types/order ) as @pat: std/core/types/order)
+         -> std/core/types/True;
+      (@pat@0: std/core/types/order)
+         -> std/core/types/False;
+    });
+  };
+fun default/(!=) // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(x: a, y: a, @implicit/(==): (a, a) -> (e :: E) std/core/types/bool){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(b : std/core/types/bool) -> std/core/types/bool,(b : std/core/types/bool) -> (e :: E) std/core/types/bool>((fn(b: std/core/types/bool){
+      (match (b) {
+        ((std/core/types/True() : std/core/types/bool ) as @pat: std/core/types/bool)
+           -> std/core/types/False;
+        ((@skip std/core/types/False() : std/core/types/bool ) as @pat@0: std/core/types/bool)
+           -> std/core/types/True;
+      });
+    }))((@implicit/(==)(x, y)));
+  };
+fun default/cmp/(>) // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(x: a, y: a, @implicit/cmp: (a, a) -> (e :: E) std/core/types/order){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool,(x : std/core/types/order, y : std/core/types/order) -> (e :: E) std/core/types/bool>(std/core/order/(==))((@implicit/cmp(x, y)), std/core/types/Gt);
+  };
+fun fold // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(upto: std/core/types/int, init: a, f: (std/core/types/int, a) -> (e :: E) a){
+    std/core/#range/fold<a,(e :: E)>(0, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i: std/core/types/int){
+        (std/core/int/int-sub(i, 1));
+      }))(upto)), init, f);
+  };
+fun fold-while // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int, init: a, f: (std/core/types/int, a) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/core/#range/fold-while<a,(e :: E)>(0, (std/core/types/@open<(std/core/types/total :: E),(e :: E),(i : std/core/types/int) -> std/core/types/int,(i : std/core/types/int) -> (e :: E) std/core/types/int>((fn(i: std/core/types/int){
+        (std/core/int/int-sub(i, 1));
+      }))(n)), init, f);
+  };
+fun default/cmp/(<) // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(x: a, y: a, @implicit/cmp: (a, a) -> (e :: E) std/core/types/order){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/order, y : std/core/types/order) -> std/core/types/bool,(x : std/core/types/order, y : std/core/types/order) -> (e :: E) std/core/types/bool>(std/core/order/(==))((@implicit/cmp(x, y)), std/core/types/Lt);
+  };
+borrow "^__" fun range/for // inline size: 1
+  = forall<(e :: E)> fn<(e :: E)>(start: std/core/types/int, end: std/core/types/int, action: (std/core/types/int) -> (e :: E) ()){
+    std/core/#range/@lift-for@1931<(e :: E)>(action, end, start);
+  };
+borrow "^_" fun for // inline size: 4
+  = forall<(e :: E)> fn<(e :: E)>(n: std/core/types/int, action: (std/core/types/int) -> (e :: E) ()){
+    val end@10008[1,0,1,0] : std/core/types/int
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+            (std/core/int/int-sub(x, y));
+          }))(n, 1);
+    std/core/#range/@lift-for@1931<(e :: E)>(action, end@10008, 0);
+  };
+fun range/for-while // inline size: 1
+  = forall<a,(e :: E)> fn<(e :: E)>(start: std/core/types/int, end: std/core/types/int, action: (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    std/core/#range/@lift-for-while@1932<a,(e :: E)>(action, end, start);
+  };
+fun for-while // inline size: 4
+  = forall<a,(e :: E)> fn<(e :: E)>(n: std/core/types/int, action: (std/core/types/int) -> (e :: E) (std/core/types/maybe :: V -> V)<a>){
+    val end@10017[1,0,1,0] : std/core/types/int
+          = std/core/types/@open<(std/core/types/total :: E),(e :: E),(x : std/core/types/int, y : std/core/types/int) -> std/core/types/int,(x : std/core/types/int, y : std/core/types/int) -> (e :: E) std/core/types/int>((fn(x: std/core/types/int, y: std/core/types/int){
+            (std/core/int/int-sub(x, y));
+          }))(n, 1);
+    std/core/#range/@lift-for-while@1932<a,(e :: E)>(action, end@10017, 0);
+  };
+inline borrow "^" fun stream/head // inline size: 0
+  = forall<a> fn(stream: (stream :: V -> V)<a>){
+    (match (stream) {
+      ((@skip std/core/Next((@x: a) : a, (@pat@0: (stream :: V -> V)<a>) : (stream :: V -> V)<a>) : (stream :: V -> V)<a> ) as @pat: ((stream :: V -> V)<a>))
+         -> @x;
+    });
+  };
+inline borrow "^" fun stream/tail // inline size: 0
+  = forall<a> fn(stream: (stream :: V -> V)<a>){
+    (match (stream) {
+      ((@skip std/core/Next((@pat@0: a) : a, (@x: (stream :: V -> V)<a>) : (stream :: V -> V)<a>) : (stream :: V -> V)<a> ) as @pat: ((stream :: V -> V)<a>))
+         -> @x;
+    });
+  };
+fun stream/@copy // inline size: 3
+  = forall<a> fn(@this: (stream :: V -> V)<a>, head: (std/core/types/@optional :: V -> V)<a>, tail: (std/core/types/@optional :: V -> V)<(stream :: V -> V)<a>>){
+    std/core/Next<a>((match (head) {
+        ((std/core/types/@OptArg((@uniq-head@1898: a) : a) : (std/core/types/@optional :: V -> V)<a> ) as @pat: ((std/core/types/@optional :: V -> V)<a>))
+           -> @uniq-head@1898;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<a> ) as @pat@0: ((std/core/types/@optional :: V -> V)<a>))
+           -> (match (@this) {
+            ((@skip std/core/Next((@x: a) : a, (@pat@0@0: (stream :: V -> V)<a>) : (stream :: V -> V)<a>) : (stream :: V -> V)<a> ) as @pat@1: ((stream :: V -> V)<a>))
+               -> @x;
+          });
+      }), (match (tail) {
+        ((std/core/types/@OptArg((@uniq-tail@1909: (stream :: V -> V)<a>) : (stream :: V -> V)<a>) : (std/core/types/@optional :: V -> V)<(stream :: V -> V)<a>> ) as @pat@1@0: ((std/core/types/@optional :: V -> V)<(stream :: V -> V)<a>>))
+           -> @uniq-tail@1909;
+        ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<(stream :: V -> V)<a>> ) as @pat@2: ((std/core/types/@optional :: V -> V)<(stream :: V -> V)<a>>))
+           -> (match (@this) {
+            ((@skip std/core/Next((@pat@0@1: a) : a, (@x@0: (stream :: V -> V)<a>) : (stream :: V -> V)<a>) : (stream :: V -> V)<a> ) as @pat@3: ((stream :: V -> V)<a>))
+               -> @x@0;
+          });
+      }));
+  };

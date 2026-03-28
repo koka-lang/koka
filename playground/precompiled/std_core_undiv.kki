@@ -1,0 +1,50 @@
+// Unsafe primitives to dismiss divergence.
+module interface std/core/undiv
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+ 
+//------------------------------
+//#kki: declarations
+ 
+// _Unsafe_. This function pretends that the given action is terminating.
+pub fun pretend-no-div[24,9,24,22] : forall<a,(e :: E)> (action : () -> <(std/core/types/div :: X)|(e :: E)> a) -> (e :: E) a;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
+// The compiler has a very limited termination analysis, only recognizing direct recursion on
+// inductive datatypes. When it is clear a function has a decreasing parameter but it is not recognized
+// as such by the compiler, you can wrap the arguments in `pretend-decreasing` to inform the
+// termination analysis to consider that parameter decreasing on a recursive call. Use with care
+// to not accidentally allow actual divergence (without having that reflected in the effect type).
+pub fip extern pretend-decreasing[20,23,20,40] : forall<a> (x : a) -> a = inline "#1";
+fip extern pretend-nodiv-cast[27,19,27,36] : forall<(e :: E),a> (action : () -> <(std/core/types/div :: X)|(e :: E)> a) -> (() -> (e :: E) a) = inline "#1";
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+fun pretend-no-div // inline size: 3
+  = forall<a,(e :: E)> fn<(e :: E)>(action: () -> <(std/core/types/div :: X)|(e :: E)> a){
+    std/core/types/@open<(std/core/types/total :: E),(e :: E),(action : () -> <(std/core/types/div :: X)|(e :: E)> a) -> (() -> (e :: E) a),(action : () -> <(std/core/types/div :: X)|(e :: E)> a) -> (e :: E) (() -> (e :: E) a)>((std/core/undiv/pretend-nodiv-cast<(e :: E),a>))(action)();
+  };

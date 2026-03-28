@@ -1,0 +1,176 @@
+/*
+Experimental: Parallel tasks.
+
+Note: very experimental and may not work as intended :-)
+See ``test/bench/koka/binarytrees.kk`` for example usage.
+*/
+module interface std/os/task
+ 
+//------------------------------
+//#kki: import declarations
+ 
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+import std/num/int32 = std/num/int32 = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+// The `:io` effect is used for functions that perform arbitrary I/O operations.
+local alias std/core/io[79,1,79,29] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,((std/core/io-noexn :: E) == 3 <(std/core/types/div :: X),((std/core/io-total :: E) == 2 <(std/core/types/ndet :: X),(std/core/console/console :: X),(std/core/net :: X),(std/core/fsys :: X),(std/core/ui :: X),((std/core/types/st :: H -> E)<(std/core/types/global :: H)> == 1 <(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/types/write :: H -> X)<(std/core/types/global :: H)>,(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>>)>)>)> = 4;
+// An alias for pure effects: a pure function always returns the same result
+// when called with the same arguments but may not terminate or raise an exception.
+local alias std/core/pure[55,1,55,26] :: E = <(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/types/div :: X)> = 1;
+ 
+//------------------------------
+//#kki: type declarations
+ 
+pub value{0,1,8} type lvar[66,1,67,10] <a> :: V -> V {
+  con Lvar[66,17,66,20](lv: std/core/types/any){0,1,8} : forall<a> (lv : std/core/types/any) -> (lvar :: V -> V)<a> = 1;
+};
+// A `:promise<a>` can be `await`ed for a result.
+pub value{0,1,8} type promise[20,1,21,15] <a> :: V -> V {
+  // A `:promise<a>` can be `await`ed for a result.
+  con Promise[20,17,20,23](promise: std/core/types/any){0,1,8} : forall<a> (promise : std/core/types/any) -> (promise :: V -> V)<a> = 1;
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// Automatically generated. Retrieves the `promise` constructor field of the `:promise` type.
+fun promise/promise[21,3,21,9] : forall<a> (^ promise : (promise :: V -> V)<a>) -> std/core/types/any;
+pub fun promise/@copy[20,17,20,23] : forall<a> (@this : (promise :: V -> V)<a>, promise : (std/core/types/@optional :: V -> V)<std/core/types/any>) -> (promise :: V -> V)<a>;
+fun unsafe_task[23,17,23,27] : forall<a> (work : () -> (std/core/pure :: E) a) -> (std/core/pure :: E) std/core/types/any;
+fun unsafe_await[26,17,26,28] : forall<a> (p : std/core/types/any) -> (std/core/pure :: E) a;
+fun prim-task-set-default-concurrency[29,8,29,40] : (thread-count : std/core/types/ssize_t) -> <(std/core/io :: E)> ();
+pub fun task-set-default-concurrency[32,9,32,36] : (thread-count : std/core/types/int) -> <(std/core/io :: E)> ();
+// monadic lift
+fun @mlift-task@10024[1,0,1,0] : forall<a> (@y-x10007 : std/core/types/any) -> (std/core/pure :: E) (promise :: V -> V)<a>;
+// Spark a pure computation in a separate thread of control.
+pub fun task[37,18,37,21] : forall<a> (work : () -> (std/core/pure :: E) a) -> (std/core/pure :: E) (promise :: V -> V)<a>;
+// Await the result of a promise.
+pub fun await[41,9,41,13] : forall<a> (p : (promise :: V -> V)<a>) -> (std/core/pure :: E) a;
+// Await the result of a list of promises.
+pub fun list/await[45,9,45,18] : forall<a> (ps : (std/core/types/list :: V -> V)<(promise :: V -> V)<a>>) -> (std/core/pure :: E) (std/core/types/list :: V -> V)<a>;
+// monadic lift
+fun @mlift-parallel@10025[1,0,1,0] : forall<a> (ps@10001 : (std/core/types/list :: V -> V)<(promise :: V -> V)<a>>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> (std/core/types/list :: V -> V)<a>;
+// Run a list of pure computations in parallel.
+pub fun parallel[49,9,49,16] : forall<a> (xs : (std/core/types/list :: V -> V)<() -> (std/core/pure :: E) a>) -> (std/core/pure :: E) (std/core/types/list :: V -> V)<a>;
+// Automatically generated. Retrieves the `lv` constructor field of the `:lvar` type.
+fun lvar/lv[67,3,67,4] : forall<a> (^ lvar : (lvar :: V -> V)<a>) -> std/core/types/any;
+pub fun lvar/@copy[66,17,66,20] : forall<a> (@this : (lvar :: V -> V)<a>, lv : (std/core/types/@optional :: V -> V)<std/core/types/any>) -> (lvar :: V -> V)<a>;
+fun unsafe-lvar[69,17,69,27] : forall<a> (init : a) -> (std/core/pure :: E) std/core/types/any;
+fun unsafe-put[72,17,72,26] : forall<a> (lvar : std/core/types/any, x : a, monotonic-combine : (a, a) -> a) -> (std/core/pure :: E) ();
+fun unsafe-get[75,17,75,26] : forall<a> (lvar : std/core/types/any, bot : a, is-gte : (a, a) -> std/core/types/int32) -> (std/core/pure :: E) a;
+// monadic lift
+fun @mlift-lvar@10026[1,0,1,0] : forall<a> (@y-x10015 : std/core/types/any) -> (std/core/pure :: E) (lvar :: V -> V)<a>;
+pub fun lvar[78,18,78,21] : forall<a> (init : a) -> (std/core/pure :: E) (lvar :: V -> V)<a>;
+pub fun put[81,9,81,11] : forall<a> (lvar : (lvar :: V -> V)<a>, x : a, monotonic-combine : (a, a) -> a) -> (std/core/pure :: E) ();
+pub fun get[84,9,84,11] : forall<a> (lvar : (lvar :: V -> V)<a>, bot : a, is-gte : (a, a) -> std/core/types/bool) -> (std/core/pure :: E) a;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline borrow "^" fun promise/promise // inline size: 0
+  = forall<a> fn(promise: (promise :: V -> V)<a>){
+    (match (promise) {
+      ((@skip std/os/task/Promise((@x: std/core/types/any) : std/core/types/any) : (promise :: V -> V)<a> ) as @pat: ((promise :: V -> V)<a>))
+         -> @x;
+    });
+  };
+fun promise/@copy // inline size: 2
+  = forall<a> fn(@this: (promise :: V -> V)<a>, promise: (std/core/types/@optional :: V -> V)<std/core/types/any>){
+    std/os/task/Promise<a>((match (promise) {
+      ((std/core/types/@OptArg((@uniq-promise@122: std/core/types/any) : std/core/types/any) : (std/core/types/@optional :: V -> V)<std/core/types/any> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/any>))
+         -> @uniq-promise@122;
+      ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/any> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/any>))
+         -> (match (@this) {
+          ((@skip std/os/task/Promise((@x: std/core/types/any) : std/core/types/any) : (promise :: V -> V)<a> ) as @pat@1: ((promise :: V -> V)<a>))
+             -> @x;
+        });
+    }));
+  };
+fun task-set-default-concurrency // inline size: 3
+  = fn<(std/core/io :: E)>(thread-count: std/core/types/int){
+    std/os/task/prim-task-set-default-concurrency((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/alloc :: H -> X)<(std/core/types/global :: H)>,(std/core/console/console :: X),(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>,(std/core/fsys :: X),(std/core/types/ndet :: X),(std/core/net :: X),(std/core/types/read :: H -> X)<(std/core/types/global :: H)>,(std/core/ui :: X),(std/core/types/write :: H -> X)<(std/core/types/global :: H)>> std/core/types/ssize_t>(std/core/int/ssize_t)(thread-count)));
+  };
+fun await // inline size: 3
+  = forall<a> fn<(std/core/pure :: E)>(p: (promise :: V -> V)<a>){
+    std/os/task/unsafe_await<a>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,(promise : (promise :: V -> V)<a>) -> std/core/types/any,(promise : (promise :: V -> V)<a>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/any>((fn(promise: (promise :: V -> V)<a>){
+      (match (promise) {
+        ((@skip std/os/task/Promise((@x: std/core/types/any) : std/core/types/any) : (promise :: V -> V)<a> ) as @pat: ((promise :: V -> V)<a>))
+           -> @x;
+      });
+    }))(p)));
+  };
+fun list/await // inline size: 1
+  = forall<a> fn<(std/core/pure :: E)>(ps: (std/core/types/list :: V -> V)<(promise :: V -> V)<a>>){
+    std/core/list/map<(promise :: V -> V)<a>,a,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(ps, (std/os/task/await<a>));
+  };
+fun parallel // inline size: 2
+  = forall<a> fn<(std/core/pure :: E)>(xs: (std/core/types/list :: V -> V)<() -> (std/core/pure :: E) a>){
+    val ps@10001[1,0,1,0] : (std/core/types/list :: V -> V)<(promise :: V -> V)<a>>
+          = std/core/list/map<() -> (std/core/pure :: E) a,(promise :: V -> V)<a>,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(xs, (std/os/task/task<a>));
+    std/core/list/map<(promise :: V -> V)<a>,a,<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>>(ps@10001, (std/os/task/await<a>));
+  };
+inline borrow "^" fun lvar/lv // inline size: 0
+  = forall<a> fn(lvar@0: (lvar :: V -> V)<a>){
+    (match (lvar@0) {
+      ((@skip std/os/task/Lvar((@x: std/core/types/any) : std/core/types/any) : (lvar :: V -> V)<a> ) as @pat: ((lvar :: V -> V)<a>))
+         -> @x;
+    });
+  };
+fun lvar/@copy // inline size: 2
+  = forall<a> fn(@this: (lvar :: V -> V)<a>, lv: (std/core/types/@optional :: V -> V)<std/core/types/any>){
+    std/os/task/Lvar<a>((match (lv) {
+      ((std/core/types/@OptArg((@uniq-lv@465: std/core/types/any) : std/core/types/any) : (std/core/types/@optional :: V -> V)<std/core/types/any> ) as @pat: ((std/core/types/@optional :: V -> V)<std/core/types/any>))
+         -> @uniq-lv@465;
+      ((@skip std/core/types/@NoOptArg() : (std/core/types/@optional :: V -> V)<std/core/types/any> ) as @pat@0: ((std/core/types/@optional :: V -> V)<std/core/types/any>))
+         -> (match (@this) {
+          ((@skip std/os/task/Lvar((@x: std/core/types/any) : std/core/types/any) : (lvar :: V -> V)<a> ) as @pat@1: ((lvar :: V -> V)<a>))
+             -> @x;
+        });
+    }));
+  };
+fun put // inline size: 3
+  = forall<a> fn<(std/core/pure :: E)>(lvar@0: (lvar :: V -> V)<a>, x: a, monotonic-combine: (a, a) -> a){
+    std/os/task/unsafe-put<a>((std/core/types/@open<(std/core/types/total :: E),<(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>>,(lvar : (lvar :: V -> V)<a>) -> std/core/types/any,(lvar : (lvar :: V -> V)<a>) -> <(std/core/types/div :: X),(std/core/types/handled :: ((E, V) -> V) -> X)<(std/core/exn/exn :: (E, V) -> V)>> std/core/types/any>((fn(lvar@0@0: (lvar :: V -> V)<a>){
+        (match (lvar@0@0) {
+          ((@skip std/os/task/Lvar((@x: std/core/types/any) : std/core/types/any) : (lvar :: V -> V)<a> ) as @pat: ((lvar :: V -> V)<a>))
+             -> @x;
+        });
+      }))(lvar@0)), x, monotonic-combine);
+  };
