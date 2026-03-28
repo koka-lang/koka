@@ -40,8 +40,8 @@ import Data.Hashable
 import Control.Monad          ( when )
 import Control.Concurrent     ( myThreadId )
 import qualified System.Info  ( os, arch )
-import System.Environment     ( getArgs )
-import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory, getTemporaryDirectory )
+import System.Environment     ( getArgs, lookupEnv )
+import System.Directory       ( doesFileExist, doesDirectoryExist, searchable, getHomeDirectory, getPermissions, getTemporaryDirectory, getXdgDirectory, XdgDirectory(XdgData) )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
@@ -61,6 +61,7 @@ import Core.Core( dataInfoIsValue )
 import qualified Type.Pretty as TP
 import System.IO (hPutStrLn, stderr)
 import Syntax.Pretty (PrettyEnv)
+
 
 prettyEnvFromFlags :: Flags -> TP.Env
 prettyEnvFromFlags flags
@@ -905,15 +906,39 @@ parseOptions flags0 opts
 getKokaBuildDir :: FilePath -> Bool -> IO FilePath
 getKokaBuildDir "" eval
   = if (eval)
-      then do exist <- doesDirectoryExist kkbuild
-              if (exist)
-                then return kkbuild
-                else do -- avoid the tmp directory as it does not always have execute permissions
-                        -- tmp <- getTemporaryDirectory
-                        -- instead use `$HOME/.koka` if in the interpreter
-                        home <- getHomeDirectory
-                        return (joinPath home kkbuild)
+      then do 
+        exist <- doesDirectoryExist kkbuild
+        if (exist)
+          then return kkbuild
+          else do -- avoid the tmp directory as it does not always have execute permissions
+                  -- tmp <- getTemporaryDirectory
+                  -- if in the interpreter, use the user-defined $KOKA_ROOT, if it doesn't exist
+                  -- fall back to `$XDG_DATA_HOME/kkbuild`
+                  root <- getEnvVar "KOKA_ROOT"
+                  if root /= "" then 
+                    return root
+                  else do
+                    dataDir <- getXdgDirectory XdgData ""
+                    dataDirExecutable <- isDirExecutable dataDir
+                    if dataDirExecutable then
+                      getXdgDirectory XdgData "koka"
+                    else do
+                      home <- getHomeDirectory
+                      let path = joinPath home kkbuild
+                      hPutStrLn stderr ("\nwarning: directory " ++ dataDir ++ " doesn't exist or doesn't have executable permissions. "
+                        ++ "\n    the directory '" ++ path ++ "' will be used as a substitute for the build directory")
+                      return path
+
       else return kkbuild
+    where
+        isDirExecutable :: FilePath -> IO Bool
+        isDirExecutable dir = do
+            dirExists <- doesDirectoryExist dir
+            if dirExists then do
+              dataDirPerms <- getPermissions dir
+              return (searchable dataDirPerms)
+            else return False
+
 getKokaBuildDir buildDir _ = return buildDir
 
 
