@@ -14,11 +14,13 @@
 module Platform.Console( setColor, setBackColor, setReverse, setUnderline
                        , withConsole, bracketConsole
                        , getProgramPath
+                       , termWrite, termWriteLn, termFlush, withTerm
                        ) where
 
 import Platform.Runtime( finally )
 import System.IO       ( hFlush, stdout )
 import Foreign.C.String( CString, peekCString )
+import System.Console.Isocline( withTerm, termWriteLn, termWrite, termFlush )
 
 setColor :: Enum c => c -> IO ()
 setColor c

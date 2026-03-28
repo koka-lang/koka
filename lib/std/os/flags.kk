@@ -310,19 +310,19 @@ fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
 
 fun error-ambiguous( applicable, opt )
   val header = "flag \"" ++ opt ++ "\" is ambiguous. It could be one of:"
-  Error( usage( applicable, header ) )
+  flags/Error( usage( applicable, header ) )
 
 fun error-required( help, opt )
-  Error( "flag \"" ++ opt ++ "\" requires an argument " ++ help)
+  flags/Error( "flag \"" ++ opt ++ "\" requires an argument " ++ help)
 
 fun error-negate( flagname )
-  Error( "flag \"--" ++ flagname ++ "\" cannot be negated" );
+  flags/Error( "flag \"--" ++ flagname ++ "\" cannot be negated" );
 
 fun error-noarg( opt )
-  Error( "flag \"" ++ opt ++ "\" does not take an argument")
+  flags/Error( "flag \"" ++ opt ++ "\" does not take an argument")
 
 fun error-unknown( opt )
-  Error( error-unknown-message(opt) )
+  flags/Error( error-unknown-message(opt) )
 
 fun error-unknown-message( opt )
   ( "unrecognized flag \"" ++ opt ++ "\"")

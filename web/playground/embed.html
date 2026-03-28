@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Koka Embeddable Editor — Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #333;
+      background: #fafafa;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        color: #ddd;
+        background: #1a1a1a;
+      }
+      h1, h2, h3 { color: #eee; }
+      a { color: #6db3f2; }
+    }
+
+    h1 { margin-bottom: 8px; }
+    h2 { margin-top: 40px; }
+    p { margin: 12px 0; }
+
+    koka-editor {
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Koka Embeddable Editor</h1>
+  <p>
+    Interactive Koka code examples that compile and run in the browser.
+    Each editor shares a single WASM compiler instance.
+  </p>
+
+  <h2>Hello World</h2>
+  <p>The classic first program — click <strong>▶ Run</strong> to compile and execute:</p>
+  <koka-editor>
+fun main()
+  println("Hello, Koka!")
+  </koka-editor>
+
+  <h2>Effects</h2>
+  <p>Koka tracks side effects in the type system. This example uses the <code>console</code> effect:</p>
+  <koka-editor>
+fun greet(name : string) : console ()
+  println("Hello, " ++ name ++ "!")
+
+fun main()
+  greet("World")
+  greet("Koka")
+  </koka-editor>
+
+  <h2>Pattern Matching</h2>
+  <p>Koka supports pattern matching on algebraic data types:</p>
+  <koka-editor>
+fun fibonacci(n : int) : div int
+  match n
+    0 -> 0
+    1 -> 1
+    _ -> fibonacci(n - 1) + fibonacci(n - 2)
+
+fun main()
+  list(0, 10).foreach fn(i)
+    println(fibonacci(i).show)
+  </koka-editor>
+
+  <h2>Read-Only Example</h2>
+  <p>This example is read-only (no editing, no run button):</p>
+  <koka-editor readonly>
+// Type inference example
+val xs = [1, 2, 3]      // xs : list<int>
+val ys = xs.map(show)    // ys : list<string>
+  </koka-editor>
+
+  <h2>Custom Function</h2>
+  <p>Examples with <code>fun test/...</code> or <code>fun example/...</code> are also runnable:</p>
+  <koka-editor>
+fun example/counter()
+  var count := 0
+  repeat(5)
+    count := count + 1
+    println("Count: " ++ count.show)
+  </koka-editor>
+
+  <script type="module" src="/src/embed/index.ts"></script>
+</body>
+</html>

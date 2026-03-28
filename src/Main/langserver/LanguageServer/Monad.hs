@@ -318,9 +318,17 @@ getColorScheme = colorScheme <$> getFlags
 maybeContents :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> FilePath -> Maybe (ByteString, FileTime)
 maybeContents vfs path = do
   -- trace ("Maybe contents " ++ show uri ++ " " ++ show (M.keys vfs)) $ return ()
-  let uri = J.toNormalizedUri $ J.filePathToUri path
-  (text, ftime, vers) <- M.lookup uri vfs
-  return (text, ftime)
+  -- Try file:// URI first (native LSP), then inmemory:// (browser playground)
+  let fileUri = J.toNormalizedUri $ J.filePathToUri path
+  case M.lookup fileUri vfs of
+    Just (text, ftime, _vers) -> Just (text, ftime)
+    Nothing ->
+      -- For browser playground: path like "/main.kk" should match "inmemory://playground/main.kk"
+      -- Try matching by suffix across all inmemory:// entries
+      let isMatch (_uri, _) = T.pack path `T.isSuffixOf` J.getUri (J.fromNormalizedUri _uri)
+      in case filter isMatch (M.toList vfs) of
+           ((_, (text, ftime, _)):_) -> Just (text, ftime)
+           _                         -> Nothing
 
 
 -- Run a build with optionally temporarily changed flags (this restores the original build context afterwards)

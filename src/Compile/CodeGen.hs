@@ -13,7 +13,7 @@ import Data.Maybe
 import Data.List
 import Data.Either
 import Control.Monad
-import System.Directory ( doesFileExist, doesDirectoryExist, createDirectoryIfMissing )
+import Platform.FileIO ( doesFileExist, doesDirectoryExist, createDirectoryIfMissing )
 
 import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, pathSep, sourceExtension )
 

@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.39.1.
+-- This file has been generated from package.yaml by hpack version 0.39.3.
 --
 -- see: https://github.com/sol/hpack
 
@@ -123,28 +123,15 @@ library
       Type.Type
       Type.TypeVar
       Type.Unify
-      Platform.Config
-      Platform.Console
-      Platform.Filetime
-      Platform.GetOptions
-      Platform.ReadLine
-      Platform.Runtime
-      Platform.Var
   other-modules:
       Paths_koka
   hs-source-dirs:
       src
-      src/Platform/cpp
   other-extensions:
       CPP
       OverloadedStrings
   ghc-options: -j8 -O2 -Wno-x-partial
   cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="3.2.4" -DREADLINE=0
-  include-dirs:
-      src/Platform/cpp/Platform
-  c-sources:
-      src/Platform/cpp/Platform/cconsole.c
-      src/Platform/cpp/Platform/cconsole.h
   build-tools:
       alex
   build-depends:
@@ -156,7 +143,6 @@ library
     , containers
     , directory
     , hashable >=1.4
-    , isocline >=1.0.6
     , mtl
     , parsec
     , process
@@ -167,6 +153,38 @@ library
     cpp-options: -DWINDOWS
   if os(darwin)
     cpp-options: -DDARWIN
+  if arch(wasm32)
+    exposed-modules:
+        Platform.Config
+        Platform.Console
+        Platform.FileIO
+        Platform.Filetime
+        Platform.GetOptions
+        Platform.ReadLine
+        Platform.Runtime
+        Platform.Var
+    hs-source-dirs:
+        src/Platform/wasm
+    cpp-options: -DKOKA_WASM
+  if !arch(wasm32)
+    exposed-modules:
+        Platform.Config
+        Platform.Console
+        Platform.FileIO
+        Platform.Filetime
+        Platform.GetOptions
+        Platform.ReadLine
+        Platform.Runtime
+        Platform.Var
+    hs-source-dirs:
+        src/Platform/cpp
+    include-dirs:
+        src/Platform/cpp/Platform
+    c-sources:
+        src/Platform/cpp/Platform/cconsole.c
+        src/Platform/cpp/Platform/cconsole.h
+    build-depends:
+        isocline >=1.0.6
 
 executable koka
   main-is: Main.hs
@@ -201,7 +219,6 @@ executable koka
     , containers
     , directory
     , hashable >=1.4
-    , isocline >=1.0.6
     , koka
     , lens
     , lsp
@@ -215,6 +232,56 @@ executable koka
     , text-rope
     , time
   default-language: Haskell2010
+  if arch(wasm32)
+    buildable: False
+
+executable koka-lsp-wasm
+  main-is: Main.hs
+  other-modules:
+      LanguageServer.Conversions
+      LanguageServer.Handler.CodeAction
+      LanguageServer.Handler.Commands
+      LanguageServer.Handler.Completion
+      LanguageServer.Handler.Definition
+      LanguageServer.Handler.DocumentSymbol
+      LanguageServer.Handler.Folding
+      LanguageServer.Handler.Hover
+      LanguageServer.Handler.InlayHints
+      LanguageServer.Handler.Pretty
+      LanguageServer.Handler.SignatureHelp
+      LanguageServer.Handler.TextDocument
+      LanguageServer.Handlers
+      LanguageServer.Monad
+      LanguageServer.Run
+      Paths_koka
+  hs-source-dirs:
+      src/Main/langserver
+  ghc-options: -O2
+  cpp-options: -DKOKA_WASM
+  build-depends:
+      FloatingHex >=0.5
+    , aeson
+    , array
+    , async
+    , base >=4.9
+    , bytestring
+    , co-log-core
+    , containers
+    , directory
+    , hashable >=1.4
+    , koka
+    , lens
+    , lsp
+    , mtl
+    , parsec
+    , process
+    , stm
+    , text
+    , text-rope
+    , time
+  default-language: Haskell2010
+  if !arch(wasm32)
+    buildable: False
 
 executable koka-plain
   main-is: Main.hs
@@ -232,7 +299,6 @@ executable koka-plain
     , containers
     , directory
     , hashable >=1.4
-    , isocline >=1.0.6
     , koka
     , mtl
     , parsec
@@ -240,6 +306,36 @@ executable koka-plain
     , text
     , time
   default-language: Haskell2010
+  if arch(wasm32)
+    buildable: False
+
+executable koka-playground
+  main-is: Main.hs
+  other-modules:
+      Paths_koka
+  hs-source-dirs:
+      src/Main/playground
+  ghc-options: -O2
+  build-depends:
+      FloatingHex >=0.5
+    , array
+    , async
+    , base >=4.9
+    , bytestring
+    , containers
+    , directory
+    , hashable >=1.4
+    , koka
+    , mtl
+    , parsec
+    , process
+    , text
+    , time
+  default-language: Haskell2010
+  if !arch(wasm32)
+    buildable: False
+  if arch(wasm32)
+    cpp-options: -DKOKA_WASM
 
 test-suite koka-test
   type: exitcode-stdio-1.0
@@ -262,7 +358,6 @@ test-suite koka-test
     , hashable >=1.4
     , hspec
     , hspec-core
-    , isocline >=1.0.6
     , json
     , mtl
     , parsec
@@ -271,3 +366,5 @@ test-suite koka-test
     , text
     , time
   default-language: Haskell2010
+  if arch(wasm32)
+    buildable: False

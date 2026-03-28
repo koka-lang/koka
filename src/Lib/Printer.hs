@@ -45,7 +45,7 @@ import qualified Data.Text.IO as T
 
 import Debug.Trace
 
-import System.Console.Isocline( withTerm, termWriteLn, termWrite, termFlush )
+import Platform.Console( termWrite, termWriteLn, termFlush )
 
 {--------------------------------------------------------------------------
   Printer

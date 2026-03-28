@@ -24,10 +24,11 @@ import Data.List        ( intersperse, replicate, sort )
 import Platform.Config  ( pathSep, pathDelimiter )
 import Common.Failure   ( raiseIO, catchIO )
 
-import System.Directory ( doesFileExist, doesDirectoryExist
-                        , getModificationTime, copyFile
+import System.Directory ( getModificationTime, copyFile
                         , getCurrentDirectory, getDirectoryContents
-                        , createDirectoryIfMissing, canonicalizePath
+                        , canonicalizePath )
+import Platform.FileIO  ( doesFileExist, doesDirectoryExist
+                        , createDirectoryIfMissing
                         , getHomeDirectory )
 import Common.File
 import Lib.Trace

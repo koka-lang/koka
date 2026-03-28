@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Koka Playground</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-primary:    #1e1e1e;
+      --bg-secondary:  #252526;
+      --bg-tertiary:   #2d2d2d;
+      --bg-toolbar:    #333333;
+      --border:        #3c3c3c;
+      --text-primary:  #d4d4d4;
+      --text-muted:    #858585;
+      --accent:        #0e639c;
+      --accent-hover:  #1177bb;
+      --success:       #4caf50;
+      --error:         #f44336;
+      --warning:       #ff9800;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', 'SF Pro Text', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    /* ── App shell ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px;
+      background: var(--bg-toolbar);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      height: 44px;
+      z-index: 10;
+    }
+
+    #toolbar .logo {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 0.02em;
+      margin-right: 4px;
+    }
+
+    #toolbar .logo span {
+      color: #569cd6;
+    }
+
+    #btn-run {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    #btn-run:hover:not(:disabled) { background: var(--accent-hover); }
+    #btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
+    #btn-run .icon { font-size: 11px; }
+
+    /* ── File browser toggle ── */
+    #btn-filebrowser {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+
+    #btn-filebrowser:hover,
+    #btn-filebrowser.active {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    /* ── Toolbar controls ── */
+    .toolbar-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .toolbar-label select {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 2px 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toolbar-label input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+
+    .toolbar-settings-wrapper {
+      position: relative;
+    }
+
+    .toolbar-settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .toolbar-settings-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .toolbar-settings-panel {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 0;
+      min-width: 220px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .settings-section {
+      padding: 4px 12px;
+    }
+
+    .settings-section + .settings-section {
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+      padding-top: 8px;
+    }
+
+    .settings-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .settings-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+      font-size: 12px;
+      color: var(--text-primary);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .settings-option input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+
+    .settings-option select {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 2px 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: auto;
+    }
+
+    #status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    #status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    #status-dot.loading  { background: var(--warning); animation: pulse 1s infinite; }
+    #status-dot.ready    { background: var(--success); }
+    #status-dot.error    { background: var(--error); }
+    #status-dot.running  { background: var(--warning); animation: pulse 0.5s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .spacer { flex: 1; }
+
+    /* ── Workspace (below toolbar, above compiler log) ── */
+    #workspace {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── File browser sidebar ── */
+    #file-browser-panel {
+      display: flex;
+      flex-direction: column;
+      width: 220px;
+      min-width: 140px;
+      max-width: 400px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      flex-shrink: 0;
+      overflow: hidden;
+      transition: width 0.2s ease;
+    }
+
+    #file-browser-panel.collapsed {
+      width: 0 !important;
+      min-width: 0;
+      border-right: none;
+    }
+
+    #file-browser-panel .panel-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 8px 12px 6px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    #file-browser-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* ── File browser tree styles ── */
+    .file-browser {
+      width: 100%;
+    }
+
+    .fb-section {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .fb-section-header {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      user-select: none;
+      background: var(--bg-secondary);
+    }
+
+    .fb-section-header:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .fb-arrow {
+      font-size: 10px;
+      width: 12px;
+      text-align: center;
+    }
+
+    .fb-section-title {
+      flex: 1;
+    }
+
+    .fb-empty {
+      padding: 4px 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .fb-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      font-size: 12px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      user-select: none;
+    }
+
+    .fb-item-clickable {
+      cursor: pointer;
+    }
+
+    .fb-item-clickable:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .fb-item-dir {
+      cursor: pointer;
+    }
+
+    .fb-item-dir:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .fb-item-active {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .fb-item-dimmed {
+      opacity: 0.5;
+    }
+
+    .fb-item-icon {
+      font-size: 10px;
+      flex-shrink: 0;
+      width: 14px;
+      text-align: center;
+    }
+
+    .fb-file-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .fb-js-icon {
+      font-size: 8px;
+      font-weight: 700;
+      color: #f0db4f;
+      line-height: 14px;
+      text-align: center;
+    }
+
+    .fb-item-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    /* ── Editor area (middle) ── */
+    #editor-area {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* ── Tab bar ── */
+    #tab-bar {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      height: 35px;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    #tab-bar::-webkit-scrollbar {
+      height: 3px;
+    }
+
+    #tab-bar::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+
+    #tab-bar::-webkit-scrollbar-thumb {
+      background: var(--border);
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      flex-shrink: 0;
+      white-space: nowrap;
+      user-select: none;
+      transition: color 0.1s;
+      min-width: 80px;
+      max-width: 180px;
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    .tab.active {
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .tab-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .tab-close {
+      font-size: 14px;
+      line-height: 1;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.1s;
+      flex-shrink: 0;
+      border-radius: 2px;
+      padding: 1px 2px;
+    }
+
+    .tab:hover .tab-close,
+    .tab.active .tab-close {
+      opacity: 1;
+    }
+
+    .tab-close:hover {
+      color: var(--error);
+      background: rgba(244, 67, 54, 0.15);
+    }
+
+    /* ── Editor panels row (source | handle | output) ── */
+    #editor-panels {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── Left pane: Koka source ── */
+    #pane-source {
+      display: flex;
+      flex-direction: column;
+      width: 50%;
+      min-width: 200px;
+    }
+
+    /* ── Right pane: JS output + program output ── */
+    #pane-output {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 150px;
+      overflow: hidden;
+    }
+
+    /* ── JS output sub-pane (top-right) ── */
+    #pane-js {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 80px;
+      overflow: hidden;
+    }
+
+    /* ── Execution output sub-pane (bottom-right) ── */
+    #pane-console {
+      display: flex;
+      flex-direction: column;
+      height: 180px;
+      min-height: 60px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    /* When JS pane is hidden, console fills the full height */
+    #pane-console.full-height {
+      height: auto;
+      flex: 1;
+    }
+
+    /* ── Pane header labels ── */
+    .pane-header {
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      flex-shrink: 0;
+      height: 28px;
+      user-select: none;
+    }
+
+    .pane-header-close {
+      margin-left: auto;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 4px;
+      border-radius: 2px;
+      color: var(--text-muted);
+    }
+
+    .pane-header-close:hover {
+      color: var(--error);
+      background: rgba(244, 67, 54, 0.15);
+    }
+
+    .pane-header-action {
+      margin-left: auto;
+      cursor: pointer;
+      font-size: 10px;
+      padding: 1px 6px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text-muted);
+    }
+
+    .pane-header-action:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    /* ── Monaco containers ── */
+    .editor-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Console / log output areas ── */
+    #console-output,
+    #compiler-log-output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 14px;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      background: var(--bg-primary);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    #console-output:empty::before {
+      content: "No output yet. Press Compile & Run to execute your program.";
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    #compiler-log-output:empty::before {
+      content: "Compiler messages will appear here.";
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    #compiler-log-output {
+      background: var(--bg-tertiary);
+      color: #a0a0c0;
+      font-size: 11px;
+    }
+
+    .console-line { display: block; }
+    .console-line.stdout { color: var(--text-primary); }
+    .console-line.stderr { color: #f48771; }
+    .console-line.info   { color: #9cdcfe; }
+    .console-line.separator {
+      color: var(--border);
+      border-top: 1px solid var(--border);
+      margin: 4px 0;
+      font-size: 0;
+      height: 0;
+    }
+
+    /* ── Horizontal resize handle (source | output split) ── */
+    #resize-handle-h {
+      width: 4px;
+      background: var(--border);
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    #resize-handle-h:hover,
+    #resize-handle-h.dragging {
+      background: var(--accent);
+    }
+
+    /* ── Vertical resize handle (JS output | console split) ── */
+    #resize-handle-v {
+      height: 4px;
+      background: var(--border);
+      cursor: row-resize;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    #resize-handle-v:hover,
+    #resize-handle-v.dragging {
+      background: var(--accent);
+    }
+
+    /* ── File-browser resize handle ── */
+    #resize-handle-fb {
+      width: 4px;
+      background: var(--border);
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    #resize-handle-fb:hover,
+    #resize-handle-fb.dragging {
+      background: var(--accent);
+    }
+
+    /* ── Compiler log bottom bar ── */
+    #compiler-log-area {
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--bg-tertiary);
+    }
+
+    #compiler-log-area.collapsed #compiler-log-body {
+      display: none;
+    }
+
+    #compiler-log-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      user-select: none;
+      flex-shrink: 0;
+      height: 26px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #compiler-log-toggle:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+
+    #compiler-log-toggle-arrow {
+      font-size: 10px;
+    }
+
+    .compiler-log-progress {
+      margin-left: 12px;
+      display: inline-flex;
+      gap: 6px;
+      font-weight: 400;
+      font-size: 10px;
+      color: var(--warning);
+    }
+
+    .compiler-log-progress-pct {
+      min-width: 32px;
+      text-align: right;
+    }
+
+    #compiler-log-body {
+      display: flex;
+      flex-direction: column;
+      height: 120px;
+      min-height: 40px;
+      overflow: hidden;
+    }
+
+    /* ── Compiler log vertical resize handle ── */
+    #resize-handle-log {
+      height: 4px;
+      background: var(--border);
+      cursor: row-resize;
+      flex-shrink: 0;
+      order: -1; /* sits above the log body */
+      transition: background 0.15s;
+    }
+
+    #resize-handle-log:hover,
+    #resize-handle-log.dragging {
+      background: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

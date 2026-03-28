@@ -36,6 +36,7 @@ module Common.Range
 import Lib.PPrint( Pretty(pretty), text )
 import Common.File(relativeToPath)
 import Common.Failure( assertion, catchIO, HasCallStack )
+import Platform.FileIO( readTextFile )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T (Text, pack, unpack)
@@ -62,7 +63,16 @@ stringToBString str = T.encodeUtf8 (T.pack str)
 
 readInput :: HasCallStack => FilePath -> IO BString
 readInput fname
-  = do input <- B.readFile fname `catchIO` (\err -> error ("unable to read " ++ fname))
+  = do input <- (B.readFile fname
+                  `catchIO` (\_ ->
+                    -- B.readFile failed (e.g. on JS/WASM where ByteString.readFile
+                    -- may not have access to the virtual filesystem). Fall back to
+                    -- reading via the platform VFS and re-encoding as UTF-8.
+                    do mb <- readTextFile fname
+                       case mb of
+                         Just s  -> return (T.encodeUtf8 (T.pack s))
+                         Nothing -> error ("unable to read " ++ fname)))
+                `catchIO` (\err -> error ("unable to read " ++ fname))
        -- input <- withBinaryFile fname ReadMode $ \h -> B.hGetContents h
        -- trace ("input bytes: " ++ show (map (\c -> showHex (fromEnum c) "") (take 400 (BC.unpack input)))) $
        case BC.unpack $ B.take 3 input of
