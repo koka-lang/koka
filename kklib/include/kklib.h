@@ -363,9 +363,13 @@ static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
   #else
     #include "../mimalloc/include/mimalloc.h"
   #endif
-  typedef mi_heap_t* kk_heap_t;
+  #if MI_MALLOC_VERSION < 3000
+  typedef mi_heap_t*  kk_heap_t;
+  #else
+  typedef mi_theap_t* kk_heap_t;
+  #endif
 #else
-  typedef void*      kk_heap_t;
+  typedef void*       kk_heap_t;
 #endif
 
 // A function has as its first field a pointer to a C function that takes the
@@ -498,6 +502,7 @@ kk_decl_export kk_datatype_ptr_t kk_evv_empty_singleton(kk_context_t* ctx);
 --------------------------------------------------------------------------------------*/
 
 #ifdef KK_MIMALLOC
+#if MI_MALLOC_VERSION < 3000
 #ifdef KK_MIMALLOC_INLINE
   static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
     return kk_mi_heap_malloc_small_inline(ctx->heap, (size_t)sz);
@@ -521,6 +526,28 @@ static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
   kk_unused(ctx);
   return mi_heap_realloc(ctx->heap, p, (size_t)sz);
 }
+
+#else
+// mimalloc v3
+static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
+  return mi_theap_malloc_small(ctx->heap, (size_t)sz);
+}
+
+static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
+  return mi_theap_malloc(ctx->heap, (size_t)sz);
+}
+
+static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return mi_theap_zalloc(ctx->heap, (size_t)sz);
+}
+
+static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
+  kk_unused(ctx);
+  return mi_theap_realloc(ctx->heap, p, (size_t)sz);
+}
+
+#endif
 
 static inline void kk_free(const void* p, kk_context_t* ctx) {
   // mi_unsafe_free_with_threadid((void*)p, ctx->thread_id);

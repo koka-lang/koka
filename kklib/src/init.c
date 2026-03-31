@@ -295,7 +295,11 @@ kk_context_t* kk_get_context(void) {
   kk_assert_internal(arena != 0 && arena_start != NULL);
   mi_heap_t* heap = mi_heap_new_in_arena(arena);
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
+  #if MI_MALLOC_VERSION < 3000
   kk_assign_const(kk_heap_t,ctx->heap) = heap;
+  #else
+  kk_assign_const(kk_heap_t,ctx->heap) = mi_heap_theap(heap);
+  #endif
   kk_assign_const(void*, ctx->heap_start) = arena_start;
   kk_addr_t arena_start_addr;
   #if KK_CHERI
@@ -305,9 +309,15 @@ kk_context_t* kk_get_context(void) {
   #endif
   kk_assign_const(kk_addr_t, ctx->heap_mid) = arena_start_addr + (kk_addr_t)(arena_size / 2);
 #elif defined(KK_MIMALLOC)
-  mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
+  #if MI_MALLOC_VERSION < 3000
+  mi_heap_t* heap = mi_heap_get_default(); // mi_heap_new();
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   kk_assign_const(kk_heap_t, ctx->heap) = heap;
+  #else
+  mi_theap_t* theap = mi_theap_get_default();
+  ctx = (kk_context_t*)mi_theap_zalloc(theap, sizeof(kk_context_t));
+  kk_assign_const(kk_heap_t, ctx->heap) = theap;
+  #endif
 #else
   ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t), NULL);
 #endif
