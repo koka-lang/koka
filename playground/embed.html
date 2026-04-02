@@ -32,8 +32,8 @@
       margin: 16px 0;
     }
   </style>
-  <script type="module" crossorigin src="./assets/embed-BEUiRVBP.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/module-runner-CjaZsI3A.js">
+  <script type="module" crossorigin src="./assets/embed-BpYMOOC-.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/module-runner-CP8sHlqD.js">
 </head>
 <body>
   <h1>Koka Embeddable Editor</h1>
@@ -80,6 +80,19 @@ fun main()
 // Type inference example
 val xs = [1, 2, 3]      // xs : list<int>
 val ys = xs.map(show)    // ys : list<string>
+  </koka-editor>
+
+  <h2>Exception Handling</h2>
+  <p>This example throws and catches an exception. Check that the default handler wraps correctly:</p>
+  <koka-editor>
+fun might-fail(x: int): exn string
+  if x &lt; 0 then throw("negative: " ++ x.show)
+  else "ok: " ++ x.show
+
+fun main()
+  println(might-fail(42))
+  println(might-fail(-1))
+  println("unreachable")
   </koka-editor>
 
   <h2>Custom Function</h2>

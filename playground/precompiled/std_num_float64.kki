@@ -418,7 +418,7 @@ pub fip extern (%)[144,23,144,25] : (x : std/core/types/float64, y : std/core/ty
 pub fip extern (~)[165,23,165,25] : (f : std/core/types/float64) -> std/core/types/float64 = inline "(-#1)";
 // convert a `:float64` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
-// Returns `0` if the argument is not `finite?`.
+// Returns `0` if `is-finite` returns `False``.
 pub extern int[171,19,171,21] : (f : std/core/types/float64) -> std/core/types/int {
   c inline "kk_integer_from_double(#1,kk_context())";
   cs inline "Primitive.IntDouble(#1)";

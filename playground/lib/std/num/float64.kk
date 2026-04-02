@@ -167,7 +167,7 @@ pub inline fip extern (~)( f : float64 ) : float64
 
 // convert a `:float64` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
-// Returns `0` if the argument is not `finite?`.
+// Returns `0` if `is-finite` returns `False``.
 pub inline extern int( f : float64 ) : int
   c  "kk_integer_from_double"
   cs "Primitive.IntDouble"
