@@ -64,7 +64,9 @@ compileToJS flags0 moduleName sourceText = do
   (mbResult, _) <- runBuildIO term flags False $ do
     let buildc0 = buildcEmpty flags
     withVirtualModule sourcePath content buildc0 $ \mainModName buildc1 ->
-      do buildc2 <- buildcBuildEx False [] [] buildc1
+      do let [root] = buildcRoots buildc1
+         let entryStr = if null (mainEntryName flags) then "main" else mainEntryName flags
+         (buildc2, entryInfo) <- buildcCompileEntry False (qualify root (newName entryStr)) buildc1
          buildcThrowOnError buildc2
          return (buildc2, ())
   errs <- readIORef errRef

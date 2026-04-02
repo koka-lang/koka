@@ -161,9 +161,9 @@ async function compileWithLsp(
   try {
     const filePath = '/' + moduleName.replace(/\./g, '/') + '.kk';
     const args: string[] = [`-v${verbosity}`];
-    if (entryFunction && entryFunction !== 'main') args.push(`--main-entry=${entryFunction}`);
+    const entryfn = entryFunction || 'main';
     const extraArgs = args.join(' ');
-    const result = await refs.current.lspHandle.compile(filePath, extraArgs);
+    const result = await refs.current.lspHandle.compile(filePath, entryfn, extraArgs);
     if (!result.success) return null;
     for (const [path, content] of result.generatedFiles) {
       refs.current.vfs.addFile('/.koka/' + path, content);

@@ -147,14 +147,15 @@ export async function compileViaLsp(
   client: MonacoLanguageClient,
   reader: WorkerMessageReader,
   filePath: string,
+  fnName: string,
   additionalArgs: string = '',
 ): Promise<LspCompileResult> {
   // Snapshot the set of known IDs before the request so we can identify the new one after
   const idsBefore = new Set(reader.pendingGeneratedFiles.keys());
 
   const result = await client.sendRequest(ExecuteCommandRequest.type, {
-    command: 'koka/compile',
-    arguments: [filePath, additionalArgs],
+    command: 'koka/compileFunction',
+    arguments: [filePath, fnName, additionalArgs],
   });
 
   // Find the response ID that appeared after our request
@@ -178,7 +179,7 @@ export async function compileViaLsp(
 export interface LspClientHandle {
   client: MonacoLanguageClient;
   /** Compile a file via the LSP and return generated files */
-  compile: (filePath: string, additionalArgs?: string) => Promise<LspCompileResult>;
+  compile: (filePath: string, fnName: string, additionalArgs?: string) => Promise<LspCompileResult>;
 }
 
 /**
@@ -333,7 +334,7 @@ export async function startLspClient(
 
   return {
     client,
-    compile: (filePath: string, additionalArgs?: string) =>
-      compileViaLsp(client, reader, filePath, additionalArgs ?? ''),
+    compile: (filePath: string, fnName: string, additionalArgs?: string) =>
+      compileViaLsp(client, reader, filePath, fnName, additionalArgs ?? ''),
   };
 }

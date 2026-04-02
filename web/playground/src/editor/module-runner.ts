@@ -1,4 +1,4 @@
-/**
+ /**
  * module-runner.ts
  *
  * Loads and executes Koka-generated ES modules in the browser using blob URLs.
@@ -11,7 +11,7 @@
  * topological order (dependencies before dependents).
  */
 
-import { kokaIdentToJsExport } from './koka-lang';
+import { kokaIdentToJsExport, kokaModuleToFilename } from './koka-lang';
 
 /** Map of filename (e.g. "std_core.mjs") to JS source text. */
 interface ModuleSet {
@@ -53,9 +53,12 @@ export async function runKokaModules(
     allModules[normalizeName(path)] = code;
   }
 
-  const mainFilename = mainModuleName.endsWith('.mjs')
-    ? mainModuleName
-    : mainModuleName + '.mjs';
+  // Use the @main wrapper module (which installs default exception handler)
+  // rather than the raw user module.
+  const mainWrapperFilename = kokaModuleToFilename(mainModuleName) + '__main.mjs';
+  const mainFilename = allModules[mainWrapperFilename]
+    ? mainWrapperFilename
+    : (mainModuleName.endsWith('.mjs') ? mainModuleName : mainModuleName + '.mjs');
 
   if (!allModules[mainFilename]) {
     onError(`No module named "${mainFilename}" found in generated output.`);
@@ -157,12 +160,16 @@ export async function runKokaModules(
 
   try {
     const mod = await import(/* @vite-ignore */ blobUrls[mainFilename]);
-    // Determine which export to call.
-    // Koka's asciiEncode for exports (isModule=false): '/' → '_fs_', '-' → '_dash_', '_' → '__'
-    const fnName = entryFunction ? kokaIdentToJsExport(entryFunction) : 'main';
-    const fn = mod[fnName] ?? mod.main;
-    if (typeof fn === 'function') {
-      await fn();
+    // The @main wrapper module runs _main($std_core.id) at import time,
+    // which installs the default exception handler. For 'main' entry,
+    // no explicit call is needed. For custom entry functions (example/*, test/*),
+    // we call the export explicitly.
+    if (entryFunction && entryFunction !== 'main') {
+      const fnName = kokaIdentToJsExport(entryFunction);
+      const fn = mod[fnName] ?? mod['_' + fnName];
+      if (typeof fn === 'function') {
+        await fn();
+      }
     }
 
     // Collect output from the DOM element (Koka browser runtime writes there)
