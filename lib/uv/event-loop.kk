@@ -26,7 +26,9 @@ pub extern clear-timeout( tid : any) : io-noexn ()
 
 // Runs an async action on the default uv event loop, and exceptions at the top level exit the async loop.
 pub fun default-async-uv(action: () -> <async,io> a): io a
-  val result = ref(Error(Exception("Unreachable", ExnInternal("Unreachable"))))
+  val result = ref(Error(Exception(
+    "uv event loop returned without fully executing koka code (missing callback or deadlock?)"
+    , ExnInternal("Unreachable"))))
   val _ =
     with default-event-loop
     with @default-async

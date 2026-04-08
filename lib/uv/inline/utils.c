@@ -187,9 +187,9 @@ static kk_uv_utils__uv_status_code kk_uv_status_to_status_code(int32_t status, k
 }
 
 // Map a libuv status code to a Koka Error value with uv status code enum
-kk_std_core_exn__error kk_uv_async_error_from_errno( int err, kk_context_t* _ctx ) {
+kk_std_core_exn__error kk_uv_error_from_errno( int err, kk_context_t* _ctx ) {
   kk_uv_utils__uv_status_code code = kk_uv_status_to_status_code(err, _ctx);
   kk_string_t msg = kk_uv_utils_message(code, _ctx);
-  return kk_std_core_exn__new_Error( kk_std_core_exn__new_Exception( msg, kk_uv_utils__new_AsyncExn(kk_reuse_null, 0, code, _ctx), _ctx), _ctx );
+  return kk_std_core_types__new_Error( kk_std_core_exn__exception_box(kk_std_core_exn__new_Exception( msg, kk_uv_utils__new_AsyncExn(kk_reuse_null, 0, code, _ctx), _ctx), _ctx), _ctx );
 }
 #endif
