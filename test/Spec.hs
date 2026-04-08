@@ -15,6 +15,7 @@ import Text.JSON
 import Test.Hspec
 import Test.Hspec.Core.Runner
 import Test.Hspec.Core.Formatters hiding (Error)
+import qualified NameSpec(spec)
 
 commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
@@ -250,6 +251,8 @@ processOptions arg (options,hargs)
       then (options{target="js"}, hargs)
     else if (arg == "--target-c64c")
       then (options{target="c64c"}, hargs)
+    else if (arg == "--names")
+      then (options{target="names"}, hargs)
     else if (arg == "--seq")
       then (options{par=False}, hargs)
     else if (arg == "--rebuild" || arg == "-r")
@@ -284,8 +287,10 @@ main = do
   runKoka stdcfg "" "test/lazy/queue/bankers.kk"
   runKoka stdcfg{flags = "--target=js":(flags stdcfg)} "" "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
-  let spec = (if (target options == "js" || not (par options)) then id else parallel) $
-             discoverTests cfg (pwd </> "test")
+  let spec = if target options == "names"
+               then NameSpec.spec
+               else (if (target options == "js" || not (par options)) then id else parallel) $
+                    discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
 

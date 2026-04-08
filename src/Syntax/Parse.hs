@@ -226,7 +226,6 @@ expression name
     do e <- aexpr
        let r = getRange e
        return (Def (ValueBinder (unqualify name) () (Lam [] e False r) r r)  r Public (DefFun [] noFip) InlineNever ""
-              -- ,Def (ValueBinder (prepend ".eval" name) () (Lam [] (App (Var nameGPrint False r) [Var name False r] r)))
               )
 
 userType :: Name -> LexParser UserTypeDef

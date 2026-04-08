@@ -184,7 +184,7 @@ synGeneralUnary modName generalName doc info (evar, effectTp) resultTp mkBranche
       selfArg     = if all isAlphaNum (show dataName) then dataName else newName "this"
       tVarName tv = toImplicitParamName (newLocallyQualified "" (nameStem $ tpVarName tv) (nameStem generalName))
       starTVs     = map (\tv -> TpVar (showTV tv) drng) $ filter isStarTypeVar tyParams
-      tvArgs      = zipWith (\i x -> (tVarName x, TpFun [(prepend "tv" (tpVarName x), x)] effectTp (resultTp (False, x, i)) rangeNull)) [0..] starTVs
+      tvArgs      = zipWith (\i x -> (tVarName x, TpFun [(prependRaw "tv" (tpVarName x), x)] effectTp (resultTp (False, x, i)) rangeNull)) [0..] starTVs
       tvBinds     = map (\(x, tp) -> mkBindt x tp drng) tvArgs
       fullTp      = tpForall (tpParams ++ [effectTp]) $ TpFun ((selfArg,dataTp):tvArgs) effectTp (resultTp (True, dataTp, 0)) rangeNull
       showExpr    = Ann (Lam (mkBindt selfArg dataTp drng:tvBinds) caseExpr True drng) fullTp drng
@@ -229,7 +229,7 @@ synOverloaded modName generalName info = do
     let crng = conInfoRange con
         patterns              = [(Nothing,pVar fld crng) | fld <- fields]
         defs                  = map (\f@(isFunc,(fldNm,fldTp)) ->
-                                    Def (ValueBinder (prepend "rec" fldNm) () (recur (Var fldNm False crng) fldTp) crng crng) crng Private DefVal InlineAlways ""
+                                    Def (ValueBinder (prependRaw "rec" fldNm) () (recur (Var fldNm False crng) fldTp) crng crng) crng Private DefVal InlineAlways ""
                                   ) fields
         pVar fld rng          = PatVar (ValueBinder (fst (snd fld)) Nothing (PatWild rng) rng rng)
         conMatch              = PatCon (conInfoName con) patterns crng crng
@@ -306,8 +306,8 @@ synBinaryOp modName generalName isOp doc info (evar, effectTp) resultTp defaultB
       dataTp      = TpApp (TpCon dataName drng) tpParams drng
       tVarName tv = toImplicitParamName (newLocallyQualified "" (nameStem (tpVarName tv)) (nameStem generalName))
       tvArgs      = map (\x -> (tVarName x, TpFun
-                          [(prepend "this" (tpVarName x), x),
-                           (prepend "other" (tpVarName x), x)] effectTp (resultTp x) rangeNull))
+                          [(prependRaw "this" (tpVarName x), x),
+                           (prependRaw "other" (tpVarName x), x)] effectTp (resultTp x) rangeNull))
                       starTVs
       tvBinds     = map (\(x, t) -> mkBindt x t drng) tvArgs
       fullTp      = tpForall (tpParams ++ [effectTp]) $ TpFun ((selfArg,dataTp):(otherArg,dataTp):tvArgs) effectTp (resultTp dataTp) rangeNull
@@ -354,14 +354,14 @@ synEquality modName info = do
   return $ synBinaryOp modName nameEq True doc info (evar, TpVar (newName "e") rangeNull) (const tpBool) defaultBranch $ \_ _ con recur fields ->
       let crng = conInfoRange con
           pVar :: (Bool, (Name, UserType)) -> String -> Pattern UserType
-          pVar fld postfix     = if fst fld then PatVar (ValueBinder (postpend postfix (fst (snd fld))) Nothing (PatWild crng) crng crng)
+          pVar fld postfix     = if fst fld then PatVar (ValueBinder (postpendRaw postfix (fst (snd fld))) Nothing (PatWild crng) crng crng)
                                 else PatWild crng
           patternsL           = [(Nothing,pVar fld "") | fld <- fields]
-          patternsR           = [(Nothing,pVar fld "'") | fld <- fields]
+          patternsR           = [(Nothing,pVar fld "0") | fld <- fields]
           andOp               = Var (newName "&&") True crng
           andExpr expr1 expr2 = App andOp [(Nothing, expr1), (Nothing, expr2)] crng
           nonFunctionFields   = map snd (filter fst fields)
-          eqField(fldN, fldT) = recur (Var fldN False crng) (Var (postpend "'" fldN) False crng) fldT
+          eqField(fldN, fldT) = recur (Var fldN False crng) (Var (postpendRaw "0" fldN) False crng) fldT
           varExprs            = map eqField nonFunctionFields
           branchExpr = case varExprs of
             [] -> litBool True crng
@@ -385,13 +385,13 @@ synOrd modName info = do
   return $ synBinaryOp modName nameCmp False doc info (evar, TpVar (newName "e") rangeNull) (const tpOrder) [] $ \idx _ con recur fields ->
       let crng = conInfoRange con
           pVar :: (Bool, (Name, UserType)) -> String -> Pattern UserType
-          pVar fld postfix     = if fst fld then PatVar (ValueBinder (postpend postfix (fst (snd fld))) Nothing (PatWild crng) crng crng)
+          pVar fld postfix     = if fst fld then PatVar (ValueBinder (postpendRaw postfix (fst (snd fld))) Nothing (PatWild crng) crng crng)
                                 else PatWild crng
           patternsL           = [(Nothing,pVar fld "") | fld <- fields]
-          patternsR           = [(Nothing,pVar fld "'") | fld <- fields]
+          patternsR           = [(Nothing,pVar fld "0") | fld <- fields]
           nonFunctionFields   = map snd (filter fst fields)
-          cmpField(fldN, fldT) = recur (Var fldN False crng) (Var (postpend "'" fldN) False crng) fldT
-          binderNeqName nm       = (prepend (nameStem nm) $ newName "_order")
+          cmpField(fldN, fldT) = recur (Var fldN False crng) (Var (postpendRaw "0" fldN) False crng) fldT
+          binderNeqName nm       = (postpendRaw "_order" nm)
           binderNeqPat nm        = ValueBinder (binderNeqName nm)  Nothing (PatWild crng) crng crng
           branchExpr' [field]                = cmpField field
           branchExpr' (field@(nm,tp):fields) = Case (cmpField field) [
@@ -429,19 +429,19 @@ synOrder2 modName info = do
       tpOrder2 tp = TpApp (TpCon nameOrd2 drng) [tp] drng
   return $ synBinaryOp modName nameOrder2 False doc info (evar, TpVar (newName "e") rangeNull) tpOrder2 [] $ \idx dataTp con recur fields ->
       let crng = conInfoRange con
-          varN fld postfix     = postpend postfix (fst (snd fld))
+          varN fld postfix     = postpendRaw postfix (fst (snd fld))
           pVar :: (Bool, (Name, UserType)) -> String -> Pattern UserType
           pVar fld postfix     = if fst fld then PatVar (ValueBinder (varN fld postfix) Nothing (PatWild crng) crng crng)
                                 else PatWild crng
           patternsL           = [(Nothing,pVar fld "") | fld <- fields]
           patternsR           = [(Nothing,pVar fld "'") | fld <- fields]
           nonFunctionFields   = map snd (filter fst fields)
-          order2Field(fldN, fldT) = recur (Var fldN False crng) (Var (postpend "'" fldN) False crng) fldT
-          patEqName nm       = (prepend (nameStem nm) $ newName "_eq")
-          patLtLName nm       = (prepend (nameStem nm) $ newName "_lt")
-          patLtRName nm       = (prepend (nameStem nm) $ newName "_gt")
-          patGtLName nm       = (prepend (nameStem nm) $ newName "_lt")
-          patGtRName nm       = (prepend (nameStem nm) $ newName "_gt")
+          order2Field(fldN, fldT) = recur (Var fldN False crng) (Var (postpendRaw "'" fldN) False crng) fldT
+          patEqName nm       = (postpendRaw "_eq" nm)
+          patLtLName nm       = (postpendRaw "_lt" nm)
+          patLtRName nm       = (postpendRaw "_gt" nm)
+          patGtLName nm       = (postpendRaw "_lt" nm)
+          patGtRName nm       = (postpendRaw "_gt" nm)
           constr args         = App (Var (conInfoName con) False crng) (map (\nm -> (Nothing, Var nm False crng)) args) crng
           patEq nm            = PatCon nameOrd2Eq [(Just (patEqName nm, crng), PatWild crng)] crng crng
           patLt nm            = PatCon nameOrd2Lt [(Just (patLtLName nm, crng), PatWild crng), (Just (patLtRName nm, crng), PatWild crng)] crng crng
@@ -449,7 +449,7 @@ synOrder2 modName info = do
           patOther' = PatVar (ValueBinder (newName "other'") Nothing (PatWild crng) crng crng)
           patThis' = PatVar (ValueBinder (newName "this'") Nothing (PatWild crng) crng crng)
           varNThis fld         = fst fld
-          varNOther fld         = postpend "'" (fst fld)
+          varNOther fld         = postpendRaw "'" (fst fld)
           branchExpr' [] eqFields                = App litEq [(Nothing, constr (reverse eqFields))] crng
           branchExpr' (field@(nm,tp):fields) eqFields = Case (order2Field field) [
                                                   Branch (patEq nm) [Guard guardTrue (branchExpr' fields (patEqName nm:eqFields))],

@@ -1191,11 +1191,11 @@ ppVis _       = empty
 -- | Returns the type constructor class name, for "List" it would be ".List"
 typeConClassName :: Name -> Name
 typeConClassName name
-  = name -- postpend "." (prepend "." name)
+  = name
 
 typeClassName :: Name -> Name
 typeClassName name
-  = (prepend "@" name)  -- prepend . to create separate namespace
+  = (prependRaw "@" name)
 
 ppDefName :: Name -> Doc
 ppDefName name
@@ -1222,8 +1222,8 @@ genLambda :: [TName] -> Effect -> Expr -> Asm Doc
 genLambda params eff body
   = do funName <- newDefVarName "fun"
        toH     <- getDefToHeader
-       let newName   = prepend "new-" funName
-           funTpName = postpend "_t" funName
+       let newName   = prependRaw "new-" funName
+           funTpName = postpendRaw "_t" funName
            structDoc = text "struct" <+> ppName funTpName
            freeVars  = [(nm,tp) | (TName nm tp) <- tnamesList (freeLocals (Lam params eff body))]
 
@@ -2505,7 +2505,7 @@ newDefVarName :: String -> Asm Name
 newDefVarName s
   = do env <- getEnv
        u <- unique
-       return $ postpend ("-" ++ s ++ show u) (cdefName env)
+       return $ postpendRaw ("-" ++ s ++ show u) (cdefName env)
 
 getPrettyEnv :: Asm Pretty.Env
 getPrettyEnv

@@ -380,13 +380,13 @@ ppParams ctx params
 -- | Returns the type constructor class name, for "List" it would be ".List"
 typeConClassName :: Name -> Name
 typeConClassName name
-  = postpend "." (prepend "." name)
+  = postpendRaw "." (prependRaw "." name)
 
 conClassName, typeClassName :: Name -> Name
 typeClassName name
-  = prepend "." name
+  = prependRaw "." name
 conClassName name
-  = postpend "." name
+  = postpendRaw "." name
 
 
 ---------------------------------------------------------------------------------
@@ -1739,7 +1739,7 @@ withAssign f asm
 genName :: Name -> Asm Name
 genName name
   = do i <- unique
-       return (postpend ("." ++ show i) name)
+       return (postpendRaw ("." ++ show i) name)
 
 -- non-proper morphisms
 

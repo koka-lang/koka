@@ -46,11 +46,11 @@ data RangeMap = RM ![(Range,RangeInfo)]
 
 mangleConName :: Name -> Name
 mangleConName name
-  = prepend "con " name
+  = prependRaw "con " name
 
 mangleTypeName :: Name -> Name
 mangleTypeName name
-  = prepend "type " name
+  = prependRaw "type " name
 
 mangle :: Name -> Type -> Name
 mangle name tp

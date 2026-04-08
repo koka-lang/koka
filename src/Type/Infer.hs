@@ -1801,7 +1801,7 @@ inferBranch patkind propagated matchType matchRange matchedNames branch@(Branch 
                   [] -> return ()
                   (name:_) -> do env <- getPrettyEnv
                                  infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
-                                                                text " hint: prepend an underscore to make it a wildcard pattern")
+                                                                text " hint: start with an underscore to make it a wildcard pattern")
           return (Core.Branch [pcore] gcores)
     )
     $ \infGamma ->
@@ -1829,7 +1829,7 @@ inferBranch patkind propagated matchType matchRange matchedNames branch@(Branch 
            [] -> return ()
            (name:_) -> do env <- getPrettyEnv
                           infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
-                                                       text " hint: prepend an underscore to make it a wildcard pattern")
+                                                       text " hint: start with an underscore to make it a wildcard pattern")
          return (btp,beff,resCore)
          -}
   where

@@ -39,7 +39,7 @@ module Type.Type (-- * Types
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
                   , extractOrderedEffect
-                  , orderEffect, labelName, labelNameFull, labelNameEx
+                  , orderEffect, labelName, labelNameEx
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
                   , typeDivergent, typeTotal, typePartial, typePure
@@ -590,11 +590,6 @@ extractOrderedEffect tp
 labelName :: Tau -> Name
 labelName tp
   = let (name,_,_) = (labelNameEx tp) in name
-
-labelNameFull :: Tau -> Name
-labelNameFull tp
-  = let (name,i,_) = labelNameEx tp
-    in postpend ("$" ++ show i) name
 
 
 

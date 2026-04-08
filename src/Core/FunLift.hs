@@ -232,7 +232,7 @@ makeDef fvs tvs (pinfos, (origName, (expr, doc)))
           _ -> failure $ ("Core.FunLift.makeDef: lifting non-function? " ++ show expr)
 
     unwild (TName name tp)
-      = TName (if isWildcard name then prepend "wild" name else name) tp
+      = TName (if isWildcard name then unWildcard name else name) tp
 
     alltpars = tvs ++ tpars
     allpars  = fvs ++ pars

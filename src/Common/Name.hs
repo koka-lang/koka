@@ -50,7 +50,9 @@ module Common.Name
           , toImplicitParamName, isImplicitParamName, splitImplicitParamName
           , fromImplicitParamName
 
-          , prepend, postpend
+          -- , prepend, postpend
+          , prependRaw, postpendRaw
+          , isSymbolName
           , asciiEncode, moduleNameToPath, pathToModuleName
           -- , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
 
@@ -209,14 +211,11 @@ isIdStartChar c
 
 isIdEndChar :: Char -> Bool
 isIdEndChar c
-  = isIdChar c || c == '\''
+  = c /= '-' && (isIdChar c || c == '\'')
 
 isSymbolId :: String -> Bool
 isSymbolId "" = False
 isSymbolId s  = not (isIdStartChar (head s)) || not (isIdEndChar (last s))
-  -- where
-  --
-  --   isIdEndChar c    = (c == '\'' || c == '?')
 
 wrapId :: String -> String
 wrapId s
@@ -397,12 +396,13 @@ isWildcard name
       ('@':'_':_) -> True
       _           -> False
 
-unWildcard :: String -> Name -> Name
-unWildcard post name
-  = case nameStem name of
-      ('_':_)     -> nameMapStem name (\s -> tail s ++ post)
-      ('@':'_':_) -> nameMapStem name (\s -> "@" ++ drop 2 s ++ post)
-      _           -> name
+unWildcard :: Name -> Name
+unWildcard name
+  = nameMapStem name $ \stem ->
+    case stem of
+      ('@':'_':s) -> "@wild" ++ dropWhile (=='_') s
+      ('_':s)     -> "wild" ++ dropWhile (=='_') s
+      _           -> stem
 
 
 nameIsEtaHole :: Name -> Bool
@@ -592,30 +592,53 @@ nameStartsWith :: Name -> String -> Bool
 nameStartsWith name pre
   = nameStem name `startsWith` pre
 
+
+-- append two identifier strings making sure dashes are correct.
+dashAppend :: String -> String -> String
+dashAppend s1 s2
+  = let pre = case s1 of
+                ('-':_) -> "x" ++ s1
+                _       -> s1
+    in case (reverse pre, s2) of
+    ('-':_, c:cs)  | not (isAlpha c || c=='@') -> pre ++ "x" ++ s2
+    _              -> pre ++ s2
+
+-- prepend a string to the stem of a name
 prepend :: String -> Name -> Name
+prepend "" name = name
 prepend pre name
   = nameMapStem name $ \stem ->
-    let append p s = case (reverse p, s) of
-                      ('-':_, c:cs)  | not (isAlpha c) -> p ++ "x" ++ s -- keep well-formed identifiers
-                      _ -> p ++ s
-    in case stem of
-        ('@':t) -> case pre of -- keep hidden names hidden
-                    '@':_ -> append pre t
-                    _     -> '@' : append pre t
-        _       -> append pre stem
+    let unhide s = case s of
+                     '@':t -> t
+                     _     -> s
+    in case pre of
+        '@':c:cs | isDigit c -> dashAppend ("@x" ++ (c:cs)) (unhide stem)  -- make sure it stays lowercase
+        '@':_    -> dashAppend pre (unhide stem)                           -- no need for duplicate '@'s
+        _        -> case stem of
+                      '@':_  -> '@' : dashAppend pre (unhide stem) -- keep hidden
+                      _      -> dashAppend pre stem
 
+
+prependRaw :: String -> Name -> Name
+prependRaw pre name
+  = nameMapStem name $ \stem -> pre ++ stem
+
+postpendRaw :: String -> Name -> Name
+postpendRaw post name
+  = nameMapStem name $ \stem -> stem ++ post
 
 postpend :: String -> Name -> Name
 postpend post name | isSymbolName name
   = -- we must always end in symbols for operators so postpend inserts before the symbols
-    nameMapStem name $ \stem ->
-    let (rsyms,rid) = span (not . isIdChar) (reverse stem)
-    in (if null rid || rid == "@" then "@x" else reverse rid) -- ensure it becomes a valid lowerid
-        ++ post ++ reverse rsyms
+    prepend post name
+    -- nameMapStem name $ \stem ->
+    -- let (rsyms,rid) = span (not . isIdChar) (reverse stem)
+    -- in (if null rid || rid == "@" then "@x" else reverse rid) -- ensure it becomes a valid lowerid
+    --     ++ post ++ reverse rsyms
 postpend post name
   = nameMapStem name $ \stem ->
-    let (xs,ys) = span (\c -> c=='?' || c=='\'') (reverse stem)
-    in reverse (xs ++ reverse post ++ ys)
+    let (idChars,finalChars) = span (\c -> c=='?' || c=='\'') (reverse stem)
+    in reverse (idChars ++ reverse post ++ finalChars)
 
 
 typeQualifiedName :: Name -> String -> Name

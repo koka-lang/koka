@@ -295,7 +295,7 @@ synTester :: DataInfo -> ConInfo -> [DefGroup Type]
 synTester info con | isHiddenName (conInfoName con) || conInfoIsLazy con
   = []
 synTester info con
-  = let name = (prepend "is-" (toVarName (unqualify (conInfoName con))))
+  = let name = (prependRaw "is-" (toVarName (unqualify (conInfoName con))))
         arg = unqualify $ dataInfoName info -- newHiddenName "self"
         rc  = rangeHide (conInfoRange con)
 
@@ -313,7 +313,7 @@ synConstrTag (con)
         rc   = rangeHide (conInfoRange con)
         expr = Lit (LitString (show (conInfoName con)) rc)
         -- Tags must be public, since they may extend a type outside of the current module
-    in DefNonRec (Def (ValueBinder name () expr rc rc) rc Public DefVal InlineNever "") 
+    in DefNonRec (Def (ValueBinder name () expr rc rc) rc Public DefVal InlineNever "")
 
 {- ------------------------------------------------------------------------------------------------------------
    Lazy types and constructors
@@ -510,7 +510,7 @@ synLazyEvalLocked lazyExprs info
                 in return $ ([],Branch (PatCon (conInfoName conInfo) [(Nothing,PatVar (ValueBinder par Nothing (PatWild rng) rng rng))] rng rng)
                                  [Guard guardTrue compress])
             branch conInfo
-              = do let parNames = [(unWildcard (show i) par) | (i,(par,tp)) <- zip [1..] (conInfoParams conInfo)]
+              = do let parNames = [if isWildcard par then postpendRaw (show i) (unWildcard par) else par | (i,(par,tp)) <- zip [1..] (conInfoParams conInfo)]
                    -- return $ ([], Branch (PatCon (conInfoName conInfo) [(Nothing,makePat par rng) | par <- parNames] rng rng)
                    --                  [Guard guardTrue arg])
                    (def,body) <- branchExpr conInfo parNames

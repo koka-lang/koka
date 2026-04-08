@@ -73,4 +73,4 @@ pub fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  };
 test/parc/parc18@kk(4,23): type warning: z shadows an earlier local definition or parameter
 test/parc/parc18@kk(3, 5): type warning: pattern variable z is unused (or a wrongly spelled constructor?)
- hint: prepend an underscore to make it a wildcard pattern
+ hint: start with an underscore to make it a wildcard pattern
