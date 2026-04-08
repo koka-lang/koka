@@ -246,7 +246,7 @@ fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string)
   val koka-run = if exe == "stack" then "stack exec koka " ++ (if sysghc then "--system-ghc --skip-ghc-check " else "") ++ "--"
                  elif exe == "cabal" then "cabal new-run koka --"
                  else exe
-  val info     = run-system-read(koka-run ++ " --version").exn
+  val info     = run-system-read(koka-run ++ " --version").untry
   println(koka-run ++ " --version" ++ "\n" ++ info)
   val bin      = info.lines.filter(fn(s){ s.starts-with("bin ").bool }).head.unjust
   val fpath    = bin.find(": ").unjust.after.string.trim / "koka"
