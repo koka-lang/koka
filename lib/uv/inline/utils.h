@@ -10,6 +10,20 @@ static inline kk_unit_t kk_unit_callback(kk_function_t callback, kk_context_t* _
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+
+// Loop sentinel ref counting — defined in event-loop.c
+void kk_wasm_loop_ref(kk_context_t* _ctx);
+void kk_wasm_loop_unref(kk_context_t* _ctx);
+
+// Construct a simple internal error for the wasm/emscripten backend
+static inline kk_std_core_exn__error kk_wasm_error(const char* msg, kk_context_t* _ctx) {
+  kk_string_t s = kk_string_alloc_dup_valid_utf8(msg, _ctx);
+  kk_string_t n = kk_string_alloc_dup_valid_utf8("wasm", _ctx);
+  return kk_std_core_types__new_Error(
+    kk_std_core_exn__exception_box(
+      kk_std_core_exn__new_Exception(s, kk_std_core_exn__new_ExnInternal(kk_reuse_null, 0, n, _ctx), _ctx), _ctx), _ctx);
+}
+
 #else
 #include <uv.h>
 
@@ -59,7 +73,7 @@ kk_std_core_exn__error kk_uv_error_from_errno( int err, kk_context_t* ctx );
 static inline void kk_uv_handle_close_callback(uv_handle_t* handle) {
   kk_context_t* _ctx = kk_get_context();
   kk_assert_internal(handle->data == NULL);
-  kk_free(handle, kk_context()); // Free the struct memory 
+  kk_free(handle, _ctx); // Free the struct memory
 }
 
 #endif

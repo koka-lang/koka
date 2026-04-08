@@ -5,12 +5,39 @@
 // Event Loop for Emscripten
 //////////////////////////////////////////////////////
 
+// A global sentinel box: each wasm handle dups it on init, drops on free.
+// When the last handle drops it, the free function cancels the main loop.
+static kk_box_t kk_wasm_loop_sentinel = { .box = 0 };
+
+static void kk_wasm_sentinel_free(void* p, kk_block_t* block, kk_context_t* _ctx) {
+  kk_unused(p);
+  kk_unused(block);
+  emscripten_cancel_main_loop();
+}
+
+// Initialize the sentinel (called once from loop init)
+static void kk_wasm_sentinel_init(kk_context_t* _ctx) {
+  kk_wasm_loop_sentinel = kk_cptr_raw_box(&kk_wasm_sentinel_free, NULL, _ctx);
+}
+
+// Dup the sentinel to keep the loop alive (called from handle init)
+void kk_wasm_loop_ref(kk_context_t* _ctx) {
+  kk_box_dup(kk_wasm_loop_sentinel, _ctx);
+}
+
+// Drop the sentinel (called from handle free)
+void kk_wasm_loop_unref(kk_context_t* _ctx) {
+  kk_box_drop(kk_wasm_loop_sentinel, _ctx);
+}
+
 void one_iter() {
-  // Can do a render loop to the screen here, etc. (this is the tick..)
-  // puts("one iteration");
   return;
 }
+
 void kk_emscripten_loop_run(kk_context_t* _ctx){
+  // Drop our own reference to the sentinel; handles hold the remaining refs.
+  // When the last handle is freed, the sentinel's free function cancels this loop.
+  kk_box_drop(kk_wasm_loop_sentinel, _ctx);
   emscripten_set_main_loop(one_iter, 0, true);
 }
 #else
@@ -115,8 +142,8 @@ static inline void kk_async_alloc_init(kk_context_t* _ctx){
 
 static void kk_async_loop_init(kk_context_t* _ctx) {
   #if __EMSCRIPTEN__
-    return;
-  #else 
+    kk_wasm_sentinel_init(_ctx);
+  #else
     return kk_uv_loop_init(_ctx);
   #endif
 }
