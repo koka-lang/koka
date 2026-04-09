@@ -527,6 +527,11 @@ static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
   return mi_heap_realloc(ctx->heap, p, (size_t)sz);
 }
 
+static inline void kk_free_small(const void* p, kk_context_t* ctx) {
+  kk_unused(ctx);
+  mi_free((void*)p);
+}
+
 #else
 // mimalloc v3
 static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
@@ -545,6 +550,11 @@ static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
 static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
   kk_unused(ctx);
   return mi_theap_realloc(ctx->heap, p, (size_t)sz);
+}
+
+static inline void kk_free_small(const void* p, kk_context_t* ctx) {
+  kk_unused(ctx);
+  mi_free_small((void*)p);
 }
 
 #endif
