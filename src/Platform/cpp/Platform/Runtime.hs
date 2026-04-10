@@ -13,7 +13,7 @@
 module Platform.Runtime( exCatch
                        , unsafePerformIO
                        , finally
-                       -- , copyBinaryFile
+                       , copyBinaryFileWithMetaData
                        , showHFloat
                        ) where
 
@@ -44,8 +44,8 @@ exCatch io handler
                   ,Ex.Handler (\(err) -> handler (show (err :: Ex.SomeException)))]
 
 
-copyBinaryFile :: FilePath -> FilePath -> IO ()
-copyBinaryFile src dest
+copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
+copyBinaryFileWithMetaData src dest
   = copyFileWithMetadata src dest
     -- do content <- B.readFile src
     --   B.writeFile dest content
@@ -64,8 +64,8 @@ exCatch :: IO a -> (String -> IO a) -> IO a
 exCatch io handler
   = catch io (\err -> handler (ioeGetErrorString err))
 
-copyBinaryFile :: FilePath -> FilePath -> IO ()
-copyBinaryFile src dest
+copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
+copyBinaryFileWithMetaData src dest
   = withBinaryFile src ReadMode $ \hsrc ->
     withBinaryFile dest WriteMode $ \hdest ->
     do content <- hGetContents hsrc

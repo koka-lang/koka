@@ -39,7 +39,7 @@ module Common.File(
                   , getFileTimeOrCurrent, getCurrentTime
                   , readTextFile, writeTextFile
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
-                  , copyBinaryFile, copyBinaryIfNewer
+                  , copyBinaryFile, copyBinaryIfNewer, copyExeFile
                   , removeFileIfExists
                   , realPath
                   , doesFileExistAndNotEmpty
@@ -66,6 +66,7 @@ import Platform.FileIO  ( doesFileExist, doesDirectoryExist, createDirectoryIfMi
                         , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                         , getFileSize )
 import Platform.Filetime
+import qualified Platform.Runtime as B (copyBinaryFileWithMetaData)
 
 seqList :: [a] -> b -> b
 seqList [] b     = b
@@ -307,6 +308,16 @@ copyTextFileWith src dest transform
                         Just content -> do writeTextFile dest (transform content)
                                            setFileTime dest ftime
                         Nothing -> error ("could not read file " ++ show src))
+            (error ("could not copy file " ++ show src ++ " to " ++ show dest))
+
+copyExeFile :: FilePath -> FilePath -> IO ()
+copyExeFile src dest
+  = if (src == dest)
+     then return ()
+     else catchIO (
+            -- careful: keeps original file permissions
+             do createDirectoryIfMissing True (dirname dest)
+                B.copyBinaryFileWithMetaData src dest)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryFile :: FilePath -> FilePath -> IO ()

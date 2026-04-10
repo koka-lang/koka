@@ -131,7 +131,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                                 then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))
                                         when onMacOS $
                                           removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
-                                        copyBinaryFile out targetOut
+                                        copyExeFile out targetOut
                                         return finalOut
                                 else return out
                       termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
