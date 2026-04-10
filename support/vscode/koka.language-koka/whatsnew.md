@@ -13,7 +13,9 @@ generating direct C code without needing a runtime system. To learn more:
 
 ### v3.2.6, 2026-04-10
 
-- Todo
+- Fix executable permissions on macOS when using `-o <target>`.
+
+- Upgrade to mimalloc v3; slightly improved C runtime performance.
 
 ### v3.2.3, 2026-03-17
 
