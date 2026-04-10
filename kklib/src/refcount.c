@@ -43,7 +43,7 @@ static inline kk_block_t* kk_block_fast_field_should_free(kk_block_t* b, kk_ssiz
 static kk_block_t* kk_block_fast_drop_free(kk_block_t* b, kk_context_t* ctx) {
 tailcall:
   kk_assert_internal(kk_block_refcount(b) == 0);
-  const bool is_small = kk_tag_is_small_block(b->header.tag); kk_unused(is_small);
+  const bool is_small = kk_block_is_small(b); kk_unused(is_small);
   #if KK_HAS_FAST_FREE_SMALL
   #define kk_block_free_b(is_small,b,ctx)  if kk_likely(is_small) { kk_block_free_small(b,ctx); } else { kk_block_free(b,ctx); }
   #else
@@ -374,7 +374,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
   // ------- drop the children and free the block b ------------
   move_down:
     kk_assert_internal(kk_block_is_valid(b));
-    const bool is_small = kk_tag_is_small_block(b->header.tag); kk_unused(is_small);
+    const bool is_small = kk_block_is_small(b); kk_unused(is_small);
     scan_fsize = b->header.scan_fsize;
     kk_assert_internal(kk_block_refcount(b) == 0);
     kk_assert_internal(scan_fsize > 0);           // due to kk_block_should_free
