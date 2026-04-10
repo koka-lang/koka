@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2021, Microsoft Research, Daan Leijen.
+  Copyright 2021-2026, Microsoft Research, Daan Leijen.
 
   This is free software; you can redibibute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -20,6 +20,7 @@
   #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
     #define MI_DEBUG  3
   #endif
+  #define MI_FAST_FREE_SMALL 1
   #include "../mimalloc/src/static.c"  // must come first on freeBSD
 #endif
 

@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2020-2021, Microsoft Research, Daan Leijen, Anton Lorenzen
+  Copyright 2020-2026, Microsoft Research, Daan Leijen, Anton Lorenzen
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -21,7 +21,7 @@ static void kk_block_free_raw(kk_block_t* b, kk_context_t* ctx) {
   if (raw->free != NULL) {
     (*raw->free)(raw->cptr, b, ctx);
   }
-  kk_block_free(b,ctx); // PR #864
+  kk_block_free_small(b,ctx); // PR #864
 }
 
 // Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0 (after rc decref).
@@ -43,20 +43,27 @@ static inline kk_block_t* kk_block_fast_field_should_free(kk_block_t* b, kk_ssiz
 static kk_block_t* kk_block_fast_drop_free(kk_block_t* b, kk_context_t* ctx) {
 tailcall:
   kk_assert_internal(kk_block_refcount(b) == 0);
+  const bool is_small = kk_tag_is_small_block(b->header.tag); kk_unused(is_small);
+  #if KK_HAS_FAST_FREE_SMALL
+  #define kk_block_free_b(is_small,b,ctx)  if kk_likely(is_small) { kk_block_free_small(b,ctx); } else { kk_block_free(b,ctx); }
+  #else
+  #define kk_block_free_b(is_small,b,ctx)  kk_block_free(b,ctx)
+  #endif
   const kk_ssize_t scan_fsize = b->header.scan_fsize;
   if (scan_fsize == 0) {
     // free directly
-    if (kk_tag_is_raw(kk_block_tag(b))) {  // raw blocks are freed specially
+    kk_assert_internal(!kk_tag_is_raw(kk_block_tag(b)));
+    if kk_unlikely(kk_tag_is_raw(kk_block_tag(b))) {  // raw blocks are freed specially
       kk_block_free_raw(b, ctx);
     }
     else {
-      kk_block_free(b, ctx);
+      kk_block_free_b(is_small,b,ctx);
     }
   }
   else if (scan_fsize == 1) {
     // if just one field, we can free directly and continue with the child
     kk_block_t* next = kk_block_fast_field_should_free(b, 0, ctx);
-    kk_block_free(b, ctx);
+    kk_block_free_b(is_small,b,ctx);
     if (next != NULL) {
       b = next;
       goto tailcall;
@@ -65,7 +72,7 @@ tailcall:
   else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b, 0))) {
     // fast path for lists/nodes with boxed first element
     kk_block_t* next = kk_block_fast_field_should_free(b, 1, ctx);
-    kk_block_free(b, ctx);
+    kk_block_free_b(is_small,b,ctx);
     if (next != NULL) {
       b = next;
       goto tailcall;
@@ -244,6 +251,27 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk
   }
 }
 
+// Check if a reference decrement caused the small block to be freed shallowly or needs atomic operations
+kk_decl_noinline void kk_block_check_decref_small(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx) {
+  kk_unused(ctx);
+  kk_assert_internal(b!=NULL);
+  kk_assert_internal(kk_block_refcount(b) == rc0);
+  kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
+  if kk_likely(rc0==0) {
+    kk_free_small(b,ctx);  // no more references, free it (without dropping children!)
+  }
+  else if kk_unlikely(rc0 <= RC_STICKY_DROP) {
+    // sticky: do not decrement further
+  }
+  else {
+    const kk_refcount_t rc = kk_atomic_drop(b);  // decrement
+    if (rc == RC_SHARED_UNIQUE) {    // last referenc?
+      kk_block_refcount_set(b,0);    // no longer shared
+      kk_free_small(b,ctx);          // no more references, free it.
+    }
+  }
+}
+
 
 
 
@@ -346,6 +374,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
   // ------- drop the children and free the block b ------------
   move_down:
     kk_assert_internal(kk_block_is_valid(b));
+    const bool is_small = kk_tag_is_small_block(b->header.tag); kk_unused(is_small);
     scan_fsize = b->header.scan_fsize;
     kk_assert_internal(kk_block_refcount(b) == 0);
     kk_assert_internal(scan_fsize > 0);           // due to kk_block_should_free
@@ -353,7 +382,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     if (scan_fsize == 1) {
       // if just one field, we can free directly and continue with the child
       kk_block_t* next = kk_block_field_should_free(b, 0, ctx);
-      kk_block_free(b,ctx);
+      kk_block_free_b(is_small,b,ctx); // kk_block_free(b,ctx);
       if (next != NULL) {
         b = next;
         goto move_down;
@@ -363,7 +392,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b,0))) {
       // optimized code for lists/nodes with boxed first element
       kk_block_t* next = kk_block_field_should_free(b, 1, ctx);
-      kk_block_free(b,ctx);
+      kk_block_free_b(is_small,b,ctx); // kk_block_free(b,ctx);
       if (next != NULL) {
         b = next;
         goto move_down;
@@ -395,14 +424,14 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
           }
           else {
             // the last field: free the block and continue with the child leaving the parent unchanged
-            kk_block_free(b,ctx);
+            kk_block_free_b(is_small,b,ctx); // kk_block_free(b,ctx);
           }
           // and continue with the child
           b = child;
           goto move_down;
         }
       } while (i < scan_fsize);
-      kk_block_free(b,ctx);
+      kk_block_free_b(is_small,b,ctx); // kk_block_free(b,ctx);
       // goto move_up; // fallthrough
     }
 

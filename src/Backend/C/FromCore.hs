@@ -1002,7 +1002,7 @@ genDupDropX isDup name info dataRepr conInfos
       | all (\(_,conRepr,_,_) -> isConSingleton conRepr) conInfos  = ret     -- for ref type enumerations
       | dataRepr == DataIso    = [genDupDropIso isDup (head conInfos)] ++ ret
       -- | dataRepr == DataStructAsMaybe = [genDupDropMaybe isDup conInfos] ++ ret
-      | dataRepr <= DataStruct = genDupDropMatch (map (genDupDropTests isDup dataRepr) conInfos) ++ ret
+      | dataReprIsValue dataRepr = genDupDropMatch (map (genDupDropTests isDup dataRepr) conInfos) ++ ret
                                 {-
                                  case (dataInfoDef info) of
                                    DataDefValue _ scancount -> genDupDropValue isDup dataRepr scancount ++ ret
@@ -1014,9 +1014,23 @@ genDupDropX isDup name info dataRepr conInfos
                                             else -- text "kk_basetype_dup_as" <.> arguments [ppName name, text "_x"])
                                                  text "kk_datatype_ptr_dup" <.> arguments [text "_x"])
                                        <.> semi]
-                               else [text (if dataReprMayHaveSingletons dataRepr then "kk_datatype_drop"
-                                                                                 else "kk_datatype_ptr_drop")
-                                       <.> arguments [text "_x"] <.> semi]
+                    {- todo: specialize drops for non-recursive datatypes
+                    else if not (dataReprIsValue dataRepr || dataInfoIsRec info || dataInfoIsLazy info || dataInfoIsOpen info)
+                             && length (filter (\(_,cr,_,_) -> not (isConSingleton cr)) conInfos) <= 2 then
+                        -- specialized drop
+                        let self = text "_x"
+                        in (if dataReprMayHaveSingletons dataRepr
+                              then [text "if" <+> parens (text "!kk_datatype_is_ptr" <+> parens self) <+> text "return;"]
+                              else []) ++
+                           [text "if" <+> genIsUniqueCall self <+> block
+                               (vcat (genDupDropMatch (map (genDupDropTests False dataRepr) conInfos))) -- frees as well)
+                           ,text "else" <+> block (text "kk_datatype_ptr_decref" <+> arguments [self] <.> semi)]
+                    -}
+                    -- danger: we must never generate constructors with more than 128 fields in order to uses _small
+                    else [text (if dataReprMayHaveSingletons dataRepr then "kk_datatype_drop_small"
+                                                                      else "kk_datatype_ptr_drop_small")
+                                <.> arguments [text "_x"] <.> semi]
+
 
 genDupDropIso :: Bool -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Doc
 genDupDropIso isDup (con,conRepr,[(name,tp)],scanCount)
@@ -1060,13 +1074,13 @@ genDupDropMatch branches0
 
 genDupDropTests :: Bool -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> (Doc,[Doc])
 genDupDropTests isDup dataRepr (con,conRepr,conFields,scanCount)
-  = let dupdropFields = genDupDropFields isDup dataRepr con conFields
+  = let dupdropFields = genDupDropFields isDup dataRepr con conRepr conFields
     in  (conTestName con <.> arguments [text "_x"], dupdropFields)
 
 
 genDupDropTestsX :: Bool -> DataRepr -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
 genDupDropTestsX isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx)
-  = let stats = genDupDropFields isDup dataRepr con conFields
+  = let stats = genDupDropFields isDup dataRepr con conRepr conFields
     in if (lastIdx == idx)
         then (if null stats
                then empty
@@ -1076,12 +1090,22 @@ genDupDropTestsX isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx)
         else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> arguments [text "_x"]))
              <+> (if null stats then text "{ }" else block (vcat stats))
 
-genDupDropFields :: Bool -> DataRepr -> ConInfo -> [(Name,Type)] -> [Doc]
-genDupDropFields isDup dataRepr con conFields
+genDupDropFields :: Bool -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> [Doc]
+genDupDropFields isDup dataRepr con conRepr conFields | dataRepr <= DataStruct
+  -- value types
   = map (\doc -> doc <.> semi) $ concat $
     [genDupDropCall isDup tp
       ((if (needsTagField dataRepr) then text "_x._cons." <.> ppDefName (conInfoName con) else text "_x")
        <.> dot <.> ppName name) | (name,tp) <- conFields]
+
+genDupDropFields isDup dataRepr con conRepr conFields
+  -- reference types
+  = if isConSingleton conRepr then [] else
+    map (\doc -> doc <.> semi) $
+    [text "struct" <+> ppName (conInfoName con) <.> text "* _con = " <.> conAsName con <.> arguments [text "_x"]]
+    ++ concat [genDupDropCall isDup tp
+               (text "_con->" <.> ppName name) | (name,tp) <- conFields]
+    ++ [text "kk_constructor_free_small" <.> arguments [text "_con"]]
 
 
 genDupDropCallX prim tp args
@@ -1106,21 +1130,21 @@ genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (argument
 
 -- The following functions are generated during "drop specialization" and "reuse specialization",
 -- and only generated for heap allocated constructors so we can always use the `datatype_ptr` calls at runtime.
-genIsUniqueCall :: Type -> Doc -> [Doc]
-genIsUniqueCall tp arg  = {- case genDupDropCallX "is_unique" tp (arguments [arg]) of
+genIsUniqueCall :: Doc -> Doc
+genIsUniqueCall arg  = {- case genDupDropCallX "is_unique" tp (arguments [arg]) of
                             [call] -> [text "kk_likely" <.> parens call]
                             cs     -> cs
                           -}
-                          [text "kk_likely" <.> parens (text "kk_datatype_ptr_is_unique" <.> arguments [arg])]
+                          text "kk_likely" <.> parens (text "kk_datatype_ptr_is_unique" <.> arguments [arg])
 
+-- danger: we assume we never generate free or decref for bytes, strings or vectors!
+genFreeCall :: Doc -> Doc
+genFreeCall arg  = -- genDupDropCallX "free" tp (arguments [arg])
+                      text "kk_datatype_ptr_free_small" <.> arguments [arg]
 
-genFreeCall :: Type -> Doc -> [Doc]
-genFreeCall tp arg  = -- genDupDropCallX "free" tp (arguments [arg])
-                      [text "kk_datatype_ptr_free" <.> arguments [arg]]
-
-genDecRefCall :: Type -> Doc -> [Doc]
-genDecRefCall tp arg  = -- genDupDropCallX "decref" tp (arguments [arg])
-                        [text "kk_datatype_ptr_decref" <.> arguments [arg]]
+genDecRefCall ::  Doc -> Doc
+genDecRefCall arg  = -- genDupDropCallX "decref" tp (arguments [arg])
+                        text "kk_datatype_ptr_decref_small" <.> arguments [arg]
 
 genDropReuseCall :: Type -> [Doc] -> [Doc]
 genDropReuseCall tp args  = -- genDupDropCallX "dropn_reuse" tp (arguments args)
@@ -2186,7 +2210,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
                   _ -> failure $ ("Backend.C.genExprExternal.is_unique: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
-        call  = hcat (genIsUniqueCall tp argDoc)
+        call  = genIsUniqueCall argDoc
     in return ([], call)
 
 -- special case free
@@ -2194,7 +2218,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameFree
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
                   _ -> failure $ ("Backend.C.genExprExternal.free: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
-        call  = hcat (genFreeCall tp argDoc)
+        call  = genFreeCall argDoc
     in return ([], call)
 
 -- special case decref
@@ -2202,7 +2226,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDecRef
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
                   _ -> failure $ ("Backend.C.genExprExternal.decref: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
-        call  = hcat (genDecRefCall tp argDoc)
+        call  = genDecRefCall argDoc
     in return ([], call)
 
 -- special case reuse

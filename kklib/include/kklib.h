@@ -2,14 +2,14 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 /*---------------------------------------------------------------------------
-  Copyright 2020-2022, Microsoft Research, Daan Leijen.
+  Copyright 2020-2026, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          174    // modify on changes to trigger recompilation..
+#define KKLIB_BUILD          176    // modify on changes to trigger recompilation..
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -60,10 +60,6 @@ typedef enum kk_tag_e {
   KK_TAG_BOX_ANY,     // kk_box_any polymorphic value
   KK_TAG_REF,         // mutable reference
   KK_TAG_FUNCTION,    // function closure with the free variables environment
-  KK_TAG_BIGINT,      // big integer (see `integer.c`)
-  KK_TAG_BYTES_SMALL, // small byte sequence of at most 7 bytes.
-  KK_TAG_BYTES,       // byte sequence
-  KK_TAG_VECTOR,      // a vector of (boxed) values
   KK_TAG_INT64,       // boxed int64_t               (only on <=64-bit platforms)
   KK_TAG_DOUBLE,      // boxed IEEE double (64-bit)  (only on <=64-bit platforms)
   KK_TAG_INT32,       // boxed int32_t               (only on <=32-bit platforms)
@@ -71,12 +67,17 @@ typedef enum kk_tag_e {
   KK_TAG_INT16,       // boxed int16_t               (only on <=16-bit platforms)
   KK_TAG_CFUNPTR,     // C function pointer
   KK_TAG_INTPTR,      // boxed intptr_t
-  KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
   KK_TAG_NOTHING,     // used to avoid allocation for unnested maybe-like types
   KK_TAG_JUST,
+  KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
+  KK_TAG_BYTES_SMALL, // small byte sequence of at most 7 bytes.
+  // the next three are the only large blocks where the allocated size can be more than 128 fields
+  KK_TAG_BYTES,       // byte sequence (must be first, see kk_tag_is_small_block())
+  KK_TAG_VECTOR,      // a vector of (boxed) values
+  KK_TAG_BIGINT,      // big integer (see `integer.c`)
   // raw tags have a free function together with a `void*` to the data
-  KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
-  KK_TAG_BYTES_RAW,   // pointer to byte buffer
+  KK_TAG_BYTES_RAW,   // pointer to byte buffer (must be first, see kk_tag_is_raw())
+  KK_TAG_CPTR_RAW,    // full void*
   KK_TAG_LAST,
   // strings are represented by bytes but guarantee valid utf-8 encoding
   KK_TAG_STRING_SMALL = KK_TAG_BYTES_SMALL, // utf-8 encoded string of at most 7 bytes.
@@ -85,7 +86,11 @@ typedef enum kk_tag_e {
 } kk_tag_t;
 
 static inline bool kk_tag_is_raw(kk_tag_t tag) {
-  return (tag >= KK_TAG_CPTR_RAW);
+  return (tag >= KK_TAG_BYTES_RAW);
+}
+
+static inline bool kk_tag_is_small_block(kk_tag_t tag) {
+  return (tag < KK_TAG_BYTES);  // ignore `tag >= KK_TAG_BYTES_RAW` as we can be conservative here (note: required: see refcount.c:kk_block_fast_drop_free)
 }
 
 
@@ -528,8 +533,7 @@ static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
 }
 
 static inline void kk_free_small(const void* p, kk_context_t* ctx) {
-  kk_unused(ctx);
-  mi_free((void*)p);
+  kk_free(p,ctx);
 }
 
 #else
@@ -556,6 +560,10 @@ static inline void kk_free_small(const void* p, kk_context_t* ctx) {
   kk_unused(ctx);
   mi_free_small((void*)p);
 }
+
+#if MI_FAST_FREE_SMALL
+#define KK_HAS_FAST_FREE_SMALL  1
+#endif
 
 #endif
 
@@ -594,6 +602,10 @@ static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
 static inline void kk_free(const void* p, kk_context_t* ctx) {
   kk_unused(ctx);
   free((void*)p);
+}
+
+static inline void kk_free_small(const void* p, kk_context_t* ctx) {
+  kk_free(p,ctx);
 }
 
 static inline void kk_free_local(const void* p, kk_context_t* ctx) {
@@ -696,6 +708,30 @@ static inline void kk_block_free(kk_block_t* b, kk_context_t* ctx) {
   kk_free(b, ctx);
 }
 
+static inline bool kk_block_is_small(kk_block_t* b) {
+  return kk_tag_is_small_block(kk_block_tag(b));
+}
+
+static inline void kk_block_free_small(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_small(b));
+  kk_block_set_invalid(b);
+  kk_free_small(b, ctx);
+}
+
+static inline void kk_block_free_maybe_small(kk_block_t* b, kk_context_t* ctx) {
+  kk_block_set_invalid(b);
+  #if KK_HAS_FAST_FREE_SMALL
+  if kk_likely(kk_block_is_small(b)) {
+    kk_free_small(b, ctx);
+  }
+  else
+  #endif
+  {
+    kk_free(b,ctx);
+  }
+}
+
+
 #define kk_block_alloc_as(struct_tp,scan_fsize,tag,ctx)              ((struct_tp*)kk_block_alloc( sizeof(struct_tp),scan_fsize,tag,ctx))
 #define kk_block_alloc_at_as(struct_tp,at,scan_fsize,cpath,tag,ctx)  ((struct_tp*)kk_block_alloc_at(at, sizeof(struct_tp),scan_fsize,cpath,tag,ctx))
 #define kk_block_alloc_raw_as(struct_tp,tag,ctx)                     ((struct_tp*)kk_block_alloc_raw( sizeof(struct_tp),tag,ctx))
@@ -718,6 +754,7 @@ static inline void kk_block_free(kk_block_t* b, kk_context_t* ctx) {
 
 kk_decl_export kk_decl_cold void        kk_block_check_drop(kk_block_t* b, kk_refcount_t rc, kk_context_t* ctx);
 kk_decl_export kk_decl_cold void        kk_block_check_decref(kk_block_t* b, kk_refcount_t rc, kk_context_t* ctx);
+kk_decl_export kk_decl_cold void        kk_block_check_decref_small(kk_block_t* b, kk_refcount_t rc, kk_context_t* ctx);
 kk_decl_export kk_decl_cold kk_block_t* kk_block_check_dup(kk_block_t* b, kk_refcount_t rc);
 kk_decl_export kk_decl_cold kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx);
 
@@ -746,6 +783,10 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
   }
 }
 
+static inline void kk_block_drop_small(kk_block_t* b, kk_context_t* ctx) {
+  // for now, don't specialize drops
+  kk_block_drop(b,ctx);
+}
 
 // Decrement a reference count, and if it was 0 free the block (without freeing the children)
 // Note: the way the compiler generates decref instructions, the only time it could become zero
@@ -755,6 +796,18 @@ static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   const kk_refcount_t rc = kk_block_refcount(b);
   if kk_unlikely(kk_refcount_is_unique_or_thread_shared(rc)) {  // (signed)rc <= 0
     kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed?
+  }
+  else {
+    kk_block_refcount_set(b, rc-1);
+  }
+}
+
+static inline void kk_block_decref_small(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
+  kk_assert_internal(kk_block_is_small(b));
+  const kk_refcount_t rc = kk_block_refcount(b);
+  if kk_unlikely(kk_refcount_is_unique_or_thread_shared(rc)) {  // (signed)rc <= 0
+    kk_block_check_decref_small(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed?
   }
   else {
     kk_block_refcount_set(b, rc-1);
@@ -825,7 +878,7 @@ static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_conte
     kk_block_free(b,ctx);
   }
   else if kk_unlikely(kk_refcount_is_thread_shared(rc)) {  // (signed)rc < 0
-    kk_block_check_drop(b, rc, ctx);                         // thread-shared, sticky (overflowed)?
+    kk_block_check_drop(b, rc, ctx);                       // thread-shared, sticky (overflowed)?
   }
   else {
     kk_block_refcount_set(b, rc-1);
@@ -898,7 +951,9 @@ kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx
 #define kk_base_type_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
 #define kk_base_type_as(tp,v)                   (kk_block_as(tp,&((v)->_block)))
 #define kk_base_type_free(v,ctx)                (kk_block_free(&((v)->_block),ctx))
+#define kk_base_type_free_small(v,ctx)          (kk_block_free_small(&((v)->_block),ctx))
 #define kk_base_type_decref(v,ctx)              (kk_block_decref(&((v)->_block),ctx))
+#define kk_base_type_decref_small(v,ctx)        (kk_block_decref_small(&((v)->_block),ctx))
 #define kk_base_type_dup_as(tp,v)               ((tp)kk_block_dup(&((v)->_block)))
 #define kk_base_type_drop(v,ctx)                (kk_block_dropi(&((v)->_block),ctx))
 #define kk_base_type_dropn_reuse(v,n,ctx)       (kk_block_dropn_reuse(&((v)->_block),n,ctx))
@@ -916,6 +971,7 @@ kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx
 
 #define kk_constructor_is_unique(v)             (kk_base_type_is_unique(&((v)->_base)))
 #define kk_constructor_free(v,ctx)              (kk_base_type_free(&((v)->_base),ctx))
+#define kk_constructor_free_small(v,ctx)         (kk_base_type_free_small(&((v)->_base),ctx))
 #define kk_constructor_dup_as(tp,v)             (kk_base_type_dup_as(tp, &((v)->_base)))
 #define kk_constructor_drop(v,ctx)              (kk_base_type_drop(&((v)->_base),ctx))
 #define kk_constructor_dropn_reuse(v,n,ctx)     (kk_base_type_dropn_reuse(&((v)->_base),n,ctx))
@@ -1152,9 +1208,20 @@ static inline void kk_datatype_ptr_drop(kk_datatype_t d, kk_context_t* ctx) {
   kk_block_drop(kk_datatype_as_ptr(d, ctx), ctx);
 }
 
+static inline void kk_datatype_ptr_drop_small(kk_datatype_t d, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  kk_block_drop_small(kk_datatype_as_ptr(d, ctx), ctx);
+}
+
 static inline void kk_datatype_drop(kk_datatype_t d, kk_context_t* ctx) {
   if (kk_datatype_is_ptr(d)) {
     kk_datatype_ptr_drop(d, ctx);
+  }
+}
+
+static inline void kk_datatype_drop_small(kk_datatype_t d, kk_context_t* ctx) {
+  if (kk_datatype_is_ptr(d)) {
+    kk_datatype_ptr_drop_small(d, ctx);
   }
 }
 
@@ -1203,11 +1270,19 @@ static inline kk_reuse_t kk_datatype_ptr_reuse(kk_datatype_t d, kk_context_t* ct
 }
 
 static inline void kk_datatype_ptr_free(kk_datatype_t d, kk_context_t* ctx) {
-  kk_free(kk_datatype_as_ptr(d,ctx), ctx);
+  kk_block_free(kk_datatype_as_ptr(d,ctx), ctx);
+}
+
+static inline void kk_datatype_ptr_free_small(kk_datatype_t d, kk_context_t* ctx) {
+  kk_block_free_small(kk_datatype_as_ptr(d,ctx), ctx);
 }
 
 static inline void kk_datatype_ptr_decref(kk_datatype_t d, kk_context_t* ctx) {
   kk_block_decref(kk_datatype_as_ptr(d,ctx), ctx);
+}
+
+static inline void kk_datatype_ptr_decref_small(kk_datatype_t d, kk_context_t* ctx) {
+  kk_block_decref_small(kk_datatype_as_ptr(d,ctx), ctx);
 }
 
 #define kk_datatype_from_base(b,ctx)               (kk_datatype_from_ptr(&(b)->_block,ctx))
