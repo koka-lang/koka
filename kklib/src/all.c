@@ -20,7 +20,7 @@
   #if !defined(MI_DEBUG) && defined(KK_DEBUG_FULL)
     #define MI_DEBUG  3
   #endif
-  #define MI_FAST_FREE_SMALL 1
+  #define MI_PAGE_META_ALIGNED_FREE_SMALL 1
   #include "../mimalloc/src/static.c"  // must come first on freeBSD
 #endif
 

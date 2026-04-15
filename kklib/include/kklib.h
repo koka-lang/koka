@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          176    // modify on changes to trigger recompilation..
+#define KKLIB_BUILD          177    // modify on changes to trigger recompilation..
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -561,7 +561,7 @@ static inline void kk_free_small(const void* p, kk_context_t* ctx) {
   mi_free_small((void*)p);
 }
 
-#if MI_FAST_FREE_SMALL
+#if MI_PAGE_META_ALIGNED_FREE_SMALL
 #define KK_HAS_FAST_FREE_SMALL  1
 #endif
 
