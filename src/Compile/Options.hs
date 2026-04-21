@@ -862,7 +862,10 @@ processInitialOptions flags0 opts
               (localDir,localLibDir,localShareDir,localBinDir)
                   <- getKokaDirs (localLibDir flags) (localShareDir flags) buildDir
 
-              normalizedIncludes <- mapM realPath ("." : (localShareDir ++ "/lib") : includePath flags)
+              pathsFromEnv <- fmap undelimPaths (getEnvVar "KOKA_PATH")
+              let allIncludes = nub $ filter (not . null) ("." : (localShareDir ++ "/lib") : includePath flags ++ pathsFromEnv)
+              normalizedIncludes <- mapM realPath allIncludes
+              -- _ <- trace ("Normalized includes: " ++ show normalizedIncludes) $ return ()
 
               -- cc
               ccmd <- if (ccompPath flags == "") then detectCC (target flags)

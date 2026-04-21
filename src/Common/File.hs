@@ -15,7 +15,7 @@ module Common.File(
                   , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical
                   , getMaximalPrefixPath
                   , searchProgram
-                  , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
+                  , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdReadExit, runCmdEnv
                   , getProgramPath
 
                   -- * Strings
@@ -63,7 +63,7 @@ import Platform.FileIO  ( doesFileExist, doesDirectoryExist, createDirectoryIfMi
                         , removeFileIfExists
                         , getCwd, realPath
                         , getEnvVar, getEnvPaths, getProgramPath
-                        , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
+                        , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdReadExit, runCmdEnv
                         , getFileSize )
 import Platform.Filetime
 import qualified Platform.Runtime as B (copyBinaryFileWithMetaData)

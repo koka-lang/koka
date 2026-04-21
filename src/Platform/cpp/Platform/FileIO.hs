@@ -37,7 +37,7 @@ module Platform.FileIO(
   , getHomeDirectory
   , getTemporaryDirectory
     -- * Process execution
-  , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
+  , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdReadExit, runCmdEnv
   ) where
 
 import System.IO
@@ -198,17 +198,21 @@ runCmd cmd args
 
 runCmdRead :: [(String,String)] -> String -> [String] -> IO (String,String)
 runCmdRead extraEnv cmd args
+  = do (exitCode,out,err) <- runCmdReadExit extraEnv cmd args
+       case exitCode of
+          ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
+          ExitSuccess   -> return (out,err)
+
+runCmdReadExit :: [(String,String)] -> String -> [String] -> IO (ExitCode,String,String)
+runCmdReadExit extraEnv cmd args
   = do mbEnv <- buildEnv extraEnv
        (_, Just hout, Just herr, process) <- createProcess (proc cmd args){ env = mbEnv, std_out = CreatePipe, std_err = CreatePipe }
        exitCode <- waitForProcess process
-       case exitCode of
-          ExitFailure i -> do -- hClose hout
-                              raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
-          ExitSuccess   -> do out <- hGetContents hout
-                              err <- hGetContents herr
-                              -- hClose hout
-                              return (out,err)
-
+       out <- hGetContents hout
+       err <- hGetContents herr
+       -- hClose hout
+       -- hClose herr
+       return (exitCode,out,err)
 
 runCmdEnv :: [(String,String)] -> String -> [String] -> IO ()
 runCmdEnv extraEnv cmd args
