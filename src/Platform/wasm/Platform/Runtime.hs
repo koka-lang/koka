@@ -13,7 +13,6 @@
 module Platform.Runtime( exCatch
                        , unsafePerformIO
                        , finally
-                       -- , copyBinaryFile
                        , showHFloat
                        ) where
 
@@ -29,29 +28,13 @@ import Numeric( showHFloat )
 import Control.Exception( finally )
 import qualified Control.Exception as Ex
 
-import qualified Data.ByteString as B
-import System.Directory
-
 exCatch :: IO a -> (String -> IO a) -> IO a
 exCatch io handler
-  = {-
-    Ex.catch io (\err -> handler (userError (case Ex.userErrors err of
-                                               Just msg -> msg
-                                               Nothing  -> show err)))
-    -}
-    Ex.catches io [Ex.Handler (\(Ex.ErrorCall msg)  -> handler msg)
+  = Ex.catches io [Ex.Handler (\(Ex.ErrorCall msg)  -> handler msg)
                   ,Ex.Handler (\(err) -> handler (ioeGetErrorString (err :: IOError)))
                   ,Ex.Handler (\(err) -> handler (show (err :: Ex.SomeException)))]
 
-
-copyBinaryFile :: FilePath -> FilePath -> IO ()
-copyBinaryFile src dest
-  = copyFileWithMetadata src dest
-    -- do content <- B.readFile src
-    --   B.writeFile dest content
-
 #else
-import System.IO( withBinaryFile, hGetContents, hPutStr, IOMode(..) )
 
 finally :: IO a -> IO b -> IO a
 finally io post
@@ -64,12 +47,6 @@ exCatch :: IO a -> (String -> IO a) -> IO a
 exCatch io handler
   = catch io (\err -> handler (ioeGetErrorString err))
 
-copyBinaryFile :: FilePath -> FilePath -> IO ()
-copyBinaryFile src dest
-  = withBinaryFile src ReadMode $ \hsrc ->
-    withBinaryFile dest WriteMode $ \hdest ->
-    do content <- hGetContents hsrc
-       hPutStr hdest content
 #endif
 
 #if __GLASGOW_HASKELL__ < 860

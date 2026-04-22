@@ -13,7 +13,6 @@
 module Platform.Runtime( exCatch
                        , unsafePerformIO
                        , finally
-                       , copyBinaryFileWithMetaData
                        , showHFloat
                        ) where
 
@@ -29,9 +28,6 @@ import Numeric( showHFloat )
 import Control.Exception( finally )
 import qualified Control.Exception as Ex
 
-import qualified Data.ByteString as B
-import System.Directory
-
 exCatch :: IO a -> (String -> IO a) -> IO a
 exCatch io handler
   = {-
@@ -44,14 +40,7 @@ exCatch io handler
                   ,Ex.Handler (\(err) -> handler (show (err :: Ex.SomeException)))]
 
 
-copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
-copyBinaryFileWithMetaData src dest
-  = copyFileWithMetadata src dest
-    -- do content <- B.readFile src
-    --   B.writeFile dest content
-
 #else
-import System.IO( withBinaryFile, hGetContents, hPutStr, IOMode(..) )
 
 finally :: IO a -> IO b -> IO a
 finally io post
@@ -64,12 +53,6 @@ exCatch :: IO a -> (String -> IO a) -> IO a
 exCatch io handler
   = catch io (\err -> handler (ioeGetErrorString err))
 
-copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
-copyBinaryFileWithMetaData src dest
-  = withBinaryFile src ReadMode $ \hsrc ->
-    withBinaryFile dest WriteMode $ \hdest ->
-    do content <- hGetContents hsrc
-       hPutStr hdest content
 #endif
 
 #if __GLASGOW_HASKELL__ < 860

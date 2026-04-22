@@ -60,13 +60,14 @@ import Common.Failure   ( raiseIO, catchIO )
 import Platform.FileIO  ( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
                         , readTextFile, writeTextFile
                         , readBinaryContents, writeBinaryContents, copyBinaryContents
+                        , copyBinaryFileWithMetaData
                         , removeFileIfExists
                         , getCwd, realPath
                         , getEnvVar, getEnvPaths, getProgramPath
                         , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                         , getFileSize )
 import Platform.Filetime
-import qualified Platform.Runtime as B (copyBinaryFileWithMetaData)
+
 
 seqList :: [a] -> b -> b
 seqList [] b     = b
@@ -317,7 +318,7 @@ copyExeFile src dest
      else catchIO (
             -- careful: keeps original file permissions
              do createDirectoryIfMissing True (dirname dest)
-                B.copyBinaryFileWithMetaData src dest)
+                copyBinaryFileWithMetaData src dest)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryFile :: FilePath -> FilePath -> IO ()
@@ -326,7 +327,7 @@ copyBinaryFile src dest
      then return ()
      else catchIO (
             -- do not use as the source may come from a (readonly) admin permission and should got to user permission
-            -- B.copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
+            -- copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
              do createDirectoryIfMissing True (dirname dest)
                 ftime <- getFileTime src
                 copyBinaryContents src dest

@@ -26,6 +26,7 @@ module Platform.FileIO(
   , readBinaryContents
   , writeBinaryContents
   , copyBinaryContents
+  , copyBinaryFileWithMetaData
   , removeFileIfExists
     -- * Paths and environment
   , getCwd
@@ -44,7 +45,8 @@ import System.IO
 import System.Directory( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
                        , getCurrentDirectory, canonicalizePath, removeFile
                        , getFileSize
-                       , getHomeDirectory, getTemporaryDirectory )
+                       , getHomeDirectory, getTemporaryDirectory
+                       , copyFileWithMetadata )
 import System.Process   ( system, rawSystem, createProcess, CreateProcess(..)
                         , proc, StdStream(..), waitForProcess )
 import System.Exit      ( ExitCode(..) )
@@ -119,6 +121,19 @@ copyBinaryContents src dest
 removeFileIfExists :: FilePath -> IO ()
 removeFileIfExists fname
   = B.exCatch (removeFile fname) (\_ -> return ())
+
+
+copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
+copyBinaryFileWithMetaData src dest
+  = copyFileWithMetadata src dest
+
+-- copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
+-- copyBinaryFileWithMetaData src dest
+--   = withBinaryFile src ReadMode $ \hsrc ->
+--     withBinaryFile dest WriteMode $ \hdest ->
+--     do content <- hGetContents hsrc
+--        hPutStr hdest content
+
 
 -- ── Paths and environment ────────────────────────────────────────────────────
 

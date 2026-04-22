@@ -25,6 +25,7 @@ module Platform.FileIO(
   , writeBinaryContents
   , copyBinaryContents
   , removeFileIfExists
+  , copyBinaryFileWithMetaData
     -- * Paths and environment
   , getCwd
   , realPath
@@ -41,7 +42,7 @@ module Platform.FileIO(
 import System.IO
 import System.Directory( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
                        , getCurrentDirectory, canonicalizePath, removeFile
-                       , getFileSize )
+                       , getFileSize, copyFileWithMetadata )
 import Data.Char( toLower )
 
 import Common.Failure( raiseIO, catchIO )
@@ -81,6 +82,10 @@ copyBinaryContents src dest
 removeFileIfExists :: FilePath -> IO ()
 removeFileIfExists fname
   = B.exCatch (removeFile fname) (\_ -> return ())
+
+copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
+copyBinaryFileWithMetaData src dest
+  = copyFileWithMetadata src dest
 
 -- ── Paths and environment (WASI provides limited versions) ───────────────────
 
