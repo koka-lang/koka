@@ -45,5 +45,7 @@ pub import std/time/astro
 // pub import std/time/timezone
 // pub import std/time/ut1
 
+pub import std/async
+
 pub fun main()
   println("toc")

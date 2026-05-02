@@ -44,9 +44,9 @@ kk_std_core_exn__error kk_uv_error_from_errno( int err, kk_context_t* ctx );
   typedef struct kk_##uv_hnd_tp##_s { \
     /* The uv handle struct (embedded as first member) */ \
     uv_##uv_hnd_tp##_t uv; \
-    /* 
+    /*
        The Koka callback function
-       Needs to be dupped every time it is called, so that it always can be called again by libuv 
+       Needs to be dupped every time it is called, so that it always can be called again by libuv
     */ \
     kk_function_t callback; \
   } kk_##uv_hnd_tp##_t; \

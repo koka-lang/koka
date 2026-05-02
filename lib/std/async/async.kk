@@ -761,7 +761,7 @@ pub fun async/handle(action : () -> <async,io-noexn> a ) : io-noexn ()
     // Each callback gets its own scope so we can tell when a given
     // callback can be removed from `cancel-functions`
     val cscope = scope.child(unique())
-    
+
     // `cancel-hook` is the event-system action which should happen
     // on cancellation, e.g. clearTimeout(...)
     val cancel-hook: ref<global, dispose-fn> = ref(noop)
@@ -771,8 +771,14 @@ pub fun async/handle(action : () -> <async,io-noexn> a ) : io-noexn ()
       fun cleanup()
         if is-done && ((!cancel-functions).contains(cscope)) then
           cancel-functions := (!cancel-functions).remove(cscope)
-          if res.is-cancel then
-            (!cancel-hook)()
+          // Take ownership of the disposer and reset the ref to noop so
+          // that, after we're done with `hook`, its captured resources
+          // (e.g. a timer's `tid`) can drop. On natural completion we
+          // just drop the disposer; on cancellation we invoke it first to
+          // actively release the underlying operation, then drop it.
+          val hook = !cancel-hook
+          cancel-hook := noop
+          if res.is-cancel then hook()
       cleanup()
       f(res)
 

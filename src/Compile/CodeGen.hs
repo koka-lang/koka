@@ -304,11 +304,15 @@ codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential en
       when (showAsmC flags) (termInfo term (hdoc <//> cdoc))
 
       -- copy libraries
+      -- Multiple modules can declare the same `extern import { c { library="..." } }`
+      -- (e.g., when several files in `lib/uv/` each name libuv). We `nub` so a
+      -- given library is copied/linked only once instead of once per declaring
+      -- module, which also silences "ignoring duplicate libraries" linker warnings.
       let importcores = map (fromJust . modCore) imported
           cores = bcore:importcores
           cc       = ccomp flags
-          eimports = concatMap (externalImportsFromCore (target flags)) cores
-          clibs    = concatMap (clibsFromCore flags) cores
+          eimports = nub $ concatMap (externalImportsFromCore (target flags)) cores
+          clibs    = nub $ concatMap (clibsFromCore flags) cores
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
       -- return the C compilation and final link as a separate IO action to increase concurrency
@@ -339,14 +343,14 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
                       [outName (ccObjFile cc (moduleNameToPath mname))
                           | mname <- map modName imported ++ [progName]]
                       -- ++ [mainObj]
-            syslibs= concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
+            syslibs= nub $ concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
                       ++ ccompLinkSysLibs flags
                       ++ (if onWindows && not (isTargetWasm (target flags))
                             then ["bcrypt","psapi","advapi32"]
                             else ["m","pthread"])
             libs   = -- ["kklib"] -- [normalizeWith '/' (outName (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
                       -- ++
-                      clibs
+                      nub $ clibs
                       ++
                       concat [clibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
 
@@ -472,10 +476,21 @@ copyCLibrary term flags sequential cc outDir eimport
                                           return Nothing
               case mb of
                 Just (libPath,includes)
-                  -> do termPhase term (color (colorInterpreter (colorScheme flags)) (text "library :") <+>
-                          color (colorSource (colorScheme flags)) (text libPath))
-                        -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
-                        sequential $ copyBinaryIfNewer (rebuild flags) libPath (joinPath outDir (ccLibFile cc clib))
+                  -> do let outLib = joinPath outDir (ccLibFile cc clib)
+                        -- Only emit the "library :" trace and copy when the file actually
+                        -- changed: the same external library is otherwise reported once
+                        -- per declaring module, which is noisy when many modules share a
+                        -- transitive dependency (e.g. `lib/uv/*.kk` all declaring libuv).
+                        -- We deliberately ignore `rebuild flags` here: an external library
+                        -- is treated as already-built input, not Koka-generated output.
+                        needsCopy <- if libPath == outLib then return False
+                                     else do ord <- fileTimeCompare libPath outLib
+                                             return (ord == GT)
+                        when needsCopy $ do
+                          termPhase term (color (colorInterpreter (colorScheme flags)) (text "library :") <+>
+                            color (colorSource (colorScheme flags)) (text libPath))
+                          -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
+                          sequential $ copyBinaryIfNewer False libPath outLib
                         return includes
                 Nothing
                   -> -- TODO: suggest conan and/or vcpkg install?

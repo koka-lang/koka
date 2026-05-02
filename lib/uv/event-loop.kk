@@ -5,7 +5,6 @@ pub import std/time/duration
 pub import std/time/timestamp
 pub import uv/timer
 pub import std/async/async
-import std/num/int32
 import uv/utils
 
 extern import
@@ -13,16 +12,6 @@ extern import
 
 extern import
   c file "inline/event-loop.c"
-
-// Sets a timeout for libuv / javascript / C# event loops
-pub extern set-timeout( cb : () -> io-noexn (), ms : int32 ) : io-noexn any
-  js "setTimeout"
-  c "kk_set_timeout"
-
-// Clears a timeout for libuv / javascript / C# event loops
-pub extern clear-timeout( tid : any) : io-noexn ()
-  js "clearTimeout"
-  c "kk_clear_timeout"
 
 // Runs an async action on the default uv/js/wasm event loop.
 // Propagates top-level exceptions thrown by the action.

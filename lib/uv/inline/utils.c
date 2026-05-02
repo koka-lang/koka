@@ -179,10 +179,10 @@ static kk_uv_utils__uv_status_code kk_uv_status_to_status_code(int32_t status, k
       return kk_uv_utils_UV__EILSEQ;
     case UV_ESOCKTNOSUPPORT:
       return kk_uv_utils_UV__ESOCKTNOSUPPORT;
+    case UV_EUNATCH:
+      return kk_uv_utils_UV__EUNATCH;
     default:
       return kk_uv_utils_UV__UNKNOWN;
-    // case UV_EUNACH:
-    // return kk_uv_utils_UV__EUNATCH;
   }
 }
 

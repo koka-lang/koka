@@ -1,7 +1,11 @@
 // Used for external interfaces
 module std/async/null
 
-// Abstract type used for passing `null` values to external functions
+// Abstract type used for passing `null` values to external functions.
+// Note: the C# backend treats `null<a>` and `a` as the same runtime
+// representation (the inline implementations are no-op casts), so these
+// bindings are intended for reference-typed `a` only — passing a value
+// type (e.g. `int`) through `null<a>` on C# will not behave as expected.
 pub type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.

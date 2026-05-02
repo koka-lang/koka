@@ -25,17 +25,11 @@ EMSCRIPTEN_KEEPALIVE void wasm_timer_callback(kk_wasm_timer_t* timer_info){
   }
 }
 
-EM_JS(int, start_timer, (kk_wasm_timer_t* timer_info, int64_t timeout, int64_t repeat), {
+EM_JS(int, start_timer, (kk_wasm_timer_t* timer_info, int64_t interval), {
   function wasm_callback() {
     _wasm_timer_callback(timer_info);
   }
-  const n_repeat = Number(repeat);
-  const n_timeout = Number(timeout);
-  if (n_repeat != 0) {
-    return setInterval(wasm_callback, n_repeat);
-  } else {
-    return setTimeout(wasm_callback, n_timeout);
-  }
+  return setInterval(wasm_callback, Number(interval));
 });
 
 EM_JS(void, stop_timer, (int timer, bool repeating), {
@@ -69,7 +63,7 @@ kk_unit_t kk_wasm_timer_stop(kk_uv_timer__timer timer, kk_context_t* _ctx) {
   return kk_Unit;
 }
 
-kk_std_core_exn__error kk_wasm_timer_start(kk_uv_timer__timer timer, int64_t timeout, int64_t repeat, kk_function_t callback, kk_context_t* _ctx) {
+kk_std_core_exn__error kk_wasm_timer_start(kk_uv_timer__timer timer, int64_t interval, kk_function_t callback, kk_context_t* _ctx) {
   kk_wasm_timer_t* timer_info = kk_tm_borrow_internal(timer);
   if (kk_unlikely(!kk_function_is_null(timer_info->callback, _ctx))) {
     // If there's already a callback, the timer is still busy on a previous request
@@ -77,8 +71,29 @@ kk_std_core_exn__error kk_wasm_timer_start(kk_uv_timer__timer timer, int64_t tim
     return kk_wasm_error("timer is busy", _ctx);
   }
   timer_info->callback = callback;
-  timer_info->repeat_ms = repeat;
-  timer_info->timer = start_timer(timer_info, timeout, repeat);
+  timer_info->repeat_ms = interval;
+  timer_info->timer = start_timer(timer_info, interval);
+  return kk_std_core_types__new_Ok(kk_unit_box(kk_Unit), _ctx);
+}
+
+// One-shot variant: schedules a single fire after `timeout` ms via setTimeout.
+// `repeat_ms == 0` makes `wasm_timer_callback` null the callback after firing.
+EM_JS(int, start_timeout_timer, (kk_wasm_timer_t* timer_info, int64_t timeout), {
+  function wasm_callback() {
+    _wasm_timer_callback(timer_info);
+  }
+  return setTimeout(wasm_callback, Number(timeout));
+});
+
+kk_std_core_exn__error kk_wasm_timer_start_once(kk_uv_timer__timer timer, int64_t timeout, kk_function_t callback, kk_context_t* _ctx) {
+  kk_wasm_timer_t* timer_info = kk_tm_borrow_internal(timer);
+  if (kk_unlikely(!kk_function_is_null(timer_info->callback, _ctx))) {
+    kk_function_drop(callback, _ctx);
+    return kk_wasm_error("timer is busy", _ctx);
+  }
+  timer_info->callback = callback;
+  timer_info->repeat_ms = 0; // marks one-shot
+  timer_info->timer = start_timeout_timer(timer_info, timeout);
   return kk_std_core_types__new_Ok(kk_unit_box(kk_Unit), _ctx);
 }
 
@@ -107,7 +122,12 @@ kk_unit_t kk_libuv_timer_stop(kk_uv_timer__timer timer, kk_context_t* _ctx) {
   return kk_Unit;
 }
 
-// The uv callback for the timer
+// The uv callback for the timer.
+//
+// Note: the user callback is allowed to call `stop` (or even start a fresh
+// repeat) on this same timer while we are still inside this frame. libuv
+// permits this; we only access `kk_timer->callback` again when the next
+// fire happens (uv reschedules itself), so the re-entrancy is safe.
 void kk_uv_timer_unit_callback(uv_timer_t* uv_timer) {
   kk_context_t* _ctx = kk_get_context();
   kk_timer_t* kk_timer = (kk_timer_t*)uv_timer;
@@ -120,7 +140,7 @@ void kk_uv_timer_unit_callback(uv_timer_t* uv_timer) {
   kk_unit_callback(callback, _ctx);
 }
 
-kk_std_core_exn__error kk_libuv_timer_start(kk_uv_timer__timer timer, int64_t timeout, int64_t repeat, kk_function_t callback, kk_context_t* _ctx) {
+kk_std_core_exn__error kk_libuv_timer_start(kk_uv_timer__timer timer, int64_t interval, kk_function_t callback, kk_context_t* _ctx) {
   kk_timer_t* uv_timer = kk_tm_borrow_internal(timer);
   int status = UV_OK;
 
@@ -129,7 +149,30 @@ kk_std_core_exn__error kk_libuv_timer_start(kk_uv_timer__timer timer, int64_t ti
     status = UV_EBUSY;
   } else {
     uv_timer->callback = callback;
-    status = uv_timer_start((uv_timer_t*)uv_timer, kk_uv_timer_unit_callback, timeout, repeat);
+    status = uv_timer_start((uv_timer_t*)uv_timer, kk_uv_timer_unit_callback, interval, interval);
+  }
+
+  if (status != UV_OK) {
+    uv_timer->callback = kk_function_null(_ctx);
+    kk_function_drop(callback, _ctx);
+    return kk_uv_error_from_errno(status, _ctx);
+  } else {
+    return kk_std_core_types__new_Ok(kk_unit_box(kk_Unit), _ctx);
+  }
+}
+
+// One-shot: schedules `callback` to fire once after `timeout` ms.
+// The unit-callback nulls `kk_timer->callback` when uv_timer_get_repeat==0,
+// so the timer self-cleans after firing.
+kk_std_core_exn__error kk_libuv_timer_start_once(kk_uv_timer__timer timer, int64_t timeout, kk_function_t callback, kk_context_t* _ctx) {
+  kk_timer_t* uv_timer = kk_tm_borrow_internal(timer);
+  int status = UV_OK;
+
+  if (kk_unlikely(!kk_function_is_null(uv_timer->callback, _ctx))) {
+    status = UV_EBUSY;
+  } else {
+    uv_timer->callback = callback;
+    status = uv_timer_start((uv_timer_t*)uv_timer, kk_uv_timer_unit_callback, timeout, 0);
   }
 
   if (status != UV_OK) {
@@ -163,10 +206,34 @@ kk_unit_t kk_timer_stop(kk_uv_timer__timer timer, kk_context_t* _ctx) {
   #endif
 }
 
-kk_std_core_exn__error kk_timer_start(kk_uv_timer__timer timer, int64_t timeout, int64_t repeat, kk_function_t callback, kk_context_t* _ctx) {
+// Start a repeating timer with `interval` ms between fires. The first fire is
+// also after `interval` ms, matching JS `setInterval` semantics on every backend.
+kk_std_core_exn__error kk_timer_start(kk_uv_timer__timer timer, int64_t interval, kk_function_t callback, kk_context_t* _ctx) {
   #ifdef __EMSCRIPTEN__
-    return kk_wasm_timer_start(timer, timeout, repeat, callback, _ctx);
+    return kk_wasm_timer_start(timer, interval, callback, _ctx);
   #else
-    return kk_libuv_timer_start(timer, timeout, repeat, callback, _ctx);
+    return kk_libuv_timer_start(timer, interval, callback, _ctx);
   #endif
+}
+
+// Start a one-shot timer that fires once after `timeout` ms.
+// The timer's callback is automatically released after firing.
+kk_std_core_exn__error kk_timer_start_once(kk_uv_timer__timer timer, int64_t timeout, kk_function_t callback, kk_context_t* _ctx) {
+  #ifdef __EMSCRIPTEN__
+    return kk_wasm_timer_start_once(timer, timeout, callback, _ctx);
+  #else
+    return kk_libuv_timer_start_once(timer, timeout, callback, _ctx);
+  #endif
+}
+
+// Cancel a timer scheduled via `set-timeout` (called from clear-timeout).
+// Owns `boxed_timer` (the boxed timer struct returned by `set-timeout`).
+// `kk_timer_stop` only *borrows* the timer (the Koka decl uses `^t`), so we
+// must explicitly drop it after stopping; the drop schedules `uv_close`
+// which is what reclaims the underlying uv handle.
+kk_unit_t kk_clear_timeout(kk_box_t boxed_timer, kk_context_t* _ctx) {
+  kk_uv_timer__timer timer = kk_uv_timer__timer_unbox(boxed_timer, KK_OWNED, _ctx);
+  kk_timer_stop(timer, _ctx);
+  kk_uv_timer__timer_drop(timer, _ctx);
+  return kk_Unit;
 }

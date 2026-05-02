@@ -608,7 +608,11 @@ type protect-state<b,r,e>
   NoFinalization
 
 fun protect-prompt( resumed : ref<global,protect-state<b,r,e>>, res : r) : e r
-  val hdiv=@Hnodiv // Needed since resumed is in global state.
+  // `@Hnodiv` is consumed by the divergence checker via implicit parameters:
+  // because `resumed` lives in `global` state we'd otherwise be flagged as
+  // potentially divergent through self-reference; binding `@Hnodiv` here
+  // satisfies the checker that this prompt does not introduce divergence.
+  val hdiv=@Hnodiv
   val did-resume : some<b,r,e> protect-state<b,r,e> = (unsafe-st{ !resumed })()
   match did-resume
     NoFinalization -> // resumed already, no need to protect
