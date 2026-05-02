@@ -24,22 +24,25 @@ pub extern clear-timeout( tid : any) : io-noexn ()
   js "clearTimeout"
   c "kk_clear_timeout"
 
-// Runs an async action on the default uv event loop, and exceptions at the top level exit the async loop.
-pub fun default-async-uv(action: () -> <async,io> a): io a
-  val result = ref(Error(Exception(
-    "uv event loop returned without fully executing koka code (missing callback or deadlock?)"
-    , ExnInternal("Unreachable"))))
+// Runs an async action on the default uv/js/wasm event loop.
+// Propagates top-level exceptions thrown by the action.
+pub fun default-async-uv(action: () -> <async,io-noexn> ()): io ()   
+  val initial-result = 
+        if host() == "libc" then
+          Error(Exception("libuv event loop returned without fully executing koka code (missing callback or deadlock?)", ExnInternal("Unreachable")))
+        else Ok(()) // Javascript always will return immediately after running the action, since we cannot wait for the end of the event loop, so we return Ok by default
+  val result = ref(initial-result)
   val _ =
     with default-event-loop
     with @default-async
     result := try(action)
   (!result).untry
-
+    
 // Handles a uv loop
 pub fun default-event-loop(action)
   if host() == "libc" then
     handle-loop(action)
-  else // TODO: Support event loop on other platforms
+  else // Javascript doesn't have an api to start or wait for the end of the loop
     action()
 
 // Configures uv with Koka's allocators when importing this file

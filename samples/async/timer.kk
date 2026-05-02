@@ -16,3 +16,4 @@ fun main()
     wait(5.seconds)
     "Hello After Timeout".println
   println("Done!")
+  println(res.show)
