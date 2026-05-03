@@ -1,3 +1,11 @@
+/*---------------------------------------------------------------------------
+  Copyright 2026, Tim Whiting, Microsoft Research, Daan Leijen.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
@@ -16,7 +24,7 @@ EMSCRIPTEN_KEEPALIVE void wasm_timer_callback(kk_wasm_timer_t* timer_info);
 #else
 #include <uv.h>
 //////////////////////////////////////////////////////
-// Create the UV wrapper type (see utils.h)
-////////////////////////////////////////////////////// 
-kk_uv_handle(timer);
+// Create the UV wrapper type (see core.h for the macro)
+//////////////////////////////////////////////////////
+declare_uv_handle(uv_timer)
 #endif

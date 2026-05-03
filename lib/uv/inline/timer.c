@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------------------
+  Copyright 2026, Tim Whiting, Microsoft Research, Daan Leijen.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
 
 #if __EMSCRIPTEN__
 
@@ -99,26 +106,20 @@ kk_std_core_exn__error kk_wasm_timer_start_once(kk_uv_timer__timer timer, int64_
 
 #else
 
-#define kk_tm_borrow_internal(hnd) kk_borrow_internal_as(timer, hnd)
-
-// Initialize the timer handle
+// Initialize the timer handle. uv_timer_init never fails per libuv docs,
+// so we don't propagate an error here.
 kk_uv_timer__timer kk_libuv_timer_init(kk_context_t* _ctx) {
-  kk_timer_t* handle = kk_malloc(sizeof(kk_timer_t), _ctx);
-  handle->callback = kk_function_null(_ctx);
-  // Wrap the uv / kk struct in a reference counted box value type
-  kk_uv_timer__timer t = kk_uv_timer__new_Timer(kk_timer_box(handle, _ctx), _ctx);
-  uv_timer_init(uvloop(), &(handle->uv)); // Timer initialization never fails
-  return t;
+  int status;
+  malloc_and_init_handle(uv_timer, hnd, status, uvloop(), &hnd->uv);
+  kk_assert_internal(status == UV_OK);
+  return kk_uv_timer__new_Timer(kk_uv_timer_box(hnd, _ctx), _ctx);
 }
 
 // Stop timer and remove callback - the timer can be reused with kk_libuv_timer_start
 kk_unit_t kk_libuv_timer_stop(kk_uv_timer__timer timer, kk_context_t* _ctx) {
-  kk_timer_t* kk_timer = kk_tm_borrow_internal(timer);
-  if (kk_likely(!kk_function_is_null(kk_timer->callback, _ctx))) {
-    kk_function_drop(kk_timer->callback, _ctx);
-    kk_timer->callback = kk_function_null(_ctx);
-  }
-  uv_timer_stop(&kk_timer->uv);
+  kk_uv_timer_t* hnd = kk_uv_timer_unbox_borrowed(timer.internal, _ctx);
+  uv_timer_stop(&hnd->uv);
+  kk_uv_handle_drop_references(kk_uv_timer_as_handle(hnd), _ctx);
   return kk_Unit;
 }
 
@@ -126,63 +127,51 @@ kk_unit_t kk_libuv_timer_stop(kk_uv_timer__timer timer, kk_context_t* _ctx) {
 //
 // Note: the user callback is allowed to call `stop` (or even start a fresh
 // repeat) on this same timer while we are still inside this frame. libuv
-// permits this; we only access `kk_timer->callback` again when the next
-// fire happens (uv reschedules itself), so the re-entrancy is safe.
+// permits this; we only access the callback slot again when the next fire
+// happens (uv reschedules itself), so the re-entrancy is safe.
 void kk_uv_timer_unit_callback(uv_timer_t* uv_timer) {
   kk_context_t* _ctx = kk_get_context();
-  kk_timer_t* kk_timer = (kk_timer_t*)uv_timer;
-  kk_function_t callback = kk_timer->callback; // Get the callback
-  if (uv_timer_get_repeat(uv_timer) == 0) { // If this is a one-shot timer, remove it
-    kk_timer->callback = kk_function_null(_ctx);
-  } else { // Otherwise, we need to dup the callback, as it will be called again
-    callback = kk_function_dup(callback, _ctx);
+  kk_uv_handle_t* hnd = uv_timer_as_kk_handle(uv_timer);
+  kk_function_t callback;
+  if (uv_timer_get_repeat(uv_timer) == 0) { // one-shot: take the callback (slot becomes null)
+    callback = kk_uv_handle_take_callback(hnd, _ctx);
+  } else { // repeating: dup the callback, slot stays valid for the next fire
+    callback = kk_uv_handle_dup_callback(hnd, _ctx);
   }
-  kk_unit_t res = kk_unit_callback(callback, _ctx);
-  return;
+  kk_unit_callback(callback, _ctx);
 }
 
 kk_std_core_exn__error kk_libuv_timer_start(kk_uv_timer__timer timer, int64_t interval, kk_function_t callback, kk_context_t* _ctx) {
-  kk_timer_t* uv_timer = kk_tm_borrow_internal(timer);
-  int status = UV_OK;
-
-  if (kk_unlikely(!kk_function_is_null(uv_timer->callback, _ctx))) {
-    // If there's already a callback, the timer is still busy with a previous request
-    status = UV_EBUSY;
-  } else {
-    uv_timer->callback = callback;
-    status = uv_timer_start((uv_timer_t*)uv_timer, kk_uv_timer_unit_callback, interval, interval);
-  }
-
+  kk_uv_timer_t* hnd = kk_uv_timer_unbox_borrowed(timer.internal, _ctx);
+  int status = kk_uv_handle_try_set_callback(kk_uv_timer_as_handle(hnd), callback, _ctx);
   if (status != UV_OK) {
-    uv_timer->callback = kk_function_null(_ctx);
     kk_function_drop(callback, _ctx);
     return kk_uv_error_from_errno(status, _ctx);
-  } else {
-    return kk_std_core_types__new_Ok(kk_unit_box(kk_Unit), _ctx);
   }
+  status = uv_timer_start(&hnd->uv, kk_uv_timer_unit_callback, interval, interval);
+  if (status != UV_OK) {
+    kk_function_drop(kk_uv_handle_take_callback(kk_uv_timer_as_handle(hnd), _ctx), _ctx);
+    return kk_uv_error_from_errno(status, _ctx);
+  }
+  return kk_std_core_types__new_Ok(kk_unit_box(kk_Unit), _ctx);
 }
 
 // One-shot: schedules `callback` to fire once after `timeout` ms.
-// The unit-callback nulls `kk_timer->callback` when uv_timer_get_repeat==0,
+// The unit-callback takes the callback slot when uv_timer_get_repeat==0,
 // so the timer self-cleans after firing.
 kk_std_core_exn__error kk_libuv_timer_start_once(kk_uv_timer__timer timer, int64_t timeout, kk_function_t callback, kk_context_t* _ctx) {
-  kk_timer_t* uv_timer = kk_tm_borrow_internal(timer);
-  int status = UV_OK;
-
-  if (kk_unlikely(!kk_function_is_null(uv_timer->callback, _ctx))) {
-    status = UV_EBUSY;
-  } else {
-    uv_timer->callback = callback;
-    status = uv_timer_start((uv_timer_t*)uv_timer, kk_uv_timer_unit_callback, timeout, 0);
-  }
-
+  kk_uv_timer_t* hnd = kk_uv_timer_unbox_borrowed(timer.internal, _ctx);
+  int status = kk_uv_handle_try_set_callback(kk_uv_timer_as_handle(hnd), callback, _ctx);
   if (status != UV_OK) {
-    uv_timer->callback = kk_function_null(_ctx);
     kk_function_drop(callback, _ctx);
     return kk_uv_error_from_errno(status, _ctx);
-  } else {
-    return kk_std_core_types__new_Ok(kk_unit_box(kk_Unit), _ctx);
   }
+  status = uv_timer_start(&hnd->uv, kk_uv_timer_unit_callback, timeout, 0);
+  if (status != UV_OK) {
+    kk_function_drop(kk_uv_handle_take_callback(kk_uv_timer_as_handle(hnd), _ctx), _ctx);
+    return kk_uv_error_from_errno(status, _ctx);
+  }
+  return kk_std_core_types__new_Ok(kk_unit_box(kk_Unit), _ctx);
 }
 
 #endif

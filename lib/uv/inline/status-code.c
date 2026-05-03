@@ -1,3 +1,11 @@
+/*---------------------------------------------------------------------------
+  Copyright 2026, Tim Whiting, Microsoft Research, Daan Leijen.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
+
 #ifdef __EMSCRIPTEN__
 // In the emscripten case, we just return OK for all status codes UV error codes don't apply
 static kk_uv_status_dash_code__uv_status_code kk_uv_status_to_status_code(int32_t status, kk_context_t *_ctx) {

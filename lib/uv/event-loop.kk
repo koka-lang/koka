@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------------------
+  Copyright 2026, Tim Whiting, Microsoft Research, Daan Leijen.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
 
 module uv/event-loop
 
@@ -15,7 +22,7 @@ extern import
 
 // Runs an async action on the default uv/js/wasm event loop.
 // Propagates top-level exceptions thrown by the action.
-pub fun default-async-uv(action: () -> <async,io-noexn> ()): io ()   
+pub fun default-async-uv(action: () -> <async,io> ()): io ()   
   val initial-result = 
         if host() == "libc" then
           Error(Exception("libuv event loop returned without fully executing koka code (missing callback or deadlock?)", ExnInternal("Unreachable")))

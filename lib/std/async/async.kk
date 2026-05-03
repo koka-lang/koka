@@ -568,9 +568,6 @@ inline extern unsafe-no-ndet-cast: forall<a,e> (() -> <ndet|e> a) -> (() -> e a)
 fun unsafe-no-ndet( action : () -> <ndet|e> a ) : e a 
   unsafe-no-ndet-cast(action)()
 
-inline extern inject-strand-effect : forall<a,h,e> (() -> e a) -> total (() -> <strands<a>|e> a)
-  inline "#1"
-
 // Warning: Cancelation should not be caught unless you're carefully maintaining
 // cancelation semantics yourself.
 pub fun unsafe-catch-cancel(a: () -> <async|e> a): <async|e> await-result<a>
@@ -638,7 +635,9 @@ fun interleave-strands(xs : list<(scope) -> <async|e> a> ) : <async,strands<a>|e
         strand-done(i, Complete(Cancel))
       else
         with yield-on-await
-        val res = strand-exec(inject-strand-effect { action(sentinel-scope) })
+        val res = strand-exec 
+          with mask<strands>
+          action(sentinel-scope)
         strand-done(i, res)
         if res.is-finalize then
           async-st { keep-spawning := False }
