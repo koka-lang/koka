@@ -510,12 +510,17 @@ copyCLibrary term flags sequential cc outDir eimport
 
 searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
 searchCLibrary flags cc clib searchPaths
-  = do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
-                 -- and the actual name of the library is not easy to extract from vcpkg (we could read
-                 -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
-                 do let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
-                    -- trace ("search in: " ++ show searchPaths) $
-                    searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)
+  = do -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
+       -- and the actual name of the library is not easy to extract from vcpkg (we could read
+       -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
+       let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
+           -- on MSVC ccLibFile has no "lib" prefix, but vcpkg may still install the file
+           -- with one (e.g. libuv -> lib/libuv.lib). Try both names.
+           mainName   = ccLibFile cc clib
+           candidates = mainName :
+                        (if "lib" `isPrefixOf` mainName then []
+                          else [ccLibFile cc ("lib" ++ clib)])
+       mbPath <- searchFirst candidates suffixes
        case mbPath of
         Just fname
           -> case reverse (splitPath fname) of
@@ -523,6 +528,12 @@ searchCLibrary flags cc clib searchPaths
                (_:"lib":rbase)         -> return (Right (fname, [joinPaths (reverse rbase ++ ["include"])])) -- e.g. /usr/local/lib
                _                       -> return (Right (fname, []))
         _ -> return (Left [])
+  where
+    searchFirst [] _              = return Nothing
+    searchFirst (name:rest) suffs = do mb <- searchPathsSuffixes searchPaths [] suffs name
+                                       case mb of
+                                         Just _  -> return mb
+                                         Nothing -> searchFirst rest suffs
 
 
 
