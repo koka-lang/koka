@@ -5,7 +5,7 @@ pub import std/time/duration
 pub import std/time/timestamp
 pub import uv/timer
 pub import std/async/async
-import uv/utils
+import uv/core
 
 extern import
   c { conan="libuv[>=1.47.0]"; vcpkg="libuv"; library="uv" }

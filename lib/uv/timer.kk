@@ -5,7 +5,7 @@ pub import std/time/timestamp
 import std/num/ddouble
 import std/num/int32
 import std/num/int64
-import uv/utils
+import uv/core
 
 extern import
   c  file "inline/timer"

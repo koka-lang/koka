@@ -1,15 +1,11 @@
-
-module uv/utils
+module uv/status-code
 import std/num/int32
 
 extern import
   c { conan="libuv[>=1.47.0]"; vcpkg="libuv"; library="uv" }
- 
-extern import
-  c file "inline/utils"
 
-// The base uv handle type
-pub value struct uv-handle { internal: any }
+extern import
+  c file "inline/status-code"
 
 // Exception info for uv errors
 abstract extend type exception-info
@@ -18,7 +14,7 @@ abstract extend type exception-info
 // Throw a uv error if the status code is not uv_OK otherwise return `result`
 pub inline fun result/untry(code: uv-status-code, result: a): exn a
   if code.is-uv_OK then result
-  else throw-exn(Exception(code.message, AsyncExn(code))) // TODO: Errno refactoring
+  else throw-exn(Exception(code.message, AsyncExn(code)))
 
 // Throw a uv error if the status code is not uv_OK
 pub inline fun unit/untry(code: uv-status-code): exn ()
