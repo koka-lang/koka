@@ -137,7 +137,8 @@ void kk_uv_timer_unit_callback(uv_timer_t* uv_timer) {
   } else { // Otherwise, we need to dup the callback, as it will be called again
     callback = kk_function_dup(callback, _ctx);
   }
-  kk_unit_callback(callback, _ctx);
+  kk_unit_t res = kk_unit_callback(callback, _ctx);
+  return;
 }
 
 kk_std_core_exn__error kk_libuv_timer_start(kk_uv_timer__timer timer, int64_t interval, kk_function_t callback, kk_context_t* _ctx) {

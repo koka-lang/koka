@@ -5,8 +5,17 @@
 // Event Loop for Emscripten
 //////////////////////////////////////////////////////
 
-// A global sentinel box: each wasm handle dups it on init, drops on free.
-// When the last handle drops it, the free function cancels the main loop.
+// Sentinel box: when its refcount reaches zero, its free function cancels
+// the main loop (this is how a wasm program exits cleanly once there is no
+// more work to do).
+//
+// Lifetime story:
+//   - `kk_wasm_sentinel_init` creates the box (refcount = 1).
+//   - `kk_emscripten_loop_run` drops the initial reference; from that point
+//     the refcount equals the number of in-flight handles.
+//   - Each handle init dups the sentinel (`kk_wasm_loop_ref`).
+//   - Each handle free drops it via `kk_wasm_loop_unref`, which *defers* the
+//     drop to the next JS event-loop tick (see comment there for why).
 static kk_box_t kk_wasm_loop_sentinel = { .box = 0 };
 
 static void kk_wasm_sentinel_free(void* p, kk_block_t* block, kk_context_t* _ctx) {
@@ -25,9 +34,33 @@ void kk_wasm_loop_ref(kk_context_t* _ctx) {
   kk_box_dup(kk_wasm_loop_sentinel, _ctx);
 }
 
-// Drop the sentinel (called from handle free)
+static void kk_wasm_loop_unref_deferred(void* userData) {
+  kk_unused(userData);
+  kk_box_drop(kk_wasm_loop_sentinel, kk_get_context());
+}
+
+// Drop the sentinel (called from handle free).
+//
+// We defer the decrement to the next JS event-loop tick rather than dropping
+// synchronously. Reason: when a JS callback resumes Koka and Koka transitions
+// between handles (e.g. one timer fires and immediately a new `wait`/timer is
+// scheduled), the dropped handle's `kk_handle_free` runs *before* the next
+// handle is created. If we decremented synchronously, the sentinel could
+// briefly hit zero and fire its free fn (cancelling the main loop) even
+// though more work was about to be scheduled in the same synchronous burst.
+//
+// Deferring to the next tick lets any new handle dup'd in the same burst
+// land first, keeping refcount > 0 across the transition. When user code is
+// genuinely done (no new handles created), the deferred drops settle the
+// refcount to zero on the next tick and the loop cancels normally.
+//
+// Note: we cannot use a "user-action lifetime" ref instead, because on wasm
+// `kk_emscripten_loop_run` calls `emscripten_set_main_loop(..., true)` which
+// never returns -- so there is no point at which Koka can drop a wider ref
+// to signal "user code is done"; the sentinel refcount IS that signal.
 void kk_wasm_loop_unref(kk_context_t* _ctx) {
-  kk_box_drop(kk_wasm_loop_sentinel, _ctx);
+  kk_unused(_ctx);
+  emscripten_async_call(kk_wasm_loop_unref_deferred, NULL, 0);
 }
 
 void one_iter() {
