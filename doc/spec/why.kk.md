@@ -228,7 +228,7 @@ Normally we need to make a fundamental choice when managing memory:
 
 - We either use manual memory management (C, C++, Rust) and we get 
   the best performance but at a significant programming burden,
-- Or, we use garbage collection (OCaml, C#, Java, Go, etc.) but
+- Or, we use garbage collection (OCaml, C#, Java, Go, etc.)
   but now we need a runtime system and pay a price in performance,
   memory usage, and unpredictable latencies.
 
