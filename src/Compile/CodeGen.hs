@@ -149,7 +149,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                              -- imported modules.
                              newtypesAll = foldr1 newtypesCompose (map (extractNewtypes . modCore) (loadedModule loaded : loadedModules loaded))
                          in -}
-                         codeGenC (modSourcePath mod) newtypes borrowed 0 {-unique-}
+                         codeGenC (modSourcePath mod) newtypes borrowed imported 0 {-unique-}
 
 
 {---------------------------------------------------------------
@@ -269,10 +269,10 @@ codeGenJS term flags sequential entry outBase core
   C backend
 ---------------------------------------------------------------}
 
-codeGenC :: FilePath -> Newtypes -> Borrowed -> Int
+codeGenC :: FilePath -> Newtypes -> Borrowed -> [Module] -> Int
              -> Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type)
               ->FilePath -> Core.Core -> IO Link
-codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBase core0
+codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential entry outBase core0
  = do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir     = dirname sourceFile
@@ -304,9 +304,15 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBa
       when (showAsmC flags) (termInfo term (hdoc <//> cdoc))
 
       -- copy libraries
-      let cc       = ccomp flags
-          eimports = externalImportsFromCore (target flags) bcore
-          clibs    = clibsFromCore flags bcore
+      -- Multiple modules can declare the same `extern import { c { library="..." } }`
+      -- (e.g., when several files in `lib/uv/` each name libuv). We `nub` so a
+      -- given library is copied/linked only once instead of once per declaring
+      -- module, which also silences "ignoring duplicate libraries" linker warnings.
+      let importcores = map (fromJust . modCore) imported
+          cores = bcore:importcores
+          cc       = ccomp flags
+          eimports = nub $ concatMap (externalImportsFromCore (target flags)) cores
+          clibs    = nub $ concatMap (clibsFromCore flags) cores
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
       -- return the C compilation and final link as a separate IO action to increase concurrency
@@ -337,14 +343,14 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
                       [outName (ccObjFile cc (moduleNameToPath mname))
                           | mname <- map modName imported ++ [progName]]
                       -- ++ [mainObj]
-            syslibs= concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
+            syslibs= nub $ concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
                       ++ ccompLinkSysLibs flags
                       ++ (if onWindows && not (isTargetWasm (target flags))
                             then ["bcrypt","psapi","advapi32"]
                             else ["m","pthread"])
             libs   = -- ["kklib"] -- [normalizeWith '/' (outName (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
                       -- ++
-                      clibs
+                      nub $ clibs
                       ++
                       concat [clibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
 
@@ -470,10 +476,21 @@ copyCLibrary term flags sequential cc outDir eimport
                                           return Nothing
               case mb of
                 Just (libPath,includes)
-                  -> do termPhase term (color (colorInterpreter (colorScheme flags)) (text "library :") <+>
-                          color (colorSource (colorScheme flags)) (text libPath))
-                        -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
-                        sequential $ copyBinaryIfNewer (rebuild flags) libPath (joinPath outDir (ccLibFile cc clib))
+                  -> do let outLib = joinPath outDir (ccLibFile cc clib)
+                        -- Only emit the "library :" trace and copy when the file actually
+                        -- changed: the same external library is otherwise reported once
+                        -- per declaring module, which is noisy when many modules share a
+                        -- transitive dependency (e.g. `lib/uv/*.kk` all declaring libuv).
+                        -- We deliberately ignore `rebuild flags` here: an external library
+                        -- is treated as already-built input, not Koka-generated output.
+                        needsCopy <- if libPath == outLib then return False
+                                     else do ord <- fileTimeCompare libPath outLib
+                                             return (ord == GT)
+                        when needsCopy $ do
+                          termPhase term (color (colorInterpreter (colorScheme flags)) (text "library :") <+>
+                            color (colorSource (colorScheme flags)) (text libPath))
+                          -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
+                          sequential $ copyBinaryIfNewer False libPath outLib
                         return includes
                 Nothing
                   -> -- TODO: suggest conan and/or vcpkg install?
@@ -493,12 +510,17 @@ copyCLibrary term flags sequential cc outDir eimport
 
 searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
 searchCLibrary flags cc clib searchPaths
-  = do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
-                 -- and the actual name of the library is not easy to extract from vcpkg (we could read
-                 -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
-                 do let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
-                    -- trace ("search in: " ++ show searchPaths) $
-                    searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)
+  = do -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
+       -- and the actual name of the library is not easy to extract from vcpkg (we could read
+       -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
+       let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
+           -- on MSVC ccLibFile has no "lib" prefix, but vcpkg may still install the file
+           -- with one (e.g. libuv -> lib/libuv.lib). Try both names.
+           mainName   = ccLibFile cc clib
+           candidates = mainName :
+                        (if "lib" `isPrefixOf` mainName then []
+                          else [ccLibFile cc ("lib" ++ clib)])
+       mbPath <- searchFirst candidates suffixes
        case mbPath of
         Just fname
           -> case reverse (splitPath fname) of
@@ -506,6 +528,12 @@ searchCLibrary flags cc clib searchPaths
                (_:"lib":rbase)         -> return (Right (fname, [joinPaths (reverse rbase ++ ["include"])])) -- e.g. /usr/local/lib
                _                       -> return (Right (fname, []))
         _ -> return (Left [])
+  where
+    searchFirst [] _              = return Nothing
+    searchFirst (name:rest) suffs = do mb <- searchPathsSuffixes searchPaths [] suffs name
+                                       case mb of
+                                         Just _  -> return mb
+                                         Nothing -> searchFirst rest suffs
 
 
 
@@ -628,7 +656,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
     install rootDir libDir vcpkgCmd
       = do  let packageDir = joinPaths [rootDir,"packages",pkg ++ "_" ++ vcpkgTriplet flags]
             pkgExist <- doesDirectoryExist packageDir
-            when (pkgExist) $
+            when pkgExist $
               termWarning term flags $
                 text "vcpkg" <+> clrSource (text pkg) <+>
                 text "is installed but the library" <+> clrSource (text clib) <+>

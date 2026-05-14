@@ -43,6 +43,11 @@ pub fun map( m : maybe2<a,b>, f : (a,b) -> e (c,d) ) : e maybe2<c,d>
     Just2(x,y)  -> match f(x,y)
                      (fx,fy) -> Just2(fx,fy)
 
+pub fun foreach( m : maybe2<a,b>, f : (a,b) -> e () ) : e ()
+  match m
+    Nothing2    -> ()
+    Just2(x,y)  -> f(x,y)
+
 pub fun (||)( m1 : maybe2<a,b>, m2: maybe2<a,b> ) : maybe2<a,b>
   match m1
     Nothing2 -> m2

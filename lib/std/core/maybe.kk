@@ -42,6 +42,11 @@ pub fun map( m : maybe<a>, f : a -> e b ) : e maybe<b>
     Nothing -> Nothing
     Just(x) -> Just(f(x))
 
+pub fun foreach( m : maybe<a>, f : a -> e () ) : e ()
+  match m
+    Nothing -> ()
+    Just(x) -> f(x)
+
 pub fun (||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a>
   match m1
     Nothing -> m2
