@@ -25,6 +25,8 @@ pub import std/core/order
 pub import std/core/char
 pub import std/core/int
 pub import std/core/vector
+pub import std/core/bytes
+pub import std/core/bslice
 pub import std/core/string
 pub import std/core/sslice
 pub import std/core/list
