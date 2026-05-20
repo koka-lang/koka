@@ -50,6 +50,7 @@ module Common.File(
                   , seqqList, seqqMaybe, seqqEither, seqqTuple2, seqqString
                   ) where
 
+import Debug.Trace
 import Data.Maybe       ( isNothing )
 import Data.List        ( intersperse, isPrefixOf, maximumBy )
 import Data.Char        ( toLower, isSpace )
@@ -434,8 +435,9 @@ searchPathsCanonical relativeDir paths exts suffixes name
           ; exist <- doesFileExist fullName
           ; if exist
              then do rpath <- realPath fullName
-                     -- trace ("search found: " ++ fullName ++ ", in (" ++ dir ++ "," ++ fname ++ ") ,real path: " ++ rpath) $
-                     return $ Just $! getMaximalPrefixPath paths rpath   -- not to the relativeDir!
+                     let (root,stem) = getMaximalPrefixPath paths rpath   -- not to the relativeDir!
+                     -- trace ("search found: " ++ show (root,stem)) $
+                     return $ Just $! (root,stem)
              else search xs
           }
 

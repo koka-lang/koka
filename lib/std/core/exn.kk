@@ -74,6 +74,11 @@ pub fun untry( err : error<a> ) : exn a
     Error(exn) -> throw-exn(exn)
     Ok(x)      -> x
 
+pub fun error/map( err : error<a>, f : a -> e b ) : e error<b>
+  match err
+    Error(exn) -> Error(exn)
+    Ok(x)      -> Ok(f(x))
+
 // Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
 pub fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
   finally(hndler,action)

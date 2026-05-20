@@ -26,7 +26,7 @@ module std/async/async
 
 import std/data/dict
 import std/data/array
-import std/num/int32
+import std/num/int64
 import std/num/ddouble    // for C# backend
 import std/time/duration
 import std/async/null
@@ -35,6 +35,9 @@ import std/core/undiv
 pub import std/num/ddouble
 pub import std/num/float64
 import std/time/timestamp
+
+import uv/core
+import uv/timer
 
 /*
 # Cancellation scopes
@@ -197,14 +200,12 @@ fun finalize-strand(v: strand-result<a>): total ()
     Complete(_) -> ()
     Finalize(yield-info) -> unsafe-reyield(yield-info)
 
-alias dispose-fn = () -> io-noexn ()
+alias cancel-fn = () -> io-noexn ()
 
-alias maybe-dispose-fn = (maybe<dispose-fn>)
-
-alias await-setup<a> = (cb : (await-result<a>, bool) -> io-noexn ()) -> io-noexn maybe-dispose-fn
+alias await-setup<a> = (evloop : event-loop, cb : (await-result<a>, bool) -> io-noexn ()) -> io-noexn maybe<cancel-fn>
 
 // Prevents cancelation, but invokes a hook immediately for notification
-fun unsafe-override-cancel(on-cancel-hook: () -> <io-noexn> (), action: () -> <async|e> a): <async|e> a
+fun unsafe-override-cancel(cancel: cancel-fn, action: () -> <async|e> a): <async|e> a
   val dangling-cb: ref<global,_> = async-st { ref(Nothing) }
   with finally {
     // ensure dangling-cb gets invoked so we don't leak uninvoked and uncancelled callbacks
@@ -216,9 +217,9 @@ fun unsafe-override-cancel(on-cancel-hook: () -> <io-noexn> (), action: () -> <a
 
   // within the outer scope, spawn a canary action
   // to capture cancelation triggered from above.
-  fun setup-cb(cb: ((await-result<()>, bool) -> io-noexn ())): io-noexn maybe-dispose-fn
+  fun setup-cb(evloop : event-loop, cb: ((await-result<()>, bool) -> io-noexn ())): io-noexn maybe<cancel-fn>
     dangling-cb.set(Just(cb))
-    return Just(on-cancel-hook) // cleanup fn
+    return Just(cancel) // cleanup fn
   no-await(setup-cb, async-scope, fn(_) ())
 
   // create a new scope root, so that any callbacks registered
@@ -243,7 +244,7 @@ fun unsafe-override-cancel(on-cancel-hook: () -> <io-noexn> (), action: () -> <a
     // targeted at exactly this scope.
     fun cancel-scope(scope-id)
       if scope-id == cid then
-        async-iox(on-cancel-hook)
+        async-iox(cancel)
       else
         // pass it along, it's presumably a child scope
         // nested under this uncancelable one
@@ -363,7 +364,7 @@ pub fun channel() : async channel<a>
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
 // waits asynchronously until a value becomes available.
 fun receive( ch : channel<a>) : <async,div,ndet> a
-  val setup: await-setup<_> = fn(cb : (_,_) -> io-noexn () )
+  val setup: await-setup<_> = fn(evloop : event-loop, cb : (_,_) -> io-noexn () )
     fun cbr(x) cb(Result(x),True)
     val r = ch.state
     match !r
@@ -454,32 +455,19 @@ pub fun float/wait( secs : float64, ?set-timeout: (unit-cb, int32) -> io-noexn a
 
 // Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0.seconds`).
 // Use `yield()` to yield generally to other asynchronous operations.
-pub fun duration/wait( secs : duration = zero, ?set-timeout: (unit-cb, int32) -> io-noexn any, ?clear-timeout: (any) -> io-noexn () ) : async ()
-  if secs <= duration/zero then return yield()
-  val msecs = max(zero:int32,secs.milli-seconds.int32)
-  await fn(cb)
-    val tid = async/set-timeout( fn(){ cb(()) }, msecs )
-    Just( { async/clear-timeout(tid) } )
+pub fun duration/wait( secs : duration = zero ) : async ()
+  val msecs = max(zero:int64,secs.milli-seconds.int64)
+  setup/await fn(evloop,cb)
+    timer-setup(evloop, msecs, fn(){ cb(()) })
+    
 
 // Yield to other asynchronous operations. Same as `wait(0)`.
-pub fun yield(?set-timeout: (unit-cb, int32) -> io-noexn any) : async ()
-  await0 fn(cb)
-    async/set-timeout( cb, int32/zero )
-    ()
+pub fun yield() : async ()
+  duration/wait()
 
-// abstract wid for timeout handlers
-abstract struct timeout-id(
-  timer : any
-)
 
 alias unit-cb = () -> io-noexn ()
 
-fun async/set-timeout( cb : unit-cb, ms : int32, ?set-timeout: (unit-cb, int32) -> io-noexn any) : io-noexn timeout-id
-  Timeout-id(?set-timeout(cb,max(ms,zero)))
-
-
-fun async/clear-timeout( tid : timeout-id , ?clear-timeout: (any) -> io-noexn ()) : io-noexn ()
-  ?clear-timeout(tid.timer)
 
 // ----------------------------------------------------------------------------
 // Interleaved strands of execution
@@ -658,14 +646,14 @@ fun interleave-strands(xs : list<(scope) -> <async|e> a> ) : <async,strands<a>|e
 
 // Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception.
 pub fun await-exn0( setup : (cb : (null<exception>) -> io-noexn () ) -> io-noexn maybe<() -> io-noexn ()> ) : async-exn ()
-  setup/await fn(cb)
+  setup/awaitmb fn(evloop,cb)
     setup( fn(nexn) cb(Result(nexn.unnull(()))) )
   .continue-await.untry
 
 // Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception
 // and the second argument the possible result value.
-pub fun await-exn1( setup : (cb : (null<exception>,a) -> io-noexn () ) -> io-noexn maybe<() -> io-noexn ()> ) : async-exn a
-  setup/await fn(cb)
+pub fun await-exn1( setup : (cb : (null<exception>,a) -> io-noexn () ) -> io-noexn maybe<cancel-fn> ) : async-exn a
+  setup/awaitmb fn(evloop,cb)
     setup( fn(nexn,x) cb(Result(nexn.unnull(x))) )
   .continue-await.untry
 
@@ -676,25 +664,28 @@ fun unnull( nexn : null<exception>, x : a  ) : error<a>
 
 // Convenience function for awaiting a zero argument callback.
 pub fun await0( setup : (cb : () -> io-noexn () ) -> io-noexn () ) : async ()
-  setup/await fn(cb)
+  setup/awaitmb fn(evloop,cb)
     setup( fn() cb(Result(())) )
     Nothing
   .continue-await
 
 // // Convenience function for awaiting a single argument callback.
 pub fun await1( setup : (cb : (a) -> io-noexn () ) -> io-noexn () ) : async a
-  setup/await fn(cb)
+  setup/awaitmb fn(evloop,cb)
     setup( fn(x) cb(Result(x)) )
     Nothing
   .continue-await
 
+pub fun setup/await( setup : (evloop : event-loop, cb : (a) -> io-noexn ()) -> io-noexn (error<cancel-fn>) ) : async a
+  setup/awaitmb fn(evloop,cb) 
+    setup(evloop, cb).maybe  // todo: don't ignore exceptions
 
 // Primitive: Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback:
 // it takes either an exception or a result `a`. Usually `setup` returns `Nothing` but you can return a `Just(cleanup)`
 // value where the `cleanup` functions is invoked on cancellation to dispose of any resources (see the implementation of `wait`).
 // The callback should be invoked exactly once -- when that happens `await-exn` is resumed with the result.
-pub fun setup/await( setup : (cb : (a) -> io-noexn ()) -> io-noexn (maybe<() -> io-noexn ()>) ) : async a
-  val result = do-await(fn(cb) { setup(fn(res) cb(Result(res),True)) }, async-scope)
+pub fun setup/awaitmb( setup : (evloop : event-loop, cb : (a) -> io-noexn ()) -> io-noexn (maybe<cancel-fn>) ) : async a
+  val result = do-await(fn(evloop,cb) { setup(evloop, fn(res) cb(Result(res),True)) }, async-scope)
   result.continue-await
 
 // // Primitive: Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback: it takes either
@@ -746,24 +737,23 @@ fun child-scope-without-auto-cancel(action : (int) -> <async|e> a ) : <async|e> 
 // // Async handle
 // // ----------------------------------------------------------------------------
 
-pub fun @default-async(action)
-  async/handle(action)
-
 fun noop(): ()
    ()
 
+alias event-loop = any
+
 // The outer `:async` effect handler. This is automatically applied by the compiler
 // around the `main` function if it has an `:async` effect.
-pub fun async/handle(action : () -> <async,io-noexn> a ) : io-noexn ()
+pub fun async/handle(evloop : event-loop, action : () -> <async,io-noexn> a ) : io-noexn ()
   val cancel-functions : ref<global,list<(scope,() -> <io-noexn|_> ())>> = ref([])
-  fun handle-await( setup : await-setup<a>, scope : scope, f : await-result<a> -> io-noexn ()) : io-noexn ()
+  fun handle-await( setup : await-setup<a>, scope : scope, f : (await-result<a>) -> io-noexn ()) : io-noexn ()
     // Each callback gets its own scope so we can tell when a given
     // callback can be removed from `cancel-functions`
     val cscope = scope.child(unique())
 
     // `cancel-hook` is the event-system action which should happen
     // on cancellation, e.g. clearTimeout(...)
-    val cancel-hook: ref<global, dispose-fn> = ref(noop)
+    val cancel-hook: ref<global,cancel-fn> = ref(noop)
 
     // TODO is there any code path where is-done is False?
     fun cb( res : await-result<_>, is-done : bool ): io-noexn ()
@@ -783,7 +773,7 @@ pub fun async/handle(action : () -> <async,io-noexn> a ) : io-noexn ()
 
     val trigger-cancel: () -> io-noexn () = fn() cb(Cancel, True)
     cancel-functions := Cons((cscope, trigger-cancel), !cancel-functions)
-    match(setup(cb))
+    match(setup(evloop,cb))
       Just(d) -> cancel-hook := d
       Nothing -> ()
 
@@ -810,6 +800,18 @@ pub fun async/handle(action : () -> <async,io-noexn> a ) : io-noexn ()
 
   action()
   ()
+
+pub fun handle-evloop( action : () -> <async,io-noexn> () ) : io-noexn () 
+  val eres = ref(Ok(()))
+  val evloop = event-loop-init()
+  async/handle(evloop)
+    eres := try(action)
+  event-loop-run(evloop)
+  // (!eres).untry
+
+pub fun @default-async(action)
+  handle-evloop(action)
+
 
 // ----------------------------------------------------------------------------
 // Scope identifiers

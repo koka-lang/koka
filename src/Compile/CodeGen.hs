@@ -772,7 +772,7 @@ shellQuoted args
   = unwords (map shellQuote args)
 
 shellQuote s
-  = if (all (\c -> isAlphaNum c || c `elem` ":/-_.=") s) then s
+  = if (all (\c -> isAlphaNum c || c `elem` ":/-_.=,[]") s) then s
      else dquote s
 
 joinWith sep xs

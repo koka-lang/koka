@@ -94,7 +94,8 @@ modulesFullBuild rebuild forced mainEntries cachedImports roots
 -- Given a complete list of modules in build order (and main entry points), build them all.
 modulesBuild :: [Name] -> [Module] -> Build [Module]
 modulesBuild mainEntries modules
-  = -- phaseTimed 2 "build" (\_ -> Lib.PPrint.empty) $ -- (list (map (pretty . modName) modules))
+  = phaseTimed 2 "build" -- (\_ -> Lib.PPrint.empty) $ 
+                         (\_ -> vcat (map ppMod modules)) $
     do parsedMap   <- modmapCreate modules
        tcheckedMap <- modmapCreate modules
        optimizedMap<- modmapCreate modules
@@ -108,6 +109,8 @@ modulesBuild mainEntries modules
                        modules
        -- mapM_ modmapClear [tcheckedMap,optimizedMap,codegenMap,linkedMap]
        return compiled -- modulesFlushErrors compiled
+  where 
+    ppMod m = pretty (modName m) <.> colon <+> list (map (pretty . lexImportName) (modDeps m))
 
 -- Given a complete list of modules in build order, type check them all.
 modulesTypeCheck :: [Module] -> Build [Module]
@@ -362,7 +365,7 @@ moduleWaitForImports recurse modmap alreadyDone0 importNames
   like perceus ref counting etc.)
 ---------------------------------------------------------------}
 
-moduleOptimize :: ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
+moduleOptimize :: HasCallStack => ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
 moduleOptimize parsedMap tcheckedMap optimizedMap
   = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck parsedMap tcheckedMap) $ \done mod ->
      do -- wait for imports to be optimized (and include imports needed for inline definitions)
@@ -426,7 +429,7 @@ moduleWaitForInlineImports modmap importNames
   Type check a module
 ---------------------------------------------------------------}
 
-moduleTypeCheck :: ModuleMap -> ModuleMap -> Module -> Build Module
+moduleTypeCheck :: HasCallStack => ModuleMap -> ModuleMap -> Module -> Build Module
 moduleTypeCheck parsedMap tcheckedMap
   = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id (moduleParse parsedMap) $ \done mod ->
      do -- wait for direct imports to be type checked
@@ -457,7 +460,7 @@ moduleTypeCheck parsedMap tcheckedMap
 
 
 -- Recursively load public imports from imported modules in a fixpoint
-moduleWaitForPubImports :: ModuleMap -> [ModuleName] -> [(Bool,ModuleName)] -> Build [Module]
+moduleWaitForPubImports :: HasCallStack => ModuleMap -> [ModuleName] -> [(Bool,ModuleName)] -> Build [Module]
 moduleWaitForPubImports tcheckedMap alreadyDone0 importDeps
   = do -- wait for imported modules to be type checked
        let (importOpen,importNames) = unzip importDeps
@@ -542,16 +545,19 @@ moduleParse tparsedMap
 -- to determine dependencies
 modulesResolveDependencies :: Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesResolveDependencies rebuild forced cached roots
-  = do ordered <- -- phaseTimed "resolving" (list (map (pretty . modName) roots)) $
+  = do ordered <- -- phaseTimed 0 "resolving" (\tpenv -> list (map (pretty . modName) roots)) $
                   modulesResolveDeps rebuild forced cached roots []
        return ordered
 
 modulesResolveDeps :: Bool -> [ModuleName] -> [Module] -> [Module] -> [Module] -> Build [Module]
 modulesResolveDeps rebuild forced cached roots acc
-  = do lroots     <- mapConcurrentModules (moduleLoad rebuild forced) roots    -- we can concurrently load (and lex) modules
+  = do lroots0    <- mapConcurrentModules (moduleLoad rebuild forced) roots    -- we can concurrently load (and lex) modules
+       let loadedNames = map modName (lroots0 ++ acc)
+       -- trace ("resolveDeps: loaded: " ++ show (map modName loaded)) $ return ()
+       (lroots,newimportss) <- unzip <$> mapM (addImports loadedNames) lroots0
+       let newimports = nubBy (\m1 m2 -> modName m1 == modName m2) $ concat newimportss
        let loaded = lroots ++ acc
-       newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$>
-                     mapM (addImports loaded) lroots
+
        if (null newimports)
          then do ordered <- toBuildOrder loaded    -- all modules in build order
                  validateDependencies ordered      -- now bottom-up reload also modules whose dependencies have updated
@@ -560,32 +566,53 @@ modulesResolveDeps rebuild forced cached roots acc
                                                    -- in which case we need to load from source anyways. (This is still good as any
                                                    -- definitions from the interface etc. will stay even if there are compilation
                                                    -- errors which helps for the IDE.)
-         else do -- phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
+         else do phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
                  modulesResolveDeps rebuild forced cached newimports loaded  -- keep resolving until all have been loaded
   where
-    addImports loaded mod
-      = catMaybes <$> mapM (addImport . lexImportName) (modDeps mod)
+    addImports :: [ModuleName] -> Module -> Build (Module,[Module])
+    addImports loadedNames mod
+      = do (deps,mbmods) <- unzip <$> mapM addImport (modDeps mod)
+           return (mod{ modDeps = deps }, catMaybes mbmods)
       where
-        addImport :: ModuleName -> Build (Maybe Module)
-        addImport impName
-          = if any (\m -> modName m == impName) loaded  -- already done?
-              then return Nothing
+        -- note: we may import `mod` relatively, so it gets resolved to the full `dir/mod`
+        -- and thus we need to update the LexImport's as only now we know the full module name 
+        -- (after calling moduleFromModuleName)
+        addImport :: LexImport -> Build (LexImport,Maybe Module)
+        addImport imp
+          = do let impName = lexImportName imp
+               mbFound <- checkCached imp impName
+               case mbFound of
+                 Just res -> return res
+                 _        -> do let relativeDir = dirname (modSourcePath mod)
+                                m <- moduleFromModuleName relativeDir impName
+                                -- trace ("import " ++ show impName ++ " as " ++ show (modName m)) $ return ()
+                                let imp' = if modName m == impName then imp 
+                                            else imp{ lexImportAlias = if nameIsNil (lexImportAlias imp) then lexImportName imp else lexImportAlias imp
+                                                    , lexImportName  = modName m }
+                                mbFound <- checkCached imp' (modName m)
+                                case mbFound of
+                                  Just res -> return res
+                                  Nothing  -> return (imp',Just m)
+
+        checkCached :: LexImport -> ModuleName -> Build (Maybe (LexImport,Maybe Module))
+        checkCached imp impName
+          = if any (impName==) loadedNames  -- already done?
+              then return (Just (imp,Nothing))
               else case find (\m -> modName m == impName) cached of   -- do we already have this module cached?
-                     Just mod  -> do return (Just mod)
-                     _         -> do let relativeDir = dirname (modSourcePath mod)
-                                     m <- moduleFromModuleName relativeDir impName
-                                     return (Just m)
+                     Just mod  -> return (Just (imp,Just mod))
+                     Nothing   -> return Nothing
 
 -- order the loaded modules in build order (by using scc)
 toBuildOrder :: [Module] -> Build [Module]
 toBuildOrder modules
   = -- todo: might be faster to check if the modules are already in build order before doing a full `scc` ?
-    let deps    = [(modName mod, map lexImportName (modDeps mod)) | mod <- modules]
+    let deps    = [(modName mod, map lexImportName (modDeps mod)) | mod <- modules]    
         ordered = scc deps
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwErrorKind ErrBuild (\penv -> text "recursive imports:" <+> list (map (TP.ppName penv) grp))
                               return []
     in do phaseVerbose 3 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
+          -- trace ("toBuildOrder: deps: " ++ show deps) $ return ()
           concat <$> mapM ungroup ordered
 
 -- validate that dependencies of a module are not out-of-date
@@ -765,7 +792,7 @@ moduleFromSource fpath0
                                                     _ -> throwErrorKind ErrBuild (\penv -> text ("file path cannot be mapped to a valid module name: " ++ sourcePath))
                                             else return (newModuleName (noexts stem))
                                 ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
-                                -- trace ("moduleFromSource: " ++ show (root,stem,sourcePath,ifacePath)) $
+                                trace ("moduleFromSource: " ++ show modName ++ ": " ++ show (root,stem,sourcePath,ifacePath)) $ return ()
                                 moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
   where
     isValidId :: String -> Bool  -- todo: make it better
@@ -776,14 +803,18 @@ moduleFromSource fpath0
 moduleFromModuleName :: FilePath -> Name -> Build Module
 moduleFromModuleName relativeDir modName
   = -- trace ("moduleFromModuleName: " ++ show modName ++ ", relative dir: " ++ relativeDir) $
-    do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)
-       ifacePath    <- outputName (moduleNameToPath modName ++ ifaceExtension)
-       libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)
+    do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
          Just (root,stem)
-            -> moduleValidate $ (moduleCreateInitial modName (joinPath root stem) ifacePath libIfacePath){ modSourceRelativePath = stem }
+            -> do let fullModName = pathToModuleName (notext stem) -- maybe larger if looked up relatively
+                  -- trace ("moduleFromModuleName: found: " ++ show fullModName) $ return ()
+                  ifacePath    <- outputName (moduleNameToPath fullModName ++ ifaceExtension)
+                  libIfacePath <- searchLibIfaceFile (moduleNameToPath fullModName ++ ifaceExtension)
+                  moduleValidate $ (moduleCreateInitial fullModName (joinPath root stem) ifacePath libIfacePath){ modSourceRelativePath = stem }
          Nothing
-            -> do ifaceExist <- buildDoesFileExistAndNotEmpty ifacePath
+            -> do ifacePath  <- outputName (moduleNameToPath modName ++ ifaceExtension)
+                  libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)                                         
+                  ifaceExist <- buildDoesFileExistAndNotEmpty ifacePath
                   if ifaceExist
                     then do cs <- getColorScheme
                             addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
@@ -797,8 +828,8 @@ moduleFromModuleName relativeDir modName
 -- relativeDir is set when importing from a module so a module name is first resolved relative to the current module
 searchSourceFile :: FilePath -> FilePath -> Build (Maybe (FilePath,FilePath))
 searchSourceFile relativeDir fname
-  = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
-       flags <- getFlags
+  = do flags <- getFlags
+       -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        mb <- lookupVFS fname
        case mb of  -- must match exactly; we may improve this later on and search relative files as well?
          Just _ -> if fname `startsWith` (virtualMount ++ "///") -- just for wsl paths :-( TODO: fix this in general
@@ -806,7 +837,7 @@ searchSourceFile relativeDir fname
                           in return $! Just $! if root == virtualMount
                                then ("",fname)     -- maintain wsl2 paths: ("","/@virtual///wsl.localhost/...")
                                else (root,stem)
-                     else return $! Just $! (getMaximalPrefixPath (virtualMount : includePath flags) fname)
+                     else return $! Just $! getMaximalPrefixPath (virtualMount : includePath flags) fname
          _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir) $
                    liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 

@@ -12,7 +12,7 @@ type tree
   Leaf()
   
 
-fun is-red(t : tree) : bool
+fun tree/is-red(t : tree) : bool
   match t
     Node(Red) -> True
     _         -> False
