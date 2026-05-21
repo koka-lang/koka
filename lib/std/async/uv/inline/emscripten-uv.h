@@ -134,11 +134,11 @@
 #endif
 
 typedef enum {
-  UV_OK = 0,
+  UV_ERRNO_MIN = 1000,
   #define XX(code,_msg) UV_##code, /* = UV__ERR(code), */
   UV_ERRNO_MAP(XX)
   #undef XX
-  UV_ERRNO_MAX = UV_EOF - 1
+  UV_ERRNO_MAX
 } uv_errno_t;
 
 

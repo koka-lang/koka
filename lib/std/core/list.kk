@@ -344,6 +344,19 @@ fun partition-acc(xs : list<a>, ^pred : a -> e bool, acc1 : ctx<list<a>>, acc2 :
       then partition-acc(xx,pred,acc1 ++ ctx Cons(x,hole),acc2)
       else partition-acc(xx,pred,acc1,acc2 ++ ctx Cons(x,hole))
 
+// Partition a list in two lists where the first list contains
+// those elements that satisfy the given predicate `pred`.
+// For example: `partition([1,2,3],fn(i) if i.is-odd then Left(i.show) else Right(-i)) == (["1","3"],[-2])`
+pub fun partition-map( xs : list<a>, ^pred : a -> e either<b,c> ) : e (list<b>,list<c>)
+  partition-map-acc(xs, pred, ctx hole, ctx hole)
+
+fun partition-map-acc(xs : list<a>, ^pred : a -> e either<b,c>, acc1 : ctx<list<b>>, acc2 : ctx<list<c>>): e (list<b>, list<c>)
+  match xs
+    Nil -> (acc1 ++. Nil, acc2 ++. Nil)
+    Cons(x,xx) -> match pred(x)
+      Left(y)  -> partition-map-acc(xx,pred,acc1 ++ ctx Cons(y,hole),acc2)
+      Right(y) -> partition-map-acc(xx,pred,acc1,acc2 ++ ctx Cons(y,hole))      
+
 // Retain only those elements of a list that satisfy the given predicate `pred`.
 // For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`
 pub fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>

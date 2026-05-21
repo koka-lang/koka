@@ -29,6 +29,40 @@ const char* uv_strerror(int uverr) {
   }
 }
 
+typedef void (uv_arg_callback_t)(void* arg);
+
+static void uv_async_call(uv_loop_t* loop, uv_arg_callback_t* cb, void* arg, uint64_t millisecs) {
+  kk_unused(loop);
+  emscripten_async_call(cb,arg,millisecs);
+}
+
+/*
+typedef struct uv_closure_s {
+  uv_arg_callback_t* cb;
+  void*              arg;
+} uv_closure_t;
+
+static void uv_async_call_cb( uv_timer_t* t ) {
+  uv_closure_t* c = (uv_closure_t*)(t->data);
+  uv_arg_callback_t* cb = c->cb;
+  void* arg = c->arg;
+  kk_context_t* ctx = kk_get_context();
+  kk_free(c,ctx);
+  uv_close((uv_handle_t*)t,NULL);
+  kk_free(t,ctx);
+  cb(arg);
+}
+
+static void uv_async_call(uv_loop_t* loop, uv_arg_callback_t* cb, void* arg, uint64_t millisecs) {
+  kk_context_t* ctx = kk_get_context();
+  uv_timer_t* t = kk_zalloc(sizeof(uv_timer_t),ctx);
+  uv_closure_t* c = kk_zalloc(sizeof(uv_closure_t),ctx);
+  c->cb = cb;
+  c->arg = arg;
+  uv_timer_init(loop,t);  
+  uv_timer_start(t,&uv_async_call_cb, millisecs, 0 );  
+}
+*/
 
 // ----------------------------------------------
 // event loop
@@ -56,7 +90,7 @@ static void uv_loop_unref(uv_loop_t* loop) {
   }
   else {
     // delayed deference
-    emscripten_async_call(&uv_loop_delayed_unref, loop, 0);
+    uv_async_call(loop, &uv_loop_delayed_unref, loop, 0);
   }
 }
 
@@ -123,7 +157,7 @@ void uv_close(uv_handle_t* h, uv_close_cb close_cb) {
   if (h==NULL || h->close_cb != NULL) return;
   if (close_cb!=NULL) {
     h->close_cb = close_cb;
-    emscripten_async_call(&uv_dispose_void, h, 0);
+    uv_async_call(h->loop, &uv_dispose_void, h, 0);
   }
   else {
     h->close_cb = &uv_dispose;
