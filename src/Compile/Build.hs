@@ -626,11 +626,12 @@ validateDependencies modules
           else let imports = map lexImportName (modDeps mod)
                    phases  = map (\iname -> case find (\m -> modName m == iname) visited of
                                               Just m -> modPhase m
-                                              _      -> trace ("cannot find: " ++ show iname) $ PhaseInit) imports
+                                              _      -> -- trace ("cannot find: " ++ show iname) $ 
+                                                        PhaseInit) imports
                    minphase = minimum phases
                in if (minphase < PhaseIfaceLoaded && -- once IfaceLoaded we are good?
                       minphase < modPhase mod) 
-                    then trace ("invalidated: " ++ show (modName mod) ++ show (modPhase mod) ++ " > " ++ show (zip imports phases)) $
+                    then -- trace ("invalidated: " ++ show (modName mod) ++ show (modPhase mod) ++ " > " ++ show (zip imports phases)) $
                          do mod' <- moduleLoad True [] mod
                             return (mod' : visited)
                     else return (mod : visited)

@@ -1640,10 +1640,10 @@ withstat
        (do (par, _, transform) <- try $ do x <- parameter False{-allowBorrow-} False{-allowDefault-} False{-allowImplicit-}
                                            (keyword "=" <|> keyword "<-")
                                            return x
-           e <- basicexpr <|> handlerExprStat krng HandlerInstance
+           e <- basicexpr <|> handlerExprWith krng HandlerInstance
            pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
-        do e <- basicexpr <|> handlerExprStat krng HandlerNormal
+        do e <- basicexpr <|> handlerExprWith krng HandlerNormal
            return (applyToContinuation krng [] e)
         )
   where
@@ -1811,9 +1811,14 @@ handlerExpr
            let rng = combineRange rng0 rng1
            mbEff <- handlerEffect
            scoped  <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-           handlerClauses rng mbEff scoped override hsort)
+           handlerClauses rng mbEff scoped override hsort
+        <|>
+           if rangeIsNull rng0
+             then fail ""
+             else handlerClauses rng0 Nothing HandlerNoScope override hsort)
+                
        
-handlerExprStat rng HandlerInstance
+handlerExprWith rng HandlerInstance
   = do rng0 <- keyword "named"
        rng1 <- keyword "handler"
        let rng = combineRange rng0 rng1
@@ -1821,7 +1826,7 @@ handlerExprStat rng HandlerInstance
        scoped <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        handlerClauses rng mbEff scoped HandlerNoOverride HandlerInstance
 
-handlerExprStat rng HandlerNormal
+handlerExprWith rng HandlerNormal
   = do (rng0,override)  <- do{ rng <- keyword "override"; return (rng,HandlerOverride) } <|> return (rangeNull,HandlerNoOverride)
        rng1   <- keyword "handler" <|> return rangeNull
        let rng = combineRange rng0 rng1
@@ -1842,14 +1847,14 @@ handlerClauses rng mbEff scoped override hsort
        handler <- case (mbEff,ops) of
                    (Nothing,[]) -- no ops, and no annotation: this is not a handler; just apply return
                      -> do -- TODO: error on override/scoped/instance?
-                           let handlerExpr f = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
+                           let handlerX f = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
                                                    (f (Var (newHiddenName "action") False rng)) False fullrange
                                retExpr = case ret of
                                            Nothing -> id
                                            Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange
-                           return (binders $ handlerExpr retExpr)
-                   _ -> do let handlerExpr = Handler hsort scoped override Nothing mbEff [] reinit ret final ops rng fullrange
-                           return (binders handlerExpr)
+                           return (binders $ handlerX retExpr)
+                   _ -> do let handlerX = Handler hsort scoped override Nothing mbEff [] reinit ret final ops rng fullrange
+                           return (binders handlerX)
        return $ applyMaybe fullrange reinit final handler
 
 applyMaybe :: Range -> Maybe UserExpr -> Maybe UserExpr -> UserExpr -> UserExpr
