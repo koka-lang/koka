@@ -13,7 +13,7 @@
 // ----------------------------------
 // utility
 
-int  uv_replace_allocator(uv_malloc_func malloc_fun, uv_realloc_func realloc_fun, uv_calloc_func calloc_fun, uv_free_func free_fun) {
+int uv_replace_allocator(uv_malloc_func malloc_fun, uv_realloc_func realloc_fun, uv_calloc_func calloc_fun, uv_free_func free_fun) {
   // nothing
   return 0;
 }
@@ -36,7 +36,7 @@ const char* uv_strerror(int uverr) {
 static void uv_loop_ref(uv_loop_t* loop) {
   if (loop==NULL) return;
   // todo: if (evloop->refcount==0) { error("refcounting after shutdown") }
-  loop->refcount++;  
+  loop->refcount++;
 }
 
 

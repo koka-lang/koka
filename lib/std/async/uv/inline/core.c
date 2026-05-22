@@ -32,13 +32,14 @@ struct kk_dispose_fun_closure_s {
   kk_uv_handle_dispose_fun_t* dispose;
 };
 
-static void kk_uv_handle_dispose_fun(kk_function_t _fself, kk_context_t* ctx) {
+static kk_unit_t kk_uv_handle_dispose_fun(kk_function_t _fself, kk_context_t* ctx) {
   struct kk_dispose_fun_closure_s* _self = kk_function_as(struct kk_dispose_fun_closure_s*, _fself, ctx);
   uv_handle_t* handle = _self->handle;
   void* arg = _self->arg;
   kk_uv_handle_dispose_fun_t* dispose = _self->dispose;
   kk_function_drop(_fself,ctx);
   dispose(handle,arg,ctx);
+  return kk_Unit;
 }
 
 kk_function_t kk_uv_handle_dispose_fun_create(uv_handle_t* handle, void* arg, kk_uv_handle_dispose_fun_t* dispose, kk_context_t* ctx) {
