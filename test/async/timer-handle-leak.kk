@@ -17,7 +17,6 @@ import std/async
 import std/time/duration
 
 fun main()
-  with default-async-uv
   match timeout(100.milli-seconds, { wait(50.milli-seconds); 1 })
-    _ -> ()
-  println("done")
+    Nothing -> println("timed out")
+    Just(n) -> println("waited for " ++ show(n))

@@ -14,4 +14,4 @@ overload/busy-beaver/inf/b/b/trans: forall<a> (st : config<state-b,inf,cons<sym1
 overload/busy-beaver/inf/c/b/trans: forall<a> (st : config<state-c,a,cons<sym0,inf>>, ?trans : (config<state-c,a,cons<sym0,cons<sym0,inf>>>) -> ()) -> ()
 overload/busy-beaver/Start: forall<a,b,c> config<a,b,c>
 overload/busy-beaver/main: () -> console ()
-overload/busy-beaver/start: config<state-a,inf,cons<sym0,inf>>
+overload/busy-beaver/start-config: config<state-a,inf,cons<sym0,inf>>

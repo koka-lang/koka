@@ -24,17 +24,11 @@ Microsoft Research technical report MSR-TR-2017-21, May 2017.
 */
 module std/async/async
 
-import std/data/dict
-import std/data/array
 import std/num/int64
-import std/num/ddouble    // for C# backend
-import std/time/duration
-import std/async/null
-import std/core/unsafe
 import std/core/undiv
-pub import std/num/ddouble
-pub import std/num/float64
-import std/time/timestamp
+import std/core/unsafe
+import std/num/float64
+import std/time/duration
 
 import uv/core
 import uv/timer
@@ -619,9 +613,9 @@ fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) : <async,s
 
   // while we receive resumptions in the channel, invoke them
   with pretend-no-div
-  while { strands-are-busy() } // while there are resumptions on the strands..
-    val strand-resume = unsafe-no-ndet { ch.receive }   // receive yields back to the outer event loop
-    with mask<div> // don't interfere if generic `e` includes `div`
+  while { strands-are-busy() }       // while there are resumptions on the strands..
+    val strand-resume = pretend-no-ndet{ ch.receive }   // receive yields back to the outer event loop
+    with mask<div>
     strand-resume()
   ()  
 
