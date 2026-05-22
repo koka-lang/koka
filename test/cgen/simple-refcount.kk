@@ -1,9 +1,9 @@
 import std/num/int32
 
-extern create-box(): io-noexn any
+extern create-box(): ioc any
   c inline "kk_cptr_raw_box(&kk_free_fun, kk_malloc(sizeof(int), _ctx), _ctx)"
 
-extern get-refcount(^box: any): io-noexn int32
+extern get-refcount(^box: any): ioc int32
   c inline "kk_block_refcount(kk_box_to_ptr(box, _ctx))"
 
 effect ctl catch(): ()

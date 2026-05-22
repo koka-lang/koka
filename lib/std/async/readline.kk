@@ -33,12 +33,12 @@ pub fun readline() : <asyncx,console> string {
   }
 }
 
-extern prim-readline( cb : (null<exception>,string) -> io-noexn () ) : io any {
+extern prim-readline( cb : (null<exception>,string) -> ioc () ) : io any {
   cs "_Readline.Readline"
   js "_readline"
 }
 
-extern prim-cancel-readline( id : any ) : io-noexn () {
+extern prim-cancel-readline( id : any ) : ioc () {
   cs "_Readline.CancelReadline"
   js "_cancel_readline"
 }

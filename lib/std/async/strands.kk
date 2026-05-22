@@ -7,6 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 module std/async/strands
+
 import std/async/async
 import std/async/channel
 import std/time/duration
@@ -21,26 +22,22 @@ import std/core/undiv
 // `cancel` it (and return `Nothing`). Due to the generality of `cancel`, this `timeout`
 // abstraction can reliably time out over any composition of asynchronous operations
 // and is therefore quite expressive.
-pub fun timeout( secs : duration, action : () -> <async,ioc|e> a ) : <async,ioc|e> maybe<a>
-  firstof { duration/wait(secs); Nothing} { Just(action()) }
+pub fun timeout( secs : duration, action : () -> <async,ndet|e> a ) : <async,ndet|e> maybe<a>
+  firstof { wait(secs); Nothing } { Just(action()) }
 
 // Execute `a` and `b` interleaved. As soon as one of them finishes,
 // `cancel` the other one and return the result of finished action.
 pub fun two/firstof( action1 : () -> <async,ndet|e> a, action2 : () -> <async,ndet|e> a) : <async,ndet|e> a
-  list/firstof(action1,[action2])
+  list/firstof-any(action1,[action2])
 
 // Interleave a list of actions `[x]++xs` and return the result of the first action
 // that completes (and cancel all others).
-pub fun list/firstof( x : () -> <async,ndet|e> a, xs : list<() -> <async,ndet|e> a>) : <async,ndet|e> a
-  fun action(f)
-    fn()
-      val res = f()
-      cancel()     // cancel other strands
-      res
-  Cons(x,xs).map(action).interleaved-raw(False).first-completed-strand
+// todo: we need a `:list1` type.
+pub fun list/firstof-any( x : () -> <async,ndet|e> a, xs : list<() -> <async,ndet|e> a>) : <async,ndet|e> a
+  Cons(x,xs).interleaved-raw(False).first-completed-strand
   
 // Interleave two actions
-pub fun two/interleaved( action1 : () -> <async,ioc|e> a, action2 : () -> <async,ioc|e> b ) : <async,ioc|e> (a,b)
+pub fun two/interleaved( action1 : () -> <async|e> a, action2 : () -> <async|e> b ) : <async|e> (a,b)
   fun actionL() Left(action1())
   fun actionR() Right(action2())
   match list/interleaved([actionL, actionR])
@@ -59,14 +56,17 @@ type strand-result<a>
   Finalized(yld : yield-info)     // exception etc.
   Completed(result : a)
 
-// Ensure we prefer Finalizing over Canceled
-fun collapse( xs : list<strand-result<a>> ) : strand-result<()>
-  match xs
-    Cons(Canceled,xx as Cons(Canceled,_)) -> collapse(xx)
-    Cons(Canceled,Cons(Finalized(yld),_)) -> Finalized(yld)
-    Cons(Canceled,_)                      -> Canceled
-    _                                     -> Completed(())
+// Ensure we prefer `Finalized` over `Canceled`
+fun collapse( wrong : list<strand-result<a>> ) : strand-result<()>
+  match wrong
+    Cons(Canceled,rest as Cons(Canceled,_)) -> collapse(rest)
+    Cons(Canceled,Cons(Finalized(yld),_))   -> Finalized(yld)
+    Cons(Canceled,_)                        -> Canceled
+    _                                       -> Completed(())
 
+// Partition strands into completed ones, and a single (collapsed) uncompleted one where
+// we prefer a `Finalized` result over `Canceled`. 
+// (If all strands completed succesfully, the second element is returned as `Completed(())`).
 fun partition-strands( strands : list<strand-result<a>> ) : async (list<a>, strand-result<()>)
   val (xs,wrong) = strands.partition-map fn(res) match(res)
                       Completed(x) -> Left(x)
@@ -77,7 +77,7 @@ fun partition-strands( strands : list<strand-result<a>> ) : async (list<a>, stra
 fun any-completed-strands( strands : list<strand-result<a>> ) : <async,ndet> list<a>
   strands.partition-strands.fst
 
-// Check that all strands completed normally or reyield the first finalized one (prefering non canceled ones)
+// Check that all strands completed normally or reyield the first finalized one (prefering non-canceled ones)
 fun all-completed-strands( strands : list<strand-result<a>> ) : async list<a>
   val (xs,wrong) = strands.partition-strands
   match wrong
@@ -85,7 +85,7 @@ fun all-completed-strands( strands : list<strand-result<a>> ) : async list<a>
     Canceled       -> discontinue()
     _              -> xs
 
-// Return the first strand result that is not finalized
+// Return the first strand result that is not finalized (i.e. exception or canceled)
 fun first-completed-strand( strands : list<strand-result<a>> ) : <async,ndet> a
   val (xs,wrong) = strands.partition-strands
   match xs
@@ -135,16 +135,16 @@ tail fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list
 
 
 // Catch a discontinue as a `:maybe`
-fun unsafe/uncancel( action : () -> <async|e> a): <async|e> maybe<a>
+fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
   with override handler
     final ctl discontinue() Nothing
     return(x)               Just(x)
     // passthrough others
     val async-scope = async-scope
-    fun do-await(setup, scope) do-await(setup,scope)
+    fun do-await(setup, scope)    do-await(setup,scope)
     fun no-await(setup, scope, f) no-await(setup,scope, f)
-    fun async-iox(x) async-iox(x)
-    fun cancel-scope(scope) cancel-scope(scope)  
+    fun async-ioc(x)              async-ioc(x)
+    fun cancel-scope(scope)       cancel-scope(scope)  
   action()
 
 
@@ -159,14 +159,14 @@ noinline fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) :
         // otherwise run the action (up to the first async call)
         with emit-on-await(ch)       // redirect async calls to emit resumptions on the channel         
         val res = 
-          with unsafe/unfinalize     // catches any final ctl (exceptions)
-          with unsafe/uncancel       // catches any discontinue()
+          with unsafe-unfinalize     // catches any final ctl (exceptions)
+          with unsafe-uncancel       // catches any discontinue()
           with mask<strands>         
           action()
         match res
-          Left(yld)      -> { strand-done(i,Finalized(yld)); if needall then cancel() }
+          Left(yld)      -> { strand-done(i,Finalized(yld)); if needall then cancel-outstanding() }
           Right(Nothing) -> strand-done(i,Canceled)
-          Right(Just(x)) -> strand-done(i,Completed(x))
+          Right(Just(x)) -> { strand-done(i,Completed(x)); if !needall then cancel-outstanding() }
 
   // while we receive resumptions in the channel, invoke them
   with pretend-no-div

@@ -20,7 +20,7 @@ import std/core/types
 // - behavioral: `:div` (non-termination/divergence), `:ndet` (non-determinism)
 // - state: `:alloc`, `:read`, `:write`, `:st`
 // - external: `:ui`, `:fsys`, `:net`, `:blocking`
-// - combinations: `:io-total` and `:io-noexn`
+// - combinations: `:ioc-total` and `:ioc`
 //
 // Do _not_ dismiss `:io` since it has the `:exn` effect that should be handled (and an evidence
 // vector should be passed in).

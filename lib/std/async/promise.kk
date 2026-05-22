@@ -7,6 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 module std/async/promise
+
 import std/async/async
 
 // ----------------------------------------------------------------------------
@@ -20,9 +21,9 @@ import std/async/async
 abstract struct promise<a>
   state : ref<global,promise-state<a>>
 
-abstract value type promise-state<a>
+type promise-state<a>
   Resolved( value : a )
-  Awaiting( listeners : list<a -> io ()> )
+  Awaiting( listeners : list<a -> ioc ()> )
 
 // Create a new promise.
 pub fun promise() : async promise<a>
@@ -50,13 +51,12 @@ pub fun try-await( p : promise<a> ) : <async> maybe<a>
 
 // Resolve a promise to `value`. Raises an exception if the promise was already resolved.
 pub fun resolve( p : promise<a>, value : a ) : <async,exn> ()
-  async-io
-    if !try-resolve-io(p, value) then
-      throw("Promise was already resolved")
+  if !try-resolve(p, value) then
+    throw("Promise was already resolved")
 
 // Resolve a promise to `value`. Returns False if the promise was already resolved.
-// TODO: make this ioc
-pub fun try-resolve-io( p : promise<a>, value : a ) : io bool
+pub fun try-resolve( p : promise<a>, value : a ) : async bool
+  with async-ioc 
   val r = p.state
   match !r
     Awaiting(listeners) ->
@@ -66,6 +66,3 @@ pub fun try-resolve-io( p : promise<a>, value : a ) : io bool
       True
     _ -> False
 
-// Perform an I/O operation at the outer level; exceptions are propagated back.
-fun async-io( f : () -> io a ) : <async,exn> a
-  async-ioc( { try(f) } ).untry

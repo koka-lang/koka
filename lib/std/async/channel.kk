@@ -7,6 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 module std/async/channel
+
 import std/async/async
 
 // ----------------------------------------------------------------------------
@@ -21,7 +22,7 @@ abstract value struct channel<a>(
 )
 
 // todo: use queue data type for the values and listeners for better complexity
-abstract type channel-state<a>
+type channel-state<a>
   Empty
   Values( value : a, values : list<a> = [] )
   Waiting( listener : a -> ioc (), listeners : list<a -> ioc ()> = [] )
@@ -38,14 +39,12 @@ fun from-waiting(listeners : list<a -> ioc ()>) : channel-state<a>
 
 // Create a new asynchronous channel.
 pub fun channel() : async channel<a>
-  async-iox
+  async-ioc
     Channel(unique(), ref(Empty))
-
-val no-dispose = Ok({})    
 
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
 // waits asynchronously until a value becomes available.
-pub fun receive( ch : channel<a>) : <async,div,ndet> a
+pub fun receive( ch : channel<a>) : <async,ndet> a
   fun setup( cb : _ -> ioc () ) : ioc ()
     val r = ch.state
     match !r
@@ -79,7 +78,7 @@ fun emit-io( ch : channel<a>, value : a ) : ioc ()
       l(value)
 
 // Emit a value asynchronously into a channel.
-pub fun emit( ch : channel<a>, value : a ) : <async,div> ()
+pub fun emit( ch : channel<a>, value : a ) : async ()
   async-ioc
     emit-io(ch,value)
 
@@ -91,14 +90,14 @@ fun trace-channel-io( msg : string, ch : channel<a> ) : ioc ()
   val msgx = msg ++ ": id=" ++ ch.chid.show
   val r = ch.state
   match !r
-    Empty -> trace(msgx ++ ", empty")
-    Values(v,vs) -> trace-any(msgx ++ ", full: " ++ (1 + vs.length).show ++ ": ", v )
+    Empty         -> trace(msgx ++ ", empty")
+    Values(v,vs)  -> trace-any(msgx ++ ", full: " ++ (1 + vs.length).show ++ ": ", v )
     Waiting(_,ls) -> trace(msgx ++ ", listeners: " ++ (1 + ls.length).show)
 
 fun trace-anyx( s : string, x : a ) : async ()
   trace-any(s,x)
 
-// Returns on an await call and emits the resumption eventually in the given channel
+// Treat `do-await` as `no-wait` calls, and emit the resumption eventually in the given channel.
 pub fun emit-on-await(ch : channel<() -> <async|e> ()>, action : () -> <async|e> () ) : <async|e> ()
   with override handler
     raw ctl do-await(setup,scope)
@@ -109,7 +108,7 @@ pub fun emit-on-await(ch : channel<() -> <async|e> ()>, action : () -> <async|e>
     // passthrough others
     val async-scope = async-scope
     fun no-await(setup,scope,f) no-await(setup,scope,f)
-    fun async-iox(f) async-iox(f)
-    fun cancel-scope(scope) cancel-scope(scope)
-    fun discontinue() discontinue()
+    fun async-ioc(f)            async-ioc(f)
+    fun cancel-scope(scope)     cancel-scope(scope)
+    fun discontinue()           discontinue()
   action()

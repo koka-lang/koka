@@ -7,5 +7,5 @@ import std/time/utc
 pub fun @expr() : _ ()
   time2/main()
 
-pub fun main() : io-noexn ()
+pub fun main() : ioc ()
   std/time/utc/@default-utc(fn() std/core/@default-exn(fn() @expr()))

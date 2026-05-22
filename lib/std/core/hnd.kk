@@ -941,7 +941,7 @@ pub fun @open4<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a
 // -------------------------------------------
 
 // catch finalization and return the current yield state
-pub noinline fun unsafe/unfinalize( action : () -> e a ) : e either<yield-info,a>
+pub noinline fun unsafe-unfinalize( action : () -> e a ) : e either<yield-info,a>
   unfinalize-prompt(action());
 
 fun unfinalize-prompt( res : a ) : e either<yield-info,a>

@@ -407,7 +407,7 @@ buildcCompileMainBody addShow expr importDecls sourcePath mainModName exprName t
                         "#line 1",
                         "  " ++ showIt expr,
                         "",
-                        "pub fun @main() : io-noexn ()",
+                        "pub fun @main() : ioc ()",
                         "  " ++ mainBody,
                         ""
                         ]

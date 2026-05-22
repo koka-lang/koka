@@ -9,7 +9,7 @@ import std/time/timestamp
 
 
 // `wait` cooperates with the event loop so other strands can run while
-// it sleeps. Use `interleaved` to drive two strands concurrently.
+// it sleeps. Use `interleaved` to drive two strands concurrently. 
 pub fun example1()
   fun stranda()
     wait(100.milli-seconds)
