@@ -152,17 +152,18 @@ fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
     return(x)               Just(x)
     // passthrough others
     val async-scope = async-scope
-    fun do-await(setup, scope)    do-await(setup,scope)
-    fun no-await(setup, scope, f) no-await(setup,scope, f)
-    fun async-ioc(x)              async-ioc(x)
-    fun cancel-scope(scope)       cancel-scope(scope)  
+    fun do-await(setup, scope, l)     do-await(setup,scope,l)
+    fun no-await(setup, scope, l, f)  no-await(setup,scope,l,f)
+    fun async-ioc(x)                  async-ioc(x)
+    fun cancel-scope(scope)           cancel-scope(scope)  
   action()
 
 
 noinline fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) : <async,strands<a> |e> ()
-  with cancelation-scope             // new cancelation scope
   val ch : some<a,e> channel<() -> <async|e> a> = channel()
-  val strands = xs.foreach-indexed fn(i, action)
+  val strands = 
+    with cancelation-scope             // new cancelation scope
+    xs.foreach-indexed fn(i, action)
       if strands-are-canceled() then
         // immediately cancel if a previous strand already called cancel       
         strand-done(i,Canceled) 

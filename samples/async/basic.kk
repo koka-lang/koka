@@ -15,11 +15,10 @@ pub fun example1()
     wait(100.milli-seconds)
     "from A"
   fun strandb()
-    wait(50.milli-seconds)
+    wait(50.milli-seconds)    
     "from B"
   val (a,b) = interleaved(stranda, strandb)
   println("got: " ++ a ++ ", " ++ b)
-
 
 // `firstof` races two actions and returns the first to complete; the
 // loser is automatically cancelled. Combined with `wait`, this lets us

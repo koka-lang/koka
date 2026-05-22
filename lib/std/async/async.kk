@@ -120,14 +120,14 @@ interleaving bookkeeping itself, which ensures that:
 // automatically if `main` has the `:async` effect).
 pub effect async
   // The current cancelations scope.
-  val async-scope: scope
+  val async-scope : scope
 
   // Setup a callback and await its completion. The setup is performed in the handler scope.
-  ctl do-await( setup : await-setup<a>, scope : scope) : await-result<a>
+  ctl do-await( setup : await-setup<a>, scope : scope, label : string ) : await-result<a>
   
-  // Internal: Setup a callback to execute `f` on completion, but return control to the caller immediately
-  // after the setup is performed. `f` is performed in the handler scope.
-  ctl no-await( setup : await-setup<a>, scope : scope, f : await-result<a> -> ioc ()  ) : ()
+  // Internal: Setup a callback to execute `cb` on completion, but return control to the caller immediately
+  // after the setup is performed. `cb` is performed in the handler scope.
+  ctl no-await( setup : await-setup<a>, scope : scope, label : string, cb : await-result<a> -> ioc () ) : ()
 
   // Internal: perform an I/O operation in the outer async handler
   ctl async-ioc( action : () -> ioc a ) : a
@@ -165,7 +165,7 @@ pub type await-result<a>
 pub fun await-result/show(r: await-result<a>) : string
   match r
     Cancel -> "Cancel"
-    Exception(exn) -> "Exception(" ++ show(exn) ++ ")"
+    Exception(exn) -> "Exception(" ++ exn/show(exn) ++ ")"
     Result(_) -> "Result(_)"
 
 
@@ -182,7 +182,7 @@ pub fun float/wait( secs : float64 ) : async ()
 // Use `yield()` to yield generally to other asynchronous operations.
 pub fun duration/wait( secs : duration = zero ) : async ()
   val msecs = max(zero:int64,secs.milli-seconds.int64)
-  await-error fn(evloop,resume)                   // ignore errors; we assume timeouts always work
+  await-error("wait " ++ secs.show) fn(evloop,resume)                   // ignore errors; we assume timeouts always work
     timer-setup(evloop,msecs,fn() resume(()))     
   ()
 
@@ -196,33 +196,33 @@ pub fun yield() : async ()
 // ----------------------------------------------------------------------------
 
 // Convenience function for awaiting a zero argument callback that never fails
-fun await0-noexn( setup : (resume : () -> ioc () ) -> ioc () ) : async ()
-  await1-noexn( fn(resume) setup(fn() resume(())) )
+fun await0-noexn( label : string = "", setup : (resume : () -> ioc () ) -> ioc () ) : async ()
+  await1-noexn(label) fn(resume) setup(fn() resume(())) 
 
 // Convenience function for awaiting a single argument callback that never fails
-pub fun await1-noexn( setup : (resume : (a) -> ioc () ) -> ioc () ) : async a
-  await-noexn fn(_evloop,resume){ setup(resume); (fn() {}) }
+pub fun await1-noexn( label : string = "", setup : (resume : (a) -> ioc () ) -> ioc () ) : async a
+  await-noexn(label) fn(_evloop,resume){ setup(resume); (fn() {}) }
   
 // Convenience function for async functions where the setup cannot fail. In that case
 // the result will never be an error.
-fun await-noexn( setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc dispose-fn ) : async a  
-  val res = setup/await-error( fn(evloop,resume) setup(evloop,resume).Ok )   
+fun await-noexn( label : string = "", setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc dispose-fn ) : async a  
+  val res = setup/await-error( label, fn(evloop,resume) setup(evloop,resume).Ok )   
   match res
     Ok(x)      -> x
     Error(exn) -> impossible("unexpected exception returned from async await: " ++ show(exn))
 
 
 // Await a zero argument callback.
-pub fun await0( setup : (resume : () -> ioc () ) -> ioc error<dispose-fn> ) : <async,exn> ()
-  await1( fn(resume) setup(fn() resume(())) )
+pub fun await0( label : string = "", setup : (resume : () -> ioc () ) -> ioc error<dispose-fn> ) : <async,exn> ()
+  await1(label) fn(resume) setup(fn() resume(())) 
 
 // Await a single argument callback.
-pub fun await1( setup : (resume : (a) -> ioc () ) -> ioc error<dispose-fn> ) : <async,exn> a
-  setup/await(fn(_evloop,resume) setup(resume))
+pub fun await1( label : string = "", setup : (resume : (a) -> ioc () ) -> ioc error<dispose-fn> ) : <async,exn> a
+  setup/await(label) fn(_evloop,resume) setup(resume)
 
 // Await with the exception effect
-pub fun setup/await( setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc error<dispose-fn> ) : <async,exn> a  
-  await-error(setup).untry
+pub fun setup/await( label : string = "", setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc error<dispose-fn> ) : <async,exn> a  
+  await-error(label,setup).untry
 
 // Primitive await: call `setup` to set up an asynchronous callback with the host platform. 
 // The setup is passed the eventloop of the async handler, and a `resume` function
@@ -230,12 +230,12 @@ pub fun setup/await( setup : (evloop : event-loop, resume : (a) -> ioc ()) -> io
 // The `setup` function returns either an error, or a `dispose` funcion that is invoked on cancellation 
 // to dispose of any resources (see the implementation of `wait`).
 // The `resume` is invoked exactly once (either on the async completion callback, or on cancelation)
-pub fun setup/await-error( setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc error<dispose-fn> ) : async error<a>
-  val res = do-await(fn(evloop,resume) { setup(evloop, fn(res) resume(Result(res),True)) }, async-scope)
+pub fun setup/await-error( label : string, setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc error<dispose-fn> ) : async error<a>
+  val res = do-await(fn(evloop,resume) { setup(evloop, fn(res) resume(Result(res),True)) }, async-scope, label)
   match res
     Result(value)  -> Ok(value)
     Exception(exn) -> Error(exn)
-    Cancel         -> discontinue()
+    Cancel         -> { trace("resumed with cancel: " ++ label); discontinue() }
 
 
 // ----------------------------------------------------------------------------
@@ -248,7 +248,10 @@ fun noop(): ()
 pub alias event-loop = any
 
 type await-resumption
-  AwaitResumption<a>( scope : scope, resume : (await-result<a>,bool) -> ioc () )
+  AwaitResumption<a>( scope : scope, label : string, resume : (await-result<a>,bool) -> ioc () )
+
+fun await-resumption/show( AwaitResumption(scope,label,_) ) : string
+  label ++ " at " ++ scope.show
 
 // The outer `:async` effect handler. This is automatically applied by the compiler
 // around the `main` function if it has an `:async` effect.
@@ -257,10 +260,10 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
   val outstanding : ref<global,list<await-resumption>> = ref([])
   
   // Setup a new async await
-  fun setup-await( setup : await-setup<a>, scope : scope, resume : (await-result<a>) -> ioc ()) : ioc ()
+  fun setup-await( setup : await-setup<a>, scope : scope, label : string, resume : (await-result<a>) -> ioc ()) : ioc ()
     // Each callback gets its own scope so we can tell when a given
     // callback can be removed from `outstanding`
-    val cscope = scope.child(unique())
+    val cscope = scope.child(unique()+1)
 
     // `disposer` holds the dispose function (that releases resources on cancelation)
     val disposer : ref<global,dispose-fn> = ref(noop)
@@ -279,7 +282,7 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
         if res.is-cancel then dispose()
       resume(res)
 
-    outstanding := Cons(AwaitResumption(cscope,resume-cb), !outstanding)
+    outstanding := Cons(AwaitResumption(cscope,label,resume-cb), !outstanding)
     match(setup(evloop,resume-cb))                   // primitive setup: registers `resume-cb` as the callback for an async request
       Ok(dispose) -> disposer := dispose
       Error(exn)  -> resume-cb(Exception(exn),True)  // if setup fails, we resume immediately with an exception result
@@ -292,19 +295,24 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
     
   // Cancelation
   fun cancel-outstanding-in-scope( sid : scope-id ) : ioc ()
-    (!outstanding).foreach fn(AwaitResumption(scope,resume-cb))
-      if scope.contains(sid) then resume-cb(Cancel,True)
+    (!outstanding).foreach fn(AwaitResumption(scope,label,resume-cb))
+      if scope.contains(sid) then 
+        trace("cancel: " ++ label ++ " at " ++ scope.show)
+        resume-cb(Cancel,True)
 
   
   handle<async>(action)
-    val async-scope = empty-scope
-    raw ctl do-await(setup, scope)  setup-await(setup, scope, fn(x) rcontext.resume(x) )
-    fun no-await(setup, scope, f)   setup-await(setup, scope, f)
-    fun cancel-scope(scope)         // val sid = scope.scope-id in schedule{ cancel-outstanding-in-scope(sid) }
-                                    cancel-outstanding-in-scope(scope.scope-id)
-    final ctl discontinue()         trace("discontinue occurred at the toplevel scope")      
-    fun async-ioc(f)                f()
-    // fun async-schedule-ioc(f)    schedule(f)
+    val async-scope = root-scope
+    raw ctl do-await(setup,scope,lab)   setup-await(setup, scope, lab, fn(x) rcontext.resume(x) )
+    fun no-await(setup,scope,lab,cb)    setup-await(setup, scope, lab, cb )
+    fun cancel-scope(scope)             
+      trace("cancel-scope: " ++ scope.show)
+      val sid = scope.scope-id 
+      schedule{ cancel-outstanding-in-scope(sid) }
+      //cancel-outstanding-in-scope(scope.scope-id)
+    final ctl discontinue()             trace("discontinue occurred at the toplevel scope")      
+    fun async-ioc(f)                    f()
+    // fun async-schedule-ioc(f)        schedule(f)
 
 
 pub fun handle-evloop( action : () -> <async,ioc> () ) : ioc () 
@@ -322,19 +330,24 @@ pub fun @default-async( action : () -> <async,ioc> () ) : ioc ()
 
 // Set up a new cancelation scope
 pub fun cancelation-scope( action : () -> <async|e> a) : <async|e> a
-  val cid = async-ioc{ unique() }
+  val cid = async-ioc{ unique()+1 }
+  val cscope = async-scope().child(cid)
   with override handler
-    val async-scope = async-scope.child(cid)
+    val async-scope = cscope
     // passthrough
-    fun do-await(setup,scope)   do-await(setup,scope)
-    fun no-await(setup,scope,f) no-await(setup,scope,f)
-    fun cancel-scope(scope)     cancel-scope(scope)
-    fun async-ioc(f)            async-ioc(f)
-    fun discontinue()           discontinue()
-  with finally
-    cancel-scope(async-scope)   // ensure there are no more outstanding async operations when leaving the scope
+    fun do-await(setup,scope,l)   do-await(setup,scope,l)
+    fun no-await(setup,scope,l,f) no-await(setup,scope,l,f)
+    fun cancel-scope(scope)       cancel-scope(scope)
+    fun async-ioc(f)              async-ioc(f)
+    fun discontinue()             discontinue()
+  // with finally
+  //  cancel-scope(async-scope)   // ensure there are no more outstanding async operations when leaving the scope
   action()
 
+
+fun test-scope()
+  with cancelation-scope
+  println("current scope: " ++ async-scope.show)
 
 // ----------------------------------------------------------------------------
 // Scope identifiers
@@ -347,25 +360,20 @@ alias scope-id = int
 // An abstract cancelation scope
 abstract value struct scope( scopes : list<scope-id> )
 
-pub fun scope/show( s : scope ) : string
-  match s
-    Scope(ids) -> " " ++ ids.map(fn(id) "{" ++ id.show ++ "}").join("<") ++ "<"
+pub fun scope/show( Scope(ids) : scope ) : string
+  ids.map(show).join("<")
 
 // A scope is the chain starting with the current scope, including parent scopes up to the root scope-id
-val empty-scope = Scope([])
+val root-scope = Scope([0])
 
-fun child(parent : scope, child-id : scope-id) : scope
-  match parent
-    Scope(ids) -> Scope(Cons(child-id, ids))
+fun child(Scope(ids) : scope, child-id : scope-id) : scope
+    Scope(Cons(child-id, ids))
 
-fun contains(scope : scope, scopeid : scope-id ) : bool
-  match scope
-    Scope(ids) -> ids.find(fn(x) x == scopeid).is-just
+fun contains(Scope(ids) : scope, scopeid : scope-id ) : bool
+  ids.find(fn(x) x == scopeid).is-just
 
 fun scope-id( Scope(ids) ) : scope-id
-  match ids
-    (Cons(id,_)) -> id
-    Nil          -> 0
+  ids.head(0)
   
 // every scope with the same id must implicitly contain the same
 // parent chain, so a simple comparison on the head is sufficient

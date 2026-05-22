@@ -39,7 +39,7 @@ pub fun promise/await( p : promise<a> ) : async a
       Resolved(value) -> cb(value) // resume right away; should not happen due to try-await
   match p.try-await
     Just(v) -> v
-    Nothing -> await1-noexn(setup)
+    Nothing -> await1-noexn("promise/await",setup)
 
 // Returns immediately if the promise was already resolved and otherwise return `Nothing`.
 pub fun try-await( p : promise<a> ) : <async> maybe<a>
