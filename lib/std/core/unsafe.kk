@@ -40,7 +40,12 @@ inline fip extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() 
 
 // _Unsafe_. This function pretends the given `action` is deterministic
 pub fun pretend-no-ndet( action : () -> <ndet|e> a ) : e a
-  unsafe-total-cast( action )()
+  // unsafe-total-cast( action )()
+  unsafe-no-ndet-cast(action)()
+
+inline fip extern unsafe-no-ndet-cast: forall<a,e> (() -> <ndet|e> a) -> (() -> e a) 
+  inline "#1" 
+
 
 // _Unsafe_. This function checks if two objects have the same address in the heap.
 // The results may vary on the backend or compiler optimizations but the function pretends to be `:total`.

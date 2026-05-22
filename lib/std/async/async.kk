@@ -556,11 +556,6 @@ tail fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list
     Cons(x,xx) | x.fst < idx -> Cons(x, insert(xx, idx, value, n + 1))
     _ -> Cons((idx,value),xs)
 
-inline extern unsafe-no-ndet-cast: forall<a,e> (() -> <ndet|e> a) -> (() -> e a) 
-  inline "#1" 
-
-fun unsafe-no-ndet( action : () -> <ndet|e> a ) : e a 
-  unsafe-no-ndet-cast(action)()
 
 // Catch a discontinue as a `:maybe`
 fun unsafe/uncancel( action : () -> <async|e> a): <async|e> maybe<a>
@@ -591,7 +586,7 @@ fun emit-on-await(ch : channel<() -> <async|e> ()>, action : () -> <async|e> () 
     fun discontinue() discontinue()
   action()
  
-fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) : <async,strands<a> |e> ()
+noinline fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) : <async,strands<a> |e> ()
   with cancelation-scope             // new cancelation scope
   val ch : some<a,e> channel<() -> <async|e> a> = channel()
   val strands = xs.foreach-indexed fn(i, action)
