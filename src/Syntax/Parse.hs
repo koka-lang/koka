@@ -1792,40 +1792,47 @@ matchexpr
 
 -- TODO: fix parsing of handlers to match the grammar precisely
 handlerExpr
-  = do (rng0,hsort) <- do { rng <- keyword "named"; return (rng,HandlerInstance) }
-                       <|> return (rangeNull,HandlerNormal)
-       (do rng1 <- keyword "handle"
+  = do (rng0,hsort,override) 
+           <- do { rng <- keyword "named"; return (rng,HandlerInstance,HandlerNoOverride) }
+              <|> 
+              do { rng <- keyword "override"; return (rng,HandlerNormal,HandlerOverride)}
+              <|>
+              return (rangeNull,HandlerNormal,HandlerNoOverride)    
+                      
+       (do rng1 <- keyword "handle" 
            let rng = combineRange rng0 rng1
+           mbEff <- handlerEffect
            scoped  <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-           (override,mbEff) <- handlerOverride hsort
            arg  <- ntlexpr -- parens argument
            expr <- handlerClauses rng mbEff scoped override hsort
            return (App expr [(Nothing,arg)] (combineRanged rng expr))
         <|>
         do rng1 <- keyword "handler"
            let rng = combineRange rng0 rng1
-           handlerExprX rng hsort)
-
+           mbEff <- handlerEffect
+           scoped  <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+           handlerClauses rng mbEff scoped override hsort)
+       
 handlerExprStat rng HandlerInstance
-  = do keyword "named"
-       optional (keyword "handler")
-       handlerExprX rng HandlerInstance
+  = do rng0 <- keyword "named"
+       rng1 <- keyword "handler"
+       let rng = combineRange rng0 rng1
+       mbEff  <- handlerEffect
+       scoped <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       handlerClauses rng mbEff scoped HandlerNoOverride HandlerInstance
 
 handlerExprStat rng HandlerNormal
-  = do handlerExprX rng HandlerNormal
+  = do (rng0,override)  <- do{ rng <- keyword "override"; return (rng,HandlerOverride) } <|> return (rangeNull,HandlerNoOverride)
+       rng1   <- keyword "handler" <|> return rangeNull
+       let rng = combineRange rng0 rng1
+       mbEff  <- handlerEffect
+       scoped <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       handlerClauses rng mbEff scoped override HandlerNormal
 
-handlerExprX rng hsort
-  = do scoped <- do { keyword "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       (override,mbEff) <- handlerOverride hsort
-       handlerClauses rng mbEff scoped override hsort
 
-handlerOverride hsort
-  = do override <- if (hsort == HandlerNormal)
-                     then do { keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
-                     else return HandlerNoOverride
-       mbEff    <- do { eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       return (override,mbEff)
-
+handlerEffect 
+  = do { eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
+  
 handlerClauses :: Range -> Maybe UserType -> HandlerScope -> HandlerOverride -> HandlerSort -> LexParser UserExpr
 handlerClauses rng mbEff scoped override hsort
   = do (clausesAndBinders,rng2) <- opClauses
