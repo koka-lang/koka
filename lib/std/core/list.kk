@@ -355,7 +355,7 @@ fun partition-map-acc(xs : list<a>, ^pred : a -> e either<b,c>, acc1 : ctx<list<
     Nil -> (acc1 ++. Nil, acc2 ++. Nil)
     Cons(x,xx) -> match pred(x)
       Left(y)  -> partition-map-acc(xx,pred,acc1 ++ ctx Cons(y,hole),acc2)
-      Right(y) -> partition-map-acc(xx,pred,acc1,acc2 ++ ctx Cons(y,hole))      
+      Right(z) -> partition-map-acc(xx,pred,acc1,acc2 ++ ctx Cons(z,hole))      
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
 // For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`

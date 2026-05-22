@@ -287,8 +287,8 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
   // Schedule an async call for the next evloop iteration (uv_check_t / setImmediate)
   fun schedule( f : () -> ioc () ) : ioc ()    
     match immediate-setup(evloop,f)  
-      Ok    -> ()
-      Error -> f()
+      Ok    -> ()   // scheduled f to be called
+      Error -> f()  // if setup fails we call it immediately
     
   // Cancelation
   fun cancel-outstanding-in-scope( sid : scope-id ) : ioc ()

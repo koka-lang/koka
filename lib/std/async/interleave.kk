@@ -56,13 +56,21 @@ type strand-result<a>
   Finalized(yld : yield-info)     // exception etc.
   Completed(result : a)
 
+fun strand-result/show(self : strand-result<a> ) : e string
+  match self
+    Canceled  -> "Canceled"
+    Finalized -> "Finalized(...)"
+    Completed -> "Completed(...)"
+
+  
+
 // Ensure we prefer `Finalized` over `Canceled`
 fun collapse( wrong : list<strand-result<a>> ) : strand-result<()>
   match wrong
-    Cons(Canceled,rest as Cons(Canceled,_)) -> collapse(rest)
-    Cons(Canceled,Cons(Finalized(yld),_))   -> Finalized(yld)
-    Cons(Canceled,_)                        -> Canceled
-    _                                       -> Completed(())
+    Cons(Canceled,Nil)     -> Canceled
+    Cons(Canceled,rest)    -> collapse(rest)
+    Cons(Finalized(yld),_) -> Finalized(yld)
+    _                      -> Completed(())
 
 // Partition strands into completed ones, and a single (collapsed) uncompleted one where
 // we prefer a `Finalized` result over `Canceled`. 
@@ -81,8 +89,8 @@ fun any-completed-strands( strands : list<strand-result<a>> ) : <async,ndet> lis
 fun all-completed-strands( strands : list<strand-result<a>> ) : async list<a>
   val (xs,wrong) = strands.partition-strands
   match wrong
-    Finalized(yld) -> unsafe-reyield(yld)
-    Canceled       -> discontinue()
+    Finalized(yld) -> { trace("all-completed-strands: reyield"); unsafe-reyield(yld) }
+    Canceled       -> { trace("all-completed-strands: cancel"); discontinue() }
     _              -> xs
 
 // Return the first strand result that is not finalized (i.e. exception or canceled)
@@ -122,10 +130,13 @@ fun list/interleaved-raw(xs : list<() -> <async|e> a>, needall : bool ) : <async
       results.length < total      
     fun strand-done(idx,res)
       if res.is-canceled then canceled := True
+      // trace("strand-done: " ++ idx.show)
       results := results.insert(idx,res)    
   mask<local>
-    interleave-strands(xs,needall)
-  results.map(snd)
+    interleave-strands(xs,needall)  
+  val strand-results = results.map(snd)
+  // trace("interleaved-raw: " ++ strand-results.show)
+  strand-results
   
 // Insert in order
 tail fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int,a)>
