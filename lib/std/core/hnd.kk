@@ -940,9 +940,13 @@ pub fun @open4<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a
 // capture yields
 // -------------------------------------------
 
-pub fun unsafe-try-finalize( action : () -> e a ) : e either<yield-info,a>
-  try-finalize-prompt(action());
+// catch finalization and return the current yield state
+pub fun unsafe/unfinalize( action : () -> e a ) : e either<yield-info,a>
+  unfinalize-prompt(action());
 
-fun try-finalize-prompt( res : a ) : e either<yield-info,a>
-  if yielding-non-final() return yield-cont(fn(cont,x) try-finalize-prompt(pretend-decreasing(cont(x))) )
-  if !yielding() then Right(res) else Left(yield-capture())
+fun unfinalize-prompt( res : a ) : e either<yield-info,a>
+  if yielding-non-final() 
+    then yield-cont(fn(cont,x) unfinalize-prompt(pretend-decreasing(cont(x))) )
+  elif !yielding() 
+    then Right(res) 
+    else Left(yield-capture())
