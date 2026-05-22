@@ -139,7 +139,7 @@ kk_box_t        kk_yield_final( kk_marker_t m, kk_function_t clause, kk_context_
 kk_function_t   kk_yield_to( kk_marker_t m, kk_function_t clause, kk_context_t* ctx );
 struct kk_std_core_hnd_yld_s  kk_yield_prompt( kk_marker_t m, kk_context_t* ctx );
 
-kk_datatype_t   kk_yield_capture(kk_context_t* ctx);
-kk_box_t        kk_yield_reyield(kk_datatype_t yld, kk_context_t* ctx);
+kk_box_t        kk_yield_capture(kk_context_t* ctx);
+kk_box_t        kk_yield_reyield(kk_box_t yld, kk_context_t* ctx);
 
 

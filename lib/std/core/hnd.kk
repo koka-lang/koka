@@ -321,15 +321,22 @@ noinline fun yield-to( m : marker<e1,r>, clause : (resume-result<b,r> -> e1 r) -
     // val keep1 = guard(w0)  // check the evidence is correctly restored
     f()
 
-pub type yield-info
+abstract struct yield-context( yld : any )
 
-extern yield-capture() : e yield-info
+extern yield-capture-prim() : e any
   c "kk_yield_capture"
   js "_yield_capture"
 
-pub extern unsafe-reyield(yld : yield-info) : e a
+extern unsafe-reyield-prim(yld : any) : e a
   c "kk_yield_reyield"
   js "_reyield"
+
+pub fun yield-capture() : e yield-context
+  Yield-context(yield-capture-prim())
+
+pub fun unsafe-reyield(Yield-context(yld) : yield-context ) : e a
+  unsafe-reyield-prim(yld)
+
 
 
 // -------------------------------------------
@@ -937,14 +944,14 @@ pub fun @open4<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a
   y
 
 // -------------------------------------------
-// capture yields
+// capture yields 
 // -------------------------------------------
 
 // catch finalization and return the current yield state
-pub noinline fun unsafe-unfinalize( action : () -> e a ) : e either<yield-info,a>
+pub noinline fun unsafe-unfinalize( action : () -> e a ) : e either<yield-context,a>
   unfinalize-prompt(action());
 
-fun unfinalize-prompt( res : a ) : e either<yield-info,a>
+fun unfinalize-prompt( res : a ) : e either<yield-context,a>
   if yielding-non-final() 
     then yield-cont(fn(cont,x) unfinalize-prompt(pretend-decreasing(cont(x))) )
   elif !yielding() 

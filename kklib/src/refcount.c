@@ -21,7 +21,7 @@ static void kk_block_free_raw(kk_block_t* b, kk_context_t* ctx) {
   if (raw->free != NULL) {
     (*raw->free)(raw->cptr, b, ctx);
   }
-  kk_block_free_small(b,ctx); // PR #864
+  kk_block_free(b,ctx); // PR #864
 }
 
 // Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0 (after rc decref).
@@ -52,7 +52,6 @@ tailcall:
   const kk_ssize_t scan_fsize = b->header.scan_fsize;
   if (scan_fsize == 0) {
     // free directly
-    kk_assert_internal(!kk_tag_is_raw(kk_block_tag(b)));
     if kk_unlikely(kk_tag_is_raw(kk_block_tag(b))) {  // raw blocks are freed specially
       kk_block_free_raw(b, ctx);
     }
@@ -62,6 +61,7 @@ tailcall:
   }
   else if (scan_fsize == 1) {
     // if just one field, we can free directly and continue with the child
+    kk_assert_internal(!kk_tag_is_raw(kk_block_tag(b)));
     kk_block_t* next = kk_block_fast_field_should_free(b, 0, ctx);
     kk_block_free_b(is_small,b,ctx);
     if (next != NULL) {
@@ -71,6 +71,7 @@ tailcall:
   }
   else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b, 0))) {
     // fast path for lists/nodes with boxed first element
+    kk_assert_internal(!kk_tag_is_raw(kk_block_tag(b)));
     kk_block_t* next = kk_block_fast_field_should_free(b, 1, ctx);
     kk_block_free_b(is_small,b,ctx);
     if (next != NULL) {

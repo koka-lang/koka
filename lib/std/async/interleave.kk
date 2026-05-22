@@ -53,7 +53,7 @@ pub fun list/interleaved(xs : list<() -> <async|e> a> ) : <async|e> list<a>
 // A strand result is either a finalizing yield (exception, cancel, etc), or a completed result value.
 type strand-result<a>  
   Canceled
-  Finalized(yld : yield-info)     // exception etc.
+  Finalized(yld : yield-context)     // exception etc.
   Completed(result : a)
 
 fun strand-result/show(self : strand-result<a> ) : e string
