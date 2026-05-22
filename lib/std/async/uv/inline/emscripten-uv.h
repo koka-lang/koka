@@ -179,7 +179,9 @@ typedef enum {
 typedef struct uv_loop_s   uv_loop_t;
 typedef struct uv_handle_s uv_handle_t;
 typedef struct uv_timer_s  uv_timer_t;
+typedef struct uv_timer_s  uv_check_t;   // check is emulated as a timer with timeout 0
 
+typedef void (*uv_check_cb)(uv_check_t* handle);
 typedef void (*uv_close_cb)(uv_handle_t* handle);
 typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 typedef void (*uv_timer_cb)(uv_timer_t* handle);
@@ -238,5 +240,10 @@ struct uv_timer_s {
 int uv_timer_init(uv_loop_t*, uv_timer_t* handle);
 int uv_timer_start(uv_timer_t* handle, uv_timer_cb cb, uint64_t timeout, uint64_t repeat);
 int uv_timer_stop(uv_timer_t* handle);
+
+// emulate uv_check_t as a uv_timer_t with timeout 0
+static inline int uv_check_init(uv_loop_t* loop, uv_check_t* h) { return uv_timer_init(loop,h); }
+static inline int uv_check_start(uv_check_t* h, uv_check_cb cb) { return uv_timer_start(h,cb,0,0); }
+static inline int uv_check_stop(uv_check_t* h) { return uv_timer_stop(h); }
 
 #endif

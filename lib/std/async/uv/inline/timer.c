@@ -34,6 +34,9 @@ kk_std_core_exn__error kk_timer_setup(kk_uv_loop_t loop, int64_t millisecs, kk_f
   return kk_result_uv_handle_dispose((uv_handle_t*)t,NULL,&kk_uv_timer_dispose,ctx);
 }
 
+kk_std_core_exn__error kk_immediate_setup(kk_uv_loop_t loop, kk_function_t cb, kk_context_t* ctx) {
+  return kk_timer_setup(loop,0,cb,ctx);
+}
 
 
 

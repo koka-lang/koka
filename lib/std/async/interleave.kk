@@ -6,7 +6,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-module std/async/strands
+module std/async/interleave
 
 import std/async/async
 import std/async/channel
@@ -165,7 +165,7 @@ noinline fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) :
           action()
         match res
           Left(yld)      -> { strand-done(i,Finalized(yld)); if needall then cancel-outstanding() }
-          Right(Nothing) -> strand-done(i,Canceled)
+          Right(Nothing) -> { /* trace("caught cancel: strand " ++ i.show); */ strand-done(i,Canceled) }
           Right(Just(x)) -> { strand-done(i,Completed(x)); if !needall then cancel-outstanding() }
 
   // while we receive resumptions in the channel, invoke them

@@ -252,7 +252,7 @@ type await-resumption
 
 // The outer `:async` effect handler. This is automatically applied by the compiler
 // around the `main` function if it has an `:async` effect.
-pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> a ) : ioc ()
+pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
   // Outstanding async requests
   val outstanding : ref<global,list<await-resumption>> = ref([])
   
@@ -284,26 +284,28 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> a ) : ioc (
       Ok(dispose) -> disposer := dispose
       Error(exn)  -> resume-cb(Exception(exn),True)  // if setup fails, we resume immediately with an exception result
 
+  // Schedule an async call for the next evloop iteration (uv_check_t / setImmediate)
+  fun schedule( f : () -> ioc () ) : ioc ()    
+    match immediate-setup(evloop,f)  
+      Ok    -> ()
+      Error -> f()
+    
   // Cancelation
   fun cancel-outstanding-in-scope( sid : scope-id ) : ioc ()
     (!outstanding).foreach fn(AwaitResumption(scope,resume-cb))
       if scope.contains(sid) then resume-cb(Cancel,True)
 
-  with handler<async>
+  
+  handle<async>(action)
     val async-scope = empty-scope
-    raw ctl do-await(setup, scope)
-      setup-await(setup, scope, fn(x) rcontext.resume(x) )
-    fun no-await(setup, scope, f)
-      setup-await(setup, scope, f)
-    fun cancel-scope(scope)
-      cancel-outstanding-in-scope(scope.scope-id)
-    final ctl discontinue()
-      trace("discontinue occurred at the toplevel scope")      
-    fun async-ioc( f )
-      f()
+    raw ctl do-await(setup, scope)  setup-await(setup, scope, fn(x) rcontext.resume(x) )
+    fun no-await(setup, scope, f)   setup-await(setup, scope, f)
+    fun cancel-scope(scope)         // val sid = scope.scope-id in schedule{ cancel-outstanding-in-scope(sid) }
+                                    cancel-outstanding-in-scope(scope.scope-id)
+    final ctl discontinue()         trace("discontinue occurred at the toplevel scope")      
+    fun async-ioc(f)                f()
+    // fun async-schedule-ioc(f)    schedule(f)
 
-  action()
-  ()
 
 pub fun handle-evloop( action : () -> <async,ioc> () ) : ioc () 
   val evloop = event-loop-init()

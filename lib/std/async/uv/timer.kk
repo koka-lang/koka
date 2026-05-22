@@ -17,3 +17,7 @@ extern import
 pub extern timer-setup( evloop : any, millisecs : int64, cb : () -> ioc () ) : ioc error<() -> ioc ()>
   c  "kk_timer_setup"
   js "kk_timer_setup"
+
+pub extern immediate-setup( evloop : any, cb : () -> ioc () ) : ioc error<() -> ioc ()>
+  c  "kk_immediate_setup"
+  js "kk_immediate_setup"  

@@ -117,7 +117,7 @@ int kk_uv_handle_create( size_t sz, kk_function_t cb, uv_handle_t** phandle, kk_
 
 void kk_uv_handle_free(uv_handle_t* h, kk_context_t* ctx) {
   if (h->data != NULL) {
-    // drop the callback
+    // drop the callback (just in case, should have been set NULL already in handle_close/callback)
     kk_datatype_drop( kk_datatype_from_ptr(h->data,ctx), ctx );
     h->data = NULL;
   }
@@ -130,6 +130,14 @@ static void kk_uv_handle_close_cb(uv_handle_t* h) {
 
 void kk_uv_handle_close(uv_handle_t* h) {
   if (h==NULL) return;
+  if (h->data != NULL) {
+    // drop the callback function right away
+    // if a handle is disposed, uv might still schedule the callback; setting it to NULL prevents the callback still being called 
+    kk_context_t* ctx = kk_get_context();
+    kk_function_t cb = kk_datatype_from_ptr(h->data,ctx); 
+    h->data = NULL;
+    kk_function_drop(cb,ctx);        
+  }
   uv_close(h, &kk_uv_handle_close_cb);
 }
 
@@ -141,10 +149,11 @@ void kk_uv_handle_dispose(uv_handle_t* handle, void* arg, kk_context_t* ctx) {
 }
 
 void kk_uv_handle_callback(uv_handle_t* h) {
-  if (h==NULL) return;
+  if (h==NULL) return;  
   if (h->data != NULL) {
     kk_context_t* ctx = kk_get_context();
-    kk_function_t cb = kk_datatype_from_ptr(h->data,ctx); h->data=NULL; // the call drops the `cb`
+    kk_function_t cb = kk_datatype_from_ptr(h->data,ctx); // the call drops the `cb`
+    h->data = NULL;
     kk_function_call0(cb,ctx);
   }
   kk_uv_handle_close(h);
