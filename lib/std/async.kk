@@ -7,3 +7,6 @@
 ---------------------------------------------------------------------------*/
 
 pub import std/async/async
+pub import std/async/channel
+pub import std/async/promise
+pub import std/async/strands
