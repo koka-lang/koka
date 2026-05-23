@@ -34,6 +34,7 @@ pub fun two/firstof( action1 : () -> <async,ndet|e> a, action2 : () -> <async,nd
 // that completes (and cancel all others).
 // todo: we need a `:list1` type.
 pub fun list/firstof-any( x : () -> <async,ndet|e> a, xs : list<() -> <async,ndet|e> a>) : <async,ndet|e> a
+  with collapse-ndet // safe: <ndet,ndet,async|e> to <ndet,async|e>
   Cons(x,xs).interleaved-raw(False).first-completed-strand
   
 // Interleave two actions
@@ -47,6 +48,7 @@ pub fun two/interleaved( action1 : () -> <async|e> a, action2 : () -> <async|e> 
 // Interleave a list of actions. If any raises an exception, cancels, or finalizes,
 // propagate that and cancel all others.
 pub fun list/interleaved(xs : list<() -> <async|e> a> ) : <async|e> list<a>
+  with pretend-no-ndet   // remove outer ndet: if all completed with a value, the final list of values is deterministic
   xs.interleaved-raw(True).all-completed-strands
 
 
@@ -62,7 +64,6 @@ fun strand-result/show(self : strand-result<a> ) : e string
     Finalized -> "Finalized(...)"
     Completed -> "Completed(...)"
 
-  
 
 // Ensure we prefer `Finalized` over `Canceled`
 fun collapse( wrong : list<strand-result<a>> ) : strand-result<()>
@@ -82,11 +83,11 @@ fun partition-strands( strands : list<strand-result<a>> ) : async (list<a>, stra
   (xs,wrong.collapse)
 
 // Return strands that completed normally (and ignore the others)
-fun any-completed-strands( strands : list<strand-result<a>> ) : <async,ndet> list<a>
+fun any-completed-strands( strands : list<strand-result<a>> ) : <async|e> list<a>
   strands.partition-strands.fst
 
 // Check that all strands completed normally or reyield the first finalized one (prefering non-canceled ones)
-fun all-completed-strands( strands : list<strand-result<a>> ) : async list<a>
+fun all-completed-strands( strands : list<strand-result<a>> ) : <async|e> list<a>
   val (xs,wrong) = strands.partition-strands
   match wrong
     Finalized(yld) -> { trace("all-completed-strands: reyield"); unsafe-reyield(yld) }
@@ -94,7 +95,7 @@ fun all-completed-strands( strands : list<strand-result<a>> ) : async list<a>
     _              -> xs
 
 // Return the first strand result that is not finalized (i.e. exception or canceled)
-fun first-completed-strand( strands : list<strand-result<a>> ) : <async,ndet> a
+fun first-completed-strand( strands : list<strand-result<a>> ) : <async|e> a
   val (xs,wrong) = strands.partition-strands
   match xs
     Cons(x,_)  -> x
@@ -109,8 +110,6 @@ fun first-completed-strand( strands : list<strand-result<a>> ) : <async,ndet> a
 // over the state that resumes more than once -- redoing part of the interleaving.
 // See `test/algeff/async5.js`
 effect strands<a>
-  // Are any strands canceled?
-  fun strands-are-canceled() : bool
   // Are there still strands that need to be resumed?
   fun strands-are-busy() : bool
   // Call this when a strand is done.
@@ -119,24 +118,15 @@ effect strands<a>
 
 // Interleave a list of actions by tracking through a local state 
 // when each action is done (or finalized)
-fun list/interleaved-raw(xs : list<() -> <async|e> a>, needall : bool ) : <async|e> list<strand-result<a>>
+fun list/interleaved-raw(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet|e> list<strand-result<a>>
   val total = xs.length
-  var canceled := False
   var results : some<a> list<(int,strand-result<a>)> := []
   with handler<strands<_>>    
-    fun strands-are-canceled() 
-      canceled
-    fun strands-are-busy()    
-      results.length < total      
-    fun strand-done(idx,res)
-      if res.is-canceled then canceled := True
-      // trace("strand-done: " ++ idx.show)
-      results := results.insert(idx,res)    
-  mask<local>
-    interleave-strands(xs,needall)  
-  val strand-results = results.map(snd)
-  // trace("interleaved-raw: " ++ strand-results.show)
-  strand-results
+    return(_)                   results.map(snd)
+    fun strands-are-busy()      results.length < total      
+    fun strand-done(idx,res)    results := results.insert(idx,res)      
+  with mask<local>
+  interleave-strands(xs,needall)  
   
 // Insert in order
 tail fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int,a)>
@@ -147,7 +137,7 @@ tail fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list
 
 // Catch a discontinue as a `:maybe`
 fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
-  with override handler
+  override handle(action)
     final ctl discontinue() Nothing
     return(x)               Just(x)
     // passthrough others
@@ -156,38 +146,33 @@ fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
     fun no-await(setup, scope, l, f)  no-await(setup,scope,l,f)
     fun async-ioc(x)                  async-ioc(x)
     fun cancel-scope(scope)           cancel-scope(scope)  
-  action()
 
-
-noinline fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) : <async,strands<a> |e> ()
-  val ch : some<a,e> channel<() -> <async|e> a> = channel()
+noinline fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet,strands<a> |e> ()
+  with pretend-no-div                 // our while loop always terminates
+  val ch : channel<() -> <async|_> _> = channel()  // channel that receives resumptions for each strand
   val strands = 
-    with cancelation-scope             // new cancelation scope
-    xs.foreach-indexed fn(i, action)
-      if strands-are-canceled() then
-        // immediately cancel if a previous strand already called cancel       
+    with is-canceled = tracked-cancelation-scope // limit cancelation to our interleaving
+    xs.list/foreach-indexed fn(i, action)
+      if is-canceled() then
+        // immediately cancel if our cancelation scope received a cancel
         strand-done(i,Canceled) 
-      else      
+      else
         // otherwise run the action (up to the first async call)
-        with emit-on-await(ch)       // redirect async calls to emit resumptions on the channel         
+        with emit-on-await(ch)        // redirect async calls to emit resumptions on the channel (and return () instead of waiting)
         val res = 
-          with unsafe-unfinalize     // catches any final ctl (exceptions)
-          with unsafe-uncancel       // catches any discontinue()
-          with mask<strands>         
+          with unsafe-unfinalize      // catches any final ctl (exceptions)
+          with unsafe-uncancel        // catches any discontinue()
+          with mask<strands,ndet,div> // mask our effects that should not be visible to `action`
           action()
         match res
           Left(yld)      -> { strand-done(i,Finalized(yld)); if needall then cancel-outstanding() }
-          Right(Nothing) -> { /* trace("caught cancel: strand " ++ i.show); */ strand-done(i,Canceled) }
+          Right(Nothing) -> { strand-done(i,Canceled) }
           Right(Just(x)) -> { strand-done(i,Completed(x)); if !needall then cancel-outstanding() }
 
   // while we receive resumptions in the channel, invoke them
-  with pretend-no-div
-  while { strands-are-busy() }       // while there are resumptions on the strands..
-    val strand-resume = pretend-no-ndet{ ch.receive }   // receive yields back to the outer event loop
-    with mask<div>
-    strand-resume()
-  ()  
-
+  while{ strands-are-busy() }       // while there are resumptions on the strands..
+    ch.receive.()    
+  
 /*
 // Warning: Cancelation should not be caught unless you're carefully maintaining
 // cancelation semantics yourself.

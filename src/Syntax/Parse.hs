@@ -69,6 +69,7 @@ import Syntax.Pretty (ppSyntaxDef, ppSyntaxExpr)
 import Type.Pretty (defaultEnv)
 import qualified Control.Monad.State as Mon
 
+
 -----------------------------------------------------------
 -- Parser on token stream
 -----------------------------------------------------------
@@ -2309,18 +2310,19 @@ injectType
  = do rng1 <- keywordInject
       behind <- do { specialId "behind"; return True } <|> return False
       langle
+      {-
       tp   <- ptype
       rng2 <- rangle
       return (rng1, \exp -> Inject (promoteType tp) exp behind (combineRanged rng1 rng2))
-      {-
+      -}
       tps1 <- sepBy1 ptype comma
       rng2 <- rangle
-      let rng  = combineRange rng1 rng2
-          (tp:tps) = reverse tps1
-          base = \exp -> Inject (promoteType tp) exp behind rng
-          rest = \exp -> foldl (\e t -> Inject (promoteType t) (Lam [] e rng) behind rng) exp tps
-      return (rng, \exp -> rest (base exp))
-      -}
+      let rng       = combineRange rng1 rng2
+          (tp:tps)  = reverse tps1
+          base exp  = Inject (promoteType tp) exp behind rng
+          mkInj exp = foldl (\e t -> Inject (promoteType t) (Lam [] e False rng) behind rng) (base exp) tps          
+      return (rng, mkInj)
+      
 -----------------------------------------------------------
 -- Patterns (and binders)
 -----------------------------------------------------------

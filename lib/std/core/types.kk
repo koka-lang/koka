@@ -355,11 +355,17 @@ pub inline extern set( ^ref : ref<h,a>, assigned : a) : write<h> ()
   cs inline "#1.Set(#2)"
   js inline "((#1).value = #2)"
 
+// Swap a reference value
+pub inline extern swap( ^ref : ref<h,a>, assigned : a) : <write<h>,read<h>> a
+  c  "kk_ref_swap_borrow"
+  cs inline "#1.Swap(#2)"
+  js "$std_core_types.kk_ref_swap"
+
 // Read the value of a reference.
 pub inline extern ref/(!)<h,a,e>( ref : ref<h,a>, ?hdiv : hdiv<h,a,e>) : <read<h>|e> a
-  c  inline "kk_ref_get(#1,kk_context())"
+  c  inline "kk_ref_get(#1,kk_context())"     // ignore ?hdiv
   cs inline "#1.Value"
-  js inline "#1.value"
+  js inline "(#1).value"
 
 // Modify the value of a reference.
 // This is especially useful when the reference contains a vector, because
