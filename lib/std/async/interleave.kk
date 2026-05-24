@@ -90,8 +90,8 @@ fun any-completed-strands( strands : list<strand-result<a>> ) : <async|e> list<a
 fun all-completed-strands( strands : list<strand-result<a>> ) : <async|e> list<a>
   val (xs,wrong) = strands.partition-strands
   match wrong
-    Finalized(yld) -> { trace("all-completed-strands: reyield"); unsafe-reyield(yld) }
-    Canceled       -> { trace("all-completed-strands: cancel"); discontinue() }
+    Finalized(yld) -> unsafe-reyield(yld)
+    Canceled       -> discontinue()
     _              -> xs
 
 // Return the first strand result that is not finalized (i.e. exception or canceled)
@@ -119,21 +119,25 @@ effect strands<a>
 // Interleave a list of actions by tracking through a local state 
 // when each action is done (or finalized)
 fun list/interleaved-raw(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet|e> list<strand-result<a>>
-  val total = xs.length
+  with strand-results(xs.length)
+  interleave-strands(xs,needall)  
+
+fun strand-results( total : int, action : () -> <async,strands<a>|e> () )  : <async|e> list<strand-result<a>>
   var results : some<a> list<(int,strand-result<a>)> := []
   with handler<strands<_>>    
     return(_)                   results.map(snd)
     fun strands-are-busy()      results.length < total      
-    fun strand-done(idx,res)    results := results.insert(idx,res)      
+    fun strand-done(idx,res)    
+      trace("strand " ++ idx.show ++ ": " ++ res.show)
+      results := results.insert(idx,res)      
   with mask<local>
-  interleave-strands(xs,needall)  
+  action()
   
 // Insert in order
 tail fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int,a)>
   match xs
     Cons(x,xx) | x.fst < idx -> Cons(x, insert(xx, idx, value, n + 1))
     _ -> Cons((idx,value),xs)
-
 
 // Catch a discontinue as a `:maybe`
 fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
@@ -148,112 +152,27 @@ fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
     fun cancel-scope(scope)           cancel-scope(scope)  
 
 noinline fun interleave-strands(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet,strands<a> |e> ()
-  with pretend-no-div                 // our while loop always terminates
-  val ch : channel<() -> <async|_> _> = channel()  // channel that receives resumptions for each strand
-  val strands = 
-    with is-canceled = tracked-cancelation-scope // limit cancelation to our interleaving
-    xs.list/foreach-indexed fn(i, action)
-      if is-canceled() then
-        // immediately cancel if our cancelation scope received a cancel
-        strand-done(i,Canceled) 
-      else
-        // otherwise run the action (up to the first async call)
-        with emit-on-await(ch)        // redirect async calls to emit resumptions on the channel (and return () instead of waiting)
-        val res = 
-          with unsafe-unfinalize      // catches any final ctl (exceptions)
-          with unsafe-uncancel        // catches any discontinue()
-          with mask<strands,ndet,div> // mask our effects that should not be visible to `action`
-          action()
-        match res
-          Left(yld)      -> { strand-done(i,Finalized(yld)); if needall then cancel-outstanding() }
-          Right(Nothing) -> { strand-done(i,Canceled) }
-          Right(Just(x)) -> { strand-done(i,Completed(x)); if !needall then cancel-outstanding() }
-
-  // while we receive resumptions in the channel, invoke them
-  while{ strands-are-busy() }       // while there are resumptions on the strands..
-    ch.receive.()    
-  
-/*
-// Warning: Cancelation should not be caught unless you're carefully maintaining
-// cancelation semantics yourself.
-pub fun unsafe-catch-cancel(a: () -> <async|e> a): <async|e> await-result<a>
-  handle({ mask behind<async>(a) })
-    final ctl discontinue()
-      Cancel
-    return(x)
-      Result(x)
-
-    // passthrough others
-    val async-scope = async-scope
-    fun do-await(setup, scope) do-await(setup,scope)
-    fun no-await(setup, scope, f) no-await(setup,scope, f)
-    fun async-iox(x) async-iox(x)
-    fun cancel-scope(scope) cancel-scope(scope)
-
-fun interleave-strands(xs : list<(scope) -> <async|e> a> ) : <async,strands<a> |e> ()
-  val inner-scope: ref<global,maybe<scope-id>> = async-st { ref(Nothing) }
-  val keep-spawning: ref<global,bool> = async-st { ref(True) }
-  val ch : some<e> channel<() -> <async|e> ()> = channel()
-
-  // interleave has custom cancelation handling. When the scope
-  // is canceled, we don't discontinue() but instead
-  // perform explicit cancelation of the child scope, and
-  // let that flow through into registering all outstanding scopes
-  // with a `Cancel` result.
-  with unsafe-override-cancel {
-    // Note we can't cancel() directly in this hook because cancel is async,
-    // but we can add it to the queue of actions to run
-    keep-spawning := False
-    fun cancel-action(): <async> ()
-      async-st { !inner-scope }.foreach(cancel-scope)
-    ch.emit-io(cancel-action)
-  }
-
-  val sentinel-scope = async-scope
-
-  child-scope-without-auto-cancel fn(cid): <async,strands<_>|_> () // introduce a child scope which doesn't cancel-on-finalize
-    async-st { inner-scope.set(Just(cid)) }
-    fun yield-on-await(action)
-      (handler<async> {
-        raw ctl do-await(setup,scope)
-          // turn awaits into no-awaits, allowing other strands to execute
-          val unique-id = unsafe-total(unique)
-          no-await(setup, scope) fn(res)
-            ch.emit-io({ rcontext.resume(res) })
-          ()
-
-        // passthrough others
-        val async-scope = async-scope
-        fun no-await(setup,scope,f) no-await(setup,scope,f)
-        fun async-iox(f) async-iox(f)
-        fun cancel-scope(scope) cancel-scope(scope)
-        fun discontinue() discontinue()
-      }) {
-        with mask behind<async>
+  with pretend-no-div                                // our while loop always terminates
+  with is-canceled <- tracked-cancelation-scope      // limit cancelation to our interleaving        
+  // start strands emitting to the channel          
+  val  ch : channel<() -> <async|_> ()> = channel()  // channel of resumptions
+  xs.list/foreach-indexed fn(i,action)
+    if is-canceled() then
+      // immediately cancel if our cancelation scope received a cancel
+      strand-done(i,Canceled) 
+    else
+      // otherwise run the action (up to the first async call)
+      with emit-on-await(ch)        // redirect async calls to emit resumptions on the channel (and return () instead of waiting)            
+      val res = 
+        with unsafe-unfinalize      // catches any final ctl (exceptions)
+        with unsafe-uncancel        // catches any discontinue()
+        with mask<strands,div,ndet> // mask our effects that should not be visible to `action`
         action()
-      }
+      match res
+        Left(yld)      -> { strand-done(i,Finalized(yld)); if needall then cancel-outstanding() }
+        Right(Nothing) -> { strand-done(i,Canceled) }
+        Right(Just(x)) -> { strand-done(i,Completed(x)); if !needall then cancel-outstanding() }
 
-    xs.foreach-indexed fn(i, action)
-      if (async-st { !(!keep-spawning) }) then
-        // Finalization has occurred synchronously, don't
-        // keep spawning actions.
-        strand-done(i, Complete(Cancel))
-      else
-        with yield-on-await
-        val res = strand-exec 
-          with mask<strands>
-          action(sentinel-scope)
-        strand-done(i, res)
-        if res.is-finalize then
-          async-st { keep-spawning := False }
-          cancel-scope(cid)
-      ()
-
-  // this runs outside of the `child-scope` (unaffected by `cancel-scope(cid)`)
-  with pretend-no-div
-  while { strands-are-busy() } // while there are resumptions on the strands..
-    val strand-resume = unsafe-no-ndet { ch.receive }
-    with mask<div> // don't interfere if generic `e` includes `div`
-    strand-resume()
-  ()
-*/
+  // while the strands are not finished
+  while{ strands-are-busy() }
+    ch.receive.()                     // receive and resume

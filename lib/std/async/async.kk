@@ -124,18 +124,18 @@ pub effect async
 
   // Setup a callback and await its completion. The setup is performed in the handler scope.
   ctl do-await( setup : await-setup<a>, scope : scope, label : string ) : await-result<a>
-  
+
+  // Cancel any outstanding async operations of a specific cancelation scope (and all its children)
+  ctl cancel-scope( scope : scope ) : ()
+
   // Internal: Setup a callback to execute `cb` on completion, but return control to the caller immediately
   // after the setup is performed. `cb` is performed in the handler scope.
   ctl no-await( setup : await-setup<a>, scope : scope, label : string, cb : await-result<a> -> ioc () ) : ()
 
   // Internal: perform an I/O operation in the outer async handler
   ctl async-ioc( action : () -> ioc a ) : a
-
-  // Cancel any outstanding async operations of a specific cancelation scope (and all its children)
-  ctl cancel-scope( scope : scope ) : ()
-
-  // The current strand of execution is canceled
+  
+  // Internal: The current strand of execution is canceled
   final ctl discontinue(): a
 
 
@@ -294,6 +294,8 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
       if scope.contains(sid) then 
         trace("cancel: " ++ label ++ " at " ++ scope.show)
         resume-cb(Cancel,True)
+      else 
+        trace("no cancel: " ++ label ++ " at " ++ scope.show)
 
   
   handle<async>(action)
@@ -303,7 +305,7 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
     fun cancel-scope(scope)             
       trace("cancel-scope: " ++ scope.show)
       val sid = scope.scope-id 
-      schedule{ cancel-outstanding-in-scope(sid) }
+      cancel-outstanding-in-scope(sid)
       //cancel-outstanding-in-scope(scope.scope-id)
     final ctl discontinue()             trace("discontinue occurred at the toplevel scope")      
     fun async-ioc(f)                    f()

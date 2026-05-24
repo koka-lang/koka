@@ -28,7 +28,7 @@ pub fun example2()
     wait(50.milli-seconds)
     "fast"
   fun slow()
-    wait(500.milli-seconds)
+    wait(1500.milli-seconds)
     "slow"
   val r = firstof(slow,fast)
   println("winner: " ++ r)
