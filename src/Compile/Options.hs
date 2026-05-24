@@ -33,6 +33,7 @@ module Compile.Options( -- * Command line options
                        , Terminal(..)
                        , parseOptions
                        , flagsNull
+                       , eguardFromFlags
                        ) where
 
 import Debug.Trace
@@ -1137,6 +1138,10 @@ targetLibFile target fname
       C _      -> libPrefix ++ fname ++ libExtension
       JS _     -> fname ++ ".mjs" -- ?
       _        -> libPrefix ++ fname ++ libExtension
+
+eguardFromFlags :: Flags -> ExternalGuard
+eguardFromFlags flags
+  = ExternalGuard (target flags) (targetOS flags) (targetArch flags)
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s

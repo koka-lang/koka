@@ -74,9 +74,9 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
            inlineDefs = case modInlines mod of
                           Right defs -> defs
                           Left _     -> []
-           ifaceDoc   = Core.Pretty.prettyCore penv{ coreIface = True } (target flags) inlineDefs core
+           ifaceDoc   = Core.Pretty.prettyCore penv{ coreIface = True } (eguardFromFlags flags) inlineDefs core
                          <-> Lib.PPrint.empty
-           coreDoc    = Core.Pretty.prettyCore penv{ coreIface = False, coreShowDef = (showCore flags) } (target flags) inlineDefs core
+           coreDoc    = Core.Pretty.prettyCore penv{ coreIface = False, coreShowDef = (showCore flags) } (eguardFromFlags flags) inlineDefs core
                          <-> Lib.PPrint.empty
 
        -- create output directory if it does not exist
@@ -291,7 +291,7 @@ codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential en
                                           (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry
                                           (if null (outputEntryName flags) then "main" else outputEntryName flags)
                                           core0
-          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
+          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (eguardFromFlags flags) [] bcore
 
       -- writeDocW 120 (outBase ++ ".c.kkc") bcoreDoc
       when (showFinalCore flags) $
@@ -311,7 +311,7 @@ codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential en
       let importcores = map (fromJust . modCore) imported
           cores = bcore:importcores
           cc       = ccomp flags
-          eimports = nub $ concatMap (externalImportsFromCore (target flags)) cores
+          eimports = nub $ concatMap (externalImportsFromCore (eguardFromFlags flags)) cores
           clibs    = nub $ concatMap (clibsFromCore flags) cores
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
@@ -674,17 +674,20 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
                       sequential $ runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
 
-clibsFromCore flags core    = externalImportKeyFromCore (target flags) (buildType flags) core "library"
-csyslibsFromCore flags core = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
+clibsFromCore flags core    = splitFileList $ externalImportKeyFromCore (eguardFromFlags flags) (buildType flags) core "library"
+csyslibsFromCore flags core = splitFileList $ externalImportKeyFromCore (eguardFromFlags flags) (buildType flags) core "syslib"
 
+splitFileList :: [String] -> [String]
+splitFileList xs
+  = concatMap (splitOn (==';')) xs
 
-externalImportKeyFromCore :: Target -> BuildType -> Core.Core -> String -> [String]
-externalImportKeyFromCore target buildType core key
-  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore target core]
+externalImportKeyFromCore :: ExternalGuard -> BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore eguard buildType core key
+  = catMaybes [Core.externalImportLookup eguard buildType key external  | external <- Core.coreProgExternals core]
 
-externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
-externalImportsFromCore target core
-  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (target,keyvals) <- imports]
+externalImportsFromCore :: ExternalGuard -> Core.Core -> [[(String,String)]]
+externalImportsFromCore eguard core
+  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (eg,keyvals) <- imports, externalGuardTryMatch eguard eg]
 
 
 {---------------------------------------------------------------

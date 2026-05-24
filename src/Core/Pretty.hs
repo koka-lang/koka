@@ -44,7 +44,7 @@ source env doc
   Show instance declarations
 --------------------------------------------------------------------------}
 
-instance Show Core      where show = show . prettyCore      defaultEnv Default []
+instance Show Core      where show = show . prettyCore      defaultEnv externalGuardDefault []
 instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
@@ -58,8 +58,8 @@ instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
   Pretty-printers proper
 --------------------------------------------------------------------------}
 
-prettyCore :: Env -> Target -> [InlineDef] -> Core -> Doc
-prettyCore env0 target inlineDefs core@(Core modName imports fixDefs typeDefGroups defGroups externals doc)
+prettyCore :: Env -> ExternalGuard -> [InlineDef] -> Core -> Doc
+prettyCore env0 eguard inlineDefs core@(Core modName imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
     (if (coreIface env) then text "interface" <+> prettyModuleName env modName -- text (moduleNameToPath modName)
@@ -68,7 +68,7 @@ prettyCore env0 target inlineDefs core@(Core modName imports fixDefs typeDefGrou
       [ separator "import declarations"
       , map (prettyImport envX) (imports)
       , separator "external imports"
-      , map (prettyExternalImport envX target) externals
+      , map (prettyExternalImport envX eguard) externals
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
       , separator "local imported aliases"
@@ -134,22 +134,22 @@ ppImportProvenance env prov
       ImportTypes    -> keyword env " type"
       ImportCompiler -> keyword env " inline"
 
-prettyExternalImport env target (ExternalImport imports _)
+prettyExternalImport env eguard (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
     -- trace ("external imports: target: " ++ show target ++ ": " ++ show imports) $
-    case lookupTarget target imports of
+    case lookupExternal eguard imports of
       Nothing -> empty
       Just keyvals0
         -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
              [] -> empty
              keyvals -> keyword env "extern import" <+> text "{"
-                          <-> tab (ppTarget env target <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                          <-> tab (ppExternalGuard env eguard <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
                           <-> text "};"
   where
     prettyKeyval (key,val)
       = prettyLit env (LitString key) <.> text "=" <.> prettyLit env (LitString val) <.> semi
 
-prettyExternalImport env target _ = empty
+prettyExternalImport env eguard _ = empty
 
 
 
@@ -178,9 +178,9 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc)
      <+> text ":" <+> prettyDefFunType env pinfos tp
      <+> prettyEntries body
   where
-    prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
+    prettyEntries [(eguard,content)] | externalGuardIsDefault eguard = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
-    prettyEntry (target,content)      = ppTarget env target <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
+    prettyEntry (eguard,content)      = ppExternalGuard env eguard <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
 prettyExternal env (ExternalImport imports range)
   = empty
@@ -194,14 +194,15 @@ prettyExternal env (ExternalImport imports range)
         = ppTarget env target <.> prettyLit env (LitString content)
   -}
 
+ppExternalGuard :: Env -> ExternalGuard -> Doc
+ppExternalGuard env (ExternalGuard target os arch)
+  = hcat [ppTarget env target,
+          if null os then empty else space <.> text os,
+          if null arch then empty else space <.> text arch]
 
+ppTarget :: Env -> Target -> Doc
 ppTarget env target
-  = case target of
-      Default -> empty
-      CS      -> text "cs "
-      C _     -> text "c "
-      JS _    -> text "js "
-      -- _       -> keyword env (show target) <.> space
+  = text (show target) <.> space
 
 
 prettyTypeDefGroup :: Env -> TypeDefGroup -> Doc

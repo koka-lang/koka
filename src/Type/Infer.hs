@@ -624,7 +624,7 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
                           let typeReturn = typeFun [(nameNil,tp)] typeTotal resTp
                           addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue "expr" tp "" False) [] False)
                           return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn)
-                                                (Core.InfoExternal [(Default,"return #1")])) [core])
+                                                (Core.InfoExternal [(externalGuardDefault,"return #1")])) [core])
 -- | Assign expression
 inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
   = case lval of

@@ -61,7 +61,7 @@ kk_std_core_exn__error kk_result_uv_handle_dispose0( uv_handle_t* handle, kk_con
 }
 
 //---------------------------------------
-// set allocator 
+// set allocator
 
 #define KK_CUSTOM_INIT  kk_uv_alloc_init
 
@@ -94,9 +94,9 @@ kk_std_core_exn__error kk_error_from_uv_errno( int err, kk_context_t* ctx ) {
     const char* serr = uv_strerror(err);
     kk_string_t msg = kk_string_alloc_from_qutf8( serr, ctx );
     kk_free(serr,ctx);
-    return kk_std_core_types__new_Error( kk_std_core_exn__exception_box( kk_std_core_exn__new_Exception( msg, 
+    return kk_std_core_types__new_Error( kk_std_core_exn__exception_box( kk_std_core_exn__new_Exception( msg,
                   kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(syserr,ctx), ctx), ctx), ctx), ctx );
-  }  
+  }
 }
 
 kk_std_core_exn__error kk_result_uv_handle( uv_handle_t* h, kk_context_t* ctx ) {
@@ -118,7 +118,7 @@ int kk_uv_handle_create( size_t sz, kk_function_t cb, uv_handle_t** phandle, kk_
 void kk_uv_handle_free(uv_handle_t* h, kk_context_t* ctx) {
   if (h->data != NULL) {
     // drop the callback (just in case, should have been set NULL already in handle_close/callback)
-    kk_datatype_drop( kk_datatype_from_ptr(h->data,ctx), ctx );
+    kk_datatype_drop( kk_datatype_from_ptr((kk_ptr_t)(h->data),ctx), ctx );
     h->data = NULL;
   }
   kk_free(h,ctx);
@@ -132,11 +132,11 @@ void kk_uv_handle_close(uv_handle_t* h) {
   if (h==NULL) return;
   if (h->data != NULL) {
     // drop the callback function right away
-    // if a handle is disposed, uv might still schedule the callback; setting it to NULL prevents the callback still being called 
+    // if a handle is disposed, uv might still schedule the callback; setting it to NULL prevents the callback still being called
     kk_context_t* ctx = kk_get_context();
-    kk_function_t cb = kk_datatype_from_ptr(h->data,ctx); 
+    kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(h->data),ctx);
     h->data = NULL;
-    kk_function_drop(cb,ctx);        
+    kk_function_drop(cb,ctx);
   }
   uv_close(h, &kk_uv_handle_close_cb);
 }
@@ -149,10 +149,10 @@ void kk_uv_handle_dispose(uv_handle_t* handle, void* arg, kk_context_t* ctx) {
 }
 
 void kk_uv_handle_callback(uv_handle_t* h) {
-  if (h==NULL) return;  
+  if (h==NULL) return;
   if (h->data != NULL) {
     kk_context_t* ctx = kk_get_context();
-    kk_function_t cb = kk_datatype_from_ptr(h->data,ctx); // the call drops the `cb`
+    kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(h->data),ctx); // the call drops the `cb`
     h->data = NULL;
     kk_function_call0(cb,ctx);
   }
@@ -164,7 +164,7 @@ void kk_uv_handle_callback(uv_handle_t* h) {
 // Event Loop
 
 kk_uv_loop_t kk_uv_loop_init(kk_context_t* ctx) {
-  uv_loop_t* const uvloop = kk_zalloc(sizeof(uv_loop_t),ctx);
+  uv_loop_t* const uvloop = (uv_loop_t*)kk_zalloc(sizeof(uv_loop_t),ctx);
   if (uvloop != NULL) {
     uv_loop_init(uvloop);
   }
@@ -202,7 +202,7 @@ static void kk_uv_loop_done(kk_uv_loop_t loop, kk_context_t* ctx) {
       kk_warning_message("event loop close returned error: %s\n", uv_strerror(ret));
     }
   }
-  kk_box_drop(loop,ctx);  
+  kk_box_drop(loop,ctx);
 }
 
 void kk_uv_loop_run(kk_uv_loop_t loop, kk_context_t* ctx) {
@@ -212,7 +212,7 @@ void kk_uv_loop_run(kk_uv_loop_t loop, kk_context_t* ctx) {
     ret = uv_run(uvloop,UV_RUN_DEFAULT);
   }
   if (ret!=0){
-    kk_warning_message("event loop closed: %s\n", uv_strerror(ret));    
+    kk_warning_message("event loop closed: %s\n", uv_strerror(ret));
   }
   kk_uv_loop_done(loop,ctx);
 }

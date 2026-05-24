@@ -29,7 +29,7 @@ module Core.Core ( -- Data structures
                    , typeDefIsExtension
                    , typeDefVis
                    , typeDefDoc
-                   , externalImportLookup, eimportLookup, lookupTarget
+                   , externalImportLookup, eimportLookup
 
                      -- Core term builders
                    , defIsVal, defParamInfos
@@ -315,22 +315,22 @@ type Externals = [External]
 data External = External{ externalName :: !Name
                         , externalType :: !Scheme
                         , externalParams :: ![ParamInfo]
-                        , externalFormat :: ![(Target,String)]
+                        , externalFormat :: ![(ExternalGuard,String)]
                         , externalVis'  :: !Visibility
                         , externalFip   :: !Fip
                         , externalRange :: !Range
                         , externalDoc   :: !String
                         }
-              | ExternalImport { externalImport :: ![(Target,[(String,String)])]
+              | ExternalImport { externalImport :: ![(ExternalGuard,[(String,String)])]
                                , externalRange :: !Range }
 
 externalVis :: External -> Visibility
 externalVis (External{ externalVis' = vis }) = vis
 externalVis _ = Private
 
-externalImportLookup :: Target -> BuildType -> String -> External -> Maybe String
-externalImportLookup target buildType key (ExternalImport imports range)
-  = let keyvals = case lookupTarget target imports of
+externalImportLookup :: ExternalGuard -> BuildType -> String -> External -> Maybe String
+externalImportLookup eguard buildType key (ExternalImport imports range)
+  = let keyvals = case lookupExternal eguard imports of
                     Just kv -> kv
                     Nothing -> []
     in eimportLookup buildType key keyvals
@@ -343,19 +343,6 @@ eimportLookup buildType key keyvals
   = case lookup (key ++ "-" ++ show buildType) keyvals of
       Just val -> Just val
       Nothing  -> lookup key keyvals
-
-
-lookupTarget :: Target -> [(Target,a)] -> Maybe a
-lookupTarget target imports
-  = let targets = case target of
-                    C WasmJs  -> [target,C Wasm,C CDefault,Default]
-                    C WasmWeb -> [target,C Wasm,C CDefault,Default]
-                    C _       -> [target,C CDefault,Default]
-                    JS _ -> [target,JS JsDefault,Default]
-                    _    -> [target,Default]
-    in case catMaybes (map (\t -> lookup t imports) targets) of
-         (x:_) -> Just x
-         _     -> Nothing
 
 
 {--------------------------------------------------------------------------
@@ -749,7 +736,7 @@ data Lit =
 data VarInfo
   = InfoNone
   | InfoArity !Int !Int               -- #Type parameters, #parameters
-  | InfoExternal ![(Target,String)]  -- inline body
+  | InfoExternal ![(ExternalGuard,String)]  -- inline body
   | InfoReuse !Pattern
   | InfoConField !TName !ConRepr !Name  -- constructor name, repr, field name (inserted by reuse specialization)
 
@@ -1165,7 +1152,7 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
      else -- trace ("open effect: " ++ show (map pretty [effFrom,effTo,tpFrom,tpTo])) $
           App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
   where
-    varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])    -- NOTE: quite fragile as it relies on the exact definition in core.kk
+    varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(externalGuardDefault,"#1")])    -- NOTE: quite fragile as it relies on the exact definition in core.kk
     tpOpen  = TForall [e1,e2,a,b] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
     a       = TypeVar (-1) kindStar Bound
     b       = TypeVar (-2) kindStar Bound

@@ -498,7 +498,7 @@ ruLazyMemoize lazyTName arg
 
 genDecRef :: TName -> Expr
 genDecRef tname
-  = App (Var (TName nameDecRef funTp) (InfoExternal [(C CDefault, "decref(#1,current_context())")]))
+  = App (Var (TName nameDecRef funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "decref(#1,current_context())")]))
         [Var tname InfoNone]
   where
     funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
@@ -506,7 +506,7 @@ genDecRef tname
 
 genDup :: TName -> Expr
 genDup name
-  = App (Var (TName nameDup coerceTp) (InfoExternal [(C CDefault, "dup(#1)")])) [Var name InfoNone]
+  = App (Var (TName nameDup coerceTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "dup(#1)")])) [Var name InfoNone]
   where
     tp = typeOf name
     coerceTp = TFun [(nameNil,tp)] typeTotal tp
@@ -517,7 +517,7 @@ genDup name
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr {- : int32 -} -> Expr
 genDropReuse tname scan
-  = App (Var (TName nameDropReuse funTp) (InfoExternal [(C CDefault, "drop_reuse(#1,#2,kk_context())")]))
+  = App (Var (TName nameDropReuse funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "drop_reuse(#1,#2,kk_context())")]))
         [Var tname InfoNone, scan]
   where
     tp    = typeOf tname
@@ -537,7 +537,7 @@ genAllocAt (ReuseInfo reuseName pat) conApp conTp
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
 genIsUnique tname
-  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C CDefault, "is_unique(#1)")]))
+  = App (Var (TName nameIsUnique funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "is_unique(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeBool
 
@@ -545,14 +545,14 @@ genIsUnique tname
 -- Generate a whitehole
 genWhitehole :: TName -> Expr
 genWhitehole tname
-  = App (Var (TName nameWhitehole funTp) (InfoExternal [(C CDefault, "kk_block_whitehole(#1)")]))
+  = App (Var (TName nameWhitehole funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "kk_block_whitehole(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 -- Generate a constructor whitehole
 genConsWhitehole :: TName -> Expr
 genConsWhitehole tname
-  = App (Var (TName nameWhitehole funTp) (InfoExternal [(C CDefault, "kk_datatype_ptr_whitehole(#1,kk_context())")]))
+  = App (Var (TName nameWhitehole funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "kk_datatype_ptr_whitehole(#1,kk_context())")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 -}
@@ -560,27 +560,27 @@ genConsWhitehole tname
 -- Generate a free of a constructor
 genFree :: TName -> Expr
 genFree tname
-  = App (Var (TName nameFree funTp) (InfoExternal [(C CDefault, "kk_constructor_free(#1,kk_context())")]))
+  = App (Var (TName nameFree funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "kk_constructor_free(#1,kk_context())")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 -- Generate a drop of a reuse
 genReuseDrop :: TName -> Expr
 genReuseDrop tname
-  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C CDefault, "kk_reuse_drop(#1,kk_context())")]))
+  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "kk_reuse_drop(#1,kk_context())")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
 -- Get a null token for reuse inlining
 genReuseNull :: Expr
 genReuseNull
-  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C CDefault, "kk_reuse_null")])) []
+  = App (Var (TName nameReuseNull funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "kk_reuse_null")])) []
   where funTp = TFun [] typeTotal typeReuse
 
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
 genReuseAddress tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C CDefault, "reuse_datatype(#1,kk_context())")])) [Var tname InfoNone]
+  = App (Var (TName nameReuse funTp) (InfoExternal [(externalGuardFromTarget (C CDefault), "reuse_datatype(#1,kk_context())")])) [Var tname InfoNone]
   where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeReuse
@@ -588,7 +588,7 @@ genReuseAddress tname
 genReuseAssignWith :: TName -> Expr -> Expr
 genReuseAssignWith reuseName arg
   = let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeReuse)] typeTotal typeUnit)
-    in App (Var assign (InfoExternal [(C CDefault, "#1 = #2")])) [Var reuseName InfoNone, arg]
+    in App (Var assign (InfoExternal [(externalGuardFromTarget (C CDefault), "#1 = #2")])) [Var reuseName InfoNone, arg]
 
 --------------------------------------------------------------------------
 -- Utilities for readability

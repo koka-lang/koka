@@ -33,17 +33,24 @@ module Common.Syntax( Visibility(..)
                     , alignedSum, alignedAdd, alignUp
                     , BuildType(..)
                     , sepBySpace, memberDoc
+                    , ExternalGuard(..), externalGuardFromTarget
+                    , targetIds, targetFromString
+                    , lookupExternal
+                    , externalGuardDefault, externalGuardIsDefault
+                    , externalGuardTryMatch
                     ) where
 
-import Data.List(intersperse)
+import Data.Tuple(swap)
+import Data.Maybe(catMaybes)
+import Data.List(intersperse,sort)
 
 {--------------------------------------------------------------------------
   Backend targets
 --------------------------------------------------------------------------}
-data JsTarget = JsDefault | JsNode | JsWeb                 deriving (Eq,Ord)
+data JsTarget = JsDefault | JsNode | JsWeb                deriving (Eq,Ord)
 data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
 
-data Target = CS | JS !JsTarget| C !CTarget | Default deriving (Eq,Ord)
+data Target = Default | CS | JS !JsTarget| C !CTarget     deriving (Eq,Ord)
 
 isTargetC (C _) = True
 isTargetC _     = False
@@ -59,19 +66,30 @@ isTargetWasm target
       C WasmWeb -> True
       _         -> False
 
+targetIds :: [(Target,String)]
+targetIds = [
+  (CS,"cs"),
+  (JS JsWeb,"jsweb"),
+  (JS JsNode,"jsnode"),
+  (JS JsDefault,"js"),
+  (C Wasm,"wasm"),
+  (C WasmJs,"wasmjs"),
+  (C WasmWeb,"wasmweb"),
+  (C LibC,"libc"),
+  (C CDefault,"c")
+  ]
+
+targetFromString :: String -> Target
+targetFromString id
+  = case lookup id (map swap targetIds) of
+      Just t  -> t
+      Nothing -> Default
 
 instance Show Target where
-  show tgt = case tgt of
-               CS        -> "cs"
-               JS JsWeb  -> "jsweb"
-               JS JsNode -> "jsnode"
-               JS _      -> "js"
-               C  Wasm   -> "wasm"
-               C  WasmJs -> "wasmjs"
-               C  WasmWeb-> "wasmweb"
-               C  LibC   -> "libc"
-               C  _      -> "c"
-               Default   -> ""
+  show tgt = case lookup tgt targetIds of
+               Just s -> s
+               _      -> ""
+
 
 data Platform = Platform{ sizePtr   :: !Int -- sizeof(intptr_t)
                         , sizeSize  :: !Int -- sizeof(size_t)
@@ -118,6 +136,59 @@ instance Show BuildType where
   show RelWithDebInfo = "drelease"
   show Release        = "release"
 
+data ExternalGuard = ExternalGuard{ eguardTarget :: !Target, eguardOS :: !String, eguardArch :: !String }
+                   deriving (Eq,Show)
+
+instance Ord ExternalGuard where
+  compare (ExternalGuard t1 os1 arch1) (ExternalGuard t2 os2 arch2)
+    = case compare t1 t2 of
+        EQ   -> compare (os1,arch1) (os2,arch2)
+        ltgt -> ltgt
+
+externalGuardDefault :: ExternalGuard
+externalGuardDefault = externalGuardFromTarget Default
+
+externalGuardFromTarget :: Target -> ExternalGuard
+externalGuardFromTarget target = ExternalGuard target "" ""
+
+externalGuardIsDefault :: ExternalGuard -> Bool
+externalGuardIsDefault (ExternalGuard Default "" "") = True
+externalGuardIsDefault _ = False
+
+lookupExternal :: Ord a => ExternalGuard -> [(ExternalGuard,a)] -> Maybe a
+lookupExternal eguard xs
+  = let targets = let target = eguardTarget eguard
+                  in case target of
+                      C WasmJs  -> [target,C Wasm,C CDefault]
+                      C WasmWeb -> [target,C Wasm,C CDefault]
+                      C _       -> [target,C CDefault]
+                      JS _ -> [target,JS JsDefault]
+                      _    -> [target]
+    in case catMaybes (map (\t -> externalGuardBestMatch (eguard{ eguardTarget = t }) xs) targets) of
+         (x:_) -> Just x
+         _     -> Nothing
+
+externalGuardBestMatch :: Ord a => ExternalGuard -> [(ExternalGuard,a)] -> Maybe a
+externalGuardBestMatch eguard xs
+  = case filter (\(e,_) -> externalGuardTryMatch eguard e) (reverse (sort xs)) of
+      ((_,x):_) -> Just x
+      _         -> Nothing
+
+externalGuardTryMatch :: ExternalGuard -> ExternalGuard -> Bool
+externalGuardTryMatch (ExternalGuard target1 os1 arch1) (ExternalGuard target2 os2 arch2)
+  = matchTarget target1 target2 && matchOS os1 os2 && matchArch arch1 arch2
+  where
+    matchTarget Default t2  = True
+    matchTarget t1 Default  = True
+    matchTarget t1 t2       = (t1==t2)
+
+    matchOS "" os2  = True
+    matchOS os1 ""  = True
+    matchOS os1 os2 = (os1==os2)
+
+    matchArch "" arch2     = True
+    matchArch arch1 ""     = True
+    matchArch arch1 arch2  = (arch1==arch2)
 
 {--------------------------------------------------------------------------
   Visibility

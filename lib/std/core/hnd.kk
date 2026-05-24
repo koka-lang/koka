@@ -944,7 +944,7 @@ pub fun @open4<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a
   y
 
 // -------------------------------------------
-// capture yields 
+// capture yields
 // -------------------------------------------
 
 // catch finalization and return the current yield state
@@ -952,8 +952,8 @@ pub noinline fun unsafe-unfinalize( action : () -> e a ) : e either<yield-contex
   unfinalize-prompt(action());
 
 fun unfinalize-prompt( res : a ) : e either<yield-context,a>
-  if yielding-non-final() 
+  if yielding-non-final()
     then yield-cont(fn(cont,x) unfinalize-prompt(pretend-decreasing(cont(x))) )
-  elif !yielding() 
-    then Right(res) 
+  elif !yielding()
+    then Right(res)
     else Left(yield-capture())

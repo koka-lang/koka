@@ -457,8 +457,8 @@ static void kk_yield_context_free( void* yield_context, kk_block_t* block, kk_co
 
 kk_box_t kk_yield_capture(kk_context_t* ctx) {
   kk_assert_internal(kk_yielding(ctx));
-  kk_yield_context_t* yld = kk_zalloc(sizeof(kk_yield_context_t),ctx); 
-  yld->clause = ctx->yield.clause; 
+  kk_yield_context_t* yld = (kk_yield_context_t*)kk_zalloc(sizeof(kk_yield_context_t),ctx);
+  yld->clause = ctx->yield.clause;
   ctx->yield.clause = kk_function_null(ctx);
   kk_ssize_t i = 0;
   for( ; i < ctx->yield.conts_count; i++) {

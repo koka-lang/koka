@@ -342,7 +342,7 @@ externDecl env
        return (External (qualify (modName env) name) tp pinfos formats vis fip range doc)
 
 
-externalBody :: LexParser [(Target,String)]
+externalBody :: LexParser [(ExternalGuard,String)]
 externalBody
   = do keyword "="
        call <- externalEntry
@@ -351,22 +351,10 @@ externalBody
     do semiBraces externalEntry
 
 externalEntry
-  = do target <- externalTarget
+  = do eguard <- externalGuard
        optional (specialId "inline")
        (s,_)  <- stringLit
-       return (target,s)
-
-externalTarget
-  = do specialId "c"
-       return (C CDefault)
-  <|>
-    do specialId "cs"
-       return CS
-  <|>
-    do specialId "js"
-       return (JS JsDefault)
-  <|>
-    return Default
+       return (eguard,s)
 
 
 {--------------------------------------------------------------------------
@@ -379,7 +367,7 @@ externImportDecl
        entries <- externalImportBody
        return (ExternalImport entries rangeNull)
 
-externalImportBody :: LexParser [(Target, [(String,String)])]
+externalImportBody :: LexParser [(ExternalGuard, [(String,String)])]
 externalImportBody
   = do keyword "="
        entry <- externalImportEntry
@@ -388,9 +376,9 @@ externalImportBody
     do semiBraces externalImportEntry
   where
     externalImportEntry
-      = do target  <- externalTarget
+      = do eguard  <- externalGuard
            keyvals <- semiBraces externalImportKeyVal
-           return (target,keyvals)
+           return (eguard,keyvals)
 
     externalImportKeyVal
       = do key <- do{ (s,_) <- stringLit; return s }

@@ -976,13 +976,14 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
 infExternal names (ExternalImport imports range)
   = return (Core.ExternalImport imports range, names)
 
-formatCall tp (target,ExternalInline inline) = (target,inline)
-formatCall tp (target,ExternalCall fname)
-  = case target of
-      CS      -> (target,formatCS)
-      JS _    -> (target,formatJS)
-      C _     -> (target,formatC)
-      Default -> (target,formatJS)
+formatCall :: Type -> (ExternalGuard, ExternalCall) -> (ExternalGuard, String)
+formatCall tp (eguard,ExternalInline inline) = (eguard,inline)
+formatCall tp (eguard,ExternalCall fname)
+  = case eguardTarget eguard of
+      CS      -> (eguard,formatCS)
+      JS _    -> (eguard,formatJS)
+      C _     -> (eguard,formatC)
+      Default -> (eguard,formatJS)
   where
     (foralls,rho) = splitTypeScheme tp
 

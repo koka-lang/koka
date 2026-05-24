@@ -20,6 +20,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
 
                    -- used by the core parser
                    , lexParse, parseLex, LexParser, parseLexemes, parseInline, ignoreSyntaxWarnings
+                   , externalGuard
 
                    , visibility, modulepath, importAlias, {- parseFip, -} parseTailFip
                    , tbinderId, funid, paramid
@@ -481,14 +482,15 @@ externalImport rng1
     do (entries,rng2) <- semiBracesRanged externalImportEntry
        return (ExternalImport entries (combineRange rng1 rng2))
   where
+    externalImportEntry :: LexParser (ExternalGuard,[(String,String)])
     externalImportEntry
-      = do target        <- externalTarget
+      = do eguard <- externalGuard
            (keyvals,rng) <- do key <- externalImportKey
                                (val,rng)   <- stringLit
                                return ([(key,val)],rng)
                             <|> semiBracesRanged externalImportKeyVal
-           keyvalss <- mapM (externalIncludes target rng) keyvals
-           return (target,concat keyvalss)
+           keyvalss <- mapM (externalIncludes (eguardTarget eguard) rng) keyvals
+           return (eguard,concat keyvalss)
 
     externalImportKeyVal
       = do key <- externalImportKey
@@ -541,18 +543,20 @@ externalImport rng1
              Nothing      -> return Nothing
 
 
-externalBody :: LexParser ([(Target,ExternalCall)],Range)
+externalBody :: LexParser ([(ExternalGuard,ExternalCall)],Range)
 externalBody
   = semiBracesRanged externalEntry
 
+
+externalEntry :: LexParser (ExternalGuard,ExternalCall)
 externalEntry
   = do (target,inline,_) <- externalEntryRanged
        return (target,inline)
 
 externalEntryRanged
-  = do target <- externalTarget
+  = do eguard <- externalGuard
        (call,rng) <- externalCall
-       return (target,call,rng)
+       return (eguard,call,rng)
 
 externalCall
   = do f <- do specialId "inline"
@@ -562,18 +566,25 @@ externalCall
        (s,rng) <- stringLit
        return (f s,rng)
 
+externalGuard :: LexParser ExternalGuard
+externalGuard
+  = do target <- externalTarget
+       os     <- externalOS
+       arch   <- externalArch
+       return (ExternalGuard target os arch)
+  where
+    -- todo: define in Common/Syntax ?
+    osIds   = ["windows","macos","linux","unix","linux-android","unix-freebsd","unix-openbsd"]
+    archIds = ["x64","x86","arm64","arm32","riscv64","riscv32"]
 
-externalTarget
-  = do specialId "c"
-       return (C CDefault)
-  <|>
-    do specialId "cs"
-       return CS
-  <|>
-    do specialId "js"
-       return (JS JsDefault)
-  <|>
-    return Default
+    externalArch
+      = choice $ [do{ specialId arch; return arch } | arch <- archIds ] ++ [return ""]
+
+    externalOS
+      = choice $ [do{ specialId os; return os } | os <- osIds ] ++ [return ""]
+
+    externalTarget
+      = choice $ [do{ specialId id; return target } | (target,id) <- targetIds ] ++ [return Default]
 
 
 
@@ -1793,14 +1804,14 @@ matchexpr
 
 -- TODO: fix parsing of handlers to match the grammar precisely
 handlerExpr
-  = do (rng0,hsort,override) 
+  = do (rng0,hsort,override)
            <- do { rng <- keyword "named"; return (rng,HandlerInstance,HandlerNoOverride) }
-              <|> 
+              <|>
               do { rng <- keyword "override"; return (rng,HandlerNormal,HandlerOverride)}
               <|>
-              return (rangeNull,HandlerNormal,HandlerNoOverride)    
-                      
-       (do rng1 <- keyword "handle" 
+              return (rangeNull,HandlerNormal,HandlerNoOverride)
+
+       (do rng1 <- keyword "handle"
            let rng = combineRange rng0 rng1
            mbEff <- handlerEffect
            scoped  <- do { specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
@@ -1817,8 +1828,8 @@ handlerExpr
            if rangeIsNull rng0
              then fail ""
              else handlerClauses rng0 Nothing HandlerNoScope override hsort)
-                
-       
+
+
 handlerExprWith rng HandlerInstance
   = do rng0 <- keyword "named"
        rng1 <- keyword "handler"
@@ -1836,9 +1847,9 @@ handlerExprWith rng HandlerNormal
        handlerClauses rng mbEff scoped override HandlerNormal
 
 
-handlerEffect 
+handlerEffect
   = do { eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-  
+
 handlerClauses :: Range -> Maybe UserType -> HandlerScope -> HandlerOverride -> HandlerSort -> LexParser UserExpr
 handlerClauses rng mbEff scoped override hsort
   = do (clausesAndBinders,rng2) <- opClauses
@@ -2320,9 +2331,9 @@ injectType
       let rng       = combineRange rng1 rng2
           (tp:tps)  = reverse tps1
           base exp  = Inject (promoteType tp) exp behind rng
-          mkInj exp = foldl (\e t -> Inject (promoteType t) (Lam [] e False rng) behind rng) (base exp) tps          
+          mkInj exp = foldl (\e t -> Inject (promoteType t) (Lam [] e False rng) behind rng) (base exp) tps
       return (rng, mkInj)
-      
+
 -----------------------------------------------------------
 -- Patterns (and binders)
 -----------------------------------------------------------
