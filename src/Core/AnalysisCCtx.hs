@@ -162,8 +162,8 @@ makeCCtxEmpty :: Type -> Expr
 makeCCtxEmpty tp
   = App (TypeApp (Var (TName nameCCtxEmpty funType)
                         -- (InfoArity 1 0)
-                        (InfoExternal [(externalGuardFromTarget (C CDefault),"kk_cctx_empty(kk_context())"),
-                                       (externalGuardFromTarget (JS JsDefault),"$std_core_types._cctx_empty()")])
+                        (InfoExternal [(targetPlatformFromTarget (C CDefault),"kk_cctx_empty(kk_context())"),
+                                       (targetPlatformFromTarget (JS JsDefault),"$std_core_types._cctx_empty()")])
                       ) [tp]) []
   where
     funType = TForall [a] (TFun [] typeTotal (typeCCtx (TVar a)))
@@ -175,8 +175,8 @@ makeCCtxCreate :: Type -> Type -> Expr -> Expr -> Expr
 makeCCtxCreate tp holetp top holeaddr
   = App (TypeApp (Var (TName nameCCtxCreate funType)
                 -- (InfoArity 1 3)
-                (InfoExternal [(externalGuardFromTarget (C CDefault),"kk_cctx_create(#1,#2,kk_context())"),
-                               (externalGuardFromTarget (JS JsDefault),"$std_core_types._cctx_create(#1,#2)")])
+                (InfoExternal [(targetPlatformFromTarget (C CDefault),"kk_cctx_create(#1,#2,kk_context())"),
+                               (targetPlatformFromTarget (JS JsDefault),"$std_core_types._cctx_create(#1,#2)")])
          ) [tp,holetp]) [top,holeaddr]
   where
     funType = TForall [a,b] (TFun [(nameNil,TVar a),
@@ -199,7 +199,7 @@ makeFieldAddrOf obj conName fieldName fieldTp
 -- Set the index of the field in a constructor to follow the path to the hole at runtime.
 makeCCtxSetContextPath :: Expr -> TName -> Name -> Expr
 makeCCtxSetContextPath obj conName fieldName
-  = App (Var (TName nameCCtxSetCtxPath funType) (InfoExternal [(externalGuardDefault,"@cctx-setcp(#1,#2,#3)")]))
+  = App (Var (TName nameCCtxSetCtxPath funType) (InfoExternal [(targetPlatformDefault,"@cctx-setcp(#1,#2,#3)")]))
         [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
     tp = typeOf obj

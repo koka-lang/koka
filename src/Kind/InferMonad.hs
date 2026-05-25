@@ -144,8 +144,8 @@ addExternal :: Name -> Range -> KInfer ()
 addExternal name range
   = KInfer (\env -> \st -> KResult () [] [] st{ externals = M.insert name range (externals st) })
 
-lookupExternal :: Name -> KInfer (Maybe Range)
-lookupExternal name
+lookupTarget :: Name -> KInfer (Maybe Range)
+lookupTarget name
   = KInfer (\env -> \st -> KResult (M.lookup name (externals st)) [] [] st)
 
 {---------------------------------------------------------------
@@ -282,7 +282,7 @@ extendKGammaUnsafe (tdefs) (KInfer ki)
 
 checkExternal :: Name -> Range -> KInfer ()
 checkExternal name range
-  = do mbRes <- lookupExternal name
+  = do mbRes <- lookupTarget name
        case mbRes of
          Just range0 -> do env <- getKindEnv
                            let cs = cscheme env

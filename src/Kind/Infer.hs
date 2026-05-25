@@ -976,7 +976,7 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
 infExternal names (ExternalImport imports range)
   = return (Core.ExternalImport imports range, names)
 
-formatCall :: Type -> (ExternalGuard, ExternalCall) -> (ExternalGuard, String)
+formatCall :: Type -> (TargetPlatform, ExternalCall) -> (TargetPlatform, String)
 formatCall tp (eguard,ExternalInline inline) = (eguard,inline)
 formatCall tp (eguard,ExternalCall fname)
   = case eguardTarget eguard of

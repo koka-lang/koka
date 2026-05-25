@@ -681,13 +681,13 @@ splitFileList :: [String] -> [String]
 splitFileList xs
   = concatMap (splitOn (==';')) xs
 
-externalImportKeyFromCore :: ExternalGuard -> BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore :: TargetPlatform -> BuildType -> Core.Core -> String -> [String]
 externalImportKeyFromCore eguard buildType core key
   = catMaybes [Core.externalImportLookup eguard buildType key external  | external <- Core.coreProgExternals core]
 
-externalImportsFromCore :: ExternalGuard -> Core.Core -> [[(String,String)]]
+externalImportsFromCore :: TargetPlatform -> Core.Core -> [[(String,String)]]
 externalImportsFromCore eguard core
-  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (eg,keyvals) <- imports, externalGuardTryMatch eguard eg]
+  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (eg,keyvals) <- imports, targetPlatformTryMatch eguard eg]
 
 
 {---------------------------------------------------------------

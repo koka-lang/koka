@@ -54,7 +54,7 @@ import Lib.PPrint
 import qualified Common.NameMap as M
 import Common.Name
 import Common.ColorScheme
-import Common.Syntax( Visibility(..), ExternalGuard )
+import Common.Syntax( Visibility(..), TargetPlatform )
 import Type.Type
 import Type.TypeVar
 import Type.Pretty
@@ -68,7 +68,7 @@ data NameInfo
   = InfoVal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoScopeDepthX :: !Int, infoRange :: !Range, infoIsVar :: !Bool, infoAllowImplictMaskX :: !Bool, infoDoc :: !String }
   | InfoFun{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoScopeDepthX :: !Int, infoArity :: !(Int,Int), infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String }
   | InfoCon{ infoVis :: !Visibility, infoType :: !Scheme, infoRepr  :: !Core.ConRepr, infoCon :: !ConInfo, infoRange :: !Range, infoDoc :: !String }
-  | InfoExternal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoFormat :: ![(ExternalGuard,String)], infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String}
+  | InfoExternal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoFormat :: ![(TargetPlatform,String)], infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String}
   | InfoImport{ infoVis :: !Visibility, infoType :: !Scheme, infoAlias :: !Name, infoFullName :: !Name, infoRange :: !Range}
   deriving (Show)
 

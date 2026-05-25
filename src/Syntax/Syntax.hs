@@ -66,12 +66,12 @@ data External
             , extParams :: ![ParamInfo]
             , extNameRange :: !Range
             , extRange :: !Range
-            , extInline :: ![(ExternalGuard,ExternalCall)]  -- map: target inline
+            , extInline :: ![(TargetPlatform,ExternalCall)]  -- map: target inline
             , extVis  :: !Visibility
             , extFip  :: !Fip
             , extDoc :: !String
             }
-  | ExternalImport{ extImports :: ![(ExternalGuard,[(String,String)])]
+  | ExternalImport{ extImports :: ![(TargetPlatform,[(String,String)])]
                   , extRange :: !Range }
   deriving (Show)
 

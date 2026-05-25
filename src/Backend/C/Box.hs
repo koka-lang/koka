@@ -238,9 +238,9 @@ bcoerceX fromTp toTp expr
       = TFun [(nameNil,fromTp)] typeTotal toTp
 
 boxVarAtTp tp
-  = Var (TName nameBox tp) (InfoExternal [(externalGuardFromTarget (C CDefault), "box(#1)")])
+  = Var (TName nameBox tp) (InfoExternal [(targetPlatformFromTarget (C CDefault), "box(#1)")])
 unboxVarAtTp tp
-  = Var (TName nameUnbox tp) (InfoExternal [(externalGuardFromTarget (C CDefault), "unbox(#1)")])
+  = Var (TName nameUnbox tp) (InfoExternal [(targetPlatformFromTarget (C CDefault), "unbox(#1)")])
 
 
 boxCoerceFun :: [(Name,Type)] -> Effect -> Type -> [(Name,Type)] -> Effect -> Type  -> Expr -> Unique Expr

@@ -32,4 +32,3 @@ pub extern event-loop-init() : any
 pub extern event-loop-run(evloop : any) : ()
   c "kk_uv_loop_run"
   js inline "$std_core_types.Unit"
-

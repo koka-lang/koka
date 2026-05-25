@@ -44,7 +44,7 @@ source env doc
   Show instance declarations
 --------------------------------------------------------------------------}
 
-instance Show Core      where show = show . prettyCore      defaultEnv externalGuardDefault []
+instance Show Core      where show = show . prettyCore      defaultEnv targetPlatformDefault []
 instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
@@ -58,7 +58,7 @@ instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
   Pretty-printers proper
 --------------------------------------------------------------------------}
 
-prettyCore :: Env -> ExternalGuard -> [InlineDef] -> Core -> Doc
+prettyCore :: Env -> TargetPlatform -> [InlineDef] -> Core -> Doc
 prettyCore env0 eguard inlineDefs core@(Core modName imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
@@ -137,7 +137,7 @@ ppImportProvenance env prov
 prettyExternalImport env eguard (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
     -- trace ("external imports: target: " ++ show target ++ ": " ++ show imports) $
-    case lookupExternal eguard imports of
+    case lookupTarget eguard imports of
       Nothing -> empty
       Just keyvals0
         -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
@@ -178,7 +178,7 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc)
      <+> text ":" <+> prettyDefFunType env pinfos tp
      <+> prettyEntries body
   where
-    prettyEntries [(eguard,content)] | externalGuardIsDefault eguard = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
+    prettyEntries [(eguard,content)] | targetPlatformIsDefault eguard = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
     prettyEntry (eguard,content)      = ppExternalGuard env eguard <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
@@ -194,8 +194,8 @@ prettyExternal env (ExternalImport imports range)
         = ppTarget env target <.> prettyLit env (LitString content)
   -}
 
-ppExternalGuard :: Env -> ExternalGuard -> Doc
-ppExternalGuard env (ExternalGuard target os arch)
+ppExternalGuard :: Env -> TargetPlatform -> Doc
+ppExternalGuard env (TargetPlatform target os arch)
   = hcat [ppTarget env target,
           if null os then empty else space <.> text os,
           if null arch then empty else space <.> text arch]

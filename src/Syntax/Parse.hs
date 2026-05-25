@@ -20,7 +20,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
 
                    -- used by the core parser
                    , lexParse, parseLex, LexParser, parseLexemes, parseInline, ignoreSyntaxWarnings
-                   , externalGuard
+                   , targetPlatform
 
                    , visibility, modulepath, importAlias, {- parseFip, -} parseTailFip
                    , tbinderId, funid, paramid
@@ -482,9 +482,9 @@ externalImport rng1
     do (entries,rng2) <- semiBracesRanged externalImportEntry
        return (ExternalImport entries (combineRange rng1 rng2))
   where
-    externalImportEntry :: LexParser (ExternalGuard,[(String,String)])
+    externalImportEntry :: LexParser (TargetPlatform,[(String,String)])
     externalImportEntry
-      = do eguard <- externalGuard
+      = do eguard <- targetPlatform
            (keyvals,rng) <- do key <- externalImportKey
                                (val,rng)   <- stringLit
                                return ([(key,val)],rng)
@@ -543,18 +543,18 @@ externalImport rng1
              Nothing      -> return Nothing
 
 
-externalBody :: LexParser ([(ExternalGuard,ExternalCall)],Range)
+externalBody :: LexParser ([(TargetPlatform,ExternalCall)],Range)
 externalBody
   = semiBracesRanged externalEntry
 
 
-externalEntry :: LexParser (ExternalGuard,ExternalCall)
+externalEntry :: LexParser (TargetPlatform,ExternalCall)
 externalEntry
   = do (target,inline,_) <- externalEntryRanged
        return (target,inline)
 
 externalEntryRanged
-  = do eguard <- externalGuard
+  = do eguard <- targetPlatform
        (call,rng) <- externalCall
        return (eguard,call,rng)
 
@@ -566,12 +566,12 @@ externalCall
        (s,rng) <- stringLit
        return (f s,rng)
 
-externalGuard :: LexParser ExternalGuard
-externalGuard
+targetPlatform :: LexParser TargetPlatform
+targetPlatform
   = do target <- externalTarget
        os     <- externalOS
        arch   <- externalArch
-       return (ExternalGuard target os arch)
+       return (TargetPlatform target os arch)
   where
     -- todo: define in Common/Syntax ?
     osIds   = ["windows","macos","linux","unix","linux-android","unix-freebsd","unix-openbsd"]

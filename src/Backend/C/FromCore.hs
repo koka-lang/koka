@@ -200,25 +200,25 @@ moduleImport imp
 
 includeExternalC :: CTarget -> BuildType -> External -> [Doc]
 includeExternalC ctarget buildType  ext
-  = case externalImportLookup (externalGuardFromTarget (C ctarget)) buildType  "include-inline" ext of
+  = case externalImportLookup (targetPlatformFromTarget (C ctarget)) buildType  "include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
 includeExternalH :: CTarget -> BuildType -> External -> [Doc]
 includeExternalH ctarget buildType ext
-  = case externalImportLookup (externalGuardFromTarget (C ctarget)) buildType  "header-include-inline" ext of
+  = case externalImportLookup (targetPlatformFromTarget (C ctarget)) buildType  "header-include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
 includeEndExternalH :: CTarget -> BuildType -> External -> [Doc]
 includeEndExternalH ctarget buildType ext
-  = case externalImportLookup (externalGuardFromTarget (C ctarget)) buildType  "header-end-include-inline" ext of
+  = case externalImportLookup (targetPlatformFromTarget (C ctarget)) buildType  "header-end-include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
 importExternalInclude :: CTarget -> BuildType -> FilePath -> External -> [Doc]
 importExternalInclude ctarget buildType sourceDir ext
-  = case externalImportLookup (externalGuardFromTarget (C ctarget)) buildType  "include" ext of
+  = case externalImportLookup (targetPlatformFromTarget (C ctarget)) buildType  "include" ext of
       Just path -> [(text "#include" <+>
                       (if (head path == '<')
                         then text path
@@ -2153,7 +2153,7 @@ genAppInline f args
 -- Externals
 ---------------------------------------------------------------------------------
 
-extractExtern :: Expr -> Maybe (TName,[(ExternalGuard,String)])
+extractExtern :: Expr -> Maybe (TName,[(TargetPlatform,String)])
 extractExtern expr
   = case expr of
       TypeApp (Var tname (InfoExternal formats)) targs -> Just (tname,formats)
@@ -2161,7 +2161,7 @@ extractExtern expr
       _ -> Nothing
 
 -- inlined external sometimes  needs wrapping in a applied function block
-genInlineExternal :: TName -> [(ExternalGuard,String)] -> [Doc] -> Asm Doc
+genInlineExternal :: TName -> [(TargetPlatform,String)] -> [Doc] -> Asm Doc
 genInlineExternal tname formats argDocs
   = do (decls,doc) <- genExprExternal tname formats argDocs
        if (null decls)
@@ -2169,7 +2169,7 @@ genInlineExternal tname formats argDocs
         else error ("Backend.C.FromCore.genInlineExternal: TODO: inline external declarations: " ++ show (vcat (decls++[doc])))
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
-genExprExternal :: TName -> [(ExternalGuard,String)] -> [Doc] -> Asm ([Doc],Doc)
+genExprExternal :: TName -> [(TargetPlatform,String)] -> [Doc] -> Asm ([Doc],Doc)
 
 -- special case box/unbox
 genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tname == nameUnbox
@@ -2277,9 +2277,9 @@ genExprExternal tname formats argDocs0
     ppExternalF name (x:xs)  args
      = char x <.> ppExternalF name xs args
 
-getFormat :: TName -> [(ExternalGuard,String)] -> String
+getFormat :: TName -> [(TargetPlatform,String)] -> String
 getFormat tname formats
-  = case lookupExternal (externalGuardFromTarget (C CDefault)) formats of  -- TODO: pass real ctarget from flags
+  = case lookupTarget (targetPlatformFromTarget (C CDefault)) formats of  -- TODO: pass real ctarget from flags
       Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
                  trace( "warning: C backend does not support external in " ++ show tname ++ " looking in " ++ show formats ) $
                       ("kk_unsupported_external(\"" ++ (show tname) ++ "\")")
@@ -2320,7 +2320,7 @@ extractExternal expr
       _ -> Nothing
   where
     format tn fs
-      = case lookupExternal (externalGuardFromTarget (C CDefault)) fs of  -- TODO: pass real target from flags
+      = case lookupTarget (targetPlatformFromTarget (C CDefault)) fs of  -- TODO: pass real target from flags
           Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
           Just s -> s
 

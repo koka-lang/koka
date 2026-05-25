@@ -33,11 +33,11 @@ module Common.Syntax( Visibility(..)
                     , alignedSum, alignedAdd, alignUp
                     , BuildType(..)
                     , sepBySpace, memberDoc
-                    , ExternalGuard(..), externalGuardFromTarget
+                    , TargetPlatform(..), targetPlatformFromTarget
                     , targetIds, targetFromString
-                    , lookupExternal
-                    , externalGuardDefault, externalGuardIsDefault
-                    , externalGuardTryMatch
+                    , lookupTarget
+                    , targetPlatformDefault, targetPlatformIsDefault
+                    , targetPlatformTryMatch
                     ) where
 
 import Data.Tuple(swap)
@@ -136,27 +136,27 @@ instance Show BuildType where
   show RelWithDebInfo = "drelease"
   show Release        = "release"
 
-data ExternalGuard = ExternalGuard{ eguardTarget :: !Target, eguardOS :: !String, eguardArch :: !String }
-                   deriving (Eq,Show)
+data TargetPlatform = TargetPlatform{ eguardTarget :: !Target, eguardOS :: !String, eguardArch :: !String }
+                    deriving (Eq,Show)
 
-instance Ord ExternalGuard where
-  compare (ExternalGuard t1 os1 arch1) (ExternalGuard t2 os2 arch2)
+instance Ord TargetPlatform where
+  compare (TargetPlatform t1 os1 arch1) (TargetPlatform t2 os2 arch2)
     = case compare t1 t2 of
         EQ   -> compare (os1,arch1) (os2,arch2)
         ltgt -> ltgt
 
-externalGuardDefault :: ExternalGuard
-externalGuardDefault = externalGuardFromTarget Default
+targetPlatformDefault :: TargetPlatform
+targetPlatformDefault = targetPlatformFromTarget Default
 
-externalGuardFromTarget :: Target -> ExternalGuard
-externalGuardFromTarget target = ExternalGuard target "" ""
+targetPlatformFromTarget :: Target -> TargetPlatform
+targetPlatformFromTarget target = TargetPlatform target "" ""
 
-externalGuardIsDefault :: ExternalGuard -> Bool
-externalGuardIsDefault (ExternalGuard Default "" "") = True
-externalGuardIsDefault _ = False
+targetPlatformIsDefault :: TargetPlatform -> Bool
+targetPlatformIsDefault (TargetPlatform Default "" "") = True
+targetPlatformIsDefault _ = False
 
-lookupExternal :: Ord a => ExternalGuard -> [(ExternalGuard,a)] -> Maybe a
-lookupExternal eguard xs
+lookupTarget :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
+lookupTarget eguard xs
   = let targets = let target = eguardTarget eguard
                   in case target of
                       C WasmJs  -> [target,C Wasm,C CDefault]
@@ -164,18 +164,18 @@ lookupExternal eguard xs
                       C _       -> [target,C CDefault]
                       JS _ -> [target,JS JsDefault]
                       _    -> [target]
-    in case catMaybes (map (\t -> externalGuardBestMatch (eguard{ eguardTarget = t }) xs) targets) of
+    in case catMaybes (map (\t -> targetPlatformBestMatch (eguard{ eguardTarget = t }) xs) targets) of
          (x:_) -> Just x
          _     -> Nothing
 
-externalGuardBestMatch :: Ord a => ExternalGuard -> [(ExternalGuard,a)] -> Maybe a
-externalGuardBestMatch eguard xs
-  = case filter (\(e,_) -> externalGuardTryMatch eguard e) (reverse (sort xs)) of
+targetPlatformBestMatch :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
+targetPlatformBestMatch eguard xs
+  = case filter (\(e,_) -> targetPlatformTryMatch eguard e) (reverse (sort xs)) of
       ((_,x):_) -> Just x
       _         -> Nothing
 
-externalGuardTryMatch :: ExternalGuard -> ExternalGuard -> Bool
-externalGuardTryMatch (ExternalGuard target1 os1 arch1) (ExternalGuard target2 os2 arch2)
+targetPlatformTryMatch :: TargetPlatform -> TargetPlatform -> Bool
+targetPlatformTryMatch (TargetPlatform target1 os1 arch1) (TargetPlatform target2 os2 arch2)
   = matchTarget target1 target2 && matchOS os1 os2 && matchArch arch1 arch2
   where
     matchTarget Default t2  = True

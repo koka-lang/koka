@@ -1139,9 +1139,9 @@ targetLibFile target fname
       JS _     -> fname ++ ".mjs" -- ?
       _        -> libPrefix ++ fname ++ libExtension
 
-eguardFromFlags :: Flags -> ExternalGuard
+eguardFromFlags :: Flags -> TargetPlatform
 eguardFromFlags flags
-  = ExternalGuard (target flags) (targetOS flags) (targetArch flags)
+  = TargetPlatform (target flags) (targetOS flags) (targetArch flags)
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s

@@ -342,7 +342,7 @@ externDecl env
        return (External (qualify (modName env) name) tp pinfos formats vis fip range doc)
 
 
-externalBody :: LexParser [(ExternalGuard,String)]
+externalBody :: LexParser [(TargetPlatform,String)]
 externalBody
   = do keyword "="
        call <- externalEntry
@@ -351,7 +351,7 @@ externalBody
     do semiBraces externalEntry
 
 externalEntry
-  = do eguard <- externalGuard
+  = do eguard <- targetPlatform
        optional (specialId "inline")
        (s,_)  <- stringLit
        return (eguard,s)
@@ -367,7 +367,7 @@ externImportDecl
        entries <- externalImportBody
        return (ExternalImport entries rangeNull)
 
-externalImportBody :: LexParser [(ExternalGuard, [(String,String)])]
+externalImportBody :: LexParser [(TargetPlatform, [(String,String)])]
 externalImportBody
   = do keyword "="
        entry <- externalImportEntry
@@ -376,7 +376,7 @@ externalImportBody
     do semiBraces externalImportEntry
   where
     externalImportEntry
-      = do eguard  <- externalGuard
+      = do eguard  <- targetPlatform
            keyvals <- semiBraces externalImportKeyVal
            return (eguard,keyvals)
 

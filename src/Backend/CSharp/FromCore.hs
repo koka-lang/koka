@@ -80,7 +80,7 @@ csharpFromCore buildType useCps mbMain core
 
 includeExternal :: BuildType -> External -> [Doc]
 includeExternal buildType  ext
-  = case externalImportLookup (externalGuardFromTarget CS) buildType  "include-inline" ext of
+  = case externalImportLookup (targetPlatformFromTarget CS) buildType  "include-inline" ext of
       Just content -> [text content]
       _ -> []
 
@@ -588,7 +588,7 @@ genExpr expr
 
 
 
-genExternal :: TName -> [(ExternalGuard,String)] -> [Type] -> [Expr] -> Asm ()
+genExternal :: TName -> [(TargetPlatform,String)] -> [Type] -> [Expr] -> Asm ()
 genExternal  tname formats targs args
  = do let (m,n) = getTypeArities (typeOf tname)
       cps <- useCps
@@ -788,11 +788,11 @@ ppConSingleton :: ModuleName -> Name -> TName -> [Type] -> Doc
 ppConSingleton ctx typeName tname targs
   = ppQName ctx (typeClassName typeName) <.> ppTypeArgs ctx targs <.> text "." <.> ppDefName (conClassName (getName tname))
 
-ppExternal :: Name -> TName -> [(ExternalGuard,String)] -> Doc -> [Doc] -> [Doc] -> Doc
+ppExternal :: Name -> TName -> [(TargetPlatform,String)] -> Doc -> [Doc] -> [Doc] -> Doc
 ppExternal currentDef extName formats resTp targs args0
   = let args = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) args0
-    in case lookupExternal (externalGuardFromTarget CS) formats of
-     Nothing -> case lookup (externalGuardFromTarget Default) formats of
+    in case lookupTarget (targetPlatformFromTarget CS) formats of
+     Nothing -> case lookup (targetPlatformFromTarget Default) formats of
       Nothing ->
         trace( "warning: backend does not support external in " ++ show currentDef ) $
         (text "Primitive.UnsupportedExternal<" <.>
