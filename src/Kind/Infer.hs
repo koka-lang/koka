@@ -977,13 +977,13 @@ infExternal names (ExternalImport imports range)
   = return (Core.ExternalImport imports range, names)
 
 formatCall :: Type -> (TargetPlatform, ExternalCall) -> (TargetPlatform, String)
-formatCall tp (eguard,ExternalInline inline) = (eguard,inline)
-formatCall tp (eguard,ExternalCall fname)
-  = case eguardTarget eguard of
-      CS      -> (eguard,formatCS)
-      JS _    -> (eguard,formatJS)
-      C _     -> (eguard,formatC)
-      Default -> (eguard,formatJS)
+formatCall tp (tplatform,ExternalInline inline) = (tplatform,inline)
+formatCall tp (tplatform,ExternalCall fname)
+  = case tpTarget tplatform of
+      CS      -> (tplatform,formatCS)
+      JS _    -> (tplatform,formatJS)
+      C _     -> (tplatform,formatC)
+      _       -> (tplatform,formatJS)      
   where
     (foralls,rho) = splitTypeScheme tp
 

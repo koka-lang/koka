@@ -36,6 +36,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
                    ) where
 
 import Lib.Trace
+import Data.Char (toLower)
 import Data.List (intersperse,unzip4,sortBy)
 import Data.Maybe (isJust,isNothing,catMaybes)
 import Data.Either (partitionEithers)
@@ -484,13 +485,13 @@ externalImport rng1
   where
     externalImportEntry :: LexParser (TargetPlatform,[(String,String)])
     externalImportEntry
-      = do eguard <- targetPlatform
+      = do tp <- targetPlatform
            (keyvals,rng) <- do key <- externalImportKey
                                (val,rng)   <- stringLit
                                return ([(key,val)],rng)
                             <|> semiBracesRanged externalImportKeyVal
-           keyvalss <- mapM (externalIncludes (eguardTarget eguard) rng) keyvals
-           return (eguard,concat keyvalss)
+           keyvalss <- mapM (externalIncludes (tpTarget tp) rng) keyvals
+           return (tp,concat keyvalss)
 
     externalImportKeyVal
       = do key <- externalImportKey
@@ -566,26 +567,62 @@ externalCall
        (s,rng) <- stringLit
        return (f s,rng)
 
-targetPlatform :: LexParser TargetPlatform
+
+targetPlatform:: LexParser TargetPlatform
 targetPlatform
   = do target <- externalTarget
-       os     <- externalOS
-       arch   <- externalArch
-       return (TargetPlatform target os arch)
+       attrs  <- externalAttrs
+       adjust attrs (targetPlatformFromTarget target)
   where
-    -- todo: define in Common/Syntax ?
-    osIds   = ["windows","macos","linux","unix","linux-android","unix-freebsd","unix-openbsd"]
-    archIds = ["x64","x86","arm64","arm32","riscv64","riscv32"]
+    externalAttrs :: LexParser [(String,String,Range)]
+    externalAttrs 
+      = do special "[" <?> ""
+           attrs <- sepEndBy externalAttr comma
+           special "]"
+           return attrs
+      <|>
+        return []
 
-    externalArch
-      = choice $ [do{ specialId arch; return arch } | arch <- archIds ] ++ [return ""]
+    externalAttr
+      = do (attr,rng1) <- strid
+           keyword "="
+           (val,rng2)  <- strid
+           return (attr,val,combineRange rng1 rng2)
+      where
+        strid = do{ (id,rng) <- varid; return (show id,rng) } <|> stringLit
 
-    externalOS
-      = choice $ [do{ specialId os; return os } | os <- osIds ] ++ [return ""]
-
+    adjust [] tp = return tp
+    adjust ((attr,val,rng):rest) tp
+      = case attr of 
+          "os"   -> adjust rest (tp{ tpOS = val })
+          "arch" -> adjust rest (tp{ tpArch = val })
+          "host" -> case (map toLower val,tpTarget tp) of
+                      ("libc",C _)    -> adjust rest $ tp{ tpTarget = C LibC }
+                      ("wasm",C _)    -> adjust rest $ tp{ tpTarget = C Wasm }
+                      ("wasmjs",C _)  -> adjust rest $ tp{ tpTarget = C WasmJs }
+                      ("wasmweb",C _) -> adjust rest $ tp{ tpTarget = C WasmWeb }
+                      ("jsnode",JS _) -> adjust rest $ tp{ tpTarget = JS JsNode }
+                      ("jsweb",JS _)  -> adjust rest $ tp{ tpTarget = JS JsWeb }
+                      _ -> do pwarningMessage ("unknown host for target: " ++ show val) rng
+                              adjust rest tp
+          "platform" -> case (map toLower val,tpTarget tp) of
+                          ("32",C _)   -> adjust rest $ tp{ tpPlatform = platform32 }
+                          ("64",C _)   -> adjust rest $ tp{ tpPlatform = platform64 }
+                          ("64c",C _)  -> adjust rest $ tp{ tpPlatform = platform64c }
+                          ("js",JS _)  -> adjust rest $ tp{ tpPlatform = platformJS }
+                          ("cs",CS)    -> adjust rest $ tp{ tpPlatform = platformCS }
+                          _ -> do pwarningMessage ("unknown platform for target: " ++ show val) rng
+                                  adjust rest tp
+          _ -> do pwarningMessage ("unknown condition for target: " ++ show val) rng
+                  adjust rest tp
+    
     externalTarget
-      = choice $ [do{ specialId id; return target } | (target,id) <- targetIds ] ++ [return Default]
-
+      =   do { specialId "c"; return (C CDefault) }
+      <|> do { specialId "js"; return (JS JsDefault) }
+      <|> do { specialId "cs"; return CS }
+      <|> do { specialId "default"; return Default }
+      -- <|> do { (id,rng) <- varid; pwarningMessage ("unknown external target: " ++ show id) rng; return Unsupported }
+      <|> return Default
 
 
 {--------------------------------------------------------------------------

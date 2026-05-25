@@ -143,7 +143,7 @@ prettyExternalImport env eguard (ExternalImport imports _)
         -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
              [] -> empty
              keyvals -> keyword env "extern import" <+> text "{"
-                          <-> tab (ppExternalGuard env eguard <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                          <-> tab (ppTargetPlatform env eguard <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
                           <-> text "};"
   where
     prettyKeyval (key,val)
@@ -180,7 +180,7 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc)
   where
     prettyEntries [(eguard,content)] | targetPlatformIsDefault eguard = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
-    prettyEntry (eguard,content)      = ppExternalGuard env eguard <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
+    prettyEntry (eguard,content)      = ppTargetPlatform env eguard <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
 prettyExternal env (ExternalImport imports range)
   = empty
@@ -194,8 +194,8 @@ prettyExternal env (ExternalImport imports range)
         = ppTarget env target <.> prettyLit env (LitString content)
   -}
 
-ppExternalGuard :: Env -> TargetPlatform -> Doc
-ppExternalGuard env (TargetPlatform target os arch)
+ppTargetPlatform :: Env -> TargetPlatform -> Doc
+ppTargetPlatform env (TargetPlatform target os arch platform)
   = hcat [ppTarget env target,
           if null os then empty else space <.> text os,
           if null arch then empty else space <.> text arch]

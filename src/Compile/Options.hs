@@ -33,7 +33,7 @@ module Compile.Options( -- * Command line options
                        , Terminal(..)
                        , parseOptions
                        , flagsNull
-                       , eguardFromFlags
+                       , targetPlatformFromFlags
                        ) where
 
 import Debug.Trace
@@ -1139,9 +1139,9 @@ targetLibFile target fname
       JS _     -> fname ++ ".mjs" -- ?
       _        -> libPrefix ++ fname ++ libExtension
 
-eguardFromFlags :: Flags -> TargetPlatform
-eguardFromFlags flags
-  = TargetPlatform (target flags) (targetOS flags) (targetArch flags)
+targetPlatformFromFlags :: Flags -> TargetPlatform
+targetPlatformFromFlags flags
+  = TargetPlatform (target flags) (targetOS flags) (targetArch flags) (platform flags)
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s

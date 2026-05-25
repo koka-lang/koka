@@ -9,6 +9,7 @@
     Common syntactical constructs (for Syntax.Syntax and Core.Core)
 -}
 -----------------------------------------------------------------------------
+{-# LANGUAGE InstanceSigs #-}
 module Common.Syntax( Visibility(..)
                     , Assoc(..)
                     , Fixity(..)
@@ -28,7 +29,7 @@ module Common.Syntax( Visibility(..)
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
                     , OperationSort(..), readOperationSort, opSortString
-                    , Platform(..), platform32, platform64, platformCS, platformJS, platform64c
+                    , Platform(..), platform32, platform64, platformCS, platformJS, platform64c, platformNone
                     , platformHasCompressedFields
                     , alignedSum, alignedAdd, alignUp
                     , BuildType(..)
@@ -50,7 +51,7 @@ import Data.List(intersperse,sort)
 data JsTarget = JsDefault | JsNode | JsWeb                deriving (Eq,Ord)
 data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
 
-data Target = Default | CS | JS !JsTarget| C !CTarget     deriving (Eq,Ord)
+data Target = Default | CS | JS !JsTarget| C !CTarget | Unsupported    deriving (Eq,Ord)
 
 isTargetC (C _) = True
 isTargetC _     = False
@@ -76,7 +77,8 @@ targetIds = [
   (C WasmJs,"wasmjs"),
   (C WasmWeb,"wasmweb"),
   (C LibC,"libc"),
-  (C CDefault,"c")
+  (C CDefault,"c"),
+  (Unsupported,"unsupported")
   ]
 
 targetFromString :: String -> Target
@@ -95,7 +97,7 @@ data Platform = Platform{ sizePtr   :: !Int -- sizeof(intptr_t)
                         , sizeSize  :: !Int -- sizeof(size_t)
                         , sizeField :: !Int -- sizeof(kk_field_t), usually intptr_t but may be smaller for compression
                         , sizeHeader:: !Int -- used for correct alignment calculation
-                        } deriving Eq
+                        } deriving (Eq,Ord)
 
 platform32, platform64, platform64c, platformJS, platformCS :: Platform
 platform32  = Platform 4 4 4 8
@@ -103,12 +105,19 @@ platform64  = Platform 8 8 8 8
 platform64c = Platform 8 8 4 8  -- compressed fields
 platformJS  = Platform 8 4 8 0
 platformCS  = Platform 8 4 8 0
+platformNone = Platform 0 0 0 0
+
+instance Show Platform where
+  show p
+    = if p==platform32 then "p32"
+      else if p==platform64 then "p64"
+      else if p==platform64c then "p64c"
+      else platformShow p
 
 
 platformHasCompressedFields (Platform sp _ sf _) = (sp /= sf)
 
-instance Show Platform where
-  show (Platform sp ss sf sh) = "Platform(sizeof(void*)=" ++ show sp ++
+platformShow (Platform sp ss sf sh) = "p(sizeof(void*)=" ++ show sp ++
                                         ",sizeof(size_t)=" ++ show ss ++
                                         ",sizeof(kk_box_t)=" ++ show sf ++
                                         ",sizeof(kk_header_t)=" ++ show sh ++
@@ -136,35 +145,38 @@ instance Show BuildType where
   show RelWithDebInfo = "drelease"
   show Release        = "release"
 
-data TargetPlatform = TargetPlatform{ eguardTarget :: !Target, eguardOS :: !String, eguardArch :: !String }
+data TargetPlatform = TargetPlatform{ tpTarget :: !Target, tpOS :: !String, tpArch :: !String, tpPlatform :: Platform }
                     deriving (Eq,Show)
 
 instance Ord TargetPlatform where
-  compare (TargetPlatform t1 os1 arch1) (TargetPlatform t2 os2 arch2)
+  compare :: TargetPlatform -> TargetPlatform -> Ordering
+  compare (TargetPlatform t1 os1 arch1 p1) (TargetPlatform t2 os2 arch2 p2)
     = case compare t1 t2 of
-        EQ   -> compare (os1,arch1) (os2,arch2)
+        EQ   -> compare (os1,arch1,p1) (os2,arch2,p2)
         ltgt -> ltgt
 
 targetPlatformDefault :: TargetPlatform
 targetPlatformDefault = targetPlatformFromTarget Default
 
 targetPlatformFromTarget :: Target -> TargetPlatform
-targetPlatformFromTarget target = TargetPlatform target "" ""
+targetPlatformFromTarget target = TargetPlatform target "" "" platformNone
 
 targetPlatformIsDefault :: TargetPlatform -> Bool
-targetPlatformIsDefault (TargetPlatform Default "" "") = True
+targetPlatformIsDefault (TargetPlatform Default "" "" (Platform 0 0 0 0)) = True
 targetPlatformIsDefault _ = False
 
 lookupTarget :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
-lookupTarget eguard xs
-  = let targets = let target = eguardTarget eguard
+lookupTarget tp xs
+  = let targets = let target = tpTarget tp
                   in case target of
-                      C WasmJs  -> [target,C Wasm,C CDefault]
-                      C WasmWeb -> [target,C Wasm,C CDefault]
-                      C _       -> [target,C CDefault]
-                      JS _ -> [target,JS JsDefault]
-                      _    -> [target]
-    in case catMaybes (map (\t -> targetPlatformBestMatch (eguard{ eguardTarget = t }) xs) targets) of
+                      C WasmJs      -> [target,C Wasm,C CDefault]
+                      C WasmWeb     -> [target,C Wasm,C CDefault]
+                      C CDefault    -> [target]
+                      C _           -> [target,C CDefault]
+                      JS JsDefault  -> [target]
+                      JS _          -> [target,JS JsDefault]
+                      _             -> [target]                      
+    in case catMaybes (map (\t -> targetPlatformBestMatch (tp{ tpTarget = t }) xs) targets) of
          (x:_) -> Just x
          _     -> Nothing
 
@@ -175,20 +187,24 @@ targetPlatformBestMatch eguard xs
       _         -> Nothing
 
 targetPlatformTryMatch :: TargetPlatform -> TargetPlatform -> Bool
-targetPlatformTryMatch (TargetPlatform target1 os1 arch1) (TargetPlatform target2 os2 arch2)
-  = matchTarget target1 target2 && matchOS os1 os2 && matchArch arch1 arch2
+targetPlatformTryMatch (TargetPlatform target1 os1 arch1 p1) (TargetPlatform target2 os2 arch2 p2)
+  = matchTarget target1 target2 && matchString os1 os2 && matchString arch1 arch2 && matchPlatform p1 p2
   where
     matchTarget Default t2  = True
     matchTarget t1 Default  = True
     matchTarget t1 t2       = (t1==t2)
 
-    matchOS "" os2  = True
-    matchOS os1 ""  = True
-    matchOS os1 os2 = (os1==os2)
+    matchPlatform (Platform i1 i2 i3 i4) (Platform j1 j2 j3 j4)
+      = matchInt i1 j1 && matchInt i2 j2 && matchInt i3 j3 && matchInt i4 j4
 
-    matchArch "" arch2     = True
-    matchArch arch1 ""     = True
-    matchArch arch1 arch2  = (arch1==arch2)
+    matchString "" s2  = True
+    matchString s1 ""  = True
+    matchString s1 s2  = (s1==s2)
+
+    matchInt 0 i2      = True
+    matchInt i1 0      = True
+    matchInt i1 i2     = (i1==i2)
+
 
 {--------------------------------------------------------------------------
   Visibility
