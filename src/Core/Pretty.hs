@@ -134,22 +134,22 @@ ppImportProvenance env prov
       ImportTypes    -> keyword env " type"
       ImportCompiler -> keyword env " inline"
 
-prettyExternalImport env eguard (ExternalImport imports _)
+prettyExternalImport env tp (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
     -- trace ("external imports: target: " ++ show target ++ ": " ++ show imports) $
-    case lookupTarget eguard imports of
+    case lookupTarget tp imports of
       Nothing -> empty
       Just keyvals0
         -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
              [] -> empty
              keyvals -> keyword env "extern import" <+> text "{"
-                          <-> tab (ppTargetPlatform env eguard <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                          <-> tab (ppTargetPlatformX env tp <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
                           <-> text "};"
   where
     prettyKeyval (key,val)
       = prettyLit env (LitString key) <.> text "=" <.> prettyLit env (LitString val) <.> semi
 
-prettyExternalImport env eguard _ = empty
+prettyExternalImport env tp _ = empty
 
 
 
@@ -178,9 +178,9 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc)
      <+> text ":" <+> prettyDefFunType env pinfos tp
      <+> prettyEntries body
   where
-    prettyEntries [(eguard,content)] | targetPlatformIsDefault eguard = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
+    prettyEntries [(tgtp,content)] | targetPlatformIsDefault tgtp = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
-    prettyEntry (eguard,content)      = ppTargetPlatform env eguard <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
+    prettyEntry (tgtp,content)        = ppTargetPlatformX env tgtp <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
 prettyExternal env (ExternalImport imports range)
   = empty
@@ -195,10 +195,12 @@ prettyExternal env (ExternalImport imports range)
   -}
 
 ppTargetPlatform :: Env -> TargetPlatform -> Doc
-ppTargetPlatform env (TargetPlatform target os arch platform)
-  = hcat [ppTarget env target,
-          if null os then empty else space <.> text os,
-          if null arch then empty else space <.> text arch]
+ppTargetPlatform env tp
+  = text (show tp) <.> space
+
+ppTargetPlatformX :: Env -> TargetPlatform -> Doc
+ppTargetPlatformX env tp
+  = ppTargetPlatform env (tp{tpOS="",tpArch="",tpPlatform=platformNone})  
 
 ppTarget :: Env -> Target -> Doc
 ppTarget env target

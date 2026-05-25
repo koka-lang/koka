@@ -351,10 +351,10 @@ externalBody
     do semiBraces externalEntry
 
 externalEntry
-  = do eguard <- targetPlatform
+  = do tgtp <- targetPlatform
        optional (specialId "inline")
        (s,_)  <- stringLit
-       return (eguard,s)
+       return (tgtp,s)
 
 
 {--------------------------------------------------------------------------
@@ -376,9 +376,9 @@ externalImportBody
     do semiBraces externalImportEntry
   where
     externalImportEntry
-      = do eguard  <- targetPlatform
+      = do tgtp  <- targetPlatform
            keyvals <- semiBraces externalImportKeyVal
-           return (eguard,keyvals)
+           return (tgtp,keyvals)
 
     externalImportKeyVal
       = do key <- do{ (s,_) <- stringLit; return s }

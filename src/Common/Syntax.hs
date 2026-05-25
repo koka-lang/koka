@@ -43,7 +43,7 @@ module Common.Syntax( Visibility(..)
 
 import Data.Tuple(swap)
 import Data.Maybe(catMaybes)
-import Data.List(intersperse,sort)
+import Data.List(intersperse,sort,intercalate)
 
 {--------------------------------------------------------------------------
   Backend targets
@@ -146,7 +146,7 @@ instance Show BuildType where
   show Release        = "release"
 
 data TargetPlatform = TargetPlatform{ tpTarget :: !Target, tpOS :: !String, tpArch :: !String, tpPlatform :: Platform }
-                    deriving (Eq,Show)
+                    deriving (Eq)
 
 instance Ord TargetPlatform where
   compare :: TargetPlatform -> TargetPlatform -> Ordering
@@ -154,6 +154,35 @@ instance Ord TargetPlatform where
     = case compare t1 t2 of
         EQ   -> compare (os1,arch1,p1) (os2,arch2,p2)
         ltgt -> ltgt
+
+instance Show TargetPlatform where
+  show (TargetPlatform tgt os arch p)
+    = showTarget tgt ++ (if null attrs then "" else "[" ++ intercalate "," attrs ++ "]")
+    where
+      attrs = concat $
+        [hostAttr tgt,
+         if os=="" then [] else ["os=" ++ os],
+         if arch=="" then [] else ["arch=" ++ os],
+         if p==platformNone then [] else ["platform=" ++ show p]
+        ]
+
+      showTarget t
+        = case t of
+            C _  -> "c"
+            JS _ -> "js"
+            CS   -> "cs"
+            _    -> "default"
+
+      hostAttr t
+        = case t of
+            C LibC    -> ["host=libc"]
+            C Wasm    -> ["host=wasm"]
+            C WasmJs  -> ["host=wasmjs"]
+            C WasmWeb -> ["host=wasmweb"]
+            JS JsNode -> ["host=jsnode"]
+            JS JsWeb  -> ["host=jsweb"]
+            _         -> []
+
 
 targetPlatformDefault :: TargetPlatform
 targetPlatformDefault = targetPlatformFromTarget Default
