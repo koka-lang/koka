@@ -68,7 +68,7 @@ pub fun try-receive( ch : channel<a> ) : <async,ndet> maybe<a>
         Just(v)
       _ -> Nothing
 
-fun emit-io( ch : channel<a>, value : a ) : ioc ()
+pub fun emit-io( ch : channel<a>, value : a ) : ioc ()
   val r = ch.state
   match !r
     Empty -> r := Values(value, [])
@@ -109,6 +109,8 @@ pub fun emit-on-await(ch : channel<() -> <async|e> ()>, action : () -> <async|e>
     val async-scope = async-scope
     fun no-await(setup,scope,l,f) no-await(setup,scope,l,f)
     fun async-ioc(f)              async-ioc(f)
+    fun async-schedule-ioc(f)     async-schedule-ioc(f)
     fun cancel-scope(scope)       cancel-scope(scope)
+    fun is-scope-canceled(scope)  is-scope-canceled(scope)
     fun discontinue()             discontinue()
   action()

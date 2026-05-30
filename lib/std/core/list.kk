@@ -522,6 +522,13 @@ pub fun init( xs : list<a> ) : list<a>
     Cons(x, xx as Cons) -> Cons(x,init(xx))
     _ -> Nil
 
+// Return the prefix of list and its last element.
+pub fun split-last( xs : list<a>, acc : ctx<list<a>> = ctx hole ) : maybe2<list<a>,a>
+  match xs
+    Cons(x, xx as Cons) -> split-last(xx, acc ++ ctx Cons(x,hole) )
+    Cons(x,Nil) -> Just2(acc ++. Nil, x)
+    Nil         -> Nothing2    
+
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
 pub fun @index( xs : list<a>, n : int ) : maybe<a>
   match xs

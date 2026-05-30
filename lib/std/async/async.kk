@@ -125,15 +125,21 @@ pub effect async
   // Setup a callback and await its completion. The setup is performed in the handler scope.
   ctl do-await( setup : await-setup<a>, scope : scope, label : string ) : await-result<a>
 
-  // Cancel any outstanding async operations of a specific cancelation scope (and all its children)
-  ctl cancel-scope( scope : scope ) : ()
-
   // Internal: Setup a callback to execute `cb` on completion, but return control to the caller immediately
   // after the setup is performed. `cb` is performed in the handler scope.
-  ctl no-await( setup : await-setup<a>, scope : scope, label : string, cb : await-result<a> -> ioc () ) : ()
+  fun no-await( setup : await-setup<a>, scope : scope, label : string, cb : await-result<a> -> ioc () ) : ()
 
   // Internal: perform an I/O operation in the outer async handler
-  ctl async-ioc( action : () -> ioc a ) : a
+  fun async-ioc( action : () -> ioc a ) : a
+
+  // Internal: perform an I/O operation in the outer async handler in the next event loop tick
+  fun async-schedule-ioc( action : () -> ioc () ) : ()
+
+  // Cancel any outstanding async operations of a specific cancelation scope (and all its children)
+  fun cancel-scope( scope : scope ) : ()
+
+  // Has the current scope ever been canceled?
+  fun is-scope-canceled( scope : scope ) : bool
   
   // Internal: The current strand of execution is canceled
   final ctl discontinue(): a
@@ -143,6 +149,9 @@ pub effect async
 // part of the same cancelation scope (see `cancelation-scope`).
 pub fun cancel-outstanding()
   cancel-scope(async-scope)
+
+pub fun is-canceled()
+  is-scope-canceled(async-scope)
 
 // Perform a stateful operation in the outer async handler.
 pub fun async-st(action: () -> st<global> a): async a
@@ -259,18 +268,21 @@ fun await-resumption/show( AwaitResumption(scope,label,_) ) : string
 pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
   // Outstanding async requests
   val outstanding : ref<global,list<await-resumption>> = ref([])
+
+  // Has the root scope been canceled
+  val canceled : ref<global,bool> = ref(False)
   
   // Setup a new async await
   fun setup-await( setup : await-setup<a>, scope : scope, label : string, resume : (await-result<a>) -> ioc ()) : ioc ()
     // Each callback gets its own scope so we can tell when a given
     // callback can be removed from `outstanding`
-    val cscope = scope.child(unique()+1)
+    val cscope = new-child-scope-ioc(scope)
 
     // `disposer` holds the dispose function (that releases resources on cancelation)
     val disposer : ref<global,dispose-fn> = ref(noop)
 
     // the resumption callback that is invoked when the async request completes (or on cancelation)
-    fun resume-cb( res : await-result<_>, is-done : bool ): ioc ()      
+    fun resume-cb( res : await-result<_>, is-done : bool ): ioc () 
       if is-done then
         outstanding := (!outstanding).remove(cscope)                  
         val dispose = disposer.swap(noop)  // unreference early
@@ -288,28 +300,27 @@ pub fun async/handle(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
       Ok    -> ()   // scheduled f to be called
       Error -> f()  // if setup fails we call it immediately
     
-  // Cancelation
-  fun cancel-outstanding-in-scope( sid : scope-id ) : ioc ()
-    (!outstanding).foreach fn(AwaitResumption(scope,label,resume-cb))
-      if scope.contains(sid) then 
+  fun cancel-outstanding-in-scope( scope : scope ) : ioc ()
+    (!outstanding).foreach fn(AwaitResumption(await-scope,label,resume-cb))
+      if await-scope <= scope then 
         trace("cancel: " ++ label ++ " at " ++ scope.show)
         resume-cb(Cancel,True)
       else 
         trace("no cancel: " ++ label ++ " at " ++ scope.show)
-
   
   handle<async>(action)
-    val async-scope = root-scope
-    raw ctl do-await(setup,scope,lab)   setup-await(setup, scope, lab, fn(x) rcontext.resume(x) )
-    fun no-await(setup,scope,lab,cb)    setup-await(setup, scope, lab, cb )
+    val async-scope = root-scope    
+    raw ctl do-await(setup,scope,lab)   setup-await(setup, scope, lab, fn(x) rcontext.resume(x) )    
+    fun no-await(setup,scope,lab,cb)    setup-await(setup, scope, lab, cb )    
+    fun async-ioc(f)                    f()
+    fun async-schedule-ioc(f)           schedule(f)    
     fun cancel-scope(scope)             
       trace("cancel-scope: " ++ scope.show)
-      val sid = scope.scope-id 
-      cancel-outstanding-in-scope(sid)
-      //cancel-outstanding-in-scope(scope.scope-id)
+      if scope == root-scope then canceled := True
+      cancel-outstanding-in-scope(scope)
+    fun is-scope-canceled(scope)        (scope==root-scope && !canceled)
     final ctl discontinue()             trace("discontinue occurred at the toplevel scope")      
-    fun async-ioc(f)                    f()
-    // fun async-schedule-ioc(f)        schedule(f)
+    
 
 
 pub fun handle-evloop( action : () -> <async,ioc> () ) : ioc () 
@@ -327,30 +338,50 @@ pub fun @default-async( action : () -> <async,ioc> () ) : ioc ()
 
 // Set up a new cancelation scope
 pub fun cancelation-scope( action : () -> <async|e> a) : <async|e> a
-  override handle(action)
-    val async-scope = new-child-scope(async-scope)
-    // passthrough
-    fun do-await(setup,scope,l)   do-await(setup,scope,l)
-    fun no-await(setup,scope,l,f) no-await(setup,scope,l,f)
-    fun cancel-scope(scope)       cancel-scope(scope)    
-    fun async-ioc(f)              async-ioc(f)
-    fun discontinue()             discontinue()    
-  
-// Set up a new cancelation scope
-pub fun tracked-cancelation-scope( action : (is-canceled : () -> <async|e> bool) -> <async|e> a) : <async|e> a
   val cscope = new-child-scope(async-scope)
-  val canceled : ref<global,bool> = async-ioc{ ref(False) }
+  var canceled := False 
   with override handler
     val async-scope = cscope
+    fun is-scope-canceled(scope)  (scope<=cscope && canceled) || is-scope-canceled(scope)
+    fun cancel-scope(scope)       
+      if scope==cscope then canceled := True
+      cancel-scope(scope)
     // passthrough
     fun do-await(setup,scope,l)   do-await(setup,scope,l)
     fun no-await(setup,scope,l,f) no-await(setup,scope,l,f)
-    fun cancel-scope(scope)       
-      if scope == cscope then async-ioc{ canceled := True }
-      cancel-scope(scope)
     fun async-ioc(f)              async-ioc(f)
+    fun async-schedule-ioc(f)     async-schedule-ioc(f)
     fun discontinue()             discontinue()    
-  action(fn() async-ioc{ !canceled })
+  action()
+
+pub fun in-parent-scope( action : () -> <async|e> a ) : <async|e> a
+  override handle(action)
+    val async-scope = async-scope.parent
+    // passthrough
+    fun do-await(setup,scope,l)   do-await(setup,scope,l)
+    fun no-await(setup,scope,l,f) no-await(setup,scope,l,f)
+    fun async-ioc(f)              async-ioc(f)
+    fun async-schedule-ioc(f)     async-schedule-ioc(f)
+    fun is-scope-canceled(scope)  is-scope-canceled(scope)
+    fun cancel-scope(scope)       cancel-scope(scope)    
+    fun discontinue()             discontinue()
+
+
+// Catch a discontinue as a `:maybe`
+pub fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
+  override handle(action)
+    final ctl discontinue() Nothing
+    return(x)               Just(x)
+    // passthrough others
+    val async-scope = async-scope
+    fun do-await(setup, scope, l)     do-await(setup,scope,l)
+    fun no-await(setup, scope, l, f)  no-await(setup,scope,l,f)
+    fun async-ioc(x)                  async-ioc(x)
+    fun async-schedule-ioc(f)         async-schedule-ioc(f)
+    fun cancel-scope(scope)           cancel-scope(scope)  
+    fun is-scope-canceled(scope)      is-scope-canceled(scope)
+    
+
 
 fun test-scope()
   with cancelation-scope
@@ -373,26 +404,27 @@ pub fun scope/show( Scope(ids) : scope ) : string
 // A scope is the chain starting with the current scope, including parent scopes up to the root scope-id
 val root-scope = Scope([0])
 
-fun child(Scope(ids) : scope, child-id : scope-id) : scope
-    Scope(Cons(child-id, ids))
+pub fun new-child-scope-ioc( Scope(ids) : scope ) : ioc scope
+  val cid = unique()+1
+  Scope(Cons(cid,ids))  
 
-fun contains(Scope(ids) : scope, scopeid : scope-id ) : bool
-  ids.find(fn(x) x == scopeid).is-just
+pub fun new-child-scope( scope : scope ) : async scope
+  async-ioc{ new-child-scope-ioc(scope) }
 
 fun scope-id( Scope(ids) ) : scope-id
   ids.head(0)
+
+fun parent( Scope(ids) : scope ) : scope
+  match ids
+    Cons(_,idd as Cons) -> Scope(idd)
+    _                   -> root-scope
   
-pub fun is-parent( parent : scope, child : scope ) : bool
-  match child
-    Scope(Cons(_,Cons(id,_))) -> id == parent.scope-id
-    _                         -> False
+// Is `scope` equal to, or a child scope of `root`?
+pub fun (<=)( Scope(ids) : scope, root : scope ) : bool
+  val sid = root.scope-id
+  ids.find(fn(x) x == sid).is-just
 
-pub fun new-child-scope( scope : scope ) : async scope
-  val cid = async-ioc{ unique()+1 }
-  scope.child(cid)
-
-// every scope with the same id must implicitly contain the same
-// parent chain, so a simple comparison on the head is sufficient
+// O(1). Are the scopes equal?
 pub fun scope/(==)(s1 : scope, s2 : scope ) : bool
   s1.scope-id == s2.scope-id
 

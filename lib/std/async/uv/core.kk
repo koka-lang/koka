@@ -12,18 +12,12 @@ extern import
 
 extern import
   c[host=libc,os=windows] { syslib="user32;iphlpapi;userenv;ws2_32;dbghelp;ole32;uuid" }
+  
+extern import  
+  c[host=wasmweb] { header-file="inline/emscripten-uv.h"; file="inline/emscripten-uv.c" }
 
 extern import
-  c[host=wasmweb] header-file "inline/emscripten-uv.h" 
-
-extern import
-  c[host=wasmweb] file "inline/emscripten-uv.c" 
-
-extern import
-  c header-file "inline/core.h"
-
-extern import
-  c file "inline/core.c"
+  c { header-file="inline/core.h"; file="inline/core.c" }
 
 pub extern event-loop-init() : any
   c "kk_uv_loop_init"
