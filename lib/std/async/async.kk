@@ -21,7 +21,7 @@ Microsoft Research technical report MSR-TR-2017-21, May 2017.
 ~
 \/
 */
-module std/async/async
+module async/async
 
 import std/num/int64
 import std/core/undiv
@@ -29,8 +29,8 @@ import std/core/unsafe
 import std/num/float64
 import std/time/duration
 
-import uv/core
-import uv/timer
+import async/uv/core
+import async/uv/timer
 
 /*
 # Cancellation scopes

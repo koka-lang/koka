@@ -10,9 +10,9 @@
 
    test `std/async` and `module std/time/instant`.
 */
-module std/async/readline
+module async/readline
 
-import std/async
+import async
 
 extern import {
   cs file "readline-inline.cs"

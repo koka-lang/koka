@@ -44,7 +44,7 @@ module Common.Name
           , toOpenTagName, isOpenTagName
           , toLazyIndirectConName, isLazyIndirectConName
           , toValueOperationName, isValueOperationName, fromValueOperationsName, toBasicOperationsName
-          , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
+          , splitName, splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
           , missingQualifier
           , isEarlyBindName
           , toImplicitParamName, isImplicitParamName, splitImplicitParamName
@@ -530,6 +530,10 @@ isInSpecialNameSpace name ns
 ----------------------------------------------------------------
 -- Modules paths
 ----------------------------------------------------------------
+
+splitName :: Name -> [String]
+splitName name
+  = filter (not . null) $ splitModuleName name ++ splitLocalQualName name ++ [nameStem name]
 
 splitModuleName :: Name -> [String]
 splitModuleName name

@@ -8,7 +8,7 @@
 module uv/timer
 
 import std/num/int64
-import core
+import uv/core
 
 extern import
   c  file "inline/timer.c"

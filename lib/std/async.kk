@@ -5,6 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
+module std/async
 
 pub import std/async/async
 pub import std/async/channel

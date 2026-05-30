@@ -522,15 +522,9 @@ moduleParse tparsedMap
                        , modErrors = mergeErrors errs (modErrors mod)
                        }
           Right (prog,warns)
-            -> do penv <- getPrettyEnv
-                  let err = if not (reverse (show (programName prog)) `isPrefixOf` reverse (show (modName mod)))
-                             then errorsSingle $ errorMessageKind ErrStatic (programNameRange prog) $
-                                                 text "the module name" <+> TP.ppName penv (programName prog) <+>
-                                                 text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod)
-                             else errorsNil
-                  done mod{ modPhase   = PhaseParsed
-                          , modErrors  = mergeErrors warns (mergeErrors err (modErrors mod))
-                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
+            -> do done mod{ modPhase   = PhaseParsed
+                          , modErrors  = mergeErrors warns (modErrors mod)
+                          , modProgram = Just $! prog{ programName = modName mod }
                           }
 
 
@@ -688,15 +682,28 @@ moduleLex mod
                          , modErrors = errs
                          , modSource = source
                          }
-         Right (imports,warns)
-            -> do let mod1 = mod{ modPhase   = PhaseLexed
-                                , modErrors  = warns
+         Right ((declaredModName,rng,imports),warns)
+            -> do penv <- getPrettyEnv
+                  let (updirs,err) 
+                          = let (dparts,mparts) = (splitName declaredModName,splitName (modName mod))
+                            in if not (reverse dparts `isPrefixOf` reverse mparts)
+                                then ("",
+                                      errorsSingle $ errorMessageKind ErrStatic rng $
+                                                     text "the module name" <+> TP.ppName penv declaredModName <+>
+                                                     text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod))
+                                else let updirs = concat ["/.." | _ <- init dparts]
+                                     in (updirs,errorsNil)
+                  let mod1 = mod{ modPhase   = PhaseLexed
+                                , modErrors  = mergeErrors warns err
                                 , modSource  = source
                                 , modLexemes = lexemes
                                 , modDeps    = seqqList $ lexImportNub $
                                                 [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
                                 }
-                  deps <- mapM (\dep -> do{ mname <- moduleNameResolve (dirname (modSourcePath mod)) (lexImportName dep); return dep{lexImportName = mname} }) (modDeps mod1)
+                  deps <- mapM (\dep -> do{ mname <- moduleNameResolve (dirname (modSourcePath mod) ++ updirs) (lexImportName dep); 
+                                            return dep{lexImportName = mname} 
+                                          }) 
+                               (modDeps mod1)
                   return mod1{ modDeps = deps }
 
 
@@ -829,7 +836,8 @@ moduleFromModuleName relativeDir modName
 -- Resolve a potentially relative module name to a full module name
 moduleNameResolve :: FilePath -> Name -> Build Name
 moduleNameResolve relativeDir modName
-  = do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
+  = do trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
+       mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
          Just (root,stem) -> return (pathToModuleName (notext stem)) 
          Nothing          -> return modName

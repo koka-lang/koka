@@ -167,7 +167,7 @@ parseProgramFromLexemes source lexemes
          return prog
 
 
-parseDependencies :: Source -> [Lexeme] -> Error () [Import]
+parseDependencies :: Source -> [Lexeme] -> Error () (Name,Range,[Import])
 parseDependencies source lexemes
   = case (runStateParser (pmoduleDeps source) (sourceName source) lexemes) of
       Left err         -> -- trace "failed to parse imports" $
@@ -268,12 +268,12 @@ pmoduleDecl fpath
 -- Lex imports only; this is more lenient
 -----------------------------------------------------------
 
-pmoduleDeps :: Source -> LexParser [Import]
+pmoduleDeps :: Source -> LexParser (Name,Range,[Import])
 pmoduleDeps source
   = do many semiColon
        (vis,doc,modname,nameRng) <- pmoduleDecl (sourceName source)
        imports <- pimportDecls
-       return (includeStdCore modname imports)
+       return (modname,nameRng,includeStdCore modname imports)
        -- no eof.. try to parse as far as possible
 
 pimportDecls :: LexParser [Import]

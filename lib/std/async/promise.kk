@@ -6,9 +6,9 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-module std/async/promise
+module async/promise
 
-import std/async/async
+import async/async
 
 // ----------------------------------------------------------------------------
 // Promises

@@ -6,7 +6,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-module std/async/interleave
+module async/interleave
 
 import std/async/async
 import std/async/channel
@@ -14,7 +14,6 @@ import std/time/duration
 import std/core/unsafe
 import std/core/undiv
 
-import uv/timer
 
 // ----------------------------------------------------------------------------
 // Interleaved strands of execution
