@@ -99,18 +99,10 @@ fun trace-anyx( s : string, x : a ) : async ()
 
 // Treat `do-await` as `no-wait` calls, and emit the resumption eventually in the given channel.
 pub fun emit-on-await(ch : channel<() -> <async|e> ()>, action : () -> <async|e> () ) : <async|e> ()
-  with override handler
+  override handle<async-await>(action)
     raw ctl do-await(setup,scope,lab)
       // turn awaits into no-awaits, allowing other strands to execute
       no-await(setup, scope, "emit-on-await " ++ ch.chid.show ++ ": " ++ lab) fn(res)
-        ch.emit-io({ rcontext.resume(res) })
+        ch.emit-io( fn() rcontext.resume(res) )
       ()
-    // passthrough others
-    val async-scope = async-scope
     fun no-await(setup,scope,l,f) no-await(setup,scope,l,f)
-    fun async-ioc(f)              async-ioc(f)
-    fun async-schedule-ioc(f)     async-schedule-ioc(f)
-    fun cancel-scope(scope)       cancel-scope(scope)
-    fun is-scope-canceled(scope)  is-scope-canceled(scope)
-    fun discontinue()             discontinue()
-  action()

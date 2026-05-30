@@ -11,7 +11,7 @@ module async/promise
 import async/async
 
 // ----------------------------------------------------------------------------
-// Promises
+// Promises 
 // ----------------------------------------------------------------------------
 
 // A _promise_ that carries a value of type `:a`. A promise is initially empty
