@@ -145,7 +145,7 @@ module Common.NamePrim
           , nameTpNamed, nameTpScope
 
 
-          , nameTpAsync, nameTpAsyncX
+          , nameTpAsync
           {-
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
@@ -225,8 +225,8 @@ nameTpNamed     = preludeName "nmd"
 nameTpScope     = preludeName "scope"
 nameTpPure      = preludeName "pure"
 
-nameTpAsync     = newQualified "std/async" "async"
-nameTpAsyncX    = newQualified "std/async" "asyncx"
+nameTpAsync     = newQualified "std/async/async" "async"
+
 nameTpBuilder   = newQualified "std/text/string" "builder"
 nameTpArray     = newQualified "std/data/array" "array"
 nameTpMDict     = qualify nameDict (newName "mdict")

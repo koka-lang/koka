@@ -69,7 +69,8 @@ import Syntax.Lexeme( Lexeme, LexImport(..), lexImportNub )
 import Syntax.Syntax( UserProgram )
 import Type.Type
 import qualified Type.Pretty as TP
-import Type.Kind       (extractHandledEffect, getOperationEffectX )
+import Type.Kind       (extractHandledEffect, getOperationEffectX, isHandledEffect )
+import Type.Operations (useAliases)
 import Type.Assumption
 import Compile.Options
 import Compile.Module
@@ -431,10 +432,9 @@ completeMain :: Bool -> Name -> Type -> BuildContext -> Build (Type,String -> St
 completeMain addShow exprName tp buildc
   = case splitFunScheme tp of
       Just (_,_,eff,resTp)
-        -> let (ls,_) = extractHandledEffect eff  -- only effect that are in the evidence vector
-           in do print    <- printExpr resTp
-                 (mainBody,extraImports) <- addDefaultHandlers rangeNull eff ls [] callExpr
-                 return (resTp,print,mainBody,extraImports)
+        -> do print    <- printExpr resTp
+              (mainBody,extraImports) <- addDefaultHandlers rangeNull eff (fst $ shallowExtractEffectExtend eff) [] callExpr
+              return (resTp,print,mainBody,extraImports)
       _ -> return (tp, id, callExpr, []) -- todo: given an error?
   where
     callExpr
@@ -451,32 +451,44 @@ completeMain addShow exprName tp buildc
 
     addDefaultHandlers :: Range -> Effect -> [Effect] -> [String] -> String -> Build (String,[String])
     addDefaultHandlers range eff [] imports body     = return (body,imports)
+    addDefaultHandlers range eff (l@(TSyn syn _ _):ls) imports body
+      = case lookupDefaultHandler (typesynName syn) of
+          Just res -> addDefaultHandler range eff ls imports body res
+          Nothing  -> addDefaultHandlers range eff (fst (extractOrderedEffect l) ++ ls) imports body
+    addDefaultHandlers range eff (l:ls) imports body | not (isHandledEffect l)
+      = addDefaultHandlers range eff ls imports body
     addDefaultHandlers range eff (l:ls) imports body
       = case getOperationEffectX exclude l of
-          Nothing -> addDefaultHandlers range eff ls imports body
-          Just (_,effName)
-            -> let defaultHandlerName
-                      = makeHiddenName "default" (if isSystemCoreName effName
-                                                    then qualify nameSystemCore (unqualify effName) -- std/core/* defaults must be in std/core
-                                                    else effName) -- and all others in the same module as the effect
-              in case buildcLookupInfo defaultHandlerName buildc of
-                    [fun@InfoFun{}]
-                      -> do phaseVerbose 2 "main" $ \penv -> text "add default effect for" <+> TP.ppName penv effName
-                            let handle b = show defaultHandlerName ++ "(fn() " ++ b ++ ")"
-                                imp      = ["import " ++ show (qualifier defaultHandlerName)]
-                            if (effName == nameTpAsync)  -- always put async as the most outer effect
-                              then do (body',imports') <- addDefaultHandlers range eff ls imports body
-                                      return (handle body', imports' ++ imp)
-                              else addDefaultHandlers range eff ls (imports ++ imp) (handle body)
-                    infos
-                      -> do throwError (\penv -> errorMessageKind ErrBuild range
-                                           (text "there are unhandled effects for the main expression" <-->
-                                            text " inferred effect :" <+> TP.ppType penv eff <-->
-                                            text " unhandled effect:" <+> TP.ppType penv l <-->
-                                            text " hint            : wrap the main function in a handler"))
+          Just (_,ename)  -> case lookupDefaultHandler ename of
+            Just res  -> addDefaultHandler range eff ls imports body res
+            Nothing   -> do throwError (\penv -> errorMessageKind ErrBuild range
+                                                (text "there are unhandled effects for the main expression" <-->
+                                                text " inferred effect :" <+> TP.ppType penv eff <-->
+                                                text " unhandled effect:" <+> TP.ppType penv l <-->
+                                                text " hint            : wrap the main function in a handler"))
                             addDefaultHandlers range eff ls imports body
+          _ -> addDefaultHandlers range eff ls imports body
 
+    addDefaultHandler range eff ls imports body (effName,defaultHandlerName)
+      = do phaseVerbose 2 "main" $ \penv -> text "add default effect for" <+> TP.ppName penv effName
+           let handle b = show defaultHandlerName ++ "(fn() " ++ b ++ ")"
+               imp      = ["import " ++ show (qualifier defaultHandlerName)]
+           if (effName == nameTpAsync)  -- always put async as the most outer effect
+            then do (body',imports') <- addDefaultHandlers range eff ls imports body
+                    return (handle body', imports' ++ imp)
+            else addDefaultHandlers range eff ls (imports ++ imp) (handle body)          
 
+    lookupDefaultHandler effName
+      = let defaultHandlerName
+                = makeHiddenName "default" (if isSystemCoreName effName
+                                              then qualify nameSystemCore (unqualify effName) -- std/core/* defaults must be in std/core
+                                              else effName) -- and all others in the same module as the effect
+        in case buildcLookupInfo defaultHandlerName buildc of
+              [fun@InfoFun{}] 
+                -> Just (effName,defaultHandlerName)
+              _ -> Nothing
+      
+   
 -- Run a build action with a virtual module that is added to the roots.
 withVirtualModule :: FilePath -> BString -> BuildContext -> (ModuleName -> BuildContext -> Build (BuildContext,a)) -> Build (BuildContext,a)
 withVirtualModule fpath0 content buildc action

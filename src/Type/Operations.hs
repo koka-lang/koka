@@ -16,6 +16,7 @@ module Type.Operations( instantiate
                       , freshSub
                       , isOptionalOrImplicit, splitOptionalImplicit, requiresImplicits
                       , hasOptionalOrImplicits
+                      , useAliases
                       ) where
 
 
@@ -29,6 +30,7 @@ import Type.TypeVar
 import Core.Core as Core
 import Core.CoreVar
 import Type.Assumption
+import Kind.Synonym
 
 requiresImplicits :: Type -> [(Name, Type)]
 requiresImplicits tp
@@ -179,3 +181,67 @@ freshStar :: HasUnique m => m Tau
 freshStar
   = freshTVar kindStar Meta
 
+{--------------------------------------------------------------------------
+   Synonym map
+--------------------------------------------------------------------------}  
+useAliases :: Synonyms -> [Name] -> [Tau] -> [Tau]
+useAliases synonyms names ls
+  = case names of
+      [] -> ls
+      (name:ns)
+        -> let (aliass,post) = tryAlias ls name
+               ls' = useAliases synonyms ns post
+           in (aliass ++ ls')
+  where
+    tryAlias :: [Tau] -> Name -> ([Tau],[Tau])
+    tryAlias [] name
+      = ([],[])
+    tryAlias ls name
+      = let mbsyn = synonymsLookup name synonyms
+        in case mbsyn of
+             Nothing -> ([],ls)
+             Just syn
+              -> let (ls2,tl2) = extractOrderedEffect (synInfoType syn)
+                 in if (null ls2 || not (isEffectEmpty tl2))
+                     then ([],ls)
+                     else let params      = synInfoParams syn
+                              (sls,insts) = findInsts params ls2 ls
+                          in -- Lib.Trace.trace ("* try alias: " ++ show (synInfoName syn, ls, sls)) $
+                             case (isSubset [] sls ls) of
+                                Just rest
+                                  -> -- trace (" synonym replace: " ++ show (synInfoName syn, ls, sls, rest)) $
+                                     ([TSyn (TypeSyn name (synInfoKind syn) (synInfoRank syn) (Just syn)) insts (effectFixed sls)], rest)
+                                _ -> ([], ls)
+
+findInsts :: [TypeVar] -> [Tau] -> [Tau] -> ([Tau],[Tau])
+findInsts [] ls _
+  = (ls,[])
+findInsts params ls1 ls2
+  = case filter matchParams ls1 of
+      [] -> (ls1,map TVar params)
+      (tp:_)
+        -> let name = labelName tp
+           in case filter (\t -> labelName t == name) ls2 of
+                (TApp _ args : _) | length args == length params
+                  -> (subNew (zip params args) |-> ls1, args)
+                _ -> (ls1, map TVar params)
+  where
+    matchParams (TApp _ args) = eqTypes (map TVar params) args
+    matchParams _ = False
+
+
+
+isSubset :: [Tau] -> [Tau] -> [Tau] -> Maybe [Tau]
+isSubset acc ls1 ls2
+  = case (ls1,ls2) of
+      ([],[])       -> Just (reverse acc)
+      ([],(l2:ll2)) -> Just (reverse acc ++ ls2)
+      (l1:ll1, [])  -> Nothing
+      (l1:ll1,l2:ll2)
+        -> if (labelName l1 < labelName l2)
+            then Nothing
+           else if (labelName l1 > labelName l2)
+            then isSubset (l2:acc) ls1 ll2
+           else if (eqType l1 l2)
+            then isSubset acc ll1 ll2
+            else Nothing

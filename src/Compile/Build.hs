@@ -836,7 +836,7 @@ moduleFromModuleName relativeDir modName
 -- Resolve a potentially relative module name to a full module name
 moduleNameResolve :: FilePath -> Name -> Build Name
 moduleNameResolve relativeDir modName
-  = do trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
+  = do -- trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
        mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
          Just (root,stem) -> return (pathToModuleName (notext stem)) 
