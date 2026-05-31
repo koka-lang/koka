@@ -38,9 +38,9 @@ module Common.Syntax( Visibility(..)
                     , targetIds, targetFromString
                     , lookupTarget
                     , targetPlatformDefault, targetPlatformIsDefault
-                    , targetPlatformTryMatch
+                    -- , targetPlatformTryMatch
                     ) where
-
+import Debug.Trace
 import Data.Tuple(swap)
 import Data.Maybe(catMaybes)
 import Data.List(intersperse,sort,intercalate)
@@ -195,8 +195,8 @@ targetPlatformIsDefault (TargetPlatform Default "" "" (Platform 0 0 0 0)) = True
 targetPlatformIsDefault _ = False
 
 lookupTarget :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
-lookupTarget tp xs
-  = let targets = let target = tpTarget tp
+lookupTarget tgtp xs
+  = let targets = let target = tpTarget tgtp
                   in case target of
                       C WasmJs      -> [target,C Wasm,C CDefault]
                       C WasmWeb     -> [target,C Wasm,C CDefault]
@@ -205,7 +205,7 @@ lookupTarget tp xs
                       JS JsDefault  -> [target]
                       JS _          -> [target,JS JsDefault]
                       _             -> [target]                      
-    in case catMaybes (map (\t -> targetPlatformBestMatch (tp{ tpTarget = t }) xs) targets) of
+    in case catMaybes (map (\t -> targetPlatformBestMatch (tgtp{ tpTarget = t }) xs) targets) of
          (x:_) -> Just x
          _     -> Nothing
 
@@ -216,8 +216,10 @@ targetPlatformBestMatch eguard xs
       _         -> Nothing
 
 targetPlatformTryMatch :: TargetPlatform -> TargetPlatform -> Bool
-targetPlatformTryMatch (TargetPlatform target1 os1 arch1 p1) (TargetPlatform target2 os2 arch2 p2)
-  = matchTarget target1 target2 && matchString os1 os2 && matchString arch1 arch2 && matchPlatform p1 p2
+targetPlatformTryMatch tgtp1@(TargetPlatform target1 os1 arch1 p1) tgtp2@(TargetPlatform target2 os2 arch2 p2)
+  = let match = matchTarget target1 target2 && matchString os1 os2 && matchString arch1 arch2 && matchPlatform p1 p2
+    in -- trace ("try match: " ++ show (tgtp1,tgtp2) ++ " == " ++ show match) $ 
+       match    
   where
     matchTarget Default t2  = True
     matchTarget t1 Default  = True

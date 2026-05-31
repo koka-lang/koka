@@ -6,6 +6,9 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
+// Asynchronous interleavings.
+//
+// Various forms of interleaving for asynchronous operations.
 module async/interleave
 
 import std/async/async

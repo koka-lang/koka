@@ -6,14 +6,17 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Asynchronous primitives
+/* Asynchronous primitives.
 
 This module is based closely on [@Leijen:async] and aims to have robust and composable asynchronous
 primitives. In particular, any outstanding asynchronous operation can be canceled (through `cancel-outstanding`)
-within a certain scope which allows for composable primitives like `timeout` and `firstof`.
+within a certain async-scope which allows for composable primitives like `timeout` and `firstof`.
 
-## References {-
-~ Bibliography { caption:"0"~~ BibItem { #Leijen:async; bibitem-label:"[1]"; searchterm:"Leijen+Daan+Structured+Asynchrony+with+Algebraic+Effects"Daan Leijen.
+## References {-}
+
+~ Bibliography { caption:"0" }
+~~ BibItem { #Leijen:async; bibitem-label:"[1]"; searchterm:"Leijen+Daan+Structured+Asynchrony+with+Algebraic+Effects" }
+Daan Leijen.
 _Structured Asynchrony with Algebraic Effects_.
 Microsoft Research technical report MSR-TR-2017-21, May 2017.
 [pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/05/asynceffects-msr-tr-2017-21.pdf)
@@ -31,27 +34,28 @@ import std/time/duration
 
 import async/uv/core
 import async/uv/timer
+import async/internal
 
 /*
 # Cancellation scopes
 
-Each scope has a unique id.
-When we await any async action, we associate it with its full scope chain. If
-scope a spawns scope b which spawns scope c which spawns an action, that
-action's scope is Scope([c, b, a]) - a scope is just a list of scope IDs,
+Each async-scope has a unique id.
+When we await any async action, we associate it with its full async-scope chain. If
+async-scope a spawns async-scope b which spawns async-scope c which spawns an action, that
+action's async-scope is Scope([c, b, a]) - a async-scope is just a list of async-scope IDs,
 childmost first.
 
-When we decide to cancel a scope, we cancel it by ID, e.g. `b`. This will
+When we decide to cancel a async-scope, we cancel it by ID, e.g. `b`. This will
 cancel the following scopes:
 
-`[b, _]` -> clearly in b `[_, b, _])` -> a child scope of b
+`[b, _]` -> clearly in b `[_, b, _])` -> a child async-scope of b
 
 It will not cancel something in `[a, d]` (i.e. within `a` but not `b`)
 
 # Cancelation: up and down
 
 When cancelation is triggered, it is generally triggered from _within_ the
-scope to be canceled, and affects all transitive child scopes. There are many
+async-scope to be canceled, and affects all transitive child scopes. There are many
 reasons for cancelation:
  - returning normally, cancelation prevents dangling callbacks
  - returning abnormally (e.g. exn), we cancel any pending callbacks
@@ -61,12 +65,12 @@ reasons for cancelation:
 After cancelation is triggered, the canceler's execution continues as normal -
 calling `cancel-scope` simply returns `()`.
 
-Triggering affects actions within the scope - so when observing cancelation, it
+Triggering affects actions within the async-scope - so when observing cancelation, it
 being triggered from somewhere "up" the stack. It's like a reverse of an
 exception (which is coming from "down" the stack and observed "up" the stack).
 
 The way that cancelation is observed is that all outstanding callbacks beneath
-the canceled scope receive a `Cancel` instead of a `Result`. Aside from
+the canceled async-scope receive a `Cancel` instead of a `Result`. Aside from
 low-level code, you won't observe this - the higher level utilities for
 awaiting a result will automatically invoke `discontinue()` on the execution
 which is awaiting the result.
@@ -87,18 +91,18 @@ and the callback triggers an enqueue onto an internal channel.
 
 Continuations are consumed from this channel until all strands have completed.
 
-When one strand returns abnormally (e.g. exception), the entire scope is
+When one strand returns abnormally (e.g. exception), the entire async-scope is
 canceled. This will cause any pending callbacks to be resolved with a Cancel
 result.
 
 # Interleave and cancelation
 
 In order to control cancelation explicitly, `interleave-strands` creates a root
-scope instead of a child scope to spawn operations in. No actions spawned
-within this scope will be seen as children of the parent scope, preventing
-automatic cancelation when a parent scope is canceled.
+async-scope instead of a child async-scope to spawn operations in. No actions spawned
+within this async-scope will be seen as children of the parent async-scope, preventing
+automatic cancelation when a parent async-scope is canceled.
 
-Instead, `interleave-strands` _observes_ when the parent scope is canceled, and
+Instead, `interleave-strands` _observes_ when the parent async-scope is canceled, and
 triggers cancelation on the child strands. Crucially this doesn't cancel the
 interleaving bookkeeping itself, which ensures that:
  - `interleave-raw` always observes the final states of all strands, even if
@@ -109,50 +113,23 @@ interleaving bookkeeping itself, which ensures that:
 
 */
 
-
-// ----------------------------------------------------------------------------
-// Async effect
-// ---------------------------------------------------------------------------- 
-
-// Asynchronous operations have the `:async` effect.
-// Usually there is only one handler for asynchronous operations at
-// the `main` function using the default `handle-evloop` (inserted
-// automatically if `main` has the `:async` effect).
-pub effect async-await
-  // Setup a callback and await its completion. The setup is performed in the handler scope.
-  ctl do-await( setup : await-setup<a>, scope : scope, label : string ) : await-result<a>
-
-  // Internal: Setup a callback to execute `cb` on completion, but return control to the caller immediately
-  // after the setup is performed. `cb` is performed in the handler scope.
-  fun no-await( setup : await-setup<a>, scope : scope, label : string, cb : await-result<a> -> ioc () ) : ()
-
 pub linear effect async-ioc
   // Internal: perform an I/O operation in the outer async handler
   fun async-ioc( action : () -> ioc a ) : a
 
   // Internal: perform an I/O operation in the outer async handler in the next event loop tick
   fun async-schedule-ioc( action : () -> ioc () ) : ()
-
-pub linear effect async-cancel
-  // The current cancelations scope.
-  val async-scope : scope
-
-  // Cancel any outstanding async operations of a specific cancelation scope (and all its children)
-  fun cancel-scope( scope : scope ) : ()
-
-  // Has the current scope ever been canceled?
-  fun is-scope-canceled( scope : scope ) : bool
   
 pub effect discontinue  
   // Internal: The current strand of execution is canceled
   final ctl discontinue() : a
 
-
+// The asynchronous effect is composed of four primitive effects.
 pub alias async = <async-await,async-ioc,async-cancel,discontinue>
 
 
 // Cancel any _other_ outstanding operations that are interleaved and
-// part of the same cancelation scope (see `cancelation-scope`).
+// part of the same cancelation async-scope (see `cancelation-async-scope`).
 pub fun cancel-outstanding()
   cancel-scope(async-scope)
 
@@ -162,21 +139,6 @@ pub fun is-canceled()
 // Perform a stateful operation in the outer async handler.
 pub fun async-st(action: () -> st<global> a): async a
   async-ioc(action)
-
-// Function that disposes any resources for an await call (i.e. `clearTimeout`)
-pub alias dispose-fn = () -> ioc ()
-
-// A function that will setup a primitive await. It gets passed the current event loop
-// and a resumption function, and returns either an error or a dispose function.
-// The resumption gets the `:await-result` (cancel, exception, or regular result) and
-// whether this is the last time the resumption is called (`isdone`).
-pub alias await-setup<a> = (evloop : event-loop, resume : (result:await-result<a>, isdone:bool) -> ioc ()) -> ioc error<dispose-fn>
-
-// An await result is either canceled, an exception, or a regular return value.
-pub type await-result<a>
-  Cancel
-  Exception( exn: exception )
-  Result( value: a )
 
 pub fun await-result/show(r: await-result<a>) : string
   match r
@@ -261,10 +223,8 @@ pub fun setup/await-error( label : string, setup : (evloop : event-loop, resume 
 fun noop(): ()
    ()
 
-pub alias event-loop = any
-
 type await-resumption
-  AwaitResumption<a>( scope : scope, label : string, resume : (await-result<a>,bool) -> ioc () )
+  AwaitResumption<a>( scope : async-scope, label : string, resume : (await-result<a>,bool) -> ioc () )
 
 fun await-resumption/show( AwaitResumption(scope,label,_) ) : string
   label ++ " at " ++ scope.show
@@ -275,12 +235,12 @@ pub fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
   // Outstanding async requests
   val outstanding : ref<global,list<await-resumption>> = ref([])
 
-  // Has the root scope been canceled?
+  // Has the root async-scope been canceled?
   val canceled : ref<global,bool> = ref(False)
   
   // Setup a new async await request with a given callback `resume`
-  fun setup-await( setup : await-setup<a>, scope : scope, label : string, resume : (await-result<a>) -> ioc ()) : ioc ()
-    // Each callback gets its own scope so we can tell when a given
+  fun setup-await( setup : await-setup<a>, scope : async-scope, label : string, resume : (await-result<a>) -> ioc ()) : ioc ()
+    // Each callback gets its own async-scope so we can tell when a given
     // callback can be removed from `outstanding`
     val cscope = new-child-scope-ioc(scope)
 
@@ -301,7 +261,7 @@ pub fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
       Error(exn)  -> resume-cb(Exception(exn),True)  // if setup fails, we resume immediately with an exception result
 
   // Cancel all outstanding async requests that are in `scope`
-  fun cancel-outstanding-in-scope( scope : scope ) : ioc ()
+  fun cancel-outstanding-in-scope( scope : async-scope ) : ioc ()
     (!outstanding).foreach fn(AwaitResumption(await-scope,label,resume-cb))
       if await-scope <= scope then 
         trace("cancel: " ++ label ++ " at " ++ scope.show)
@@ -334,7 +294,7 @@ pub fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc 
   with handler<discontinue>
     final ctl discontinue()             
       cancel-outstanding-in-scope(root-scope)
-      trace("discontinue occurred at the toplevel scope")      
+      trace("discontinue occurred at the toplevel async-scope")      
 
   action()
     
@@ -349,7 +309,7 @@ pub fun @default-async( action : () -> <async,ioc> () ) : ioc ()
 
 
 // ----------------------------------------------------------------------------
-// Cancelation scope
+// Cancelation async-scope
 // ----------------------------------------------------------------------------
 
 // Set up a new cancelation scope
@@ -366,7 +326,7 @@ pub fun cancelation-scope( action : () -> <async|e> a) : <async|e> a
 
 pub fun in-parent-scope( action : () -> <async|e> a ) : <async|e> a
   override handle<async-cancel>(action)
-    val async-scope = async-scope.parent
+    val async-scope = async-scope.parent 
     fun is-scope-canceled(scope)  is-scope-canceled(scope)
     fun cancel-scope(scope)       cancel-scope(scope)    
   
@@ -381,45 +341,11 @@ pub fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
 // Scope identifiers
 // ----------------------------------------------------------------------------
 
-// A scope has an ID, plus a list of child IDs.
-// Every created scope has a unique ID
-alias scope-id = int
-
-// An abstract cancelation scope
-abstract value struct scope( scopes : list<scope-id> )
-
-pub fun scope/show( Scope(ids) : scope ) : string
-  ids.map(show).join("<")
-
-// A scope is the chain starting with the current scope, including parent scopes up to the root scope-id
-val root-scope = Scope([0])
-
-pub fun new-child-scope-ioc( Scope(ids) : scope ) : ioc scope
-  val cid = unique()+1
-  Scope(Cons(cid,ids))  
-
-pub fun new-child-scope( scope : scope ) : async scope
+pub fun new-child-scope( scope : async-scope ) : async async-scope
   async-ioc{ new-child-scope-ioc(scope) }
 
-fun scope-id( Scope(ids) ) : scope-id
-  ids.head(0)
-
-fun parent( Scope(ids) : scope ) : scope
-  match ids
-    Cons(_,idd as Cons) -> Scope(idd)
-    _                   -> root-scope
-  
-// Is `scope` equal to, or a child scope of `root`?
-pub fun (<=)( Scope(ids) : scope, root : scope ) : bool
-  val sid = root.scope-id
-  ids.find(fn(x) x == sid).is-just
-
-// O(1). Are the scopes equal?
-pub fun scope/(==)(s1 : scope, s2 : scope ) : bool
-  s1.scope-id == s2.scope-id
-
-// Convenience functions for scope maps
-fun remove( xs : list<await-resumption>, scope : scope ) : list<await-resumption>
+// Convenience functions for async-scope maps
+fun remove( xs : list<await-resumption>, scope : async-scope ) : list<await-resumption>
   match xs
     Cons(AwaitResumption(s,_),xx) | s == scope -> xx
     Cons(x,xx) -> Cons(x,remove(xx,scope))
@@ -446,8 +372,8 @@ fun unnull( nexn : null<exception>, x : a  ) : error<a>
 // Primitive: Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback: it takes either
 // an exception or a result value, together with boolean parameter whether the callback is done.
 // The callback `cb` will eventually emit the result into the given channel `ch` after applying the transformation `f` to the result.\
-// Note: once you exit the `child-scope` scope where `await-to-channel` was called, the callback is invoked with a `Cancel` exception.
-// The channel should always be awaited within the same `child-scope` scope as the `await-to-channel` invokation.
+// Note: once you exit the `child-async-scope` async-scope where `await-to-channel` was called, the callback is invoked with a `Cancel` exception.
+// The channel should always be awaited within the same `child-async-scope` async-scope as the `await-to-channel` invokation.
 pub fun await-to-channel( setup : (cb : (a,bool) -> ioc ()) -> ioc (maybe<() -> ioc ()>), ch : channel<b>, f : a -> b) : async channel<b>
   fun wrapped-setup(cb: (await-result<_>,bool) -> ioc ())
     setup fn (value, b)
@@ -460,26 +386,26 @@ pub fun await-to-channel( setup : (cb : (a,bool) -> ioc ()) -> ioc (maybe<() -> 
 
 
 /*
-// Execute `action` in a child-scope scope. Once `action` is complete
+// Execute `action` in a child-async-scope async-scope. Once `action` is complete
 // (successfully or otherwise), all outstanding actions
-// within this scope are canceled.
-pub fun child-scope( action : () -> <async|e> a ) : <async|e> a
-  child-scope-without-auto-cancel fn(cid)
+// within this async-scope are canceled.
+pub fun child-async-scope( action : () -> <async|e> a ) : <async|e> a
+  child-async-scope-without-auto-cancel fn(cid)
     with finally
-      // cancel any outstanding operations still in our scope.
+      // cancel any outstanding operations still in our async-scope.
       // this might be needed for `no-await` operations.
       cancel-scope(cid)
     action()
 
-// like child-scope, but the caller is responsible
-// for canceling the created scope
-fun child-scope-without-auto-cancel(action : (int) -> <async|e> a ) : <async|e> a
+// like child-async-scope, but the caller is responsible
+// for canceling the created async-scope
+fun child-async-scope-without-auto-cancel(action : (int) -> <async|e> a ) : <async|e> a
   val cid = async-iox{ unique() }
   handle ({mask behind<async> { action(cid) }})
     val async-scope = async-scope.child(cid)
-    fun do-await(setup,scope) do-await(setup,scope)
-    fun no-await(setup,scope,f) no-await(setup,scope,f)
-    fun cancel-scope(scope) cancel-scope(scope)
+    fun do-await(setup,async-scope) do-await(setup,async-scope)
+    fun no-await(setup,async-scope,f) no-await(setup,async-scope,f)
+    fun cancel-scope(async-scope) cancel-scope(async-scope)
     fun async-iox(f) async-iox(f)
     fun discontinue() discontinue()
 
@@ -491,10 +417,10 @@ pub fun on-cancel(fin: () -> <async|e> (), action: () -> <async|e> a): <async|e>
 
     // passthrough others
     val async-scope = async-scope
-    fun do-await(setup, scope) do-await(setup,scope)
-    fun no-await(setup, scope, f) no-await(setup,scope, f)
+    fun do-await(setup, async-scope) do-await(setup,async-scope)
+    fun no-await(setup, async-scope, f) no-await(setup,async-scope, f)
     fun async-iox(x) async-iox(x)
-    fun cancel-scope(scope) cancel-scope(scope)
+    fun cancel-scope(async-scope) cancel-scope(async-scope)
 
 // Prevents cancelation, but invokes a hook immediately for notification
 fun unsafe-override-cancel(cancel: dispose-fn, action: () -> <async|e> a): <async|e> a
@@ -507,40 +433,40 @@ fun unsafe-override-cancel(cancel: dispose-fn, action: () -> <async|e> a): <asyn
       Nothing -> ()
   }
 
-  // within the outer scope, spawn a canary action
+  // within the outer async-scope, spawn a canary action
   // to capture cancelation triggered from above.
   fun setup-cb(evloop : event-loop, cb: ((await-result<()>, bool) -> ioc ())): ioc error<dispose-fn>
     dangling-cb.set(Just(cb))
     return Ok(cancel) // cleanup fn
   no-await(setup-cb, async-scope, fn(_) ())
 
-  // create a new scope root, so that any callbacks registered
-  // underneath this scope will not be seen as children of
+  // create a new async-scope root, so that any callbacks registered
+  // underneath this async-scope will not be seen as children of
   // any scopes above us (and therefore not canceled if an outer
-  // scope is canceled)
+  // async-scope is canceled)
   val cid = async-iox { unique() }
-  val new-scope = empty-scope.child(cid)
+  val new-async-scope = empty-async-scope.child(cid)
 
   with finally {
     cancel-scope(cid) // don't leave anything dangling in case of exn etc
   }
 
   with handler<async>
-    val async-scope = new-scope
-    fun do-await(setup,scope) do-await(setup,scope)
-    fun no-await(setup,scope,f) no-await(setup,scope,f)
+    val async-scope = new-async-scope
+    fun do-await(setup,async-scope) do-await(setup,async-scope)
+    fun no-await(setup,async-scope,f) no-await(setup,async-scope,f)
 
     // We notice cancelation from a parent via the canary. We also
     // need to modify the `cancel-scope` hook so that we notice (and defer)
-    // cancelation triggered from within this scope, but only if it's
-    // targeted at exactly this scope.
-    fun cancel-scope(scope-id)
-      if scope-id == cid then
+    // cancelation triggered from within this async-scope, but only if it's
+    // targeted at exactly this async-scope.
+    fun cancel-scope(async-scope-id)
+      if async-scope-id == cid then
         async-iox(cancel)
       else
-        // pass it along, it's presumably a child scope
+        // pass it along, it's presumably a child async-scope
         // nested under this uncancelable one
-        cancel-scope(scope-id)
+        cancel-scope(async-scope-id)
 
     fun async-iox(f) async-iox(f)
     fun discontinue() discontinue()

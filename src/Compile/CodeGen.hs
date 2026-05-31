@@ -687,7 +687,9 @@ externalImportKeyFromCore eguard buildType core key
 
 externalImportsFromCore :: TargetPlatform -> Core.Core -> [[(String,String)]]
 externalImportsFromCore eguard core
-  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (eg,keyvals) <- imports, targetPlatformTryMatch eguard eg]
+  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, 
+                let Just keyvals = lookupTarget eguard imports]
+                -- (eg,keyvals) <- imports, targetPlatformTryMatch eguard eg]
 
 
 {---------------------------------------------------------------

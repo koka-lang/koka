@@ -6,13 +6,12 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
+// Asynchronous channels.
 module async/channel
 
+import async/internal
 import async/async
 
-// ----------------------------------------------------------------------------
-// Channels
-// ----------------------------------------------------------------------------
 
 // A _channel_ of values of type `:a`. Values can be asynchronously `emit`ed into
 // a channel, and asynchronously `receive`d.
