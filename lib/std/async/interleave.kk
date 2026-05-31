@@ -18,6 +18,36 @@ import std/core/unsafe
 import std/core/undiv 
 
 
+/*
+# Strands (interleave)
+
+Multiple strands can be cooperatively executed, by running each in a custom
+`async` handler. Instead of awaiting a result, the handler returns immediately
+and the callback triggers an enqueue onto an internal channel.
+
+Continuations are consumed from this channel until all strands have completed.
+
+When one strand returns abnormally (e.g. exception), the entire async-scope is
+canceled. This will cause any pending callbacks to be resolved with a Cancel
+result.
+
+# Interleave and cancelation
+
+In order to control cancelation explicitly, `interleave-strands` creates a root
+async-scope instead of a child async-scope to spawn operations in. No actions spawned
+within this async-scope will be seen as children of the parent async-scope, preventing
+automatic cancelation when a parent async-scope is canceled.
+
+Instead, `interleave-strands` _observes_ when the parent async-scope is canceled, and
+triggers cancelation on the child strands. Crucially this doesn't cancel the
+interleaving bookkeeping itself, which ensures that:
+ - `interleave-raw` always observes the final states of all strands, even if
+   all of them are `Cancel`
+ - We drive each strand to completion, including finalizers. If we simply
+   abandoned the bookeeping, we'd potentially leave finalize actions sitting in
+   an unconsumed channel instead of running them.
+*/
+
 // ----------------------------------------------------------------------------
 // Interleaved strands of execution
 // ----------------------------------------------------------------------------
@@ -161,7 +191,7 @@ tail fun ordered-insert( xs : list<(int,a)>, y : (int,a)  ) : list<(int,a)>
 // -------------------------------------------------------
 
 // Interleave a fixed number of asychronous actions
-pub fun interleave-strand-list(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet,strands<(int,a)> |e> ()
+fun interleave-strand-list(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet,strands<(int,a)> |e> ()
   // we issed a fixed number of interleave's and thus always terminate (for the outer `:div`)
   with pretend-no-div                                
   interleave-strands(needall) fn(interleave)
@@ -171,7 +201,7 @@ pub fun interleave-strand-list(xs : list<() -> <async|e> a>, needall : bool ) : 
 
 // Interleave _dynamically_ over a producer channel `ch` with an asynchronous consumer function `f`.
 // Results are indexed but may be produced out of order.
-pub fun interleave-strand-channel(needall : bool, max-interleave : int = 1000, ch : channel<a>, f : a -> <async|e> b ) : <async,ndet,div,strands<(int,b)>|e> ()
+fun interleave-strand-channel(needall : bool, max-interleave : int = 1000, ch : channel<a>, f : a -> <async|e> b ) : <async,ndet,div,strands<(int,b)>|e> ()
   with collapse-ndet
   interleave-strand-compose(needall, { ch.receive() }, fn(x) with mask<ndet> in f(x), max-interleave )
 
@@ -181,7 +211,7 @@ pub fun interleave-strand-channel(needall : bool, max-interleave : int = 1000, c
 
 // Interleave _dynamically_ over an asynchronous producer function `f` with an asynchronous consumer function `g`.
 // Results are indexed but may be produced out of order.
-pub fun interleave-strand-compose(needall : bool, f : () -> <async|e> a, g : a -> <async|e> b, max-interleave : int = 1000 ) : <async,ndet,div,strands<(int,b)>|e> ()
+fun interleave-strand-compose(needall : bool, f : () -> <async|e> a, g : a -> <async|e> b, max-interleave : int = 1000 ) : <async,ndet,div,strands<(int,b)>|e> ()
   var interleave-count := 0
   var index := 0
   interleave-strands-ex(needall) fn(interleave)    
@@ -211,13 +241,19 @@ pub fun interleave-strand-compose(needall : bool, f : () -> <async|e> a, g : a -
 
 alias async-ex<a> = <async,div,ndet,strands<a>>
 
+// Interleave strands but hide the internal effects from `action`.
 fun interleave-strands( needall : bool, setup : (ileave : (action : () -> <async|e> a ) -> <async-ex<a>|e> ()) -> <async-ex<a>|e> () )  : <async-ex<a>|e> ()
   interleave-strands-ex(needall) fn(interleave)
     setup fn(action) 
       interleave 
         with mask<strands,ndet,div> in action()
 
-fun interleave-strands-ex( needall : bool, setup : (ileave : (action : () -> <async-ex<a>|e> a ) -> <async-ex<a>|e> ()) -> <async-ex<a>|e> () )  : <async-ex<a>|e> ()
+// Call a `setup` function with an `interleave` function that will interleave a given `action`
+// by emitting any async resumption on a channel. We then receive these resumptions
+// on the channel and resume them as long as the strands are active. 
+// This is more complex than using multi-shot resumptions directly, but now we can
+// implement interleaving using only single-shot resumptions (which we need for example when targeting native WASM stacks).
+fun interleave-strands-ex( needall : bool, setup : (interleave : (action : () -> <async-ex<a>|e> a ) -> <async-ex<a>|e> ()) -> <async-ex<a>|e> () )  : <async-ex<a>|e> ()
   val ch : channel<() -> <async|_> ()> = channel()   // channel of resumptions
   val () =
     with cancelation-scope                    // limit cancelation to our interleaving            
@@ -226,12 +262,11 @@ fun interleave-strands-ex( needall : bool, setup : (ileave : (action : () -> <as
   while{ strands-are-active() }           
     ch.receive().()                           // receive and resume (note: this receive must be outside the cancelation scope)
 
-// Interleave an action such that all async operations are captured and emit
-// a resumption on the given channel.
+// Interleave an action such that all async operations are captured and emit a resumption on the given channel.
 fun interleave-strand(needall : bool, ch : channel<() -> <async,strands<a>|e> ()>, action : () -> <async,strands<a>|e> a ) : <async,strands<a>|e> ()
   strand-init()                   // always initialize to keep outstanding count
   if is-canceled() then 
-    strand-done(Canceled)         // don't start new interleavings once the scope is canceled
+    strand-done(Canceled)         // don't start any new interleavings once the scope is canceled
   else            
     with emit-on-await(ch)        // redirect async calls to emit resumptions on the channel (and return () instead of waiting)            
     val res = 

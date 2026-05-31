@@ -106,7 +106,7 @@ import Common.Error
 import Common.Syntax( Visibility(..), DefSort(..))
 import Common.File(endsWith,normalizeWith, seqqList)
 import Common.Name
-import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsync,
+import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpIOC,nameTpST,nameTpAsync,
                        nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameEvHeapDiv,nameEvHeapNoDiv,
                        nameReturn,nameTpLocal, nameCopy)
 
@@ -397,7 +397,7 @@ nicefyEffect :: Effect -> Inf Effect
 nicefyEffect eff
   = do env <- getEnv
        let (ls,tl) = extractOrderedEffect eff
-           ls' = useAliases (synonyms env) [nameTpIO, nameTpST, nameTpPure, nameTpAsync] ls           
+           ls' = useAliases (synonyms env) [nameTpIO, nameTpIOC, nameTpST, nameTpPure, nameTpAsync] ls           
        return (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
 
 

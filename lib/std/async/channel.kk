@@ -74,7 +74,7 @@ pub fun emit-io( ch : channel<a>, value : a ) : ioc ()
     Values(v,vs)  -> r := Values(v,vs ++ [value])
     Waiting(l,ls) ->
       r := from-waiting(ls)
-      l(value)
+      l(value)                // todo: use async-schedule-ioc ?
 
 // Emit a value asynchronously into a channel.
 pub fun emit( ch : channel<a>, value : a ) : async ()
@@ -96,7 +96,7 @@ fun trace-channel-io( msg : string, ch : channel<a> ) : ioc ()
 fun trace-anyx( s : string, x : a ) : async ()
   trace-any(s,x)
 
-// Treat `do-await` as `no-wait` calls, and emit the resumption eventually in the given channel.
+// Internal: Treat `do-await` as `no-wait` calls, and emit the resumption eventually in the given channel.
 pub fun emit-on-await(ch : channel<() -> <async|e> ()>, action : () -> <async|e> () ) : <async|e> ()
   override handle<async-await>(action)
     raw ctl do-await(setup,scope,lab)

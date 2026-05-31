@@ -169,7 +169,7 @@ module Common.NamePrim
           , nameTpTotal, nameTpDiv, nameTpPartial, nameTpPure
           , nameTpST
           , nameTpWrite, nameTpRead
-          , nameTpIO
+          , nameTpIO, nameTpIOC
           , nameTpAlloc
 
           , nameTuple, isNameTuple
@@ -221,6 +221,7 @@ nameCase        = newName "case"
   Core
 --------------------------------------------------------------------------}
 nameTpIO        = preludeName "io"
+nameTpIOC       = preludeName "ioc"
 nameTpNamed     = preludeName "nmd"
 nameTpScope     = preludeName "scope"
 nameTpPure      = preludeName "pure"
