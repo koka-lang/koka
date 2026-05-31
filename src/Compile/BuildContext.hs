@@ -449,15 +449,16 @@ completeMain addShow exprName tp buildc
 
     exclude = [nameTpNamed] -- nameTpCps,nameTpAsync
 
+    -- add default handlers for a main function
     addDefaultHandlers :: Range -> Effect -> [Effect] -> [String] -> String -> Build (String,[String])
     addDefaultHandlers range eff [] imports body     = return (body,imports)
-    addDefaultHandlers range eff (l@(TSyn syn _ _):ls) imports body
+    addDefaultHandlers range eff (l@(TSyn syn _ _):ls) imports body  -- allow alias effect names like `async` to handle multiple effects at once
       = case lookupDefaultHandler (typesynName syn) of
           Just res -> addDefaultHandler range eff ls imports body res
           Nothing  -> addDefaultHandlers range eff (fst (extractOrderedEffect l) ++ ls) imports body
     addDefaultHandlers range eff (l:ls) imports body | not (isHandledEffect l)
       = addDefaultHandlers range eff ls imports body
-    addDefaultHandlers range eff (l:ls) imports body
+    addDefaultHandlers range eff (l:ls) imports body  -- try to get a default handler for a handled effect
       = case getOperationEffectX exclude l of
           Just (_,ename)  -> case lookupDefaultHandler ename of
             Just res  -> addDefaultHandler range eff ls imports body res
@@ -469,6 +470,8 @@ completeMain addShow exprName tp buildc
                             addDefaultHandlers range eff ls imports body
           _ -> addDefaultHandlers range eff ls imports body
 
+    -- add a default handler
+    -- todo: we special case async to be the most outer handler -- is there a general rule we can use?
     addDefaultHandler range eff ls imports body (effName,defaultHandlerName)
       = do phaseVerbose 2 "main" $ \penv -> text "add default effect for" <+> TP.ppName penv effName
            let handle b = show defaultHandlerName ++ "(fn() " ++ b ++ ")"
@@ -478,6 +481,7 @@ completeMain addShow exprName tp buildc
                     return (handle body', imports' ++ imp)
             else addDefaultHandlers range eff ls (imports ++ imp) (handle body)          
 
+    -- lookup a default handler for an effect name (that can be an alias)
     lookupDefaultHandler effName
       = let defaultHandlerName
                 = makeHiddenName "default" (if isSystemCoreName effName

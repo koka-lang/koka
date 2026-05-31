@@ -156,7 +156,7 @@ moduleImport imp
 
 includeExternal ::  BuildType -> External -> [Doc]
 includeExternal buildType  ext
-  = case externalImportLookup (targetPlatformFromTarget (JS JsDefault)) buildType "include-inline" ext of
+  = case externalImportLookup buildType "include-inline" ext of
       Just content -> [align $ vcat $! map text (lines content)]
       _ -> []
 
@@ -164,8 +164,8 @@ includeExternal buildType  ext
 
 importExternal :: BuildType -> External -> [(Doc,Doc)]
 importExternal buildType  ext
-  = case externalImportLookup (targetPlatformFromTarget (JS JsDefault)) buildType  "library" ext of
-      Just path -> [(text path, case externalImportLookup (targetPlatformFromTarget (JS JsDefault)) buildType  "library-id" ext of
+  = case externalImportLookup buildType  "library" ext of
+      Just path -> [(text path, case externalImportLookup buildType  "library-id" ext of
                                   Just name -> text name
                                   Nothing   -> text path)]
       _ -> []
@@ -945,7 +945,7 @@ genExprExternalPrim tname formats argDocs0
 
 getFormat :: TName -> [(TargetPlatform,String)] -> String
 getFormat tname formats
-  = case lookupTarget (targetPlatformFromTarget (JS JsDefault)) formats of  -- TODO: pass specific target from the flags
+  = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) formats of  -- TODO: pass specific target from the flags
       Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
                  trace( "warning: backend does not support external in " ++ show tname ) $
                     ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
@@ -1008,7 +1008,7 @@ extractExternal expr
       _ -> Nothing
   where
     format tn fs
-      = case lookupTarget (targetPlatformFromTarget (JS JsDefault)) fs of  -- TODO: pass real target from flags
+      = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) fs of  -- TODO: pass real target from flags
           Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
           Just s -> s
 

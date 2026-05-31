@@ -74,7 +74,7 @@ import Kind.Unify
 inferKinds
   :: (DataInfo -> Bool) -- ^ is this a value type?
   -> ColorScheme      -- ^ Color scheme used for error messages
-  -> Platform         -- ^ Target platform (x32, x64)
+  -> TargetPlatform   -- ^ Target platform 
   -> Maybe RangeMap   -- ^ possible range map for tool integration
   -> ImportMap        -- ^ Import aliases
   -> KGamma           -- ^ Initial kind kgamma
@@ -93,16 +93,16 @@ inferKinds
            , Core.Core            --  Initial core program with type definition groups, externals, and some generated definitions for data types (like folds).
            , Maybe RangeMap
            )
-inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0
+inferKinds isValue colors tplatform mbRangeMap imports kgamma0 syns0 data0
             (Program source modName nameRange tdefs defs importdefs externals fixdefs doc)
   =do unique0 <- unique
       let -- order and group recursive let-bindings
           tdgroups0 = groupTypeDefBindings modName tdefs
-          (errs1,warns1,rm1,unique1,(tdgroups,kgamma1,syns1,data1,lazyExprs)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups0)
-          (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
-          (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
-          (errs4,warns4,rm4,unique4,synDefs)                 = runKindInfer colors platform rm3 modName imports kgamma1 syns1 data1 unique3 (synTypeDefGroups modName lazyExprs tdgroups)
-          (_,_,rm5,_,_) = runKindInfer colors platform rm3 modName imports kgamma1 syns1 data1 unique3 (infImports modName nameRange importdefs)
+          (errs1,warns1,rm1,unique1,(tdgroups,kgamma1,syns1,data1,lazyExprs)) = runKindInfer colors tplatform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups0)
+          (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors tplatform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
+          (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors tplatform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
+          (errs4,warns4,rm4,unique4,synDefs)                 = runKindInfer colors tplatform rm3 modName imports kgamma1 syns1 data1 unique3 (synTypeDefGroups modName lazyExprs tdgroups)
+          (_,_,rm5,_,_) = runKindInfer colors tplatform rm3 modName imports kgamma1 syns1 data1 unique3 (infImports modName nameRange importdefs)
 
           (synInfos,dataInfos) = unzipEither (extractInfos tdgroups)
           conInfos  = concatMap dataInfoConstrs dataInfos
@@ -955,11 +955,11 @@ infExternals externals
   where
     walk names [] = return []
     walk names (external:externals)
-      = do (ext,names2)  <- infExternal names external
-           exts <- walk names2 externals
-           return (ext:exts)
+      = do (exts1,names1)  <- infExternal names external
+           exts2           <- walk names1 externals
+           return (exts1 ++ exts2)
 
-infExternal :: [Name] -> External -> KInfer (Core.External,[Name])
+infExternal :: [Name] -> External -> KInfer ([Core.External],[Name])
 infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
   = do tp' <- infResolveType tp (Check "Externals must be values" rng)
        qname <- qualifyDef name
@@ -971,15 +971,18 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
         else do addRangeInfo nameRng (Id qname (NIValue "extern" tp' doc True) [] True)
                 addRangeInfo rng (Decl "extern" qname (mangle cname tp') (Just tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
-       return (Core.External cname tp' pinfos (map (formatCall tp') calls)
-                  vis fip nameRng doc, qname:names)
+       return ([Core.External cname tp' pinfos (map (formatCall tp') calls) vis fip nameRng doc]
+               ,qname:names)
 infExternal names (ExternalImport imports range)
-  = return (Core.ExternalImport imports range, names)
+  = do tplatform <- getTargetPlatform
+       case lookupBestTarget tplatform imports of   -- we pick only the best matching entry in each external import declaration
+         Just keyvals -> return ([Core.ExternalImport keyvals tplatform range], names)
+         Nothing      -> return ([],names)
 
 formatCall :: Type -> (TargetPlatform, ExternalCall) -> (TargetPlatform, String)
 formatCall tp (tplatform,ExternalInline inline) = (tplatform,inline)
 formatCall tp (tplatform,ExternalCall fname)
-  = case tpTarget tplatform of
+  = case tplTarget tplatform of
       CS      -> (tplatform,formatCS)
       JS _    -> (tplatform,formatJS)
       C _     -> (tplatform,formatC)

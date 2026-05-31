@@ -351,10 +351,10 @@ externalBody
     do semiBraces externalEntry
 
 externalEntry
-  = do tgtp <- targetPlatform
+  = do tpl <- targetPlatform
        optional (specialId "inline")
        (s,_)  <- stringLit
-       return (tgtp,s)
+       return (tpl,s)
 
 
 {--------------------------------------------------------------------------
@@ -364,21 +364,20 @@ externImportDecl ::  LexParser External
 externImportDecl
   = do try $ do keyword "extern"
                 keyword "import"
-       entries <- externalImportBody
-       return (ExternalImport entries rangeNull)
+       (tpl,keyvals) <- externalImportBody
+       return (ExternalImport keyvals tpl rangeNull)
 
-externalImportBody :: LexParser [(TargetPlatform, [(String,String)])]
+externalImportBody :: LexParser (TargetPlatform, [(String,String)])
 externalImportBody
   = do keyword "="
-       entry <- externalImportEntry
-       return [entry]
+       externalImportEntry       
   <|>
-    do semiBraces externalImportEntry
+    do semiBraced externalImportEntry
   where
     externalImportEntry
-      = do tgtp  <- targetPlatform
+      = do tpl  <- targetPlatform
            keyvals <- semiBraces externalImportKeyVal
-           return (tgtp,keyvals)
+           return (tpl,keyvals)
 
     externalImportKeyVal
       = do key <- do{ (s,_) <- stringLit; return s }

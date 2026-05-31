@@ -321,21 +321,18 @@ data External = External{ externalName :: !Name
                         , externalRange :: !Range
                         , externalDoc   :: !String
                         }
-              | ExternalImport { externalImport :: ![(TargetPlatform,[(String,String)])]
+              | ExternalImport { externalImport :: ![(String,String)]  -- always for a specific target platform
+                               , externalTarget :: TargetPlatform      -- keep it just for documentation
                                , externalRange :: !Range }
 
 externalVis :: External -> Visibility
 externalVis (External{ externalVis' = vis }) = vis
 externalVis _ = Private
 
-externalImportLookup :: TargetPlatform -> BuildType -> String -> External -> Maybe String
-externalImportLookup eguard buildType key (ExternalImport imports range)
-  = let keyvals = case lookupTarget eguard imports of
-                    Just kv -> kv
-                    Nothing -> []
-    in eimportLookup buildType key keyvals
-
-externalImportLookup target buildType key ext
+externalImportLookup :: BuildType -> String -> External -> Maybe String
+externalImportLookup buildType key (ExternalImport imports tpl range)
+  = eimportLookup buildType key imports
+externalImportLookup buildType key ext
   = Nothing
 
 eimportLookup :: BuildType -> String -> [(String,String)] -> Maybe String

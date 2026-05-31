@@ -72,7 +72,7 @@ typeCheck flags defs coreImports program0
           <- inferKinds
               (Core.dataInfoIsValue)
               (colorSchemeFromFlags flags)
-              (platform flags)
+              (targetPlatformFromFlags flags)
               (if (outHtml flags > 0 || genRangeMap flags) then Just rangeMapNew else Nothing)
               importMap
               (defsKGamma defs)

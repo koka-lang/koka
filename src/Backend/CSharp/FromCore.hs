@@ -80,7 +80,7 @@ csharpFromCore buildType useCps mbMain core
 
 includeExternal :: BuildType -> External -> [Doc]
 includeExternal buildType  ext
-  = case externalImportLookup (targetPlatformFromTarget CS) buildType  "include-inline" ext of
+  = case externalImportLookup buildType  "include-inline" ext of
       Just content -> [text content]
       _ -> []
 
@@ -791,7 +791,7 @@ ppConSingleton ctx typeName tname targs
 ppExternal :: Name -> TName -> [(TargetPlatform,String)] -> Doc -> [Doc] -> [Doc] -> Doc
 ppExternal currentDef extName formats resTp targs args0
   = let args = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) args0
-    in case lookupTarget (targetPlatformFromTarget CS) formats of
+    in case lookupBestTarget (targetPlatformFromTarget CS) formats of
      Nothing -> case lookup (targetPlatformFromTarget Default) formats of
       Nothing ->
         trace( "warning: backend does not support external in " ++ show currentDef ) $

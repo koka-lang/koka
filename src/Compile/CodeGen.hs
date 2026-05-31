@@ -47,6 +47,7 @@ import Compile.Options
 import Compile.Module( Definitions(..), Module(..), modCoreImports )
 import Compile.TypeCheck( importMapFromCoreImports )    -- todo: break this dependency?
 import Type.InferMonad (traceDefDoc)
+import Core.Core (Core(coreProgExternals))
 
 
 data LinkResult = LinkDone
@@ -281,12 +282,8 @@ codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential en
                             Just (name,tp) -> Just (name,isAsyncFunction tp)
                             _              -> Nothing
       -- generate C
-      let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          ctarget = case target flags of
-                      C ctarget -> ctarget
-                      _         -> CDefault
-          (cdoc,hdoc,_,bcore) = cFromCore False
-                                          ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
+      let (cdoc,hdoc,_,bcore) = cFromCore False
+                                          (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                           newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                           (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry
                                           (if null (outputEntryName flags) then "main" else outputEntryName flags)
@@ -311,7 +308,7 @@ codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential en
       let importcores = map (fromJust . modCore) imported
           cores = bcore:importcores
           cc       = ccomp flags
-          eimports = nub $ concatMap (externalImportsFromCore (targetPlatformFromFlags flags)) cores
+          eimports = nub $ concatMap (externalImportsFromCore) cores
           clibs    = nub $ concatMap (clibsFromCore flags) cores
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
@@ -457,15 +454,16 @@ ccompile term flags cc ctargetObj extraIncDirs csources
 -- return needed include paths for imported C code
 copyCLibrary :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> FilePath -> [(String,String)] -> IO [FilePath] {-include paths-}
 copyCLibrary term flags sequential cc outDir eimport
-  = case Core.eimportLookup (buildType flags) "library" eimport of
+  = let find name = Core.eimportLookup (buildType flags) name eimport
+    in case find "library" of
       Nothing -> return []
       Just clib
         -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
-                                              , case lookup "vcpkg" eimport of
+                                              , case find "vcpkg" of
                                                   Just pkg
                                                     -> vcpkgCLibrary term flags sequential cc eimport clib pkg
                                                   _ -> return (Left [])
-                                              , case lookup "conan" eimport of
+                                              , case find "conan" of
                                                   Just pkg | not (null (conan flags))
                                                     -> conanCLibrary term flags sequential cc eimport clib pkg
                                                   _ -> return (Left [])
@@ -674,22 +672,26 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
                       sequential $ runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
 
-clibsFromCore flags core    = splitFileList $ externalImportKeyFromCore (targetPlatformFromFlags flags) (buildType flags) core "library"
-csyslibsFromCore flags core = splitFileList $ externalImportKeyFromCore (targetPlatformFromFlags flags) (buildType flags) core "syslib"
+clibsFromCore flags core    = nub $ splitFileList $ externalImportKeyFromCore (buildType flags) core "library"
+csyslibsFromCore flags core = splitFileList $ externalImportKeyFromCore (buildType flags) core "syslib"
 
 splitFileList :: [String] -> [String]
 splitFileList xs
   = concatMap (splitOn (==';')) xs
 
-externalImportKeyFromCore :: TargetPlatform -> BuildType -> Core.Core -> String -> [String]
-externalImportKeyFromCore eguard buildType core key
-  = catMaybes [Core.externalImportLookup eguard buildType key external  | external <- Core.coreProgExternals core]
+externalImportKeyFromCore :: BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore buildType core key
+  = catMaybes [Core.externalImportLookup buildType key external  | external <- Core.coreProgExternals core]
 
-externalImportsFromCore :: TargetPlatform -> Core.Core -> [[(String,String)]]
-externalImportsFromCore eguard core
-  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, 
-                let Just keyvals = lookupTarget eguard imports]
-                -- (eg,keyvals) <- imports, targetPlatformTryMatch eguard eg]
+externalImportsFromCore :: Core.Core -> [[(String,String)]]
+externalImportsFromCore core  
+  = [keyvals | extern@(Core.ExternalImport keyvals _ _) <- Core.coreProgExternals core]
+
+-- externalImportsFromCore :: TargetPlatform -> Core.Core -> [[(String,String)]]
+-- externalImportsFromCore eguard core
+--   = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, 
+--                 let Just keyvals = lookupBestTarget eguard imports]
+--                 -- (eg,keyvals) <- imports, targetPlatformTryMatch eguard eg]
 
 
 {---------------------------------------------------------------

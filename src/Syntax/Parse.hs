@@ -490,7 +490,7 @@ externalImport rng1
                                (val,rng)   <- stringLit
                                return ([(key,val)],rng)
                             <|> semiBracesRanged externalImportKeyVal
-           keyvalss <- mapM (externalIncludes (tpTarget tp) rng) keyvals
+           keyvalss <- mapM (externalIncludes (tplTarget tp) rng) keyvals
            return (tp,concat keyvalss)
 
     externalImportKeyVal
@@ -594,23 +594,23 @@ targetPlatform
     adjust [] tp = return tp
     adjust ((attr,val,rng):rest) tp
       = case attr of 
-          "os"   -> adjust rest (tp{ tpOS = val })
-          "arch" -> adjust rest (tp{ tpArch = val })
-          "host" -> case (map toLower val,tpTarget tp) of
-                      ("libc",C _)    -> adjust rest $ tp{ tpTarget = C LibC }
-                      ("wasm",C _)    -> adjust rest $ tp{ tpTarget = C Wasm }
-                      ("wasmjs",C _)  -> adjust rest $ tp{ tpTarget = C WasmJs }
-                      ("wasmweb",C _) -> adjust rest $ tp{ tpTarget = C WasmWeb }
-                      ("jsnode",JS _) -> adjust rest $ tp{ tpTarget = JS JsNode }
-                      ("jsweb",JS _)  -> adjust rest $ tp{ tpTarget = JS JsWeb }
+          "os"   -> adjust rest (tp{ tplOS = val })
+          "arch" -> adjust rest (tp{ tplArch = val })
+          "host" -> case (map toLower val,tplTarget tp) of
+                      ("libc",C _)    -> adjust rest $ tp{ tplTarget = C LibC }
+                      ("wasm",C _)    -> adjust rest $ tp{ tplTarget = C Wasm }
+                      ("wasmjs",C _)  -> adjust rest $ tp{ tplTarget = C WasmJs }
+                      ("wasmweb",C _) -> adjust rest $ tp{ tplTarget = C WasmWeb }
+                      ("jsnode",JS _) -> adjust rest $ tp{ tplTarget = JS JsNode }
+                      ("jsweb",JS _)  -> adjust rest $ tp{ tplTarget = JS JsWeb }
                       _ -> do pwarningMessage ("unknown host for target: " ++ show val) rng
                               adjust rest tp
-          "platform" -> case (map toLower val,tpTarget tp) of
-                          ("32",C _)   -> adjust rest $ tp{ tpPlatform = platform32 }
-                          ("64",C _)   -> adjust rest $ tp{ tpPlatform = platform64 }
-                          ("64c",C _)  -> adjust rest $ tp{ tpPlatform = platform64c }
-                          ("js",JS _)  -> adjust rest $ tp{ tpPlatform = platformJS }
-                          ("cs",CS)    -> adjust rest $ tp{ tpPlatform = platformCS }
+          "platform" -> case (map toLower val,tplTarget tp) of
+                          ("32",C _)   -> adjust rest $ tp{ tplPlatform = platform32 }
+                          ("64",C _)   -> adjust rest $ tp{ tplPlatform = platform64 }
+                          ("64c",C _)  -> adjust rest $ tp{ tplPlatform = platform64c }
+                          ("js",JS _)  -> adjust rest $ tp{ tplPlatform = platformJS }
+                          ("cs",CS)    -> adjust rest $ tp{ tplPlatform = platformCS }
                           _ -> do pwarningMessage ("unknown platform for target: " ++ show val) rng
                                   adjust rest tp
           _ -> do pwarningMessage ("unknown condition for target: " ++ show val) rng

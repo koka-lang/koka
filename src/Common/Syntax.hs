@@ -36,7 +36,7 @@ module Common.Syntax( Visibility(..)
                     , sepBySpace, memberDoc
                     , TargetPlatform(..), targetPlatformFromTarget
                     , targetIds, targetFromString
-                    , lookupTarget
+                    , lookupBestTarget
                     , targetPlatformDefault, targetPlatformIsDefault
                     -- , targetPlatformTryMatch
                     ) where
@@ -145,7 +145,7 @@ instance Show BuildType where
   show RelWithDebInfo = "drelease"
   show Release        = "release"
 
-data TargetPlatform = TargetPlatform{ tpTarget :: !Target, tpOS :: !String, tpArch :: !String, tpPlatform :: Platform }
+data TargetPlatform = TargetPlatform{ tplTarget :: !Target, tplOS :: !String, tplArch :: !String, tplPlatform :: Platform }
                     deriving (Eq)
 
 instance Ord TargetPlatform where
@@ -194,9 +194,9 @@ targetPlatformIsDefault :: TargetPlatform -> Bool
 targetPlatformIsDefault (TargetPlatform Default "" "" (Platform 0 0 0 0)) = True
 targetPlatformIsDefault _ = False
 
-lookupTarget :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
-lookupTarget tgtp xs
-  = let targets = let target = tpTarget tgtp
+lookupBestTarget :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
+lookupBestTarget tpl xs
+  = let targets = let target = tplTarget tpl
                   in case target of
                       C WasmJs      -> [target,C Wasm,C CDefault]
                       C WasmWeb     -> [target,C Wasm,C CDefault]
@@ -205,7 +205,7 @@ lookupTarget tgtp xs
                       JS JsDefault  -> [target]
                       JS _          -> [target,JS JsDefault]
                       _             -> [target]                      
-    in case catMaybes (map (\t -> targetPlatformBestMatch (tgtp{ tpTarget = t }) xs) targets) of
+    in case catMaybes (map (\t -> targetPlatformBestMatch (tpl{ tplTarget = t }) xs) targets) of
          (x:_) -> Just x
          _     -> Nothing
 
@@ -216,9 +216,9 @@ targetPlatformBestMatch eguard xs
       _         -> Nothing
 
 targetPlatformTryMatch :: TargetPlatform -> TargetPlatform -> Bool
-targetPlatformTryMatch tgtp1@(TargetPlatform target1 os1 arch1 p1) tgtp2@(TargetPlatform target2 os2 arch2 p2)
+targetPlatformTryMatch tpl1@(TargetPlatform target1 os1 arch1 p1) tpl2@(TargetPlatform target2 os2 arch2 p2)
   = let match = matchTarget target1 target2 && matchString os1 os2 && matchString arch1 arch2 && matchPlatform p1 p2
-    in -- trace ("try match: " ++ show (tgtp1,tgtp2) ++ " == " ++ show match) $ 
+    in -- trace ("try match: " ++ show (tpl1,tpl2) ++ " == " ++ show match) $ 
        match    
   where
     matchTarget Default t2  = True
