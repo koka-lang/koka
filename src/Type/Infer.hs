@@ -1630,7 +1630,7 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                                               _ -> False
                           -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
                           (itp,coref) <- maybeInstantiate rng expect tp
-                          sitp <- subst itp
+                          sitp <- nicefyType itp
                           (rmName,rmDoc) <- if hiddenNameStartsWith qname "eta"
                                               then do mbNice <- lookupNiceName qname
                                                       case mbNice of

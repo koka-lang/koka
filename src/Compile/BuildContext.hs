@@ -70,7 +70,6 @@ import Syntax.Syntax( UserProgram )
 import Type.Type
 import qualified Type.Pretty as TP
 import Type.Kind       (extractHandledEffect, getOperationEffectX, isHandledEffect )
-import Type.Operations (useAliases)
 import Type.Assumption
 import Compile.Options
 import Compile.Module

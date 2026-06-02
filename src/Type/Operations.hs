@@ -16,7 +16,7 @@ module Type.Operations( instantiate
                       , freshSub
                       , isOptionalOrImplicit, splitOptionalImplicit, requiresImplicits
                       , hasOptionalOrImplicits
-                      , useAliases
+                      , useCommonAliases, realiasEffect, realiasType
                       ) where
 
 
@@ -31,6 +31,7 @@ import Core.Core as Core
 import Core.CoreVar
 import Type.Assumption
 import Kind.Synonym
+import Common.NamePrim ( nameTpIO, nameTpIOC, nameTpST, nameTpPure, nameTpAsync )
 
 requiresImplicits :: Type -> [(Name, Type)]
 requiresImplicits tp
@@ -184,6 +185,32 @@ freshStar
 {--------------------------------------------------------------------------
    Synonym map
 --------------------------------------------------------------------------}  
+
+-- todo: check kind instead of only realiasing function effects?
+-- todo: expand any synonyms, not just for common effects?
+realiasType :: Synonyms -> Type -> Type
+realiasType synonyms tp
+  = realias tp
+  where
+    realias tp
+      = case tp of
+          TFun args eff res -> TFun [(argname,realias arg) | (argname,arg) <- args] (realiasEffect synonyms eff) (realias res)
+          TForall vars t    -> TForall vars (realias t)
+          TApp t args       -> TApp (realias t) (map realias args)
+          TSyn syn args t   -> TSyn syn (map realias args) (realias t)
+          _                 -> tp
+
+
+realiasEffect :: Synonyms -> Effect -> Effect
+realiasEffect synonyms eff
+  = let (ls,tl) = extractOrderedEffect eff
+        ls' = useCommonAliases synonyms ls           
+    in (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
+
+
+useCommonAliases synonyms ls
+  = useAliases synonyms [nameTpIO, nameTpIOC, nameTpST, nameTpPure, nameTpAsync] ls
+
 useAliases :: Synonyms -> [Name] -> [Tau] -> [Tau]
 useAliases synonyms names ls
   = case names of

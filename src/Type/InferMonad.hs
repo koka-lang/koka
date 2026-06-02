@@ -13,6 +13,7 @@ module Type.InferMonad( Inf, InfGamma
                       -- * substitutation
                       , zapSubst
                       , subst, extendSub
+                      , nicefyType
 
                       -- * Environment
                       , getGamma
@@ -396,15 +397,17 @@ normalizeX close free tp
 nicefyEffect :: Effect -> Inf Effect
 nicefyEffect eff
   = do env <- getEnv
-       let (ls,tl) = extractOrderedEffect eff
-           ls' = useAliases (synonyms env) [nameTpIO, nameTpIOC, nameTpST, nameTpPure, nameTpAsync] ls           
-       return (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
-
-
+       return (realiasEffect (synonyms env) eff)
 
 splitEffect :: Effect -> Inf ([Tau],Effect)
 splitEffect eff
   = nofailUnify (extractNormalizeEffect eff)
+
+nicefyType :: Type -> Inf Type
+nicefyType tp
+  = do stp <- subst tp
+       env <- getEnv 
+       return (realiasType (synonyms env) stp)
 
 
 {--------------------------------------------------------------------------
