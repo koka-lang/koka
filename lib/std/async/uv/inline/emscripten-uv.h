@@ -45,7 +45,7 @@
   XX(EHOSTUNREACH, "host is unreachable")                                     \
   XX(EINTR, "interrupted system call")                                        \
   XX(EINVAL, "invalid argument")                                              \
-  XX(EIO, "i/o error")                                                        \
+  XX(EIO, "i/o error")\
   XX(EISCONN, "socket is already connected")                                  \
   XX(EISDIR, "illegal operation on a directory")                              \
   XX(ELOOP, "too many symbolic links encountered")                            \
@@ -180,12 +180,53 @@ typedef struct uv_loop_s   uv_loop_t;
 typedef struct uv_handle_s uv_handle_t;
 typedef struct uv_timer_s  uv_timer_t;
 typedef struct uv_timer_s  uv_check_t;   // check is emulated as a timer with timeout 0
+typedef struct uv_loop_s uv_loop_t;
+typedef struct uv_handle_s uv_handle_t;
+typedef struct uv_dir_s uv_dir_t;
+typedef struct uv_stream_s uv_stream_t;
+typedef struct uv_tcp_s uv_tcp_t;
+typedef struct uv_udp_s uv_udp_t;
+typedef struct uv_pipe_s uv_pipe_t;
+typedef struct uv_tty_s uv_tty_t;
+typedef struct uv_poll_s uv_poll_t;
+typedef struct uv_prepare_s uv_prepare_t;
+typedef struct uv_idle_s uv_idle_t;
+typedef struct uv_async_s uv_async_t;
+typedef struct uv_process_s uv_process_t;
+typedef struct uv_fs_event_s uv_fs_event_t;
+typedef struct uv_fs_poll_s uv_fs_poll_t;
+typedef struct uv_signal_s uv_signal_t;
+
+typedef struct uv_req_s uv_req_t;
+typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
+typedef struct uv_getnameinfo_s uv_getnameinfo_t;
+typedef struct uv_shutdown_s uv_shutdown_t;
+typedef struct uv_write_s uv_write_t;
+typedef struct uv_connect_s uv_connect_t;
+typedef struct uv_udp_send_s uv_udp_send_t;
+typedef struct uv_fs_s uv_fs_t;
+typedef struct uv_work_s uv_work_t;
+typedef struct uv_random_s uv_random_t;
+
+typedef struct uv_env_item_s uv_env_item_t;
+typedef struct uv_cpu_info_s uv_cpu_info_t;
+typedef struct uv_interface_address_s uv_interface_address_t;
+typedef struct uv_dirent_s uv_dirent_t;
+typedef struct uv_passwd_s uv_passwd_t;
+typedef struct uv_group_s uv_group_t;
+typedef struct uv_utsname_s uv_utsname_t;
+typedef struct uv_statfs_s uv_statfs_t;
+typedef struct uv_metrics_s uv_metrics_t;
 
 typedef void (*uv_check_cb)(uv_check_t* handle);
 typedef void (*uv_close_cb)(uv_handle_t* handle);
 typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 typedef void (*uv_timer_cb)(uv_timer_t* handle);
+typedef void (*uv_fs_cb)(uv_fs_t* req);
 
+// -----------------------------------
+// ev loop
+// -----------------------------------
 
 typedef void* (*uv_malloc_func)(size_t size);
 typedef void* (*uv_realloc_func)(void* ptr, size_t size);
@@ -202,6 +243,18 @@ int  uv_run(uv_loop_t*, uv_run_mode mode);
 void uv_stop(uv_loop_t*);
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg);
 
+void uv_ref(uv_handle_t*);
+void uv_unref(uv_handle_t*);
+void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
+
+struct uv_loop_s {
+  int64_t refcount;
+};
+
+
+// -----------------------------------
+// handles
+// -----------------------------------
 
 #define UV_HANDLE_FIELDS \
   void* data;            \
@@ -221,13 +274,23 @@ static inline bool uv_is_active(const uv_handle_t* h)  { return (h!=NULL && h->a
 static inline uv_handle_type uv_handle_get_type(const uv_handle_t* h) { return h->type; }
 static inline uv_loop_t* uv_handle_get_loop(const uv_handle_t* h) { return h->loop; }
 
-void uv_ref(uv_handle_t*);
-void uv_unref(uv_handle_t*);
-void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
+// -----------------------------------
+// requests
+// -----------------------------------
 
-struct uv_loop_s {
-  int64_t refcount;
+#define UV_REQ_FIELDS \
+  void* data;         \
+  /* read-only */     \
+  uv_req_type type;
+  
+struct uv_req_s {
+  UV_REQ_FIELDS
 };
+
+
+// -----------------------------------
+// timer
+// -----------------------------------
 
 struct uv_timer_s {
   UV_HANDLE_FIELDS
@@ -245,5 +308,122 @@ int uv_timer_stop(uv_timer_t* handle);
 static inline int uv_check_init(uv_loop_t* loop, uv_check_t* h) { return uv_timer_init(loop,h); }
 static inline int uv_check_start(uv_check_t* h, uv_check_cb cb) { return uv_timer_start(h,cb,0,0); }
 static inline int uv_check_stop(uv_check_t* h) { return uv_timer_stop(h); }
+
+// --------------------------
+// fs
+// --------------------------
+
+typedef struct {
+  long tv_sec;
+  long tv_usec;
+} uv_timeval_t;
+
+typedef struct {
+  int64_t tv_sec;
+  int32_t tv_usec;
+} uv_timeval64_t;
+
+typedef struct {
+  uint64_t st_dev;
+  uint64_t st_mode;
+  uint64_t st_nlink;
+  uint64_t st_uid;
+  uint64_t st_gid;
+  uint64_t st_rdev;
+  uint64_t st_ino;
+  uint64_t st_size;
+  uint64_t st_blksize;
+  uint64_t st_blocks;
+  uint64_t st_flags;
+  uint64_t st_gen;
+  uv_timespec_t st_atim;
+  uv_timespec_t st_mtim;
+  uv_timespec_t st_ctim;
+  uv_timespec_t st_birthtim;
+} uv_stat_t;
+
+typedef enum {
+  UV_DIRENT_UNKNOWN,
+  UV_DIRENT_FILE,
+  UV_DIRENT_DIR,
+  UV_DIRENT_LINK,
+  UV_DIRENT_FIFO,
+  UV_DIRENT_SOCKET,
+  UV_DIRENT_CHAR,
+  UV_DIRENT_BLOCK
+} uv_dirent_type_t;
+
+struct uv_dirent_s {
+  const char* name;
+  uv_dirent_type_t type;
+};
+
+typedef enum {
+  UV_FS_UNKNOWN = -1,
+  UV_FS_CUSTOM,
+  UV_FS_OPEN,
+  UV_FS_CLOSE,
+  UV_FS_READ,
+  UV_FS_WRITE,
+  UV_FS_SENDFILE,
+  UV_FS_STAT,
+  UV_FS_LSTAT,
+  UV_FS_FSTAT,
+  UV_FS_FTRUNCATE,
+  UV_FS_UTIME,
+  UV_FS_FUTIME,
+  UV_FS_ACCESS,
+  UV_FS_CHMOD,
+  UV_FS_FCHMOD,
+  UV_FS_FSYNC,
+  UV_FS_FDATASYNC,
+  UV_FS_UNLINK,
+  UV_FS_RMDIR,
+  UV_FS_MKDIR,
+  UV_FS_MKDTEMP,
+  UV_FS_RENAME,
+  UV_FS_SCANDIR,
+  UV_FS_LINK,
+  UV_FS_SYMLINK,
+  UV_FS_READLINK,
+  UV_FS_CHOWN,
+  UV_FS_FCHOWN,
+  UV_FS_REALPATH,
+  UV_FS_COPYFILE,
+  UV_FS_LCHOWN,
+  UV_FS_OPENDIR,
+  UV_FS_READDIR,
+  UV_FS_CLOSEDIR,
+  UV_FS_STATFS,
+  UV_FS_MKSTEMP,
+  UV_FS_LUTIME
+} uv_fs_type;
+
+struct uv_fs_s {
+  UV_REQ_FIELDS
+  uv_fs_type  fs_type;
+  uv_loop_t*  loop;
+  uv_fs_cb    cb;
+  ssize_t     result;
+  void*       ptr;
+  const char* path;
+  uv_stat_t   statbuf;   
+};
+
+struct uv_dir_s {
+  uv_dirent_t* dirents;
+  size_t       nentries;  
+};
+
+static inline uv_fs_type uv_fs_get_type(const uv_fs_t* req) { return req->fs_type; }
+static inline ssize_t uv_fs_get_result(const uv_fs_t* req)  { return req->result;  };
+static inline void* uv_fs_get_ptr(const uv_fs_t* req)       { return req->ptr; };
+static inline const char* uv_fs_get_path(const uv_fs_t* req){ return req->path; };
+static inline uv_stat_t* uv_fs_get_statbuf(uv_fs_t* req)    { return &req->statbuf; };
+
+void uv_fs_req_cleanup(uv_fs_t* req);
+int  uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int  uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb);
+int  uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb);
 
 #endif

@@ -8,7 +8,7 @@
 module uv/core 
 
 extern import
-  c[host=libc] { vcpkg="libuv"; library="uv" }
+  c[host=libc] { vcpkg="libuv"; library="uv" } 
 
 extern import
   c[host=libc,os=windows] { syslib="user32;iphlpapi;userenv;ws2_32;dbghelp;ole32;uuid" }
@@ -19,7 +19,7 @@ extern import
 extern import
   c { header-file="inline/core.h"; file="inline/core.c" }
 
-pub extern event-loop-init() : any
+pub extern event-loop-init() : any 
   c "kk_uv_loop_init"
   js inline "null"
 

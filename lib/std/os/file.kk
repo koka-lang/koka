@@ -21,7 +21,7 @@ extern import
 pub fun read-text-file( path : path ) : <fsys,exn> string
   match read-text-file-err(path.string)
     Error(exn)  -> throw-exn(exn.prepend("unable to read text file " ++ path.show))
-    Ok(content) -> content
+    Ok(content) -> content 
 
 
 // Write a text file synchronously (using UTF8 encoding)

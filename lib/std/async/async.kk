@@ -141,11 +141,11 @@ pub fun await0( label : string = "", setup : (resume : () -> ioc () ) -> ioc err
 
 // Await a single argument callback.
 pub fun await1( label : string = "", setup : (resume : (a) -> ioc () ) -> ioc error<dispose-fn> ) : <async,exn> a
-  setup/await(label) fn(_evloop,resume) setup(resume)
+  setup/await(label) fn(_evloop,resume) setup(fn(x) resume(Ok(x)))
 
 // Await with the exception effect
-pub fun setup/await( label : string = "", setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc error<dispose-fn> ) : <async,exn> a  
-  await-error(label,setup).untry
+pub fun setup/await( label : string = "", setup : (evloop : event-loop, resume : error<a> -> ioc ()) -> ioc error<dispose-fn> ) : <async,exn> a  
+  await-error1(label,setup).untry
 
 // Primitive await: call `setup` to set up an asynchronous callback with the host platform. 
 // The setup is passed the eventloop of the async handler, and a `resume` function
@@ -155,10 +155,40 @@ pub fun setup/await( label : string = "", setup : (evloop : event-loop, resume :
 // The `resume` is invoked exactly once (either on the async completion callback, or on cancelation)
 pub fun setup/await-error( label : string, setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc error<dispose-fn> ) : async error<a>
   val res = do-await(fn(evloop,resume) { setup(evloop, fn(res) resume(Result(res),True)) }, async-scope, label)
+  res.error
+
+
+pub fun setup/await-error1( label : string, setup : (evloop : event-loop, resume : error<a> -> ioc ()) -> ioc error<dispose-fn> ) : async error<a>
+  val res = do-await(fn(evloop,resume) { setup(evloop, fn(eres) resume(eres.await-result,True)) }, async-scope, label)
+  res.error
+
+fun error/await-result( res : error<a> ) : await-result<a>
+  match res
+    Error(exn)     -> Exception(exn)
+    Ok(value)      -> Result(value)
+
+fun await-result/error( res : await-result<a>, ?label : string ) : discontinue error<a>
   match res
     Result(value)  -> Ok(value)
     Exception(exn) -> Error(exn)
-    Cancel         -> { trace("resumed with cancel: " ++ label); discontinue() }
+    Cancel -> 
+      trace("discontinue from await: " ++ label)
+      discontinue()
+
+extend type exception-info
+  ExnSync
+
+pub fun do-sync( action : (evloop : event-loop) -> ioc error<()>, label : string = "" ) : <exn,async> ()
+  val res = do-await(fn(evloop,resume) { 
+                        match action(evloop)
+                          Error(err) -> Error(err) 
+                          Ok(_)      -> Error(Exception("do-sync",ExnSync)) 
+                    }, async-scope, label)
+  match res
+    Exception(Exception(_,ExnSync)) -> ()
+    _ -> res.error.untry
+
+  
 
 
 // ----------------------------------------------------------------------------

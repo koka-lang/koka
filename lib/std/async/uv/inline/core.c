@@ -7,9 +7,10 @@
 ---------------------------------------------------------------------------*/
 
 // for IDE
+// #define __EMSCRIPTEN__
 // #include "../../../../../kklib/include/kklib.h"
-// // #define __EMSCRIPTEN__
 // #include "core.h"
+// #include <stdio.h>  // debug
 
 #ifndef __EMSCRIPTEN__
 #include <uv.h>
@@ -20,45 +21,57 @@ kk_std_core_exn__error kk_result_ok( kk_box_t val, kk_context_t* ctx ) {
 }
 
 
-// call `() -> ()` callback
-static void kk_function_call0( kk_function_t f, kk_context_t* ctx ) {
-  kk_function_call(kk_unit_t, (kk_function_t, kk_context_t*), f, (f, ctx), ctx);  // drops f
-}
+// ---------------------------------------------------
+// Handle/Request dispose
+// ---------------------------------------------------
 
-struct kk_dispose_fun_closure_s {
+typedef void (kk_uv_dispose_fun_t)(void* p, void* arg, kk_context_t* ctx);
+
+struct kk_uv_dispose_fun_closure_s {
   struct kk_function_s _base;
-  uv_handle_t* handle;
+  void* p;
   void* arg;
-  kk_uv_handle_dispose_fun_t* dispose;
+  kk_uv_dispose_fun_t* dispose;
 };
 
-static kk_box_t kk_uv_handle_dispose_fun(kk_function_t _fself, kk_context_t* ctx) {
-  struct kk_dispose_fun_closure_s* _self = kk_function_as(struct kk_dispose_fun_closure_s*, _fself, ctx);
-  uv_handle_t* handle = _self->handle;
+static kk_box_t kk_uv_dispose_fun(kk_function_t _fself, kk_context_t* ctx) {
+  struct kk_uv_dispose_fun_closure_s* _self = kk_function_as(struct kk_uv_dispose_fun_closure_s*, _fself, ctx);
+  void* p = _self->p;
   void* arg = _self->arg;
-  kk_uv_handle_dispose_fun_t* dispose = _self->dispose;
+  kk_uv_dispose_fun_t* dispose = _self->dispose;
   kk_function_drop(_fself,ctx);
-  dispose(handle,arg,ctx);
+  dispose(p,arg,ctx);
   return kk_unit_box(kk_Unit);
 }
 
-kk_function_t kk_uv_handle_dispose_fun_create(uv_handle_t* handle, void* arg, kk_uv_handle_dispose_fun_t* dispose, kk_context_t* ctx) {
-  struct kk_dispose_fun_closure_s* _self = kk_function_alloc_as(struct kk_dispose_fun_closure_s, 1, ctx);
-  _self->_base.fun = kk_kkfun_ptr_box(&kk_uv_handle_dispose_fun, ctx);
-  _self->handle = handle;
+kk_function_t kk_uv_dispose_fun_create(void* p, void* arg, kk_uv_dispose_fun_t* dispose, kk_context_t* ctx) {
+  struct kk_uv_dispose_fun_closure_s* _self = kk_function_alloc_as(struct kk_uv_dispose_fun_closure_s, 1, ctx);
+  _self->_base.fun = kk_kkfun_ptr_box(&kk_uv_dispose_fun, ctx);
+  _self->p = p;
   _self->arg = arg;
   _self->dispose = dispose;
   return kk_datatype_from_base(&_self->_base, ctx);
 }
 
+
 kk_std_core_exn__error kk_result_uv_handle_dispose( uv_handle_t* handle, void* arg, kk_uv_handle_dispose_fun_t* dispose, kk_context_t* ctx ) {
-  kk_function_t dispose_fun = kk_uv_handle_dispose_fun_create(handle,arg,dispose,ctx);
+  kk_function_t dispose_fun = kk_uv_dispose_fun_create((void*)handle,arg,(kk_uv_dispose_fun_t*)dispose,ctx);
   return kk_result_ok(kk_function_box(dispose_fun,ctx),ctx);
 }
 
 kk_std_core_exn__error kk_result_uv_handle_dispose0( uv_handle_t* handle, kk_context_t* ctx ) {
   return kk_result_uv_handle_dispose( handle, NULL, &kk_uv_handle_dispose, ctx);
 }
+
+kk_std_core_exn__error kk_result_uv_req_dispose( uv_req_t* req, void* arg, kk_uv_req_dispose_fun_t* dispose, kk_context_t* ctx ) {
+  kk_function_t dispose_fun = kk_uv_dispose_fun_create((void*)req,arg,(kk_uv_dispose_fun_t*)dispose,ctx);
+  return kk_result_ok(kk_function_box(dispose_fun,ctx),ctx);
+}
+
+kk_std_core_exn__error kk_result_uv_req_dispose0( uv_req_t* req, kk_context_t* ctx ) {
+  return kk_result_uv_req_dispose( req, NULL, &kk_uv_req_dispose, ctx);
+}
+
 
 //---------------------------------------
 // set allocator
@@ -84,6 +97,7 @@ static void kk_uv_alloc_init(kk_context_t* _ctx){
 
 //---------------------------------------
 // utility
+//---------------------------------------
 
 kk_std_core_exn__error kk_error_from_uv_errno( int err, kk_context_t* ctx ) {
   if (err > 0) {
@@ -93,11 +107,49 @@ kk_std_core_exn__error kk_error_from_uv_errno( int err, kk_context_t* ctx ) {
     const int syserr = -err; /* uv error codes are negative */
     const char* serr = uv_strerror(err);
     kk_string_t msg = kk_string_alloc_from_qutf8( serr, ctx );
-    kk_free(serr,ctx);
+    // kk_free(serr,ctx);
     return kk_std_core_types__new_Error( kk_std_core_exn__exception_box( kk_std_core_exn__new_Exception( msg,
                   kk_std_core_exn__new_ExnSystem(kk_reuse_null, 0, kk_integer_from_int(syserr,ctx), ctx), ctx), ctx), ctx );
   }
 }
+
+
+//---------------------------------------
+// internal async call
+//---------------------------------------
+
+// typedef void (uv_arg_callback_t)(void* arg);
+
+// typedef struct uv_closure_s {
+//   uv_arg_callback_t* cb;
+//   void*              arg;
+// } uv_closure_t;
+
+// static void uv_async_call_cb( uv_timer_t* t ) {
+//   uv_closure_t* c = (uv_closure_t*)(t->data);
+//   uv_arg_callback_t* cb = c->cb;
+//   void* arg = c->arg;
+//   kk_context_t* ctx = kk_get_context();
+//   kk_free(c,ctx);
+//   uv_close((uv_handle_t*)t,NULL);
+//   kk_free(t,ctx);
+//   cb(arg);
+// }
+
+// static void uv_async_call(uv_loop_t* loop, uv_arg_callback_t* cb, void* arg, uint64_t millisecs) {
+//   kk_context_t* ctx = kk_get_context();
+//   uv_timer_t* t   = kk_zalloc(sizeof(uv_timer_t),ctx);
+//   uv_closure_t* c = kk_zalloc(sizeof(uv_closure_t),ctx);
+//   c->cb = cb;
+//   c->arg = arg;
+//   uv_timer_init(loop,t);  
+//   uv_timer_start(t,&uv_async_call_cb, millisecs, 0 );  
+// }
+
+
+//---------------------------------------
+// handles
+//---------------------------------------
 
 kk_std_core_exn__error kk_result_uv_handle( uv_handle_t* h, kk_context_t* ctx ) {
   return kk_result_ok(kk_cptr_box(h,ctx),ctx);  // not freed, treat as an opaque value and free explicitly
@@ -159,6 +211,71 @@ void kk_uv_handle_callback(uv_handle_t* h) {
   kk_uv_handle_close(h);
 }
 
+
+//---------------------------------------
+// requests
+//---------------------------------------
+
+int kk_uv_req_create( size_t sz, kk_function_t cb, uv_req_t** preq, kk_context_t* ctx ) {
+  uv_req_t* req = *preq = (uv_req_t*)kk_zalloc(sz,ctx);
+  if (req==NULL) {
+    kk_function_drop(cb,ctx);
+    return UV_ENOMEM;
+  }
+  else {
+    req->data = kk_datatype_as_ptr(cb,ctx);
+    return 0;
+  }
+}
+
+void kk_uv_req_free(uv_req_t* req, kk_context_t* ctx) {
+  if (req && req->data != NULL) {
+    // drop the callback (just in case, should have been set NULL already in req_close/callback)
+    kk_datatype_drop( kk_datatype_from_ptr((kk_ptr_t)(req->data),ctx), ctx );
+    req->data = NULL;
+  }
+  if (req && req->type == UV_FS) {
+    uv_fs_req_cleanup((uv_fs_t*)req);
+  }
+  kk_free(req,ctx);
+}
+
+// static void kk_uv_req_close_cb(void* req) {
+//   kk_uv_req_free((uv_req_t*)req,kk_get_context());
+// }
+
+void kk_uv_req_close(uv_req_t* req) {
+  if (req==NULL) return;
+  kk_context_t* ctx = kk_get_context();    
+  if (req->data != NULL) {
+    // drop the callback function right away
+    // if a req is disposed, uv might still schedule the callback; setting it to NULL prevents the callback still being called
+    kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(req->data),ctx);
+    req->data = NULL;
+    kk_function_drop(cb,ctx);
+  }
+  kk_uv_req_free(req,ctx);
+  // uv_async_call(req->loop, (void*)req, &kk_uv_req_close_cb, 0);  // todo: can we call this right away?
+}
+
+void kk_uv_req_dispose(uv_req_t* req, void* arg, kk_context_t* ctx) {
+  kk_unused(arg);
+  kk_unused(ctx);
+  if (req==NULL) return;
+  uv_cancel(req);
+  kk_uv_req_close(req);
+}
+
+void kk_uv_req_callback(uv_req_t* req, kk_uv_req_call_fun_t* call ) {
+  if (req==NULL) return;
+  if (req->data != NULL) {
+    kk_context_t* ctx = kk_get_context();
+    kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(req->data),ctx); // the call drops the `cb`
+    req->data = NULL;    
+    call(cb,req,ctx);  // call it
+  }  
+  kk_uv_req_close(req);
+}
 
 // -----------------------------------------------------
 // Event Loop
