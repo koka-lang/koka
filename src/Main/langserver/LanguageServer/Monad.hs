@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
--- The language server's monad that holds state (e.g. loaded/compiled modules)
+-- The language server's monad that holds state (e.g. loaded/compiled modules) 
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -74,6 +74,7 @@ import Syntax.Lexeme( Lexeme )
 import Kind.ImportMap (importsEmpty)
 import qualified Type.Pretty as TP
 import Compile.Options (Flags (..), flagsHash, prettyEnvFromFlags, verbose, Terminal(..))
+import Compile.Build(VFS,vfsFromList)
 import Compile.BuildContext
 import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
 
@@ -330,17 +331,21 @@ maybeContents vfs path = do
            ((_, (text, ftime, _)):_) -> Just (text, ftime)
            _                         -> Nothing
 
+mapToVFS :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> VFS
+mapToVFS vmap
+  = vfsFromList [(fpath,(content,ftime)) | (furi,(content,ftime,_)) <- M.toList vmap, let Just fpath = J.uriToFilePath (J.fromNormalizedUri furi)]
 
 -- Run a build with optionally temporarily changed flags (this restores the original build context afterwards)
 -- (when a build context is validated, it checks itself against the current flags and rebuilds accordingly)
 liftBuildWith :: Maybe Flags -> (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
 liftBuildWith mbFlags action
   = do ls <- getLSState
-       let vfs  = VFS (\fpath -> maybeContents (documentInfos ls) fpath)
+       let vfs  = -- VFS (\fpath -> maybeContents (documentInfos ls) fpath)
+                  mapToVFS (documentInfos ls)
            flgs = case mbFlags of
                     Nothing    -> flags ls
                     Just flags -> flags
-       res <- seq flgs $ seq VFS $ liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)
+       res <- seq flgs $ seq vfs $ liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)
        case res of
          Left errs               -> return (Left errs)
          Right ((buildc,x),errs) -> do modifyLSState (\ls -> 

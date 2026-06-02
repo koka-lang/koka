@@ -22,6 +22,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
                       , mangle
                       , mangleConName
                       , mangleTypeName
+                      , substNiceRangeMap
                       ) where
 
 import Debug.Trace(trace)
@@ -40,6 +41,8 @@ import Type.TypeVar
 import Type.Pretty()
 import Data.Maybe (fromMaybe)
 import Syntax.Lexeme
+import Type.Operations( realiasType )
+import Kind.Synonym
 
 data RangeMap = RM ![(Range,RangeInfo)]
   deriving Show
@@ -451,6 +454,27 @@ rangeInfoDoc ri
                          NICon _ doc       -> Just doc
 
       _ -> Nothing
+
+substNiceRangeMap :: Synonyms -> Sub -> RangeMap -> RangeMap
+substNiceRangeMap synonyms sub (RM rm)
+  = RM (map (\(r,ri) -> (r, substNiceRangeInfo synonyms sub ri)) rm)
+
+substNiceRangeInfo :: Synonyms -> Sub -> RangeInfo -> RangeInfo
+substNiceRangeInfo synonyms sub (Id nm info docs isdef)  
+  = Id nm (substNiceNameInfo synonyms sub info) docs isdef
+substNiceRangeInfo synonyms sub ri
+  = ri  
+
+substNiceNameInfo :: Synonyms -> Sub -> NameInfo -> NameInfo
+substNiceNameInfo synonyms sub ni
+  = case ni of
+      NIValue sort tp annotated doc  -> NIValue sort (substNice tp) annotated doc
+      NICon tp doc  -> NICon (substNice tp) doc
+      _             -> ni
+  where
+    substNice tp
+      = realiasType synonyms (sub |-> tp)
+
 
 instance HasTypeVar RangeMap where
   sub `substitute` (RM rm)

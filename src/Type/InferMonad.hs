@@ -13,7 +13,7 @@ module Type.InferMonad( Inf, InfGamma
                       -- * substitutation
                       , zapSubst
                       , subst, extendSub
-                      , nicefyType
+                      , substNice
 
                       -- * Environment
                       , getGamma
@@ -136,7 +136,7 @@ import Common.Message( docFromRange, table, tablex)
 
 import Core.Pretty()
 
-import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert, rangeMapAppend )
+import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert, rangeMapAppend, substNiceRangeMap )
 import Syntax.Syntax(Expr(..),ValueBinder(..))
 
 import qualified Debug.Trace as DT
@@ -403,8 +403,9 @@ splitEffect :: Effect -> Inf ([Tau],Effect)
 splitEffect eff
   = nofailUnify (extractNormalizeEffect eff)
 
-nicefyType :: Type -> Inf Type
-nicefyType tp
+-- substitute and re-alias synonyms
+substNice :: Type -> Inf Type
+substNice tp
   = do stp <- subst tp
        env <- getEnv 
        return (realiasType (synonyms env) stp)
@@ -1778,7 +1779,10 @@ runInfer env mbrm syns newTypes imports assumption context allowInfiniteChains u
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
       Ok x st warnings
-        -> addWarnings (map (toWarning ErrType) warnings) (ok (x, uniq st, (sub st) |-> mbRangeMap st))
+        -> addWarnings (map (toWarning ErrType) warnings) (ok (x, uniq st, 
+              case mbRangeMap st of
+                Nothing -> Nothing
+                Just rm -> Just (substNiceRangeMap syns (sub st) rm)))
 
 
 zapSubst :: HasCallStack => Inf ()

@@ -139,7 +139,6 @@ data Env     = Env{ showKinds      :: !Bool
                   , context :: !Name  -- ^ module in which we pretty print
                   , importsMap :: !ImportMap -- ^ import aliases
                   , fullNames :: !Bool
-                  , alwaysUnqualify :: !Bool
                   , indentation :: Int
 
                   -- should not really belong here. Contains link bases for documentation generation (see Syntax.Colorize)
@@ -167,8 +166,7 @@ defaultEnv
         True -- showFlavours
         False
         defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty)
-        False -- fullNames. todo: if True it can lead to .kki parse errors
-        False
+        False -- fullNames. 
         0
         False
         []
@@ -454,14 +452,19 @@ ppNamePlain env name | isImplicitParamName name
   = text "?" <.> ppNamePlain env (fromImplicitParamName name)
 
 ppNamePlain env name
-  = prettyName (colors env) $
+  = let pp = prettyName (colors env) in    
     if (fullNames env || isModuleName name)
-     then name
-     else if (context env == qualifier name || alwaysUnqualify env)
-            then unqualify name
-            else if (isSystemCoreName name && not (coreIface env))
-                   then shortenSystemCoreName name
-                   else importsAlias name (importsMap env)
+     then pp name
+     else if (context env == qualifier name) -- || alwaysUnqualify env)
+       then pp (unqualify name)
+       else if (coreIface env) -- emit .kki file?
+         then pp name
+         else if (isSystemCoreName name)
+           then pp (shortenSystemCoreName name)
+           else let name' = removeCommonPrefix (context env) name
+                in if name /= name'
+                    then pp name' -- <.> text "<-" <+> parens (pp (context env) <.> text "," <.> pp name)
+                    else pp (importsAlias name (importsMap env))
 
 
 

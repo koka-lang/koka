@@ -6,7 +6,7 @@
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 module Compile.Build( Build
-                      , VFS(..), noVFS
+                      , VFS, noVFS, vfsEmpty, vfsSingleton, vfsFromList, vfsToList
                       , runBuildIO, runBuildMaybe, runBuild
 
                       , modulesFullBuild
@@ -943,16 +943,19 @@ coreReset core
 throwModuleNotFound :: Range -> Name -> Build a
 throwModuleNotFound range name
   = do flags <- getFlags
-       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" (pretty name)))
+       vfs <- envVFS <$> getEnv       
+       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" vfs (pretty name)))
 
 throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
   = do flags <- getFlags
-       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" (text name)))
+       vfs <- envVFS <$> getEnv       
+       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" vfs (text name)))
 
-errorNotFound flags clr kind namedoc
+errorNotFound flags clr kind vfs namedoc
   = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
-    text "search path:" <+> prettyIncludePath flags
+    text "search path:" <+> prettyIncludePath flags <->
+    text "vfs        :" <+> pretty (map fst (vfsToList vfs))
   where
     cscheme = colorSchemeFromFlags flags
 
@@ -977,16 +980,39 @@ ifaceExtension
   Compilation monad
   carries flags and terminal and catches errors
 ---------------------------------------------------------------}
-data VFS = VFS { vfsFind :: FilePath -> Maybe (BString,FileTime) }
+data VFS = VFS { vfiles :: !(M.Map FilePath (BString,FileTime)) }
+
+vfsFind :: VFS -> FilePath -> Maybe (BString,FileTime)
+vfsFind (VFS vfiles) fpath
+  = M.lookup fpath vfiles
 
 noVFS :: VFS
-noVFS = VFS (\fpath -> Nothing)
+noVFS = vfsEmpty
 
-composeVFS :: VFS -> VFS -> VFS
-composeVFS (VFS find1) (VFS find2)
-  = VFS (\fpath -> case find2 fpath of
-                     Just res -> Just res
-                     Nothing  -> find1 fpath)
+vfsEmpty :: VFS
+vfsEmpty = VFS M.empty
+
+vfsSingleton :: FilePath -> BString -> FileTime -> VFS
+vfsSingleton fpath content ftime
+  = VFS (M.singleton fpath (content,ftime))
+
+vfsFromList :: [(FilePath,(BString,FileTime))] -> VFS
+vfsFromList xs
+  = VFS (M.fromList xs)
+
+vfsToList :: VFS -> [(FilePath,(BString,FileTime))]  
+vfsToList (VFS vfiles)
+  = M.toList vfiles
+
+instance Show VFS where
+  show (VFS vfiles) = show (map fst (M.toList vfiles))
+
+vfsCompose :: VFS -> VFS -> VFS
+vfsCompose (VFS find1) (VFS find2)
+  = VFS (M.union find2 find2)  -- left biased
+    -- \fpath -> case find2 fpath of
+    --                  Just res -> Just res
+    --                  Nothing  -> find1 fpath)
 
 
 data Build a = Build (Env -> IO a)
@@ -1245,7 +1271,8 @@ withEnv modify (Build action)
 
 withVFS :: VFS -> Build a -> Build a
 withVFS vfs build
-  = withEnv (\env -> env{ envVFS = composeVFS (envVFS env) vfs }) build
+  = trace ("vfs: " ++ show vfs) $
+    withEnv (\env -> env{ envVFS = vfsCompose (envVFS env) vfs }) build
 
 lookupVFS :: FilePath -> Build (Maybe (BString,FileTime))
 lookupVFS fpath

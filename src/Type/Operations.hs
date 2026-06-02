@@ -27,11 +27,13 @@ import Common.Failure
 import Kind.Kind
 import Type.Type
 import Type.TypeVar
+import Lib.PPrint
+import Type.Pretty
 import Core.Core as Core
 import Core.CoreVar
 import Type.Assumption
 import Kind.Synonym
-import Common.NamePrim ( nameTpIO, nameTpIOC, nameTpST, nameTpPure, nameTpAsync )
+import Common.NamePrim ( nameTpIO, nameTpIOC, nameTpIOCTotal, nameTpST, nameTpPure, nameTpAsync )
 
 requiresImplicits :: Type -> [(Name, Type)]
 requiresImplicits tp
@@ -208,8 +210,11 @@ realiasEffect synonyms eff
     in (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
 
 
+commonAliases
+  = [nameTpIO, nameTpIOC, nameTpIOCTotal, nameTpST, nameTpPure, nameTpAsync]
+
 useCommonAliases synonyms ls
-  = useAliases synonyms [nameTpIO, nameTpIOC, nameTpST, nameTpPure, nameTpAsync] ls
+  = useAliases synonyms commonAliases ls
 
 useAliases :: Synonyms -> [Name] -> [Tau] -> [Tau]
 useAliases synonyms names ls
@@ -226,19 +231,23 @@ useAliases synonyms names ls
     tryAlias ls name
       = let mbsyn = synonymsLookup name synonyms
         in case mbsyn of
-             Nothing -> ([],ls)
+             Nothing -> -- trace ("* cannot find alias: " ++ show name) $ 
+                        ([],ls)
              Just syn
               -> let (ls2,tl2) = extractOrderedEffect (synInfoType syn)
                  in if (null ls2 || not (isEffectEmpty tl2))
-                     then ([],ls)
+                     then -- trace ("* strange alias: " ++ show name ++ ": " ++ show (pretty tl2)) $
+                          ([],ls)
                      else let params      = synInfoParams syn
                               (sls,insts) = findInsts params ls2 ls
-                          in -- Lib.Trace.trace ("* try alias: " ++ show (synInfoName syn, ls, sls)) $
-                             case (isSubset [] sls ls) of
-                                Just rest
-                                  -> -- trace (" synonym replace: " ++ show (synInfoName syn, ls, sls, rest)) $
-                                     ([TSyn (TypeSyn name (synInfoKind syn) (synInfoRank syn) (Just syn)) insts (effectFixed sls)], rest)
-                                _ -> ([], ls)
+                          in -- trace ("* try alias: " ++ show (synInfoName syn) ++ "\n  " ++ show (map pretty sls) ++ "\n  " ++ show (map pretty ls)) $
+                             if (length sls > length ls) 
+                              then ([],ls)
+                              else case (isSubsetEq [] sls ls) of
+                                    Just rest
+                                      -> -- trace (" synonym replace: " ++ show (synInfoName syn, pretty rest)) $
+                                         ([TSyn (TypeSyn name (synInfoKind syn) (synInfoRank syn) (Just syn)) insts (effectFixed sls)], rest)
+                                    _ -> ([], ls)
 
 findInsts :: [TypeVar] -> [Tau] -> [Tau] -> ([Tau],[Tau])
 findInsts [] ls _
@@ -258,8 +267,8 @@ findInsts params ls1 ls2
 
 
 
-isSubset :: [Tau] -> [Tau] -> [Tau] -> Maybe [Tau]
-isSubset acc ls1 ls2
+isSubsetEq :: [Tau] -> [Tau] -> [Tau] -> Maybe [Tau]
+isSubsetEq acc ls1 ls2
   = case (ls1,ls2) of
       ([],[])       -> Just (reverse acc)
       ([],(l2:ll2)) -> Just (reverse acc ++ ls2)
@@ -268,7 +277,7 @@ isSubset acc ls1 ls2
         -> if (labelName l1 < labelName l2)
             then Nothing
            else if (labelName l1 > labelName l2)
-            then isSubset (l2:acc) ls1 ll2
+            then isSubsetEq (l2:acc) ls1 ll2
            else if (eqType l1 l2)
-            then isSubset acc ll1 ll2
+            then isSubsetEq acc ll1 ll2
             else Nothing

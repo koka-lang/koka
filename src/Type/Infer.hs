@@ -1498,7 +1498,7 @@ inferLam topLevel propagated expect bindersL body0 rng
                                           subst topEff
                                           -- subst eff
         -- traceDefDoc $ \env -> text " inferExpr.Lam: topeff: " <+> ppType env topEff
-        parTypes2 <- subst (map binderType binders1)
+        parTypes2 <- mapM subst (map binderType binders1)
         let optPars   = zip (map binderName binders1) parTypes2 -- (map binderName binders1) parTypes2
             bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
         bodyCore2 <- subst bodyCore1
@@ -1630,7 +1630,7 @@ inferVarName propagated expect name rng isRhs (qname,tp,info)
                                               _ -> False
                           -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> ppType env{showIds=True} tp <+> text ", prop:" <+> pretty propagated
                           (itp,coref) <- maybeInstantiate rng expect tp
-                          sitp <- nicefyType itp
+                          sitp <- subst itp
                           (rmName,rmDoc) <- if hiddenNameStartsWith qname "eta"
                                               then do mbNice <- lookupNiceName qname
                                                       case mbNice of

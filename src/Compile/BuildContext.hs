@@ -506,7 +506,7 @@ withVirtualFile :: FilePath -> BString -> (FilePath -> Build a) -> Build a
 withVirtualFile fpath0 content action
   = do ftime <- liftIO $ getCurrentTime
        let fpath = normalize fpath0
-           vfs   = VFS (\fname -> if fname == fpath then Just (content,ftime) else Nothing)
+           vfs   = vfsSingleton fpath content ftime
        phaseVerbose 4 "trace" (\penv -> text "add virtual file" <+> text fpath <+> text ", content:" <-> text (bstringToString content))
        withVFS vfs $ action fpath
 

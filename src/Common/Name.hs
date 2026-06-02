@@ -59,6 +59,7 @@ module Common.Name
           , prettyName, prettyCoreName
           , requalifyLocally, qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
           , unqualifyAsModuleName, unqualifyLocally
+          , removeCommonPrefix
 
           , nameMapStem
           , isInDefaultNameSpace, isInWrongNameSpace
@@ -530,6 +531,15 @@ isInSpecialNameSpace name ns
 ----------------------------------------------------------------
 -- Modules paths
 ----------------------------------------------------------------
+
+removeCommonPrefix :: Name -> Name -> Name
+removeCommonPrefix mname name
+  = let ns = splitModuleName name
+        ms = splitModuleName mname
+        ns' = drop (length (takeWhile (\(n,m) -> n == m) (zip ns ms))) ns
+    in if null ns' then name 
+        else -- trace ("removeCommonPrefix: " ++ show (ns,ms,ns',unqualify name)) $
+             qualify (unsplitModuleName ns') (unqualify name)
 
 splitName :: Name -> [String]
 splitName name
