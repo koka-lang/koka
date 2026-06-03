@@ -15,7 +15,7 @@
 // Allocate `len` bytes.
 // If (p /= NULL) then initialize with at most `min(len,plen)` bytes from `p`, which must point to at least `plen` valid bytes. 
 // Adds a terminating zero at the end. Return the raw buffer pointer in `buf` if non-NULL
-kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx) {
+kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len_zero(bool zeroinit, kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx) {
   // kk_assert_internal(s == NULL || blen(s) >= len);  // s may contain embedded 0 characters
   static uint8_t empty[16] = { 0 };
   if (len <= 0) {
@@ -25,16 +25,21 @@ kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk
   if (plen > len) plen = len;  // limit plen <= len
   if (len <= KK_BYTES_SMALL_MAX) {
     kk_bytes_small_t b = kk_block_alloc_as(struct kk_bytes_small_s, 0, KK_TAG_BYTES_SMALL, ctx);
-    b->u.buf_value = ~KK_U64(0);
+    b->u.buf_value = KK_U64(0);
     if (p != NULL && plen > 0) {
       kk_memcpy(&b->u.buf[0], p, plen);
     }
     b->u.buf[len] = 0;
+    for(kk_ssize_t i = len+1; i <= KK_BYTES_SMALL_MAX; i++) {  // length is determined by trailing 0xFF bytes
+      b->u.buf[i] = 0xFF;
+    }
     if (buf != NULL) *buf = &b->u.buf[0];
     return kk_datatype_from_base(&b->_base,ctx);
   }
   else {
-    kk_bytes_normal_t b = kk_block_assert(kk_bytes_normal_t, kk_block_alloc_any(kk_ssizeof(struct kk_bytes_normal_s) - 1 /* char b[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_BYTES, ctx), KK_TAG_BYTES);
+    kk_bytes_normal_t b = (zeroinit 
+                             ? kk_block_assert(kk_bytes_normal_t, kk_block_zalloc_any(kk_ssizeof(struct kk_bytes_normal_s) - 1 /* char b[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_BYTES, ctx), KK_TAG_BYTES)
+                             : kk_block_assert(kk_bytes_normal_t, kk_block_alloc_any(kk_ssizeof(struct kk_bytes_normal_s) - 1 /* char b[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_BYTES, ctx), KK_TAG_BYTES));
     if (p != NULL && plen > 0) {
       kk_memcpy(&b->buf[0], p, plen);
     }
@@ -46,7 +51,7 @@ kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk
   }  
 }
 
-
+// Shrinks or enlarger the bytes to `newlen`. If enlarged, the extra bytes are zero-initialized.
 kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, kk_ssize_t newlen, kk_context_t* ctx) {
   if (newlen<=0) {
     kk_bytes_drop(b, ctx);
@@ -77,9 +82,8 @@ kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, kk_ssize_t newlen, kk_context_t*
     // full copy
     kk_assert_internal(newlen > len);
     uint8_t* t;
-    kk_bytes_t tb = kk_bytes_alloc_buf(newlen, &t, ctx);
+    kk_bytes_t tb = kk_bytes_zalloc_buf(newlen, &t, ctx);
     kk_memcpy( t, s, len );
-    kk_memset(t + len, 0, newlen - len);
     kk_bytes_drop(b, ctx);
     return tb;
   }

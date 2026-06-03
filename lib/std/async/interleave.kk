@@ -93,6 +93,10 @@ fun list/interleave-list(xs : list<() -> <async|e> a>, needall : bool ) : <async
   with strand-list(needall)
   interleave-strand-list(xs,needall)  
 
+// Interleave ordered over a producer where the next producer result is interleaved with the current result.
+fun interleave-lockstep( f : () -> <async|e> a, g : a -> <async|e> () ) : <async,ndet,div|e> ()
+  with strand-actions(True)
+  interleave-strand-lockstep(True,f,g)
 
 // -------------------------------------------------------
 // Strands
@@ -233,6 +237,25 @@ fun interleave-strand-compose(needall : bool, f : () -> <async|e> a, g : a -> <a
           with mask<strands,ndet,div> in (i,g(x))
           loop()
       loop()
+
+// Interleave _dynamically_ over an asynchronous producer function `f` with an asynchronous consumer function `g`.
+// Results are indexed and produced in-order where the next `f` request is interleaved with `g` (on the current result)
+fun interleave-strand-lockstep(needall : bool, f : () -> <async|e> a, g : a -> <async|e> b, max-interleave : int = 1000 ) : <async,ndet,div,strands<(int,b)>|e> ()
+  var interleave-count := 0
+  var index := 0
+  interleave-strands-ex(needall) fn(interleave)    
+    interleave
+      fun loop(x)
+        val i = index
+        index := i + 1
+        interleave 
+          with finally
+            interleave-count := interleave-count - 1
+          with mask<strands,ndet,div> in (i,g(x))
+        val y = with mask<strands,ndet,div> in f()
+        loop(y)
+      val x = with mask<strands,ndet,div> in f()
+      loop(x)      
       
 
 // -------------------------------------------------------

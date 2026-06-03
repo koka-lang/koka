@@ -81,6 +81,12 @@ pub fun emit( ch : channel<a>, value : a ) : async ()
   async-ioc
     emit-io(ch,value)
 
+// Emit a value asynchronously into a channel such that the
+// current strand continues immediately
+pub fun schedule-emit( ch : channel<a>, value : a ) : async ()
+  async-schedule-ioc
+    emit-io(ch,value)    
+
 fun trace-channel( msg : string, ch : channel<a> ) : <async,ndet> ()
   async-ioc
     trace-channel-io( msg, ch )

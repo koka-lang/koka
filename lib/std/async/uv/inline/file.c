@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 // #define __EMSCRIPTEN__
-// #include "../../../../../kklib/include/kklib.h"
+// #include <kklib.h>
 // #include "core.h"
 
 #include <fcntl.h>
@@ -64,3 +64,23 @@ kk_std_core_exn__error kk_uv_fd_close(kk_uv_loop_t loop, kk_ssize_t fhandle, kk_
   return kk_result_uv_req_dispose0((uv_req_t*)req,ctx);
 } 
 
+static void kk_uv_fd_read_callback( uv_fs_t* req ) {
+  kk_uv_req_callback((uv_req_t*)req, &kk_uv_fs_result_call);
+}
+
+kk_std_core_exn__error kk_uv_fd_read(kk_uv_loop_t loop, kk_ssize_t fd, kk_bytes_t buf, int64_t offset, kk_function_t cb, kk_context_t* ctx) {
+  uv_fs_t* req; 
+  int err = kk_uv_req_create(sizeof(uv_fs_t), cb, (uv_req_t**)&req, ctx );
+  if (err!=0) return kk_error_from_uv_errno(err,ctx);
+  // bytes to uv_buf_t
+  kk_ssize_t len = 0;
+  const uint8_t* base = kk_bytes_buf_borrow(buf,&len,ctx);
+  uv_buf_t bufs[1];
+  bufs[0] = uv_buf_init((char*)base,kk_to_size_t(len));
+  // and read
+  err = uv_fs_read(kk_uv_loop(loop,ctx), req, fd, bufs, 1, offset, &kk_uv_fd_read_callback);
+  kk_assert(kk_block_refcount(kk_datatype_as_ptr(buf,ctx)) > 0);
+  kk_bytes_drop(buf,ctx); // .. we must hold a reference in the callback as it must stay alive during the async read!
+  if (err!=0) { kk_uv_req_free((uv_req_t*)req,ctx); return kk_error_from_uv_errno(err,ctx); }
+  return kk_result_uv_req_dispose0((uv_req_t*)req,ctx);
+}

@@ -90,17 +90,35 @@ static inline kk_bytes_t kk_bytes_dup(kk_bytes_t b, kk_context_t* ctx) {
 // Allocate `len` bytes.
 // If (p /= NULL) then initialize with at most `min(len,plen)` bytes from `p`, which must point to at least `plen` valid bytes.
 // Adds a terminating zero at the end. Return the raw buffer pointer in `buf` if non-NULL
-kk_decl_export kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_alloc_len_zero(bool zeroinit, kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
 kk_decl_export kk_bytes_t kk_bytes_adjust_length(kk_bytes_t p, kk_ssize_t newlen, kk_context_t* ctx);
+
+static inline kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx) {
+  return kk_bytes_alloc_len_zero(false,len,plen,p,buf,ctx);
+}
+
+static inline kk_bytes_t kk_bytes_zalloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx) {
+  return kk_bytes_alloc_len_zero(true,len,plen,p,buf,ctx);
+}
 
 // allocate uninitialized bytes
 static inline kk_bytes_t kk_bytes_alloc_buf(kk_ssize_t len, uint8_t** buf, kk_context_t* ctx) {
   return kk_bytes_alloc_len(len, 0, NULL, buf, ctx);
 }
 
+// allocate initialized zero bytes
+static inline kk_bytes_t kk_bytes_zalloc_buf(kk_ssize_t len, uint8_t** buf, kk_context_t* ctx) {
+  return kk_bytes_zalloc_len(len, 0, NULL, buf, ctx);
+}
+
 // allocate uninitialized chars
 static inline kk_bytes_t kk_bytes_alloc_cbuf(kk_ssize_t len, char** buf, kk_context_t* ctx) {
   return kk_bytes_alloc_len(len, 0, NULL, (uint8_t**)buf, ctx);
+}
+
+// allocate initialized 0 chars
+static inline kk_bytes_t kk_bytes_zalloc_cbuf(kk_ssize_t len, char** buf, kk_context_t* ctx) {
+  return kk_bytes_zalloc_len(len, 0, NULL, (uint8_t**)buf, ctx);
 }
 
 

@@ -25,7 +25,7 @@ pub value struct bslice
 
 // Create a byte slice from bytes
 pub fun slice(b: bytes): bslice
-  val len = b.length.int
+  val len = b.length
   Bslice(b, 0, len, len)
 
 extern external/bytes(b: bslice): bytes
@@ -119,7 +119,7 @@ pub fun @index( ^b : bslice, i : int ) : exn int8
 
 // Assigns the bytes starting at offset `i` to `new-value`, throws if there is not enough space or the index is invalid
 pub fun assign( b : bytes, i : int, new-value : bslice ) : exn bytes
-  val l = b.length.int
+  val l = b.length
   val size = new-value.len
   if i < 0 || i > l then 
     throw("index out of bounds", ExnRange)

@@ -13,10 +13,14 @@
 */
 module async/file
 
+import std/core/undiv
 import std/num/int32
+import std/num/int64
 import std/os/path
 import async/uv/file
 import async/async
+import async/channel
+import async/interleave
 
 pub type filemode
   // Open for reading, fails if the file does not exist ("r")
@@ -38,16 +42,61 @@ fun filemode/flags( fmode : filemode ) : int32
             ReadWrite -> 3
   fd-flags-from-filemode(m.int32)
 
-pub fun file-open( fpath : path, fmode : filemode ) : <exn,async> fd
+pub fun fd-open( fpath : path, fmode : filemode ) : <exn,async> fd
   with try-exn-prepend(fpath.show)
-  Fd(await("file-open", fn(evloop,resume) fd-open-setup(evloop,fpath.string,fmode.flags,0x666.int32,resume)))
+  Fd(await("fd-open", fn(evloop,resume) fd-open-setup(evloop,fpath.string,fmode.flags,0x666.int32,resume)))
   
-pub fun file-close( Fd(fd) : fd ) : <exn,async> ()
-  await("file-close", fn(evloop,resume) uv/file/fd-close(evloop,fd,resume))
+pub fun fd-close( Fd(fd) : fd ) : <exn,async> ()
+  await("fd-close", fn(evloop,resume) uv/file/fd-close(evloop,fd,resume))
   ()
 
+pub fun fd-read( Fd(fd) : fd, recommended-len : int = 64*1024 ) : <exn,async> bytes
+  val len = if (recommended-len < 0 || recommended-len > 64*1024) then 64*1024 else recommended-len
+  if (len==0) then empty else
+    val buf = unsafe-bytes(len)  
+    val read = await("fd-read", fn(evloop,resume) uv/file/fd-read(evloop,fd,buf,(-1).int64,resume))
+    buf.adjust-length(read.int)  // note: we must refer to `buf` here to keep it alive during the async operation!
+
+pub fun fd-read-all( fd : fd, recommended-len : int = 64*1024 ) : <exn,async> bytes
+  fun read-all(())
+    val bs = fd-read(fd,recommended-len)
+    if bs.is-empty
+      then []
+      else Cons(bs,read-all(pretend-decreasing(())))  // a file cannot be infinite so no divergence
+  read-all(()).join
+
+pub fun fd-read-to-channel( fd : fd, ch : channel<bytes>, recommended-len : int = 64*1024 ) : <exn,async> ()
+  fun read-all(())
+    val bs = fd-read(fd,recommended-len)
+    val eof = bs.is-empty
+    ch.schedule-emit(bs)     
+    if eof
+      then () 
+      else read-all(pretend-decreasing(()))  // a file cannot be infinite so no divergence
+  read-all(())
+
 pub fun test()
-  val fd = file-open("readme.md".path, Read)
+  val fd = fd-open("readme.md".path, Read)
   println("opened")
-  file-close(fd)
+  val bs = fd-read-all(fd,16)
+  println("read: " ++ bs.string)
+  fd-close(fd)
   println("done")
+
+pub fun test-channel()
+  val ch = channel()
+  interleaved {
+    val fd = fd-open("readme.md".path, Read)
+    with finally 
+      fd-close(fd)
+    println("opened")
+    fd-read-to-channel(fd,ch,16)
+    println("done")  
+  } {
+    fun recv()
+      val bs = ch.receive
+      println("recv: " ++ bs.length.show ++ ": " ++ bs.string)
+      recv()
+    recv() 
+  }
+  println("program done.")
