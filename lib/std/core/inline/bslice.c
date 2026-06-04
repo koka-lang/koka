@@ -1,3 +1,5 @@
+/*
+// todo: we don't want to pass a Bslice to C code; assigning generally is something we'd like to avoid
 kk_bytes_t kk_bslice_assign( kk_bytes_t bytes, kk_ssize_t i, struct kk_std_core_bslice_Bslice bslice, kk_context_t* ctx ){
   kk_ssize_t len;
   const uint8_t* bslice_buf = kk_bytes_buf_borrow(bslice.backing_bytes, &len, ctx);
@@ -32,3 +34,4 @@ kk_bytes_t kk_bslice_bytes(struct kk_std_core_bslice_Bslice bslice, kk_context_t
   kk_std_core_bslice__bslice_drop(bslice, ctx); // TODO: Optimize if getting full slice, or shortening the slice from the beginning
   return bytes;
 }
+*/

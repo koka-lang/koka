@@ -250,6 +250,10 @@ pub fip fun min( i : int, j : int ) : int
 pub fip fun max( i : int, j : int ) : int
   if i >= j then i else j
 
+// Clamp an integer `i` such that `lo <= i <= hi`.
+pub fip fun clamp( i : int, lo : int, hi : int ) : int
+  i.max(lo).min(hi)
+
 // Transform an integer to a maybe type, using `Nothing` for `0`
 pub fun maybe( i : int ) : maybe<int>
   if i==0 then Nothing else Just(i)

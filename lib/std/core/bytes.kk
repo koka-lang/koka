@@ -52,6 +52,9 @@ extern prim-join(bss: vector<bytes> ) : bytes
   c  "kk_bytes_join"
   js "kk_bytes_join"
 
+extern prim-slice(bs : bytes, start : ssize_t, len : ssize_t ) : bytes
+  c  "kk_bytes_slice"
+  js inline "#1.slice(#2,#3)"
 
 // Get's the byte at the offset `i`, without checking the offset is valid
 pub extern unsafe-index( ^b : bytes, i : ssize_t ) : int8
@@ -95,13 +98,39 @@ pub fun list/join(bss : list<bytes> ) : bytes
 pub fun adjust-length( bs : bytes, newlen : int ) : bytes
   prim-adjust-length(bs,newlen.ssize_t)
   
-
-// Converts an array of bytes to a string.
+// Copy a range of `len` bytes starting at `start`.
+// If `len < 0`, it copies all bytes from `start` to the end (`bs.length - start`).
+pub fun slice( bs : bytes, start : int = 0, len : int = -1 ) : bytes
+  val total = bs.length
+  if start >= total then return empty
+  val ofs   = if start < 0 then 0 else start
+  val count = if len < 0 || ofs + len > total then total - ofs else len
+  if count <= 0 then return empty
+  prim-slice(bs,ofs.ssize_t,count.ssize_t)
+  
+// Converts bytes to a string.
 pub extern string( bytes : bytes ) : string
   c  "kk_string_convert_from_qutf8"
   js "kk_string_from_bytes"
 
-// Gets a view of a string as raw bytes
+// Converts bytes to a vector
+extern prim-vector-slice( bytes : bytes, start : ssize_t, len : ssize_t ) : vector<int>
+  c  "kk_bytes_vector_slice"
+  
+// Convert a range of bytes to vector of integers.
+pub fun vector-slice( bytes : bytes, start : int = 0, len : int = -1 ) : vector<int>
+  val total = bytes.length
+  if start >= total then return empty()
+  val ofs   = max(0,start)
+  val count = if len < 0 || ofs + len > total then total - ofs else len
+  if count <= 0 then empty()
+                else prim-vector-slice(bytes,ofs.ssize_t,count.ssize_t)
+
+// Convert a vector of integers to bytes (by clamping between -128 and 127)
+pub extern vector/bytes( v : vector<int> ) : bytes
+  c  "kk_bytes_from_vector"  
+
+// Convert a string to a sequence of utf-8 encoded bytes
 pub extern string/bytes( s : string ) : bytes
   c  inline "#1.bytes"
   js inline "(new TextEncoder()).encode(#1)"

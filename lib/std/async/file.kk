@@ -57,6 +57,7 @@ pub fun fd-read( Fd(fd) : fd, recommended-len : int = 64*1024 ) : <exn,async> by
     val read = await("fd-read", fn(evloop,resume) uv/file/fd-read(evloop,fd,buf,(-1).int64,resume))
     buf.adjust-length(read.int)  // note: we must refer to `buf` here to keep it alive during the async operation!
 
+// Read the full contents of a file handle.
 pub fun fd-read-all( fd : fd, recommended-len : int = 64*1024 ) : <exn,async> bytes
   fun read-all(())
     val bs = fd-read(fd,recommended-len)
@@ -65,17 +66,40 @@ pub fun fd-read-all( fd : fd, recommended-len : int = 64*1024 ) : <exn,async> by
       else Cons(bs,read-all(pretend-decreasing(())))  // a file cannot be infinite so no divergence
   read-all(()).join
 
+// Read the full contents of a file handles as a string.
+pub fun fd-read-all-text( fd : fd, recommended-len : int = 64*1024 ) : <exn,async> string
+  fd-read-all(fd,recommended-len).string
+
+
+// Read the contents of a file handle to a channel in chunks of `recommended-len` (=64 KiB) when possible.
+// Note: do not convert byte chunks to a string directly since the may start/end with a partial
+// utf-8 sequence -- use `fd-read-text-to-channel` instead in such case.
 pub fun fd-read-to-channel( fd : fd, ch : channel<bytes>, recommended-len : int = 64*1024 ) : <exn,async> ()
-  fun read-all(())
-    val bs = fd-read(fd,recommended-len)
+  fun emit-all(())
+    val bs  = fd-read(fd,recommended-len)
     val eof = bs.is-empty
-    ch.schedule-emit(bs)     
+    ch.schedule-emit(bs)     // continue directly with the next read request
     if eof
       then () 
-      else read-all(pretend-decreasing(()))  // a file cannot be infinite so no divergence
-  read-all(())
+      else emit-all(pretend-decreasing(()))  // a file cannot be infinite so no divergence
+  emit-all(())
 
-pub fun test()
+// Read the contents of a file handle to a channel as a string fragments.
+// Correctly handles partial utf-8 sequences.
+pub fun fd-read-text-to-channel( fd : fd, ch : channel<string>, recommended-len : int = 64*1024 ) : <exn,async> ()
+  fun emit-all( previous-post : bytes ) : _ ()
+      val bs  = fd-read(fd,recommended-len)
+      val eof = bs.is-empty
+      if eof then 
+        if !previous-post.is-empty() then ch.schedule-emit(previous-post.string)
+        ch.schedule-emit("") 
+      else 
+        val (full,post) = bs.partial-string(previous-post)
+        if !full.is-empty() then ch.schedule-emit(full)
+        emit-all( pretend-decreasing(post) )
+  emit-all(empty)
+  
+fun test-read()
   val fd = fd-open("readme.md".path, Read)
   println("opened")
   val bs = fd-read-all(fd,16)
@@ -83,19 +107,19 @@ pub fun test()
   fd-close(fd)
   println("done")
 
-pub fun test-channel()
+fun test-channel()
   val ch = channel()
   interleaved {
     val fd = fd-open("readme.md".path, Read)
     with finally 
       fd-close(fd)
     println("opened")
-    fd-read-to-channel(fd,ch,16)
+    fd-read-text-to-channel(fd,ch,16)
     println("done")  
   } {
     fun recv()
-      val bs = ch.receive
-      println("recv: " ++ bs.length.show ++ ": " ++ bs.string)
+      val s = ch.receive
+      println("recv: " ++ s.count.show ++ ": " ++ s)
       recv()
     recv() 
   }

@@ -128,6 +128,107 @@ int kk_bytes_cmp(kk_bytes_t b1, kk_bytes_t b2, kk_context_t* ctx) {
 }
 
 
+kk_bytes_t kk_bytes_slice(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx) {
+  kk_ssize_t blen;
+  const uint8_t* p = kk_bytes_buf_borrow(b,&blen,ctx);
+  if (start == 0 && blen == len) return b;
+  
+  if (start < 0)     start = 0;
+  if (start > blen)  start = blen;
+  if (len > blen)    len = blen;
+  if (len < 0 || start > blen - len) len = blen - start;
+  if (len == 0 || start >= blen) {
+    kk_bytes_drop(b,ctx);
+    return kk_bytes_empty();
+  }
+  else if (start == 0) {
+    return kk_bytes_adjust_length(b,len,ctx);
+  }
+  else {
+    kk_bytes_t slice = kk_bytes_alloc_dupn(len, p + start, ctx);
+    kk_bytes_drop(b,ctx);
+    return slice;
+  }
+}
+
+kk_vector_t kk_bytes_vector_slice(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx) {
+  kk_ssize_t blen;
+  const uint8_t* p = kk_bytes_buf_borrow(b,&blen,ctx);
+  
+  if (start < 0)    start = 0;
+  if (start > blen) start = blen;
+  if (len > blen)   len = blen;
+  if (len < 0 || start > blen - len) len = blen - start;
+  if (len == 0 || start >= blen) {
+    kk_bytes_drop(b,ctx);
+    return kk_vector_empty();
+  }
+  else {
+    kk_box_t* bs;
+    kk_vector_t v = kk_vector_alloc_uninit(len, &bs, ctx);
+    for (kk_ssize_t i = 0; i < len; i++) {
+      bs[i] = kk_integer_box(kk_integer_from_small(p[i]), ctx);      
+    }
+    kk_bytes_drop(b, ctx);
+    return v;
+  }  
+}
+
+kk_bytes_t kk_bytes_from_vector(kk_vector_t v, kk_context_t* ctx) {
+  kk_ssize_t len; 
+  kk_box_t* vb = kk_vector_buf_borrow(v,&len,ctx);
+  if (len<=0) {
+    kk_vector_drop(v,ctx);
+    return kk_vector_empty();
+  }
+  else {
+    uint8_t* buf;
+    kk_bytes_t b = kk_bytes_alloc_buf(len,&buf,ctx);
+    for (kk_ssize_t i = 0; i < len; i++) {
+      buf[i] = kk_integer_clamp_int8(kk_integer_unbox(vb[i],ctx),ctx);      
+    }
+    kk_vector_drop(v,ctx);
+    return b;
+  }
+}
+
+// Return the number of utf-8 follower bytes at the start (upto 3)
+kk_ssize_t kk_bytes_utf8_partial_pre_borrow(kk_bytes_t b, kk_context_t* ctx) {
+  kk_ssize_t blen;
+  const uint8_t* p = kk_bytes_buf_borrow(b,&blen,ctx);
+  kk_ssize_t i = 0;
+  while(i < 3 && i < blen && (p[i] & 0xC0) == 0x80) { i++; }
+  return i;
+}
+
+// Return the number bytes at the end that make up an unfinished utf8 encoding (upto 3)
+kk_ssize_t kk_bytes_utf8_partial_post_borrow(kk_bytes_t bs, kk_context_t* ctx) {
+  kk_ssize_t blen;
+  const uint8_t* p = kk_bytes_buf_borrow(bs,&blen,ctx);
+  // skip up to 3 follower bytes
+  kk_ssize_t i = 0;
+  while(i < 3 && i < blen && (p[blen - i - 1] & 0xC0) == 0x80) { i++; }
+  if (i>=blen) {
+    return 0; // all follower bytes (caught by _pre)
+  }
+  else {
+    const uint8_t b = p[blen - i - 1];    
+    if ((b & 0xC0) == 0x80) {
+      return 0;  // all follower bytes .. illegal (so encode as raw for qutf8)
+    }
+    else if (i < 3 && ((b & 0xF8) == 0xF0)) {
+      return i+1;
+    }
+    else if (i < 2 && ((b & 0xF0) == 0xE0)) {
+      return i+1;
+    }
+    else if (i < 1 && ((b & 0xD0) == 0xC0)) {
+      return i+1;
+    }
+    else return 0;  // illegal sequence (so encode as raw for qutf8)
+  }
+}
+
 /*--------------------------------------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------------------------------------*/

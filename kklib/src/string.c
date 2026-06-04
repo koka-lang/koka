@@ -402,6 +402,27 @@ kk_string_t kk_string_convert_from_qutf8(kk_bytes_t str, kk_context_t* ctx) {
   }
 }
 
+kk_string_t kk_string_convert_from_qutf8_slice(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx) {
+  kk_ssize_t blen;
+  const char* const s = kk_bytes_cbuf_borrow(b, &blen, ctx);
+  if (start < 0)     start = 0;
+  if (start >= blen) start = blen;
+  if (len > blen)    len = blen;
+  if (len < 0 || start > blen - len) len = blen - start;
+  if (len == 0 || start >= blen) {
+    kk_bytes_drop(b,ctx);
+    return kk_string_empty();
+  }
+  else if (start==0 && len==blen) {
+    return kk_string_convert_from_qutf8(b,ctx);
+  }  
+  else {
+    kk_string_t tstr = kk_qutf8_convert(len, s + start, true, ctx);
+    kk_bytes_drop(b,ctx);
+    return tstr;
+  }
+}
+
 
 const char* kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx) {
   // to avoid allocation, we first check if none of the characters are in the raw range.

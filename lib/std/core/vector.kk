@@ -69,11 +69,14 @@ extern vector-alloc-total(n : ssize_t, f : ssize_t -> a) : vector<a>
   js inline "_vector_initf(#1,#2)"
 
 // Create an empty vector.
-pub inline extern unit/vector : forall<a> () -> vector<a>
-  c inline "kk_vector_empty()"
+extern prim-empty() : vector<a>
+  c  inline "kk_vector_empty()"
   cs inline "new ##1[0]"
   js inline "[]"
 
+// Create an empty vector
+pub fun empty() : vector<a> 
+  prim-empty()
 
 // Return the element at position `index`  in vector `v`.
 // Raise an out of bounds exception if `index < 0`  or `index >= v.length`.
