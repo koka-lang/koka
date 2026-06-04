@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2024, Tim Whiting.
+  Copyright 2024-2026, Tim Whiting, Microsoft Research, Daan Leijen
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -7,6 +7,8 @@
 ---------------------------------------------------------------------------*/
 
 // Byte slices
+//
+// Todo: add iteration (foreach, prev, next etc)
 module std/core/bslice
 
 import std/core/debug
@@ -50,7 +52,7 @@ pub fun last( b : bytes, n : int = 1 ) : bslice
 
 // Get the bytes referenced by the slice
 pub fun bytes( Bslice(b,start,len) : bslice ) : bytes
-  b.slice( start, len )
+  b.subbytes( start, len )
 
 // If the slice is not empty,
 // return the first byte, and a new slice that is advanced by 1.
@@ -111,49 +113,11 @@ pub fun after( Bslice(b,start,len) : bslice ) : bslice
   Bslice(b, newstart, newlen)
 
 // Get's the byte at the offset `i`
-pub fun @index( ^(Bslice(b,start,len)) : bslice, i : int ) : exn int8
+pub fun @index( ^(Bslice(b,start,len)) : bslice, i : int ) : exn int
   if i < 0 || i >= len then throw("index out of bounds", ExnRange)
-  b.unsafe-index((start + i).ssize_t)
+  b.unsafe-index((start + i).ssize_t).int
 
 
-extern utf8-partial-pre( ^b : bytes ) : ssize_t
-  c "kk_bytes_utf8_partial_pre_borrow"
-
-extern utf8-partial-post( ^b : bytes ) : ssize_t
-  c "kk_bytes_utf8_partial_post_borrow"
-
-fun partial-strings( b : bytes, previous-post : bytes = empty ) : (list<string>,bytes)
-  val pre-len  = utf8-partial-pre(b).int
-  val post-len = utf8-partial-post(b).int
-  val mid-len  = max(0,b.length - pre-len - post-len)
-  val partial  = if pre-len == 0 then previous-post else previous-post ++ b.first(pre-len).bytes
-  if (mid-len == 0 && post-len == 0) 
-    then ([],partial)
-    else ( (if partial.is-empty() then [] else [partial.string]) ++ [Bslice(b,pre-len,mid-len).string]
-         , b.last(post-len).bytes )
-
-pub fun partial-string( b : bytes, previous-post : bytes = empty ) : (string,bytes)
-  val (parts,post) = b.partial-strings(previous-post)
-  (parts.join,post)
-
-extern bytes/string-slice( b : bytes, start : ssize_t, len : ssize_t ) : string
-  c "kk_string_convert_from_qutf8_slice"
-
-pub fun bslice/string( Bslice(b,start,len) : bslice ) : string
-  string-slice(b,start.ssize_t,len.ssize_t)
-  
-
-// Join a list of utf-8 bytes into a string.
-// Ensure that utf-8 sequences that are split over different bytes
-// are handled correctly.
-pub fun bytes/string( bytess : list<bytes> ) : string
-  tail fun collect( previous-post : bytes, bs : list<bytes> ) : list<list<string>>
-    match bs 
-      Nil -> [[previous-post.string]]
-      Cons(b,bb) ->
-        val (part,post) = b.partial-strings(previous-post)
-        Cons(part,collect(post,bb))
-  collect(bytes/empty,bytess).concat.join
 
 /*
 // Assigns the bytes starting at offset `i` to `new-value`, throws if there is not enough space or the index is invalid

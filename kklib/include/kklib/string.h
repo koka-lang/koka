@@ -500,5 +500,7 @@ kk_decl_export kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_conte
 kk_decl_export kk_string_t kk_double_show_exp(double d, int32_t prec, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_double_show(double d, int32_t prec, kk_context_t* ctx);
 
+kk_decl_export kk_ssize_t  kk_bytes_utf8_partial_pre_borrow(kk_bytes_t b, kk_context_t* ctx);
+kk_decl_export kk_ssize_t  kk_bytes_utf8_partial_post_borrow(kk_bytes_t b, kk_context_t* ctx);
 
 #endif // include guard

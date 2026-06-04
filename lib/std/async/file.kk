@@ -72,6 +72,7 @@ pub fun fd-read-all-text( fd : fd, recommended-len : int = 64*1024 ) : <exn,asyn
 
 
 // Read the contents of a file handle to a channel in chunks of `recommended-len` (=64 KiB) when possible.
+// Emits a final empty `:bytes` on end-of-file.
 // Note: do not convert byte chunks to a string directly since the may start/end with a partial
 // utf-8 sequence -- use `fd-read-text-to-channel` instead in such case.
 pub fun fd-read-to-channel( fd : fd, ch : channel<bytes>, recommended-len : int = 64*1024 ) : <exn,async> ()
@@ -84,7 +85,8 @@ pub fun fd-read-to-channel( fd : fd, ch : channel<bytes>, recommended-len : int 
       else emit-all(pretend-decreasing(()))  // a file cannot be infinite so no divergence
   emit-all(())
 
-// Read the contents of a file handle to a channel as a string fragments.
+// Read the contents of a file handle to a channel as string fragments (of about the `recommended-len` (=64 KiB)).
+// Emits a final empty string on end-of-file.
 // Correctly handles partial utf-8 sequences.
 pub fun fd-read-text-to-channel( fd : fd, ch : channel<string>, recommended-len : int = 64*1024 ) : <exn,async> ()
   fun emit-all( previous-post : bytes ) : _ ()
@@ -96,7 +98,7 @@ pub fun fd-read-text-to-channel( fd : fd, ch : channel<string>, recommended-len 
       else 
         val (full,post) = bs.partial-string(previous-post)
         if !full.is-empty() then ch.schedule-emit(full)
-        emit-all( pretend-decreasing(post) )
+        emit-all( pretend-decreasing(post) )                // a file cannot be infinite so no divergence
   emit-all(empty)
   
 fun test-read()

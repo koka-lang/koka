@@ -293,11 +293,9 @@ kk_decl_export bool    kk_bytes_contains(kk_bytes_t str, kk_bytes_t sub, kk_cont
 kk_decl_export kk_bytes_t  kk_bytes_join(kk_vector_t v, kk_context_t* ctx);
 kk_decl_export kk_bytes_t  kk_bytes_join_with(kk_vector_t v, kk_bytes_t sep, kk_context_t* ctx);
 
-kk_decl_export kk_bytes_t  kk_bytes_slice(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx);
+kk_decl_export kk_bytes_t  kk_bytes_subbytes(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_bytes_vector_slice(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx);
 kk_decl_export kk_bytes_t  kk_bytes_from_vector(kk_vector_t v, kk_context_t* ctx);
 
-kk_decl_export kk_ssize_t  kk_bytes_utf8_partial_pre_borrow(kk_bytes_t b, kk_context_t* ctx);
-kk_decl_export kk_ssize_t  kk_bytes_utf8_partial_post_borrow(kk_bytes_t b, kk_context_t* ctx);
 
 #endif // KK_BYTES_H

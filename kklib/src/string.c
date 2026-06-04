@@ -682,6 +682,49 @@ kk_string_t kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* c
 
 
 /*--------------------------------------------------------------------------------------------------
+   Utf8 utility
+--------------------------------------------------------------------------------------------------*/
+
+// Return the number of utf-8 continuation bytes at the start (up to 3 bytes)
+kk_ssize_t kk_bytes_utf8_partial_pre_borrow(kk_bytes_t b, kk_context_t* ctx) {
+  kk_ssize_t blen;
+  const uint8_t* p = kk_bytes_buf_borrow(b,&blen,ctx);
+  kk_ssize_t i = 0;
+  while(i < 3 && i < blen && kk_utf8_is_cont(p[i])) { i++; }
+  return i;
+}
+
+// Return the number bytes at the end that make up an unfinished utf8 encoding (up to 3 bytes)
+kk_ssize_t kk_bytes_utf8_partial_post_borrow(kk_bytes_t bs, kk_context_t* ctx) {
+  kk_ssize_t blen;
+  const uint8_t* p = kk_bytes_buf_borrow(bs,&blen,ctx);
+  kk_ssize_t i = 1;
+  while(i <= 3 && i <= blen) {
+    const uint8_t b = p[blen - i];
+    if (kk_utf8_is_cont(b)) {
+      i++;
+    }
+    else {
+      // start of utf8 sequence
+      if ((b & 0xF8) == 0xF0) {  // 4 byte sequence && i <= 3
+        return i;
+      }
+      else if (i<=2 && ((b & 0xF0) == 0xE0)) {  // 3 byte sequence && i <= 2
+        return i;
+      }
+      else if (i<=1 && ((b & 0xD0) == 0xC0)) {  // 2 byte sequence && i == 1
+        return i;
+      }
+      else {
+        return 0;  // full sequence or invalid utf8
+      }
+    }
+  }
+  return 0; // all continuation bytes (caught by _pre)
+}
+
+
+/*--------------------------------------------------------------------------------------------------
  String utilities
 --------------------------------------------------------------------------------------------------*/
 

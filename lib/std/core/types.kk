@@ -101,7 +101,7 @@ pub value type float32
 // See `module std/core/vector` for vector operations.
 pub type vector<a>
 
-// A raw wrapper around a uint8 character array.
+// An immutable sequence of bytes. See `module std/core/bytes` and `module std/core/bslice` for operations.
 pub type bytes
 
 // An any type. Used for external calls.
