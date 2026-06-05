@@ -167,7 +167,7 @@ kk_vector_t kk_bytes_subvector(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, k
     kk_box_t* bs;
     kk_vector_t v = kk_vector_alloc_uninit(len, &bs, ctx);
     for (kk_ssize_t i = 0; i < len; i++) {
-      bs[i] = kk_integer_box(kk_integer_from_byte(p[i]), ctx);      
+      bs[i] = kk_integer_box(kk_integer_from_byte(p[i],ctx), ctx);      
     }
     kk_bytes_drop(b, ctx);
     return v;
