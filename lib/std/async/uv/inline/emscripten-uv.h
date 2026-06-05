@@ -5,6 +5,24 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
+
+//-------------------------------------------------------------------------
+// For portability, we plan to have a mini-wrapper of the libuv api
+// for wasmweb (emscripten) where we emulate the things that have an easy
+// counterpart in the web. 
+// This enables a single C code base that can assume the libuv api and
+// that should work (at least) across Windows, Unix, macOS, and emscripten.
+//
+// At the moment:
+// Supported:
+//   - timers
+// Not supported: (but maybe we can do something?)
+//   - files: fs: open/close/read/write
+// Will never be supported:
+//   - ?
+//
+// This is a bit risky, we don't want this to become a project in itself.
+//-------------------------------------------------------------------------
 #ifdef __EMSCRIPTEN__
 
 #include <emscripten.h>

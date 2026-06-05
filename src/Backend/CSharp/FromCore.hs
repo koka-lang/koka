@@ -1393,6 +1393,8 @@ ppTypeCon ctx c kind
          then text "int"  -- we need to represent as int since Char in C# is only defined as a UTF16 point
         else if (name == nameTpInt8)
          then text "byte" -- sbyte is not CLS compliant
+        else if (name == nameTpByte)
+         then text "byte" -- sbyte is not CLS compliant
         else if (name == nameTpInt16)
          then text "Int16"
         else if (name == nameTpInt64 || name == nameTpSSizeT || name == nameTpIntPtrT)

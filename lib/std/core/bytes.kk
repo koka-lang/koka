@@ -106,12 +106,14 @@ pub fun subbytes( bs : bytes, start : int = 0, len : int = -1 ) : bytes
 
 
 
-// Converts bytes to a vector
+// Converts bytes to a vector.
+// Individual bytes are interpreted as `:uint8`
 extern prim-subvector( bytes : bytes, start : ssize_t, len : ssize_t ) : vector<int>
   c  "kk_bytes_subvector"
   js "kk_bytes_subvector"
   
 // Convert a range of bytes to vector of integers.
+// Individual bytes are interpreted as `:uint8`
 pub fun subvector( bytes : bytes, start : int = 0, len : int = -1 ) : vector<int>
   val total = bytes.length
   if start >= total then return empty()
@@ -120,7 +122,7 @@ pub fun subvector( bytes : bytes, start : int = 0, len : int = -1 ) : vector<int
   if count <= 0 then empty()
                 else prim-subvector(bytes,ofs.ssize_t,count.ssize_t)
 
-// Convert a vector of integers to bytes (by clamping between -128 and 127)
+// Convert a vector of integers to bytes (by clamping between 0 and 255)
 pub extern vector/bytes( v : vector<int> ) : bytes
   c  "kk_bytes_from_vector"  
   js "kk_bytes_from_vector"
@@ -132,12 +134,12 @@ pub extern string/bytes( s : string ) : bytes
 
 
 // Get's the byte at the offset `i`, without checking the offset is valid
-pub extern unsafe-index( ^b : bytes, i : ssize_t ) : int8
+pub extern unsafe-index( ^b : bytes, i : ssize_t ) : uint8
   c  "kk_bytes_at"
   js inline "#1[#2]"
 
-// Assigns the byte at offset `i` to `new-value`. Does not check the bounds!
-pub extern unsafe-assign( b : bytes, i : ssize_t, new-value : int8 ) : bytes
+// Assigns the byte at offset `i` to `value`. Does not check the bounds!
+pub extern unsafe-assign( b : bytes, i : ssize_t, value : uint8 ) : bytes
   c  "kk_bytes_set"
   js "kk_bytes_assign"
 
@@ -146,10 +148,10 @@ pub fun @index( ^b : bytes, i : int): exn int
   if i < 0 || i >= b.length then throw("index out of bounds", ExnRange)
   b.unsafe-index(i.ssize_t).int
 
-// Assign a (clamped) byte `new-byte` at index `i`. Throws on out-of-bound.
-pub fun assign( bs : bytes, i : int, new-byte : int ) : exn bytes
+// Assign a (clamped) byte `value` at index `i`. Throws on out-of-bound.
+pub fun assign( bs : bytes, i : int, value : int ) : exn bytes
   if i < 0 || i >= bs.length then throw("index out of bounds", ExnRange)
-  bs.unsafe-assign(i.ssize_t,new-byte.int8)
+  bs.unsafe-assign(i.ssize_t,value.uint8)
 
 
 

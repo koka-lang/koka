@@ -597,7 +597,7 @@ getBoxForm' platform newtypes tp
            case extractDataDefType tp of
              Just name
                | name `elem` [nameTpInt, nameTpFieldAddr] ||
-                 ((name `elem` [nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
+                 ((name `elem` [nameTpByte, nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
                  ((name `elem` [nameTpChar, nameTpInt32, nameTpMarker, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`

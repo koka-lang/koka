@@ -68,6 +68,10 @@ pub type string
 // Provides no operations and used only for storage and interaction with external code.
 pub value type int8
 
+// A byte as a 8-bit unsigned integer (represented in two's complement).
+// Provides no operations and used only for storage and interaction with external code.
+pub value type uint8
+
 // A 16-bit signed integer (represented in two's complement).
 // Provides no operations and used only for storage and interaction with external code.
 pub value type int16
@@ -102,6 +106,7 @@ pub value type float32
 pub type vector<a>
 
 // An immutable sequence of bytes. See `module std/core/bytes` and `module std/core/bslice` for operations.
+// Individual bytes are interpreted as `:uint8`.
 pub type bytes
 
 // An any type. Used for external calls.

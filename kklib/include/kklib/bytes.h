@@ -175,9 +175,9 @@ static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, kk_ssize_t* l
   return (const char*)kk_bytes_buf_borrow(b, len, ctx);
 }
 
-static inline int8_t kk_bytes_at(kk_bytes_t p, uint64_t i, kk_context_t* ctx){
+static inline uint8_t kk_bytes_at(kk_bytes_t p, kk_ssize_t i, kk_context_t* ctx){
   const uint8_t* buf = kk_bytes_buf_borrow(p, NULL, ctx);
-  return (int8_t)buf[i];
+  return buf[i];
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -213,15 +213,15 @@ static inline kk_bytes_t kk_bytes_copy(kk_bytes_t b, kk_context_t* ctx) {
   }
 }
 
-static inline kk_bytes_t kk_bytes_set(kk_bytes_t bytes, uint64_t i, int8_t b, kk_context_t* ctx){
+static inline kk_bytes_t kk_bytes_set(kk_bytes_t bytes, kk_ssize_t i, uint8_t b, kk_context_t* ctx){
   if (kk_datatype_ptr_is_unique(bytes, ctx)) {
     uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(bytes, NULL, ctx);
-    buf[i] = (uint8_t)b;
+    buf[i] = b;
     return bytes;
   } else {
     kk_bytes_t bytes_new = kk_bytes_copy(bytes, ctx);
     uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(bytes_new, NULL, ctx);
-    buf[i] = (uint8_t)b;
+    buf[i] = b;
     return bytes_new;
   }
 }

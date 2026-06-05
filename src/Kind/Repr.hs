@@ -129,7 +129,7 @@ createDataDef emitError emitWarning lookupDataInfo
                                then 4
                               else if (name == nameTpFloat || name == nameTpInt64)
                                then 8
-                              else if (name == nameTpInt8)
+                              else if (name == nameTpInt8 || name == nameTpByte)
                                then 1
                               else if (name == nameTpInt16 || name == nameTpFloat16)
                                then 2

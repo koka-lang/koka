@@ -1371,8 +1371,8 @@ cTypeCon c
          then CPrim "kk_unit_t"
         else if (name == nameTpInt64)
          then CPrim "int64_t"
-        -- else if (name == nameTpByte)
-        --  then CPrim "uint8_t"
+        else if (name == nameTpByte)
+         then CPrim "uint8_t"
         else if (name == nameTpInt8)
          then CPrim "int8_t"
         else if (name == nameTpInt16)

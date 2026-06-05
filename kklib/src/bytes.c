@@ -167,7 +167,7 @@ kk_vector_t kk_bytes_subvector(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, k
     kk_box_t* bs;
     kk_vector_t v = kk_vector_alloc_uninit(len, &bs, ctx);
     for (kk_ssize_t i = 0; i < len; i++) {
-      bs[i] = kk_integer_box(kk_integer_from_small(p[i]), ctx);      
+      bs[i] = kk_integer_box(kk_integer_from_byte(p[i]), ctx);      
     }
     kk_bytes_drop(b, ctx);
     return v;
@@ -185,7 +185,7 @@ kk_bytes_t kk_bytes_from_vector(kk_vector_t v, kk_context_t* ctx) {
     uint8_t* buf;
     kk_bytes_t b = kk_bytes_alloc_buf(len,&buf,ctx);
     for (kk_ssize_t i = 0; i < len; i++) {
-      buf[i] = kk_integer_clamp_int8(kk_integer_unbox(vb[i],ctx),ctx);      
+      buf[i] = kk_integer_clamp_byte(kk_integer_unbox(vb[i],ctx),ctx);      
     }
     kk_vector_drop(v,ctx);
     return b;
