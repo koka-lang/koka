@@ -151,7 +151,7 @@ kk_bytes_t kk_bytes_subbytes(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_
   }
 }
 
-kk_vector_t kk_bytes_vector_slice(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx) {
+kk_vector_t kk_bytes_subvector(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx) {
   kk_ssize_t blen;
   const uint8_t* p = kk_bytes_buf_borrow(b,&blen,ctx);
   

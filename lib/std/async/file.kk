@@ -42,23 +42,23 @@ fun filemode/flags( fmode : filemode ) : int32
             ReadWrite -> 3
   fd-flags-from-filemode(m.int32)
 
-pub fun fd-open( fpath : path, fmode : filemode ) : <exn,async> fd
+pub fun fd-open( fpath : path, fmode : filemode ) : <exn,fsys,async> fd
   with try-exn-prepend(fpath.show)
   Fd(await("fd-open", fn(evloop,resume) fd-open-setup(evloop,fpath.string,fmode.flags,0x666.int32,resume)))
   
-pub fun fd-close( Fd(fd) : fd ) : <exn,async> ()
-  await("fd-close", fn(evloop,resume) uv/file/fd-close(evloop,fd,resume))
+pub fun fd-close( Fd(fd) : fd ) : <exn,fsys,async> ()
+  await("fd-close", fn(evloop,resume) fd-close-setup(evloop,fd,resume))
   ()
 
-pub fun fd-read( Fd(fd) : fd, recommended-len : int = 64*1024 ) : <exn,async> bytes
+pub fun fd-read( Fd(fd) : fd, recommended-len : int = 64*1024 ) : <exn,ndet,async> bytes
   val len = if (recommended-len < 0 || recommended-len > 64*1024) then 64*1024 else recommended-len
   if (len==0) then empty else
     val buf = unsafe-bytes(len)  
-    val read = await("fd-read", fn(evloop,resume) uv/file/fd-read(evloop,fd,buf,(-1).int64,resume))
+    val read = await("fd-read", fn(evloop,resume) fd-read-setup(evloop,fd,buf,(-1).int64,resume))
     buf.adjust-length(read.int)  // note: we must refer to `buf` here to keep it alive during the async operation!
 
 // Read the full contents of a file handle.
-pub fun fd-read-all( fd : fd, recommended-len : int = 64*1024 ) : <exn,async> bytes
+pub fun fd-read-all( fd : fd, recommended-len : int = 64*1024 ) : <exn,ndet,async> bytes
   fun read-all(())
     val bs = fd-read(fd,recommended-len)
     if bs.is-empty
@@ -67,7 +67,7 @@ pub fun fd-read-all( fd : fd, recommended-len : int = 64*1024 ) : <exn,async> by
   read-all(()).join
 
 // Read the full contents of a file handles as a string.
-pub fun fd-read-all-text( fd : fd, recommended-len : int = 64*1024 ) : <exn,async> string
+pub fun fd-read-all-text( fd : fd, recommended-len : int = 64*1024 ) : <exn,ndet,async> string
   fd-read-all(fd,recommended-len).string
 
 
@@ -75,7 +75,7 @@ pub fun fd-read-all-text( fd : fd, recommended-len : int = 64*1024 ) : <exn,asyn
 // Emits a final empty `:bytes` on end-of-file.
 // Note: do not convert byte chunks to a string directly since the may start/end with a partial
 // utf-8 sequence -- use `fd-read-text-to-channel` instead in such case.
-pub fun fd-read-to-channel( fd : fd, ch : channel<bytes>, recommended-len : int = 64*1024 ) : <exn,async> ()
+pub fun fd-read-to-channel( fd : fd, ch : channel<bytes>, recommended-len : int = 64*1024 ) : <exn,ndet,async> ()
   fun emit-all(())
     val bs  = fd-read(fd,recommended-len)
     val eof = bs.is-empty
@@ -88,7 +88,7 @@ pub fun fd-read-to-channel( fd : fd, ch : channel<bytes>, recommended-len : int 
 // Read the contents of a file handle to a channel as string fragments (of about the `recommended-len` (=64 KiB)).
 // Emits a final empty string on end-of-file.
 // Correctly handles partial utf-8 sequences.
-pub fun fd-read-text-to-channel( fd : fd, ch : channel<string>, recommended-len : int = 64*1024 ) : <exn,async> ()
+pub fun fd-read-text-to-channel( fd : fd, ch : channel<string>, recommended-len : int = 64*1024 ) : <exn,ndet,async> ()
   fun emit-all( previous-post : bytes ) : _ ()
       val bs  = fd-read(fd,recommended-len)
       val eof = bs.is-empty

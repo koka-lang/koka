@@ -30,7 +30,7 @@ pub val empty : bytes = prim-empty()
 // Allocate a new zero initialized array of `n` bytes.
 extern prim-bytes( n : ssize_t ) : bytes
   c  inline "kk_bytes_zalloc_buf(#1, NULL, kk_context())"
-  js inline "new Uint8Array(#1).fill(0)"
+  js inline "new Uint8Array(#1).fill(0)" 
 
 // Allocate a array of `n` uninitialized bytes.
 extern prim-unsafe-bytes( n : ssize_t ) : bytes
@@ -67,9 +67,9 @@ extern prim-adjust-length(b: bytes, len: ssize_t): bytes
 
 extern prim-append(b1: bytes, b2: bytes): bytes
   c  "kk_bytes_cat"
-  js "kk_bytes_cat"
+  js "kk_bytes_cat"  
 
-extern prim-join(bss: vector<bytes> ) : bytes
+extern prim-join(bss : vector<bytes> ) : bytes
   c  "kk_bytes_join"
   js "kk_bytes_join"
 
@@ -107,8 +107,9 @@ pub fun subbytes( bs : bytes, start : int = 0, len : int = -1 ) : bytes
 
 
 // Converts bytes to a vector
-extern prim-vector-slice( bytes : bytes, start : ssize_t, len : ssize_t ) : vector<int>
-  c  "kk_bytes_vector_slice"
+extern prim-subvector( bytes : bytes, start : ssize_t, len : ssize_t ) : vector<int>
+  c  "kk_bytes_subvector"
+  js "kk_bytes_subvector"
   
 // Convert a range of bytes to vector of integers.
 pub fun subvector( bytes : bytes, start : int = 0, len : int = -1 ) : vector<int>
@@ -117,11 +118,12 @@ pub fun subvector( bytes : bytes, start : int = 0, len : int = -1 ) : vector<int
   val ofs   = max(0,start)
   val count = if len < 0 || ofs + len > total then total - ofs else len
   if count <= 0 then empty()
-                else prim-vector-slice(bytes,ofs.ssize_t,count.ssize_t)
+                else prim-subvector(bytes,ofs.ssize_t,count.ssize_t)
 
 // Convert a vector of integers to bytes (by clamping between -128 and 127)
 pub extern vector/bytes( v : vector<int> ) : bytes
   c  "kk_bytes_from_vector"  
+  js "kk_bytes_from_vector"
 
 // Convert a string to a sequence of utf-8 encoded bytes
 pub extern string/bytes( s : string ) : bytes
@@ -159,7 +161,8 @@ pub extern string( bytes : bytes ) : string
 
 
 extern prim-substring( b : bytes, start : ssize_t, len : ssize_t ) : string
-  c "kk_string_convert_from_qutf8_slice"
+  c  "kk_string_convert_from_qutf8_slice"
+  js "kk_bytes_substring"
 
 // Return a range of utf-8 encoded bytes as qutf-8
 pub fun substring( b : bytes, start : int = 0, len : int = -1 ) : string
@@ -170,11 +173,13 @@ pub fun substring( b : bytes, start : int = 0, len : int = -1 ) : string
 
 // Return initial `n<=3` utf-8 continuation bytes (`>=0x80`)
 extern utf8-partial-pre( ^b : bytes ) : ssize_t
-  c "kk_bytes_utf8_partial_pre_borrow"
+  c  "kk_bytes_utf8_partial_pre_borrow"
+  js "kk_bytes_utf8_partial_pre"
 
-// Return final `n<=3` bytes for an incomplete utf-8 code point encoding.
+// Return final `n<=3` bytes for an incomplete utf-8 code point encoding. 
 extern utf8-partial-post( ^b : bytes ) : ssize_t
-  c "kk_bytes_utf8_partial_post_borrow"
+  c  "kk_bytes_utf8_partial_post_borrow"
+  js "kk_bytes_utf8_partial_post"
 
 fun partial-strings( b : bytes, previous-post : bytes = empty ) : (list<string>,bytes)
   val pre-len  = utf8-partial-pre(b).int
