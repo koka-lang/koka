@@ -170,9 +170,31 @@ static int uv_handle_init(uv_loop_t* loop, uv_handle_t* h) {
   return 0;
 }
 
+//----------------------------------------------
+// Requests
+//----------------------------------------------
 
-// ----------------------------------------------
-// timer
+void uv_fs_req_cleanup(uv_fs_t* req) {
+  return;
+}
+
+void uv_cancel(uv_req_t* req) {
+  return;
+}
+
+//----------------------------------------------
+// Buffers
+//----------------------------------------------
+
+uv_buf_t uv_buf_init(char* p, size_t len) {
+  uv_buf_t buf = { p, len };
+  return buf;
+}
+
+
+//----------------------------------------------
+// Timer
+//----------------------------------------------
 
 int uv_timer_init(uv_loop_t* loop, uv_timer_t* t) {
   return uv_handle_init(loop,(uv_handle_t*)t);
@@ -219,5 +241,20 @@ int uv_timer_stop(uv_timer_t* t) {
   return 0;
 }
 
+// --------------------------------------------------
+// Unsupported operations (for now?)
+// --------------------------------------------------
+
+int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
+  return UV_ENOSYS;
+}
+
+int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb) {
+  return UV_ENOSYS;
+}
+
+int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file, const uv_buf_t bufs[], unsigned int nbufs, int64_t offset, uv_fs_cb cb) {
+  return UV_ENOSYS;
+}
 
 #endif

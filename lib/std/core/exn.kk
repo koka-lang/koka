@@ -97,4 +97,3 @@ pub fun try-exn-map( f : exception -> exception, action : () -> <exn|e> a) : <ex
   with override final ctl throw-exn(exn)
     f(exn).throw-exn
   action()
-

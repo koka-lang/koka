@@ -32,7 +32,10 @@ pub type filemode
   // Open for reading and writing; truncates an existing file, or creates the file if it does not yet exist ("w+")
   ReadWrite
 
-abstract struct fd( fd : ssize_t )
+abstract struct fd( fd : ssize_t, fpath : path )
+
+pub fun fd/show( Fd(fd,fpath) : fd ) : string
+  fpath.show ++ "(=" ++ fd.int.show ++ ")"
 
 fun filemode/flags( fmode : filemode ) : int32
   val m = match fmode
@@ -43,14 +46,15 @@ fun filemode/flags( fmode : filemode ) : int32
   fd-flags-from-filemode(m.int32)
 
 pub fun fd-open( fpath : path, fmode : filemode ) : <exn,fsys,async> fd
-  with try-exn-prepend(fpath.show)
-  Fd(await("fd-open", fn(evloop,resume) fd-open-setup(evloop,fpath.string,fmode.flags,0x666.int32,resume)))
+  with try-exn-prepend("open " ++ fpath.show)
+  Fd(await("fd-open", fn(evloop,resume) fd-open-setup(evloop,fpath.string,fmode.flags,0x666.int32,resume)),fpath)
   
 pub fun fd-close( Fd(fd) : fd ) : <exn,fsys,async> ()
   await("fd-close", fn(evloop,resume) fd-close-setup(evloop,fd,resume))
   ()
 
-pub fun fd-read( Fd(fd) : fd, recommended-len : int = 64*1024 ) : <exn,ndet,async> bytes
+pub fun fd-read( Fd(fd,fpath) : fd, recommended-len : int = 64*1024 ) : <exn,ndet,async> bytes
+  with try-exn-prepend("read " ++ fpath.show)
   val len = if (recommended-len < 0 || recommended-len > 64*1024) then 64*1024 else recommended-len
   if (len==0) then empty else
     val buf = unsafe-bytes(len)  

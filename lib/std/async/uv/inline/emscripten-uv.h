@@ -134,7 +134,7 @@
 #endif
 
 typedef enum {
-  UV_ERRNO_MIN = 1000,
+  UV_ERRNO_MIN = -1000,
   #define XX(code,_msg) UV_##code, /* = UV__ERR(code), */
   UV_ERRNO_MAP(XX)
   #undef XX
@@ -287,6 +287,7 @@ struct uv_req_s {
   UV_REQ_FIELDS
 };
 
+void uv_cancel(uv_req_t* req);
 
 // -----------------------------------
 // timer
@@ -312,6 +313,30 @@ static inline int uv_check_stop(uv_check_t* h) { return uv_timer_stop(h); }
 // --------------------------
 // fs
 // --------------------------
+
+typedef struct uv_buf_s {
+  char* base;
+  size_t len;
+} uv_buf_t;
+
+uv_buf_t uv_buf_init( char* p, size_t len );
+
+typedef ssize_t uv_file;
+
+typedef enum {
+  UV_CLOCK_MONOTONIC,
+  UV_CLOCK_REALTIME
+} uv_clock_id;
+
+typedef struct {
+  long tv_sec;
+  long tv_nsec;
+} uv_timespec_t;
+
+typedef struct {
+  int64_t tv_sec;
+  int32_t tv_nsec;
+} uv_timespec64_t;
 
 typedef struct {
   long tv_sec;
