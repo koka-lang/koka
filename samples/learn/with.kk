@@ -86,7 +86,6 @@ pub fun example3-expanded()
   })
 
 
-
 /* To make a `with` statement more convenient with handlers
    we can leave out the `handler` keyword.
    ````

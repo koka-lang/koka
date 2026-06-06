@@ -19,7 +19,7 @@ fun character/myshow( x : char ) : string
   show(x)
 
 fun bool/myshow( x : bool ) : string
-  show(x)
+  if x then "True" else "False"
 
 // we can now write explicitly:
 fun test1()
@@ -59,15 +59,18 @@ fun wrong/poly(x)
 // (i.e. they are resolved by name at the call site, essentially a form of dynamic binding)
 
 // Write a function that needs a _base_ parameter:
-fun natshow( x : int, ?base : int ) : div string
+fun show-int( x : int, ?base : int ) : div string
   if x > base
-    then natshow( x / base ) ++ natshow( x % base )
+    then show-int( x / base ) ++ show-digit( x % base )
     else show-digit(x)
 
 fun test3()
   val base = 16
-  natshow(42)    // is elaborated to `natshow(42,base)` where `base` becomes the last parameter
+  show-int(42)    // is elaborated to `show-int(42,base)` where `base` becomes the last parameter
 
+// val base = 16 in show-int(42)
+// ~>
+// val base = 16 in show-int(42,base)
 
 
 
@@ -81,7 +84,7 @@ fun test3()
 
 fun list/myshow( xs : list<a>, ?myshow : a -> string ) : string
   match xs
-    Cons(x,xx) -> myshow(x) ++ "::" ++ myshow(xx)
+    Cons(x,xx) -> myshow(x) ++ "::" ++ list/myshow(xx)
     Nil        -> "[]"
 
 fun test4()
@@ -89,16 +92,24 @@ fun test4()
 
 
 
-
-
-
-
-
-
-
-
-
 fun test4a()
+  myshow( [1,2] )
+  
+  // // 1. Qualify based on the type context `list<int> -> _a`
+  // //    elaborates to: 
+  // list/myshow( [1,2] )
+  
+  // // 2. Add the implicit parameter for `list/myshow : (list<a>, ?show:a->string) -> string`
+  // //    elaborates to: 
+  // list/myshow( [1,2], myshow )
+  
+  // // 3. Qualify the (now explicit) argument `myshow` with type context `int`
+  // //    elaborates to: 
+  // list/myshow( [1,2], int/myshow )
+
+
+
+fun test4d()
   myshow( [1,2] )
   // 1. Qualify based on the type context `list<int> -> _a`
   //    elaborates to: `list/myshow([1,2])`
@@ -110,15 +121,31 @@ fun test4a()
   //    elaborates to: `list/myshow([1,2],int/myshow)`
   // done.
 
+fun wrong/maybe-myshow( mb : maybe<a>) : string
+  match mb
+    Nothing -> "Nothing"
+    Just(x) -> "Just(" ++ myshow(x) ++ ")"
+
 
 
 fun test4b()
   myshow(['a','b'])
 
 fun test4c()
+  myshow([[1],[2,3]])
+
+  /*
+  // qualify based on the list type (list<list<int>>)
   list/myshow([[1],[2,3]])
-
-
+  // add the implicit argument for list/myshow
+  list/myshow( [[1],[2,3]], myshow)
+  // again: qualify based on the list element (list<int>)
+  list/myshow( [[1],[2,3]], list/myshow)
+  // again: add the implicit argument for list/myshow
+  list/myshow( [[1],[2,3]], fn(xs) list/myshow(xs,myshow) )
+  // again: qualify based on the list element (int)
+  list/myshow( [[1],[2,3]], fn(xs) list/myshow(xs,int/myshow) )
+  */
 
 // or with tuples
 fun tuple/myshow( (x,y) : (a,b), ?fst/myshow : a -> string, ?snd/myshow : b -> string ) : string
@@ -130,7 +157,9 @@ fun tuple/myshowx( (x,y), ?fst/myshow, ?snd/myshow )
 
 fun test5a()
   tuple/myshow( (1,'a'), myshow, myshow )
-
+  // elaborates to:
+  // tuple/myshow( (1,'a'), int/myshow, char/myshow )
+  
 
 fun test5()
   myshow([(1,['a']),(2,['b'])])

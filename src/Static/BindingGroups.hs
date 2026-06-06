@@ -392,11 +392,15 @@ group defs deps
                                              pre ++ (idgrp : post)
 
         -- create a definition group from a list of mutual recursive identifiers.
-        makeGroup ids  = case ids of
-                           [id] -> if S.member id (M.find id defDeps)
-                                    then [DefRec (M.find id defMap)]
-                                    else map DefNonRec (M.find id defMap)
-                           _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
+        -- split out `wrong/...` id's always into separate groups (as these usually contain errors)
+        makeGroup ids0 = let (wids,gids) = partition (isInWrongNameSpace) ids0
+                         in concatMap (\wid -> group [wid]) wids ++ group gids
+                       where
+                         group ids = case ids of
+                                      [id] -> if S.member id (M.find id defDeps)
+                                              then [DefRec (M.find id defMap)]
+                                              else map DefNonRec (M.find id defMap)
+                                      _    ->  [DefRec [def | id <- ids, def <- M.find id defMap]]
         finalGroup     = concatMap makeGroup defOrder
     in --trace ("groups:\n"
        --  ++ unlines [show (defName def) ++ ": line " ++ show (posLine (rangeStart (defRange def))) ++ ": " ++ show defdeps | (def,defdeps) <- defDepsList]
