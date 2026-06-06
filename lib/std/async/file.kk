@@ -162,13 +162,15 @@ fun test-channel()
   interleaved {
     with fd = fd-open("readme.md".path, Read)
     println("opened")
-    fd-read-text-to-channel(fd,ch,16)
-    println("done")  
+    fd-read-to-channel(fd,ch,16)
+    println("done reading")      
   } {
     fun recv()
-      val s = ch.receive
-      println("recv: " ++ s.count.show ++ ": " ++ s)
-      recv()
+      val bs = ch.receive
+      println("recv: " ++ bs.show )
+      // println("recv: " ++ s.count.show ++ ": " ++ s)
+      if !bs.is-empty then recv()
     recv() 
+    println("done receiving")
   }
   println("program done.")

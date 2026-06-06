@@ -186,11 +186,10 @@ void kk_uv_handle_close(uv_handle_t* h) {
     // drop the callback function right away
     // if a handle is disposed, uv might still schedule the callback; setting it to NULL prevents the callback still being called
     kk_context_t* ctx = kk_get_context();
-    kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(h->data),ctx);
+    kk_function_drop( kk_datatype_from_ptr((kk_ptr_t)(h->data),ctx), ctx );
     h->data = NULL;
-    kk_function_drop(cb,ctx);
   }
-  uv_close(h, &kk_uv_handle_close_cb);
+  uv_close(h, &kk_uv_handle_close_cb);  // if uv_close is called, any in-progress request is called with UV_ECANCELED (<https://docs.libuv.org/en/v1.x/handle.html>)
 }
 
 void kk_uv_handle_dispose(uv_handle_t* handle, void* arg, kk_context_t* ctx) {
@@ -229,12 +228,13 @@ int kk_uv_req_create( size_t sz, kk_function_t cb, uv_req_t** preq, kk_context_t
 }
 
 void kk_uv_req_free(uv_req_t* req, kk_context_t* ctx) {
-  if (req && req->data != NULL) {
+  if (req == NULL) return;
+  if (req->data != NULL) {
     // drop the callback (just in case, should have been set NULL already in req_close/callback)
     kk_datatype_drop( kk_datatype_from_ptr((kk_ptr_t)(req->data),ctx), ctx );
     req->data = NULL;
   }
-  if (req && req->type == UV_FS) {
+  if (req->type == UV_FS) {
     uv_fs_req_cleanup((uv_fs_t*)req);
   }
   kk_free(req,ctx);
@@ -248,22 +248,26 @@ void kk_uv_req_close(uv_req_t* req) {
   if (req==NULL) return;
   kk_context_t* ctx = kk_get_context();    
   if (req->data != NULL) {
-    // drop the callback function right away
-    // if a req is disposed, uv might still schedule the callback; setting it to NULL prevents the callback still being called
-    kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(req->data),ctx);
+    // drop the callback
+    kk_datatype_drop( kk_datatype_from_ptr((kk_ptr_t)(req->data),ctx), ctx );
     req->data = NULL;
-    kk_function_drop(cb,ctx);
   }
   kk_uv_req_free(req,ctx);
   // uv_async_call(req->loop, (void*)req, &kk_uv_req_close_cb, 0);  // todo: can we call this right away?
 }
 
+// This is the Koka dispose functions called on cancelation
 void kk_uv_req_dispose(uv_req_t* req, void* arg, kk_context_t* ctx) {
   kk_unused(arg);
-  kk_unused(ctx);
   if (req==NULL) return;
+  if (req->data != NULL) {
+    // drop the callback so it will never be called
+    kk_datatype_drop( kk_datatype_from_ptr((kk_ptr_t)(req->data),ctx), ctx );
+    req->data = NULL;
+  }
   uv_cancel(req);
-  kk_uv_req_close(req);
+  // if cancel succeeds, the request uv callback is called later with UV_ECANCELED (and closes the request)
+  // if it fails, the uv callback will also be called (or has been called) (which closes/closed the request)
 }
 
 void kk_uv_req_callback(uv_req_t* req, kk_uv_req_call_fun_t* call ) {

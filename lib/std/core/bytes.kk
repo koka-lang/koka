@@ -13,6 +13,7 @@ import std/core/types
 import std/core/exn
 import std/core/bool
 import std/core/int
+import std/core/show
 import std/core/vector
 import std/core/string
 import std/core/list
@@ -121,6 +122,22 @@ pub fun subvector( bytes : bytes, start : int = 0, len : int = -1 ) : vector<int
   val count = if len < 0 || ofs + len > total then total - ofs else len
   if count <= 0 then empty()
                 else prim-subvector(bytes,ofs.ssize_t,count.ssize_t)
+
+// Convert bytes to vector of integers (between 0 and 255).
+pub fun vector( bytes : bytes ) : vector<int>
+  bytes.subvector()
+
+// Convert bytes to a list of integers (between 0 and 255).
+pub fun list( bytes : bytes ) : list<int>
+  bytes.vector.list
+
+// Iterate through the bytes
+pub fun foreach( bytes : bytes, f : (int) -> e () )  : e ()
+  bytes.vector.foreach(f)
+
+// Show bytes as a hexadecimal sequence.
+pub fun show( bytes : bytes ) : string
+  "[" ++ bytes.vector.map( fn(i) i.show-hex(2,pre="") ).join(" ") ++ "]"
 
 // Convert a vector of integers to bytes (by clamping between 0 and 255)
 pub extern vector/bytes( v : vector<int> ) : bytes
