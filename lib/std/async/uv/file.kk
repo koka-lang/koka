@@ -9,7 +9,7 @@ module uv/file
 
 import std/num/int32
 import std/num/int64
-import uv/core
+import uv/evloop
 
 extern import
   c  file "inline/file.c"

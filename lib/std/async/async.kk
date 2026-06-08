@@ -55,10 +55,13 @@ import std/core/undiv
 import std/core/unsafe
 import std/num/float64
 import std/time/duration
-
-import async/uv/core
-import async/uv/timer
 import async/internal
+
+import async/evloop {
+  [host=libc|wasmweb|jsnode] async/uv/evloop
+  [host=jsweb]               async/web/evloop
+}
+
 
 pub effect discontinue  
   // Internal: The current strand of execution is canceled

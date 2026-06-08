@@ -81,7 +81,7 @@ pmodule unique0 srcName
        keyword "interface"
        (name,_)<- modulepath
        many semiColon
-       braced (do (imps,impAliases) <- fmap unzip $ semis importDecl
+       braced (do (imps,impAliases) <- unzip <$> catMaybes <$> semis importDecl
                   let impMap = foldr (\(asname,name) imp -> case importsExtend asname name imp of { Just imp' -> imp'; Nothing -> imp }) importsEmpty impAliases
 
                   externImports <- semis externImportDecl
@@ -141,15 +141,15 @@ vispub
 {--------------------------------------------------------------------------
   Top Declarations
 --------------------------------------------------------------------------}
-importDecl :: HasCallStack => LexParser (Import,(Name,Name))
+importDecl :: HasCallStack => LexParser (Maybe (Import,(Name,Name)))
 importDecl
   = do (vis,doc) <- try $ do vis <- vispub
                              (_,doc) <- dockeyword "import"
                              return (vis,doc)
-       (asname,name,_,_) <- importAlias
+       mbalias <- importAlias
        prov <- pimportProvenance
        pkg <- (do{ keyword "="; (s,_) <- stringLit; return s } <|> return "")
-       return (makeImport name pkg prov vis doc, (asname, name))
+       return $! fmap (\(asname,name,_,_) -> (makeImport name pkg prov vis doc, (asname, name))) mbalias
 
 pimportProvenance :: LexParser ImportProvenance
 pimportProvenance

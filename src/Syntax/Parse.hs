@@ -287,7 +287,7 @@ pimportDecls
     do many semiColon
        optional (do { lcurly; return () } <|> do { parseLex LexInsLCurly; return () })
        many semiColon
-       semis0 importDecl
+       catMaybes <$> semis0 importDecl
 
 semis0 :: LexParser a -> LexParser [a]
 semis0 p
@@ -302,10 +302,10 @@ programBody :: Visibility -> Source -> Name -> Range -> String -> LexParser User
 programBody vis source modName nameRange doc
   = do many semiColon
        (imports, fixDefss, topDefss)
-          <- braced (do imps <- semis importDecl
-                        fixs <- semis fixDecl
+          <- braced (do mbimps <- semis importDecl
+                        fixs  <- semis fixDecl
                         tdefs <- semis (topdef vis)
-                        return (imps,fixs,tdefs))
+                        return (catMaybes mbimps,fixs,tdefs))
        many semiColon
        let (defs,typeDefs,externals) = splitTopDefs (concat topDefss)
        return (Program source modName nameRange [TypeDefRec typeDefs] [DefRec defs]
@@ -369,24 +369,34 @@ topdef vis
 {---------------------------------------------------------------
   Import declaration
 ---------------------------------------------------------------}
-importDecl :: LexParser Import
+importDecl :: LexParser (Maybe Import)
 importDecl
   = do (vis,vrng,rng0,open) <- try $ do (vis,vrng) <- visibility Private
                                         isOpen <- do { specialId "@open"; return True } <|> return False
                                         rng0  <- keyword "import"
                                         return (vis,vrng,rng0,isOpen)
-       (asname,name,asrng,namerng) <- importAlias
-       return (Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis open)
+       mbalias <- importAlias
+       return (fmap (\(asname,name,asrng,namerng) -> Import asname name asrng namerng (combineRanges [vrng,rng0,namerng]) vis open) mbalias)
 
-importAlias :: LexParser (Name,Name,Range,Range)
+importAlias :: LexParser (Maybe (Name,Name,Range,Range))
 importAlias
   = do (name1,rng1) <- modulepath
        (do keyword "="
            (name2,rng2) <- modulepath
-           return (name1,name2,rng1,rng2)
-        <|> return (name1,name1,rng1,rng1))
+           return (Just (name1,name2,rng1,rng2))
+        <|> 
+        do mbentry <- firstof <$> semiBraces importConditional
+           case mbentry of
+             Nothing -> do pwarningMessage ("unsupported target in conditional import " ++ show name1) rng1
+                           return Nothing
+             Just (name2,rng2) -> return (Just (name1,name2,rng1,rng2))
+        <|> return (Just (name1,name1,rng1,rng1)) )
 
-
+importConditional :: LexParser (Maybe (Name,Range))
+importConditional 
+  = do matches <- targetGuard
+       namerng <- modulepath
+       return $! if matches then Just namerng else Nothing
 
 visibility :: Visibility -> LexParser (Visibility,Range)
 visibility vis
@@ -445,18 +455,26 @@ externDecl dvis
                          genParArgs tp -- checks the type
                          return (map lift pars,pinfos,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
                  mbBody <- externalBody
-                 case mbBody of
-                   Nothing -> return []
-                   Just (expr,rng) -> 
-                    if (inline == InlineAlways)
-                      then return [DefExtern (External name tp pinfos nameRng (combineRanges [krng,rng]) expr vis fip doc)]
-                      else do let externName = newHiddenExternalName name
-                                  fullRng    = combineRanges [krng,rng]
-                                  extern     = External externName tp pinfos (before nameRng) (before fullRng) expr Private fip doc
-                                  body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) True fullRng)
-                                  binder     = ValueBinder name () body nameRng fullRng
-                                  extfun     = Def binder fullRng vis (defFunEx pinfos fip) InlineNever doc
-                              return [DefExtern extern, DefValue extfun]
+                 (expr,rng) <- case mbBody of
+                                  Nothing -> do pwarningMessage ("unsupported external: " ++ show name) nameRng
+                                                tpl <- getTargetPlatform
+                                                let fname = show (show name)
+                                                    expr = ExternalInline $ case tplTarget tpl of 
+                                                             JS _ -> "$std_core_types.kk_unsupported_external(" ++ fname ++ ")"
+                                                             CS   -> "Primitive.UnsupportedExternal(" ++ fname ++ ")"
+                                                             C _  -> "kk_unsupported_external(" ++ fname ++ ")"
+                                                             _    -> "kk_unsupported_external(" ++ fname ++ ")"
+                                                return (expr,nameRng)
+                                  Just res -> return res
+                 if (inline == InlineAlways)
+                  then return [DefExtern (External name tp pinfos nameRng (combineRanges [krng,rng]) expr vis fip doc)]
+                  else do let externName = newHiddenExternalName name
+                              fullRng    = combineRanges [krng,rng]
+                              extern     = External externName tp pinfos (before nameRng) (before fullRng) expr Private fip doc
+                              body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) True fullRng)
+                              binder     = ValueBinder name () body nameRng fullRng
+                              extfun     = Def binder fullRng vis (defFunEx pinfos fip) InlineNever doc
+                          return [DefExtern extern, DefValue extfun]
   where
     typeFromPars :: Range -> [ValueBinder UserType (Maybe UserExpr)] -> UserType -> UserType -> UserType
     typeFromPars rng pars teff tres
@@ -567,7 +585,6 @@ externalImport rng1
 externalBody :: LexParser (Maybe (ExternalCall,Range))
 externalBody
   = firstof <$> semiBraces externalEntry
-
 
 externalEntry :: LexParser (Maybe (ExternalCall,Range))
 externalEntry

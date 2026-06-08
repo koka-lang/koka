@@ -574,7 +574,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   targetFlag t f
     = case targetPlatformFromString t of
         Just tgt -> let tpl = targetPlatform f
-                    in f{ targetPlatform = tpl{ tplTarget = tplTarget tpl, tplPlatform = tplPlatform tpl } }
+                    in f{ targetPlatform = tpl{ tplTarget = tplTarget tgt, tplPlatform = tplPlatform tgt } }
         Nothing  -> f
 
   targetArchFlag t f
