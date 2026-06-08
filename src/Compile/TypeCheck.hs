@@ -117,7 +117,7 @@ typeCheck flags defs coreImports program0
         -- checkCoreDefs "unreturn"
         coreDefs1 <- Core.getCoreDefs
         let borrowed = borrowedExtendICore (coreProgram{ Core.coreProgDefs = coreDefs1 }) (defsBorrowed defs)
-        checkFBIP penv (platform flags) newtypes borrowed gamma
+        checkFBIP penv (platformFromFlags flags) newtypes borrowed gamma
 
         -- initial simplify
         let ndebug  = optimize flags > 0

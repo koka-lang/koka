@@ -38,6 +38,7 @@ module Common.Syntax( Visibility(..)
                     , targetPlatformDefault, targetPlatformIsDefault
                     , targetPlatformFromString, targetFromBackend, targetFromHost, platformFromString
                     , matchTargetPlatform, matchTarget, matchOS, matchArch, matchPlatform
+                    , targetPlatformIds
                     , unsupportedExternal
                     -- , targetPlatformTryMatch
                     ) where

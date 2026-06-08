@@ -753,7 +753,7 @@ copyLibIfaceToOutput flags libIfacePath ifacePath core  {- core is needed to kno
   = do let withext fname ext = notext fname ++ ext
            force = rebuild flags
        copyTextIfNewer force libIfacePath ifacePath
-       case target flags of
+       case targetFromFlags flags of
         CS    -> do copyBinaryIfNewer force (withext libIfacePath dllExtension) (withext ifacePath dllExtension)
         JS _  -> do copyTextIfNewer force (withext libIfacePath ".mjs") (withext ifacePath ".mjs")
         C _   -> do copyTextIfNewer force (withext libIfacePath ".c") (withext ifacePath ".c")
@@ -769,19 +769,19 @@ copyLibIfaceToOutput flags libIfacePath ifacePath core  {- core is needed to kno
 
 clibsFromCore :: Flags -> Core -> [String]
 clibsFromCore flags core
-  = externalImportKeyFromCore (target flags) (buildType flags) core "library"
+  = externalImportKeyFromCore (buildType flags) core "library"
 
 csyslibsFromCore :: Flags -> Core -> [String]
 csyslibsFromCore flags core
-  = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
+  = externalImportKeyFromCore (buildType flags) core "syslib"
 
 
-externalImportKeyFromCore :: Target -> BuildType -> Core.Core -> String -> [String]
-externalImportKeyFromCore target buildType core key
-  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore target core]
+externalImportKeyFromCore :: BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore buildType core key
+  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore core]
 
-externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
-externalImportsFromCore target core
+externalImportsFromCore :: Core.Core -> [[(String,String)]]
+externalImportsFromCore core
   = [imports  | Core.ExternalImport imports _ <- Core.coreProgExternals core]
 
 

@@ -629,15 +629,15 @@ messageHeader st
                            (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
-    tgt = target (flags st)
+    tgt = targetFromFlags (flags st)
     targetMsg
       = case tgt of
           C _ | isTargetWasm tgt
                 -> ", " ++ show tgt
-                    ++ show (8*sizePtr (platform (flags st)))
+                    ++ show (8*sizePtr (platformFromFlags (flags st)))
                     ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           C _   -> ", " ++ show tgt
-                    ++ " " ++ targetArch (flags st) -- show (8*sizePtr (platform (flags st))) ++ "-bit"
+                    ++ " " ++ tplArch (targetPlatformFromFlags (flags st)) -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                     ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS _  -> ", " ++ show tgt
           CS    -> ", .net"

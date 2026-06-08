@@ -94,7 +94,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
             let outCore  = outBase ++ ".kkc"
             writeDocW 10000 outCore coreDoc  -- just for debugging
 
-       when (showCore flags || (showFinalCore flags && not (isTargetC (target flags)))) $
+       when (showCore flags || (showFinalCore flags && not (isTargetC (targetFromFlags flags)))) $
          do termInfo term coreDoc
 
        -- write documentation
@@ -129,7 +129,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
               LinkExe out _
                 -> do let finalOut = outFinalPath flags
                       exe <- if (not (null finalOut))
-                                then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))
+                                then do let targetOut = ensureExt finalOut (targetExeExtension (targetFromFlags flags))
                                         when onMacOS $
                                           removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
                                         copyExeFile out targetOut
@@ -141,7 +141,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
             return (mbRun)
   where
     backend :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> FilePath -> Core.Core -> IO Link
-    backend  = case target flags of
+    backend  = case targetFromFlags flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
                  _    -> {-
@@ -255,7 +255,7 @@ codeGenJS term flags sequential entry outBase core
                               ]
             termTrace term ("generate index html: " ++ outHtml)
             writeDoc outHtml contentHtml
-            case target flags of
+            case targetFromFlags flags of
               JS JsWeb ->
                do return (\_ -> return (LinkExe outHtml (runSystemEcho term flags (dquote outHtml ++ " &"))))
               _ ->
@@ -283,7 +283,7 @@ codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential en
                             _              -> Nothing
       -- generate C
       let (cdoc,hdoc,_,bcore) = cFromCore False
-                                          (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
+                                          (buildType flags) sourceDir (prettyEnvFromFlags flags) (platformFromFlags flags)
                                           newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                           (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry
                                           (if null (outputEntryName flags) then "main" else outputEntryName flags)
@@ -342,7 +342,7 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
                       -- ++ [mainObj]
             syslibs= nub $ concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
                       ++ ccompLinkSysLibs flags
-                      ++ (if onWindows && not (isTargetWasm (target flags))
+                      ++ (if onWindows && not (isTargetWasm (targetFromFlags flags))
                             then ["bcrypt","psapi","advapi32"]
                             else ["m","pthread"])
             libs   = -- ["kklib"] -- [normalizeWith '/' (outName (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
@@ -353,10 +353,10 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
 
             libpaths = map (\lib -> outName (ccLibFile cc lib)) libs
 
-            stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (target flags)))
+            stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (targetFromFlags flags)))
                         then 8*1024*1024    -- default to 8Mb on windows and wasi
                         else stackSize flags
-            hpsize  = if (heapSize flags == 0 && isTargetWasm (target flags))
+            hpsize  = if (heapSize flags == 0 && isTargetWasm (targetFromFlags flags))
                         then 1024*1024*1024 -- default to 1Gb on wasi
                         else heapSize flags
 
@@ -400,14 +400,14 @@ codeGenLinkExe term flags stksize clink mainExe
   = do  runCommand term flags clink
 
         -- return command line to execute
-        let mainTarget = mainExe ++ targetExeExtension (target flags)
+        let mainTarget = mainExe ++ targetExeExtension (targetFromFlags flags)
         when (not (null (outFinalPath flags)) && verbose flags > 1) $
           termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                                 color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
         let mainflags = (if (showElapsed flags) then ["--kktime"] else []) ++ execOpts flags
 
         -- termInfo term $ text "flags:" <+> text (show flags) <+> text "\n"
-        case target flags of
+        case targetFromFlags flags of
           C Wasm
             -> do return (LinkExe mainTarget
                             (runCommand term flags ([wasmrun flags,mainTarget] ++ mainflags)))
@@ -550,7 +550,7 @@ conanCLibrary term flags sequential cc eimport clib pkg
                                      <-> text "         or see <" <.> clrSource (text "https://docs.conan.io/en/latest/installation.html") <.> text ">"]
          Just conanCmd | onWindows && not (any (\pre -> ccName cc `startsWith` pre) ["cl","clang-cl"])
           -> do return $ Left [text "conan can only be used with the 'cl' or 'clang-cl' compiler on Windows"]
-         Just conanCmd | isTargetWasm (target flags)
+         Just conanCmd | isTargetWasm (targetFromFlags flags)
           -> do return $ Left [text "conan can not be used with a wasm target"]
          Just conanCmd
           -> do mbPkgDir <- getPackageDir conanCmd

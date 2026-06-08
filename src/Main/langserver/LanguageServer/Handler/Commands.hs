@@ -35,7 +35,7 @@ import LanguageServer.Monad
 import LanguageServer.Conversions( filePathToUri )
 import LanguageServer.Handler.TextDocument (rebuildUri)
 
-import Compile.Options (Flags (outFinalPath), targets, commandLineHelp, processExtraOptions)
+import Compile.Options (Flags (outFinalPath), commandLineHelp, processExtraOptions)
 
 
 
