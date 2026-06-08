@@ -1,6 +1,6 @@
-module module1 {
-  import static/modA
-  import static/modB
+module static/module1 
+import static/modA
+import static/modB
 
-  pub alias ok = aint
-}
+pub alias ok = aint
+

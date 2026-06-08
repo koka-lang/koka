@@ -2,7 +2,7 @@
 // - worst-case  O(1), persistent O(1)
 // - amortized   O(1), persistent O(1)
 module queue/realtime
-import bench
+import queue/bench
 
 type stream<a>
   SNil

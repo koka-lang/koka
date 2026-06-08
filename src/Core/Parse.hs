@@ -10,6 +10,8 @@
 
 module Core.Parse( parseCore ) where
 
+import Data.Maybe(catMaybes)
+
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum)
 import Text.Parsec.Prim( getInput, setInput )
 
@@ -43,20 +45,20 @@ import Lib.Trace
 --------------------------------------------------------------------------}
 type ParseInlines = Maybe (Gamma -> Error () [InlineDef])
 
-parseCore :: HasCallStack => FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
-parseCore fname sourceName
+parseCore :: HasCallStack => TargetPlatform -> FilePath -> FilePath -> IO (Error b (Core, ParseInlines))
+parseCore tpl fname sourceName
   = let unique = (10000 :: Int)
     in do input <- readInput fname
           return $
             -- Error monad
-            do ((res,warn),lexemes) <- lexParse True {-allow @-} False  {- no semi-colon insertion -} id (program unique sourceName) fname 1 input
+            do ((res,warn),lexemes) <- lexParse True {-allow @-} False  {- no semi-colon insertion -} id (program unique sourceName) tpl fname 1 input
                return res
 
 
-parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
-parseInlines prog source env [] = Nothing
-parseInlines prog source env inlines
-  = Just (\gamma -> ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) source inlines)
+parseInlines :: Core -> TargetPlatform -> Source -> Env -> [Lexeme] -> ParseInlines
+parseInlines prog tpl source env [] = Nothing
+parseInlines prog tpl source env inlines
+  = Just (\gamma -> ignoreSyntaxWarnings $ parseLexemes (pInlines env{ gamma = gamma }) tpl source inlines)
 
 pInlines :: Env -> LexParser [InlineDef]
 pInlines env
@@ -67,9 +69,10 @@ pInlines env
 program :: Int -> FilePath -> Source -> LexParser (Core,ParseInlines)
 program unique0 srcName source
   = do many semiColon
+       tpl <- getTargetPlatform
        (prog,env,inlines) <- pmodule unique0 srcName
        eof
-       return (prog, parseInlines prog source env inlines)
+       return (prog, parseInlines prog tpl source env inlines)
 
 
 pmodule :: Int -> FilePath -> LexParser (Core,Env,[Lexeme])
@@ -346,15 +349,25 @@ externalBody :: LexParser [(TargetPlatform,String)]
 externalBody
   = do keyword "="
        call <- externalEntry
-       return [call]
+       case call of
+         Just x  -> return [x]
+         Nothing -> return []
   <|>
-    do semiBraces externalEntry
+    do mbentry <- firstof <$> semiBraces externalEntry
+       case mbentry of
+         Just x  -> return [x]
+         Nothing -> return []
+
 
 externalEntry
-  = do tpl <- targetPlatform
+  = do matches <- targetGuard            -- todo: core files should have no targetplatform guard anymore
        optional (specialId "inline")
        (s,_)  <- stringLit
-       return (tpl,s)
+       if matches
+        then do tpl <- getTargetPlatform      
+                return (Just (tpl,s))
+        else --trace ("no match in: " ++ s) $ 
+             return Nothing
 
 
 {--------------------------------------------------------------------------
@@ -364,20 +377,27 @@ externImportDecl ::  LexParser External
 externImportDecl
   = do try $ do keyword "extern"
                 keyword "import"
-       (tpl,keyvals) <- externalImportBody
+       tpl <- getTargetPlatform
+       keyvals <- externalImportBody
        return (ExternalImport keyvals tpl rangeNull)
 
-externalImportBody :: LexParser (TargetPlatform, [(String,String)])
+externalImportBody :: LexParser [(String,String)]
 externalImportBody
   = do keyword "="
-       externalImportEntry       
+       mbentry <- externalImportEntry
+       case mbentry of
+         Just keyvals -> return keyvals
+         Nothing      -> return []
   <|>
-    do semiBraced externalImportEntry
+    do mbentry <- semiBraced externalImportEntry
+       case mbentry of
+        Just keyvals -> return keyvals
+        Nothing      -> return []
   where
     externalImportEntry
-      = do tpl  <- targetPlatform
+      = do matches  <- targetGuard        -- todo: core files should have no targetplatform guard anymore
            keyvals <- semiBraces externalImportKeyVal
-           return (tpl,keyvals)
+           return $ if matches then Just keyvals else Nothing
 
     externalImportKeyVal
       = do key <- do{ (s,_) <- stringLit; return s }

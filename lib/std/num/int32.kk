@@ -98,14 +98,14 @@ pub fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre 
 
 // Are two 32-bit integers equal?
 pub inline fip extern (==)(x : int32, y : int32) : bool
-  inline "(#1 == #2)"
   js inline "(#1 === #2)"
-
+  inline "(#1 == #2)"
+  
 // Are two 32-bit integers not equal?
 pub inline fip extern (!=)(x : int32, y : int32) : bool
-  inline "(#1 != #2)"
   js inline "(#1 !== #2)"
-
+  inline "(#1 != #2)"
+  
 // Is the first 32-bit integer smaller or equal to the second?
 pub inline fip extern (<=)(x : int32, y : int32) : bool
   inline "(#1 <= #2)"
@@ -142,9 +142,9 @@ pub inline fip extern is-pos( i : int32 ) : bool
 
 // Is the 32-bit integer equal to zero?
 pub inline fip extern is-zero( i : int32 ) : bool
-  inline "0 == #1"
   js inline "0 === #1"
-
+  inline "0 == #1"
+  
 // The zero 32-bit integer.
 pub val zero = 0.int32
 
@@ -180,7 +180,7 @@ pub fip fun dec( i : int32 ) : int32
 
 // Multiply two 32-bit integers.
 pub inline fip extern (*) : (int32,int32) -> int32
-  inline "(int32_t)((uint32_t)#1 * (uint32_t)#2)" // avoid UB
+  c inline "(int32_t)((uint32_t)#1 * (uint32_t)#2)" // avoid UB
   js "$std_core_types._int32_multiply"
 
 
@@ -441,15 +441,15 @@ pub fun cmod(i:int32, j:int32) : exn int32
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
 pub inline fip extern unsafe-cdiv : (int32,int32) -> int32
-  inline "(#1 / #2)"
   js inline "((#1/#2)|0)"
-
+  c inline "(#1 / #2)"
+  
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
 pub inline fip extern unsafe-cmod : (int32,int32) -> int32
-  inline "(#1 % #2)"
   js inline "((#1 % #2)|0)"
-
+  c inline "(#1 % #2)"
+  
 
 // Convert an 32-bit integer to a float64.
 pub inline fip extern float64( i : int32) : float64

@@ -133,14 +133,14 @@ pub fun show-hex64( i : int64, width : int = 16, use-capitals : bool = True, pre
 
 // Are two 64-bit integers equal?
 pub inline fip extern (==)(x : int64, y : int64) : bool
-  inline "(#1 == #2)"
   js inline "(#1 === #2)"
-
+  c inline "(#1 == #2)"
+  
 // Are two 64-bit integers not equal?
 pub inline fip extern (!=)(x : int64, y : int64) : bool
-  inline "(#1 != #2)"
   js inline "(#1 !== #2)"
-
+  c inline "(#1 != #2)"
+  
 // Is the first 64-bit integer smaller or equal to the second?
 pub inline fip extern (<=)(x : int64, y : int64) : bool
   inline "(#1 <= #2)"
@@ -169,17 +169,17 @@ pub inline fip extern (-)(x : int64, y : int64) : int64
 
 // Is the 64-bit integer negative?
 pub inline fip extern is-neg( i : int64 ) : bool
-  inline "0 > #1"
   js inline "0n > #1"
-
+  c inline "0 > #1"
+  
 // Is the 64-bit integer positive? (i.e. larger than zero)
 pub inline fip extern is-pos( i : int64 ) : bool
-  inline "0 < #1"
+  c inline "0 < #1"
   js inline "0n < #1"
 
 // Is the 64-bit integer zero?
 pub inline fip extern is-zero( i : int64 ) : bool
-  inline "0 == #1"
+  c inline "0 == #1"
   js inline "0n === #1"
 
 // The 64-bit integer for zero.
@@ -264,7 +264,7 @@ pub fip fun (^)( x : int64, y : int64) : int64
 
 // Bitwise _not_ of an `:int64`, i.e. flips all bits.
 pub inline fip extern not : ( i : int64 ) -> int64
-  inline "~#1"
+  c inline "~#1"
   js inline "BigInt.asIntN(64, ~#1)"
 
 

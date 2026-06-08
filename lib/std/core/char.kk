@@ -22,12 +22,12 @@ import std/core/int
 
 // Are two characters equal?
 pub inline fip extern (==) : (char,char) -> bool
-  inline "(#1 == #2)"
+  c inline "(#1 == #2)"
   js inline "(#1 === #2)"
-
+  
 // Are two characters not equal?
 pub inline fip extern (!=) : (char,char) -> bool
-  inline "(#1 != #2)"
+  c inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
 // Is a character code point lower or equal to that of another?
@@ -58,14 +58,14 @@ pub fip fun order2( x : char, y : char ) : order2<char>
 
 // Convert a character to its unicode code point
 pub inline fip extern int : (char) -> int
-  inline "#1"
   c "kk_integer_from_int"
+  js inline "#1"  
   cs inline "new BigInteger(#1)"
 
 // Convert a unicode code point to a character
 pub inline fip extern int/char( i : int) : char
-  inline "(#1)"
   c "kk_integer_clamp32"
+  js inline "(#1)"  
   cs inline "Primitive.IntToInt32(#1)"
 
 // Add two character code points

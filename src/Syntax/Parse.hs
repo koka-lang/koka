@@ -20,7 +20,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
 
                    -- used by the core parser
                    , lexParse, parseLex, LexParser, parseLexemes, parseInline, ignoreSyntaxWarnings
-                   , targetPlatform
+                   , targetGuard, getTargetPlatform, firstof
 
                    , visibility, modulepath, importAlias, {- parseFip, -} parseTailFip
                    , tbinderId, funid, paramid
@@ -37,7 +37,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
 
 import Lib.Trace
 import Data.Char (toLower)
-import Data.List (intersperse,unzip4,sortBy)
+import Data.List (intersperse,unzip4,sortBy,isPrefixOf)
 import Data.Maybe (isJust,isNothing,catMaybes)
 import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
@@ -76,7 +76,10 @@ import qualified Control.Monad.State as Mon
 -- Parser on token stream
 -----------------------------------------------------------
 
-type LexParser a  = Parsec [Lexeme] [(String, Range)] a -- GenParser Lexeme () a
+type PWarnings = [(String, Range)]
+data PState = PState{ pwarnings :: PWarnings, ptargetPlatform :: TargetPlatform }
+
+type LexParser a  = Parsec [Lexeme] PState a
 
 parseLex :: Lex -> LexParser Lexeme
 parseLex lex
@@ -93,10 +96,10 @@ optional p  = do { p; return True } <|> return False
 -----------------------------------------------------------
 -- Parse varieties
 -----------------------------------------------------------
-parseProgramFromFile :: HasCallStack => Bool -> Bool -> FilePath -> IO (Error a UserProgram)
-parseProgramFromFile allowAt semiInsert fname
+parseProgramFromFile :: HasCallStack => Bool -> Bool -> TargetPlatform -> FilePath -> IO (Error a UserProgram)
+parseProgramFromFile allowAt semiInsert tpl fname
   = do input <- readInput fname
-       return (parseProgramFromString allowAt semiInsert input fname)
+       return (parseProgramFromString allowAt semiInsert input tpl fname)
 {-
        case checkError result of
           Right (a, warnings) -> do logSyntaxWarnings warnings
@@ -108,77 +111,78 @@ logSyntaxWarnings warnings
   = putPretty (prettyWarnings "" True defaultColorScheme warnings)
 -}
 
-parseProgramFromString :: Bool -> Bool -> BString -> FilePath -> Error a UserProgram
-parseProgramFromString allowAt semiInsert input fname
-  = do ((prog,lexemes), syntaxWarnings) <- lexParse allowAt semiInsert id program fname 1 input
+parseProgramFromString :: Bool -> Bool -> BString -> TargetPlatform -> FilePath -> Error a UserProgram
+parseProgramFromString allowAt semiInsert input tpl fname
+  = do ((prog,lexemes), syntaxWarnings) <- lexParse allowAt semiInsert id program tpl fname 1 input
        addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
         return prog
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error () UserDef
 parseValueDef semiInsert sourceName line input
-  = lexParseS semiInsert (const valueDefinition)  sourceName line input
+  = lexParseS semiInsert (const valueDefinition) targetPlatformDefault  sourceName line input
 
 parseTypeDef :: Bool -> FilePath -> Int -> String -> Error () (UserTypeDef,[UserDef])
 parseTypeDef semiInsert sourceName line input
-  = lexParseS semiInsert (const typeDefinition)  sourceName line input
+  = lexParseS semiInsert (const typeDefinition) targetPlatformDefault  sourceName line input
 
 parseType :: Bool -> FilePath -> Int -> Name -> String -> Error () UserTypeDef
 parseType semiInsert sourceName line name input
-  = lexParseS semiInsert (const (userType name))  sourceName line input
+  = lexParseS semiInsert (const (userType name)) targetPlatformDefault sourceName line input
 
 parseExpression :: Bool -> FilePath -> Int -> Name -> String -> Error () UserDef
 parseExpression semiInsert sourceName line name input
-  = lexParseS semiInsert (const (expression name))  sourceName line input
+  = lexParseS semiInsert (const (expression name)) targetPlatformDefault sourceName line input
 
 ignoreSyntaxWarnings :: Error b (a, [(String, Range)]) -> Error b a
 ignoreSyntaxWarnings result =
   do (x, syntaxWarnings) <- result
      return x
 
-lexParseS :: Bool -> (Source -> LexParser b) -> FilePath -> Int -> String -> Error a b
-lexParseS semiInsert p sourceName line str
+lexParseS :: Bool -> (Source -> LexParser b) -> TargetPlatform -> FilePath -> Int -> String -> Error a b
+lexParseS semiInsert p tpl sourceName line str
   = do
-      ((result,lexemes), syntaxWarnings) <- (lexParse False semiInsert id p sourceName line (stringToBString str))
+      ((result,lexemes), syntaxWarnings) <- (lexParse False semiInsert id p tpl sourceName line (stringToBString str))
       return $ trace (concat (intersperse "\n" (map fst syntaxWarnings))) $ result
 
-runStateParser :: LexParser a -> SourceName -> [Lexeme] -> Either ParseError (a, [(String, Range)])
-runStateParser p sourceName lex =
-  runParser (pp p) [] sourceName lex
+runStateParser :: LexParser a -> TargetPlatform -> SourceName -> [Lexeme] -> Either ParseError (a, PWarnings)
+runStateParser p tpl sourceName lex =
+  runParser (pp p) (PState [] tpl) sourceName lex
   where
+    pp :: LexParser a -> LexParser (a,PWarnings)
     pp p =
       do r <- p
          s <- getState
-         return (r, s)
+         return (r, pwarnings s)
 
-lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), [(String, Range)])
-lexParse allowAt semiInsert preprocess p sourceName line rawinput
+lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> TargetPlatform -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), [(String, Range)])
+lexParse allowAt semiInsert preprocess p tpl sourceName line rawinput
   = let source = Source sourceName rawinput
         lexemes = lexSource allowAt semiInsert preprocess line source
     in  -- trace  (unlines (map show lexemes)) $
-        case (runStateParser (p source) sourceName lexemes) of
+        case (runStateParser (p source) tpl sourceName lexemes) of
           Left err     -> makeParseError (errorRangeLexeme lexemes {-used to be raw lexemes-} source) err
           Right (x,s)  -> return ((x,lexemes),s)
 
 
-parseProgramFromLexemes :: Source -> [Lexeme] -> Error () UserProgram
-parseProgramFromLexemes source lexemes
-  = do (prog, syntaxWarnings) <- parseLexemes (program source) source lexemes
+parseProgramFromLexemes :: TargetPlatform -> Source -> [Lexeme] -> Error () UserProgram
+parseProgramFromLexemes tpl source lexemes
+  = do (prog, syntaxWarnings) <- parseLexemes (program source) tpl source lexemes
        addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
          return prog
 
 
-parseDependencies :: Source -> [Lexeme] -> Error () (Name,Range,[Import])
-parseDependencies source lexemes
-  = case (runStateParser (pmoduleDeps source) (sourceName source) lexemes) of
+parseDependencies :: TargetPlatform -> Source -> [Lexeme] -> Error () (Name,Range,[Import])
+parseDependencies tpl source lexemes
+  = case (runStateParser (pmoduleDeps source) tpl (sourceName source) lexemes) of
       Left err         -> -- trace "failed to parse imports" $
                           makeParseError (errorRangeLexeme lexemes source) err
       Right (x,warns)  -> -- addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) warns) $
                           -- trace ("dependencies: " ++ show x) $
                           return x
 
-parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error () (a, [(String, Range)])
-parseLexemes p source@(Source sourceName _) lexemes
-  = case (runStateParser p sourceName lexemes) of
+parseLexemes :: LexParser a -> TargetPlatform -> Source -> [Lexeme] -> Error () (a, [(String, Range)])
+parseLexemes p tpl source@(Source sourceName _) lexemes
+  = case (runStateParser p tpl sourceName lexemes) of
       Left err -> makeParseError (errorRangeLexeme lexemes source) err
       Right x  -> return x
 
@@ -419,8 +423,10 @@ externDecl dvis
                       (krng,doc) <- dockeyword "extern"
                       return (Right (combineRanges [vrng,frng,krng], vis, doc, inline, fip)))
        case lr of
-         Left p -> do extern <- p
-                      return [DefExtern extern]
+         Left p -> do mbextern <- p
+                      case mbextern of 
+                        Nothing     -> return []
+                        Just extern -> return [DefExtern extern]
          Right (krng,vis,doc,inline,fip)
            -> do (name,nameRng) <- funid {-toplevel-}
                  (pars,pinfos,args,tp,annotate)
@@ -437,16 +443,19 @@ externDecl dvis
                              lift (ValueBinder name tp expr rng1 rng2) = ValueBinder name (Just tp) expr rng1 rng2
                          genParArgs tp -- checks the type
                          return (map lift pars,pinfos,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
-                 (exprs,rng) <- externalBody
-                 if (inline == InlineAlways)
-                  then return [DefExtern (External name tp pinfos nameRng (combineRanges [krng,rng]) exprs vis fip doc)]
-                  else do let  externName = newHiddenExternalName name
-                               fullRng    = combineRanges [krng,rng]
-                               extern     = External externName tp pinfos (before nameRng) (before fullRng) exprs Private fip doc
-                               body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) True fullRng)
-                               binder     = ValueBinder name () body nameRng fullRng
-                               extfun     = Def binder fullRng vis (defFunEx pinfos fip) InlineNever doc
-                          return [DefExtern extern, DefValue extfun]
+                 mbBody <- externalBody
+                 case mbBody of
+                   Nothing -> return []
+                   Just (expr,rng) -> 
+                    if (inline == InlineAlways)
+                      then return [DefExtern (External name tp pinfos nameRng (combineRanges [krng,rng]) expr vis fip doc)]
+                      else do let externName = newHiddenExternalName name
+                                  fullRng    = combineRanges [krng,rng]
+                                  extern     = External externName tp pinfos (before nameRng) (before fullRng) expr Private fip doc
+                                  body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) True fullRng)
+                                  binder     = ValueBinder name () body nameRng fullRng
+                                  extfun     = Def binder fullRng vis (defFunEx pinfos fip) InlineNever doc
+                              return [DefExtern extern, DefValue extfun]
   where
     typeFromPars :: Range -> [ValueBinder UserType (Maybe UserExpr)] -> UserType -> UserType -> UserType
     typeFromPars rng pars teff tres
@@ -474,24 +483,34 @@ externDecl dvis
         in (ValueBinder fullName Nothing Nothing rng rng
            ,(Nothing,Var fullName False rng))
 
-externalImport :: Range -> LexParser External
+firstof :: [Maybe a] -> Maybe a
+firstof mbs
+  = case dropWhile isNothing mbs of
+      (just:_) -> just
+      _        -> Nothing
+
+
+externalImport :: Range -> LexParser (Maybe External)
 externalImport rng1
   = do keyword "="
-       (entry) <- externalImportEntry
-       return (ExternalImport [entry] rng1)
+       mbentry <- externalImportEntry
+       return (fmap (\entry -> ExternalImport entry rng1) mbentry)
   <|>
-    do (entries,rng2) <- semiBracesRanged externalImportEntry
-       return (ExternalImport entries (combineRange rng1 rng2))
+    do (mbentries,rng2) <- semiBracesRanged externalImportEntry
+       return (fmap (\entry -> ExternalImport entry (combineRange rng1 rng2)) (firstof mbentries))
   where
-    externalImportEntry :: LexParser (TargetPlatform,[(String,String)])
+    externalImportEntry :: LexParser (Maybe [(String,String)])
     externalImportEntry
-      = do tp <- targetPlatform
+      = do matches <- targetGuard
            (keyvals,rng) <- do key <- externalImportKey
                                (val,rng)   <- stringLit
                                return ([(key,val)],rng)
                             <|> semiBracesRanged externalImportKeyVal
-           keyvalss <- mapM (externalIncludes (tplTarget tp) rng) keyvals
-           return (tp,concat keyvalss)
+           if matches
+            then do tpl <- getTargetPlatform 
+                    keyvalss <- mapM (externalIncludes (tplTarget tpl) rng) keyvals
+                    return (Just (concat keyvalss))
+            else return Nothing
 
     externalImportKeyVal
       = do key <- externalImportKey
@@ -544,20 +563,16 @@ externalImport rng1
              Nothing      -> return Nothing
 
 
-externalBody :: LexParser ([(TargetPlatform,ExternalCall)],Range)
+externalBody :: LexParser (Maybe (ExternalCall,Range))
 externalBody
-  = semiBracesRanged externalEntry
+  = firstof <$> semiBraces externalEntry
 
 
-externalEntry :: LexParser (TargetPlatform,ExternalCall)
+externalEntry :: LexParser (Maybe (ExternalCall,Range))
 externalEntry
-  = do (target,inline,_) <- externalEntryRanged
-       return (target,inline)
-
-externalEntryRanged
-  = do eguard <- targetPlatform
+  = do matches    <- targetGuard
        (call,rng) <- externalCall
-       return (eguard,call,rng)
+       return $ if matches then Just (call,rng) else Nothing
 
 externalCall
   = do f <- do specialId "inline"
@@ -568,13 +583,15 @@ externalCall
        return (f s,rng)
 
 
-targetPlatform:: LexParser TargetPlatform
-targetPlatform
-  = do target <- externalTarget
-       attrs  <- externalAttrs
-       adjust attrs (targetPlatformFromTarget target)
+targetGuard:: LexParser Bool
+targetGuard
+  = do backend <- externalBackend
+       attrs   <- externalAttrs
+       tpl     <- getTargetPlatform
+       matches <- mapM (matchAttrs tpl) (backend ++ attrs)
+       return $! (and matches)
   where
-    externalAttrs :: LexParser [(String,String,Range)]
+    externalAttrs :: LexParser [(String,[(String,Range)],Range)]
     externalAttrs 
       = do special "[" <?> ""
            attrs <- sepEndBy externalAttr comma
@@ -584,45 +601,135 @@ targetPlatform
         return []
 
     externalAttr
-      = do (attr,rng1) <- strid
+      = do (attr,rng) <- strid
            keyword "="
-           (val,rng2)  <- strid
-           return (attr,val,combineRange rng1 rng2)
+           vals  <- strid `sepBy1` bar
+           return (attr,vals,rng)
       where
         strid = do{ (id,rng) <- varid; return (show id,rng) } <|> stringLit
 
-    adjust [] tp = return tp
-    adjust ((attr,val,rng):rest) tp
+    externalBackend :: LexParser [(String,[(String,Range)],Range)]
+    externalBackend
+      = do (val,rng) <- choice (map (\s -> do{ rng <- specialId s; return (s,rng) }) ["c","js","cs","default"])
+           return [("backend",[(val,rng)],rng)]
+      <|>
+        return []
+
+    matchAttrs :: TargetPlatform -> (String,[(String,Range)],Range) -> LexParser Bool
+    matchAttrs tpl (attr,vals,rng)
+      = do matches <- mapM (\val -> matchAttr tpl attr val rng) vals
+           return (or matches)  -- vals is OR of potential matches
+           
+    matchAttr :: TargetPlatform -> String -> (String,Range) -> Range -> LexParser Bool    
+    matchAttr tpl attr (val,valrng) rng
       = case attr of 
-          "os"   -> adjust rest (tp{ tplOS = val })
-          "arch" -> adjust rest (tp{ tplArch = val })
-          "host" -> case (map toLower val,tplTarget tp) of
-                      ("libc",C _)    -> adjust rest $ tp{ tplTarget = C LibC }
-                      ("wasm",C _)    -> adjust rest $ tp{ tplTarget = C Wasm }
-                      ("wasmjs",C _)  -> adjust rest $ tp{ tplTarget = C WasmJs }
-                      ("wasmweb",C _) -> adjust rest $ tp{ tplTarget = C WasmWeb }
-                      ("jsnode",JS _) -> adjust rest $ tp{ tplTarget = JS JsNode }
-                      ("jsweb",JS _)  -> adjust rest $ tp{ tplTarget = JS JsWeb }
-                      _ -> do pwarningMessage ("unknown host for target: " ++ show val) rng
-                              adjust rest tp
-          "platform" -> case (map toLower val,tplTarget tp) of
-                          ("32",C _)   -> adjust rest $ tp{ tplPlatform = platform32 }
-                          ("64",C _)   -> adjust rest $ tp{ tplPlatform = platform64 }
-                          ("64c",C _)  -> adjust rest $ tp{ tplPlatform = platform64c }
-                          ("js",JS _)  -> adjust rest $ tp{ tplPlatform = platformJS }
-                          ("cs",CS)    -> adjust rest $ tp{ tplPlatform = platformCS }
-                          _ -> do pwarningMessage ("unknown platform for target: " ++ show val) rng
-                                  adjust rest tp
-          _ -> do pwarningMessage ("unknown condition for target: " ++ show val) rng
-                  adjust rest tp
+          "os"      -> return $ matchStr val (tplOS tpl)
+          "arch"    -> return $ matchStr val (tplArch tpl)
+          "host"    -> case targetFromHost val of
+                         Just tgt -> return $ matchTarget tgt (tplTarget tpl)
+                         Nothing  -> do pwarningMessage ("unknown host: " ++ show val) valrng
+                                        return False
+          "backend" -> case targetFromBackend val of
+                         Just tgt  -> return $ matchTarget tgt (tplTarget tpl)
+                         Nothing   -> do pwarningMessage ("unknown backend: " ++ show val) valrng
+                                         return False                                        
+          "target"  -> case targetPlatformFromString val of
+                         Just tpl' -> return $ matchTargetPlatform tpl' tpl
+                         Nothing   -> do pwarningMessage ("unknown target: " ++ show val) valrng
+                                         return False                                        
+          "platform"-> case platformFromString val of
+                         Just pl  -> return $ matchPlatform pl (tplPlatform tpl)
+                         Nothing  -> do pwarningMessage ("unknown platform: " ++ show val) valrng
+                                        return False
+
+          _ -> do pwarningMessage ("unknown attribute for target: " ++ show attr) rng
+                  return True
+
+    targetFromHost :: String -> Maybe Target
+    targetFromHost s
+      = lookup s hostIds
+
+    hostIds :: [(String,Target)]
+    hostIds = [
+      ("libc",C LibC),
+      ("wasm",C Wasm),
+      ("wasmjs",C WasmJs),
+      ("wasmweb",C WasmWeb),
+      ("jsnode",JS JsNode),
+      ("jsweb",JS JsWeb)
+     ]
+
+    targetFromBackend :: String -> Maybe Target
+    targetFromBackend s
+      = lookup s backendIds
+
+    backendIds :: [(String,Target)]
+    backendIds = [
+      ("c",C CDefault),
+      ("js", JS JsDefault),
+      ("cs",CS),
+      ("default",Default)
+     ]
+
+    platformFromString :: String -> Maybe Platform
+    platformFromString s
+      = lookup s platformIds
+
+    platformIds :: [(String,Platform)]
+    platformIds = [
+      ("32",platform32), ("p32",platform32),
+      ("64",platform64), ("p64",platform64),
+      ("64c",platform64c), ("p64c",platform64c),
+      ("js",platformJS), ("pjs",platformJS),
+      ("cs",platformCS), ("pcs",platformCS),
+      ("none",platformNone)      
+     ]
+
+    targetPlatformFromString :: String -> Maybe TargetPlatform
+    targetPlatformFromString s
+      = lookup s targetPlatformIds
+      
+    targetPlatformIds :: [(String,TargetPlatform)]
+    targetPlatformIds = [
+      ("c",      targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
+      ("c64",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
+      ("c32",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform32 }),
+      ("c64c",   targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64c }),
+      ("js",     targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
+      ("jsnode", targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
+      ("jsweb",  targetPlatformDefault{ tplTarget=JS JsWeb, tplPlatform=platformJS }),
+      ("wasm",   targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
+      ("wasm32", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
+      ("wasm64", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform64 }),
+      ("wasmjs", targetPlatformDefault{ tplTarget=C WasmJs, tplPlatform=platform32 }),
+      ("wasmweb",targetPlatformDefault{ tplTarget=C WasmWeb, tplPlatform=platform32 }),
+      ("cs",     targetPlatformDefault{ tplTarget=CS, tplPlatform=platformCS })
+     ]
     
-    externalTarget
-      =   do { specialId "c"; return (C CDefault) }
-      <|> do { specialId "js"; return (JS JsDefault) }
-      <|> do { specialId "cs"; return CS }
-      <|> do { specialId "default"; return Default }
-      -- <|> do { (id,rng) <- varid; pwarningMessage ("unknown external target: " ++ show id) rng; return Unsupported }
-      <|> return Default
+    matchTargetPlatform :: TargetPlatform -> TargetPlatform -> Bool
+    matchTargetPlatform (TargetPlatform b1 os1 arch1 pl1) (TargetPlatform b2 os2 arch2 pl2)
+      = matchTarget b1 b2 && matchStr os1 os2 && matchStr arch1 arch2 && matchPlatform pl1 pl2
+
+    matchStr :: String -> String -> Bool
+    matchStr "" _ = True
+    matchStr s1 s2  = let ss1 = splitOn (\c -> c == '-') s1
+                          ss2 = splitOn (\c -> c == '-') s2
+                      in ss1 `isPrefixOf` ss2
+
+    matchPlatform :: Platform -> Platform -> Bool
+    matchPlatform (Platform i1 i2 i3 i4) (Platform j1 j2 j3 j4)
+      = matchInt i1 j1 && matchInt i2 j2 && matchInt i3 j3 && matchInt i4 j4
+
+    matchInt 0 i2      = True
+    matchInt i1 i2     = (i1==i2)
+
+    matchTarget :: Target -> Target -> Bool
+    matchTarget t1 t2      
+      = case (t1,t2) of
+          (Default,_)           -> True
+          (C CDefault, C _)     -> True
+          (JS JsDefault, JS _)  -> True
+          (_,_)                 -> t1 == t2
 
 
 {--------------------------------------------------------------------------
@@ -3243,8 +3350,12 @@ pwarningMessage msg rng
        pwarning ("warning " ++ show pos ++ ": " ++ msg) rng
 
 pwarning :: String -> Range -> LexParser ()
-pwarning msg rng = modifyState (\prev -> prev ++ [(msg, rng)])
+pwarning msg rng = modifyState (\prev -> prev{ pwarnings = (pwarnings prev) ++ [(msg, rng)] } )
 
+getTargetPlatform :: LexParser TargetPlatform
+getTargetPlatform 
+  = do s <- getState
+       return (ptargetPlatform s)
 
 uniqueRngHiddenName :: Range -> String -> Name
 uniqueRngHiddenName rng prefix =

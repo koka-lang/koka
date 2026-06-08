@@ -140,7 +140,7 @@ prettyExternalImport env tp (ExternalImport imports tpl _)
     case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") imports of
       [] -> empty
       keyvals -> keyword env "extern import" <+> text "{"
-                  <-> tab (ppTargetPlatform env tpl <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                  <-> tab (ppTargetPlatformMin env tpl <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
                   <-> text "};"
   where
     prettyKeyval (key,val)
@@ -177,7 +177,7 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc)
   where
     prettyEntries [(tpl,content)] | targetPlatformIsDefault tpl = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
-    prettyEntry (tpl,content)        = ppTargetPlatform env tpl <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
+    prettyEntry (tpl,content)        = ppTargetPlatformMin env tpl <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
 prettyExternal env (ExternalImport imports tpl range)
   = empty
@@ -194,6 +194,10 @@ prettyExternal env (ExternalImport imports tpl range)
 ppTargetPlatform :: Env -> TargetPlatform -> Doc
 ppTargetPlatform env tpl
   = text (show tpl) <.> space
+
+ppTargetPlatformMin :: Env -> TargetPlatform -> Doc
+ppTargetPlatformMin env tpl
+  = text (show (tpl{ tplOS="", tplArch="", tplPlatform=platformNone })) <.> space
 
 ppTarget :: Env -> Target -> Doc
 ppTarget env target

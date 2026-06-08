@@ -152,6 +152,7 @@ value type marker<e::E,a>
 
 // Are two markers equal?
 extern eq-marker( x : marker<e1,a1>, y : marker<e2,a2> ) : bool
+  js inline "#1===#2"
   inline "#1==#2"
 
 extern fresh-marker() : marker<e,a>

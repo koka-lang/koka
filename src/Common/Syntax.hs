@@ -47,6 +47,21 @@ import Data.List(intersperse,sort,intercalate)
 
 {--------------------------------------------------------------------------
   Backend targets
+
+  backend:  c js cs
+  host:     c : libc wasm wasmweb  (wasm==wasi wasmweb==emscripten)
+            js: node web  
+            cs: dotnet
+  platform: 32 64 64c js cs
+  arch:     x86 x64 arm32 arm64 riscv  -<variant>
+  os:       windows linux macos unix   -<variant>
+
+  target option:   
+    c    c64 c32 c64c
+    js   jsnode jsweb
+    wasm wasm32 wasm64 wasmjs wasmweb
+    cs
+
 --------------------------------------------------------------------------}
 data JsTarget = JsDefault | JsNode | JsWeb                deriving (Eq,Ord)
 data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
@@ -112,6 +127,7 @@ instance Show Platform where
     = if p==platform32 then "p32"
       else if p==platform64 then "p64"
       else if p==platform64c then "p64c"
+      else if p==platformNone then "none"
       else platformShow p
 
 
@@ -162,7 +178,7 @@ instance Show TargetPlatform where
       attrs = concat $
         [hostAttr tgt,
          if os=="" then [] else ["os=" ++ os],
-         if arch=="" then [] else ["arch=" ++ os],
+         if arch=="" then [] else ["arch=" ++ arch],
          if p==platformNone then [] else ["platform=" ++ show p]
         ]
 
@@ -221,9 +237,13 @@ targetPlatformTryMatch tpl1@(TargetPlatform target1 os1 arch1 p1) tpl2@(TargetPl
     in -- trace ("try match: " ++ show (tpl1,tpl2) ++ " == " ++ show match) $ 
        match    
   where
-    matchTarget Default t2  = True
-    matchTarget t1 Default  = True
-    matchTarget t1 t2       = (t1==t2)
+    matchTarget t1 t2       
+      = case (t1,t2) of
+          (Default,_)           -> True
+          (_,Default)           -> True
+          (C CDefault, C _)     -> True
+          (JS JsDefault, JS _)  -> True
+          (_,_)                 -> t1 == t2
 
     matchPlatform (Platform i1 i2 i3 i4) (Platform j1 j2 j3 j4)
       = matchInt i1 j1 && matchInt i2 j2 && matchInt i3 j3 && matchInt i4 j4

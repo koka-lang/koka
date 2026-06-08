@@ -5,11 +5,11 @@ test/overload/wrong/overload2@kk(6,13): type error: identifier show cannot be re
  show/show
  show/char/show
  tuple/unit/show
+ bytes/show
  int/show
  bool/show
  show
  htag/show
  maybe/show
- show
  @@@
  hint : qualify the name?

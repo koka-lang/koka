@@ -274,7 +274,8 @@ pub fun main()
   // ,example-print2().show
   ,""
   ].join("\n-----------\n").print
-  try {
-    example-pc1().show.println // raises exception
-  } fn(exn){ println(exn.show) }
+  with try fn(exn)
+    println(exn.show)
+  example-pc1().show.println // raises exception
+   
 

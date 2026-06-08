@@ -1,1 +1,1 @@
-alias ok = static/modA/aint = 2
+alias ok = modA/aint = 2

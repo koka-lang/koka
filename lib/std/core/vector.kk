@@ -190,13 +190,13 @@ inline fip extern ssize_t/(<)  : (ssize_t,ssize_t) -> bool
   inline "(#1 < #2)"
 
 inline fip extern ssize_t/(+)  : (ssize_t,ssize_t) -> ssize_t
-  inline "(#1 + #2)"
   js inline "((#1 + #2)|0)"
-
+  inline "(#1 + #2)"
+  
 inline fip extern ssize_t/(-)  : (ssize_t,ssize_t) -> ssize_t
-  inline "(#1 - #2)"
   js inline "((#1 - #2)|0)"
-
+  inline "(#1 - #2)"
+  
 inline fip extern ssize_t/is-pos( i : ssize_t ) : bool
   inline "(#1 > 0)"
 
@@ -204,9 +204,9 @@ inline fip extern ssize_t/is-neg( i : ssize_t ) : bool
   inline "(#1 < 0)"
 
 fip extern ssize_t/is-zero( i : ssize_t ) : bool
-  inline "(#1 == 0)"
   js inline "(#1 === 0)"
-
+  inline "(#1 == 0)"
+  
 fip extern ssize_t/decr(i : ssize_t ) : ssize_t
   inline "(#1 - 1)"
 

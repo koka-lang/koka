@@ -516,7 +516,7 @@ moduleParse tparsedMap
         phase "parse" $ \penv -> text (if verbose flags > 1 || isAbsolute (modSourceRelativePath mod)
                                         then modSourcePath mod
                                         else ".../" ++ modSourceRelativePath mod)
-        case checkError (parseProgramFromLexemes (modSource mod) (modLexemes mod)) of
+        case checkError (parseProgramFromLexemes (targetPlatformFromFlags flags) (modSource mod) (modLexemes mod)) of
           Left errs
             -> done mod{ modPhase  = PhaseParsedError
                        , modErrors = mergeErrors errs (modErrors mod)
@@ -676,7 +676,7 @@ moduleLex mod
        input <- getFileContents (modSourcePath mod)
        let source  = Source (modSourcePath mod) input
            lexemes = lexSource allowAt (semiInsert flags) id 1 source
-       case checkError (parseDependencies source lexemes) of
+       case checkError (parseDependencies (targetPlatformFromFlags flags) source lexemes) of
          Left errs
             -> return mod{ modPhase  = PhaseInit
                          , modErrors = errs
@@ -710,7 +710,8 @@ moduleLex mod
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
   = do phase "load" $ \penv -> TP.ppName penv (modName mod)
-       (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
+       flags <- getFlags
+       (core,parseInlines) <- liftIOError $ parseCore (targetPlatformFromFlags flags) (modIfacePath mod) (modSourcePath mod)
        let modi = modFromIface core parseInlines mod
        -- phase "loaded" $ \penv -> TP.ppName penv (modName modi) <+> text (": " ++ show (modPhase modi))
        return modi
@@ -720,9 +721,9 @@ moduleLoadIface mod
 moduleLoadLibIface :: Module -> Build Module
 moduleLoadLibIface mod
   = do cscheme <- getColorScheme
-       phase "load" $ \penv -> TP.ppName penv (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod)
-       (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
+       phase "load" $ \penv -> TP.ppName penv (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod)       
        flags   <- getFlags
+       (core,parseInlines) <- liftIOError $ parseCore (targetPlatformFromFlags flags) (modLibIfacePath mod) (modSourcePath mod)
        pooledIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
        -- Use both timestamps: ifacePath for the copy, libIfacePath for the original.
        -- On WASI, setFileTime is a no-op so the copy's mtime won't match the source.

@@ -1,6 +1,0 @@
-tick 1
-after first wait
-tick 2
-tick 3
-after second wait
-Ok(())

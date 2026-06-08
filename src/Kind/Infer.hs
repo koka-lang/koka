@@ -960,7 +960,7 @@ infExternals externals
            return (exts1 ++ exts2)
 
 infExternal :: [Name] -> External -> KInfer ([Core.External],[Name])
-infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
+infExternal names (External name tp pinfos nameRng rng ecall vis fip doc)
   = do tp' <- infResolveType tp (Check "Externals must be values" rng)
        qname <- qualifyDef name
        let cname = qname {- let n = length (filter (==qname) names) in
@@ -971,17 +971,16 @@ infExternal names (External name tp pinfos nameRng rng calls vis fip doc)
         else do addRangeInfo nameRng (Id qname (NIValue "extern" tp' doc True) [] True)
                 addRangeInfo rng (Decl "extern" qname (mangle cname tp') (Just tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
-       return ([Core.External cname tp' pinfos (map (formatCall tp') calls) vis fip nameRng doc]
+       tplatform <- getTargetPlatform
+       return ([Core.External cname tp' pinfos (map (formatCall tplatform tp') [ecall]) vis fip nameRng doc]
                ,qname:names)
 infExternal names (ExternalImport imports range)
   = do tplatform <- getTargetPlatform
-       case lookupBestTarget tplatform imports of   -- we pick only the best matching entry in each external import declaration
-         Just keyvals -> return ([Core.ExternalImport keyvals tplatform range], names)
-         Nothing      -> return ([],names)
+       return ([Core.ExternalImport imports tplatform range], names)       
 
-formatCall :: Type -> (TargetPlatform, ExternalCall) -> (TargetPlatform, String)
-formatCall tp (tplatform,ExternalInline inline) = (tplatform,inline)
-formatCall tp (tplatform,ExternalCall fname)
+formatCall :: TargetPlatform -> Type -> (ExternalCall) -> (TargetPlatform, String)
+formatCall tplatform tp (ExternalInline inline) = (tplatform,inline)
+formatCall tplatform tp (ExternalCall fname)
   = case tplTarget tplatform of
       CS      -> (tplatform,formatCS)
       JS _    -> (tplatform,formatJS)
