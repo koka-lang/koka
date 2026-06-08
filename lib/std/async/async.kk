@@ -57,10 +57,9 @@ import std/num/float64
 import std/time/duration
 import async/internal
 
-import async/evloop {
+import async/evloop
   [host=libc|wasmweb|jsnode] async/uv/evloop
   [host=jsweb]               async/web/evloop
-}
 
 
 pub effect discontinue  
