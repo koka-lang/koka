@@ -106,7 +106,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
 
         -- tail-call-modulo-cons optimization
         when (optctail flags) $
-          ctailOptimize penv newtypes gamma (optctailCtxPath flags)
+          ctailOptimize penv (targetPlatformFromFlags flags) newtypes gamma (optctailCtxPath flags)
 
         -- transform effects to explicit monadic binding (and resolve .open calls)
         when (enableMon flags && not (isPrimitiveModule progName)) $

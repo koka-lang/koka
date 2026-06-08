@@ -35,15 +35,17 @@ module Common.Syntax( Visibility(..)
                     , BuildType(..)
                     , sepBySpace, memberDoc
                     , TargetPlatform(..), targetPlatformFromTarget
-                    , targetIds, targetFromString
-                    , lookupBestTarget
                     , targetPlatformDefault, targetPlatformIsDefault
+                    , targetPlatformFromString, targetFromBackend, targetFromHost, platformFromString
+                    , matchTargetPlatform, matchTarget, matchOS, matchArch, matchPlatform
+                    , unsupportedExternal
                     -- , targetPlatformTryMatch
                     ) where
 import Debug.Trace
 import Data.Tuple(swap)
 import Data.Maybe(catMaybes)
-import Data.List(intersperse,sort,intercalate)
+import Data.List(intersperse,sort,intercalate,isPrefixOf)
+import Common.File(splitOn)
 
 {--------------------------------------------------------------------------
   Backend targets
@@ -82,30 +84,24 @@ isTargetWasm target
       C WasmWeb -> True
       _         -> False
 
-targetIds :: [(Target,String)]
-targetIds = [
-  (CS,"cs"),
-  (JS JsWeb,"jsweb"),
-  (JS JsNode,"jsnode"),
-  (JS JsDefault,"js"),
-  (C Wasm,"wasm"),
-  (C WasmJs,"wasmjs"),
-  (C WasmWeb,"wasmweb"),
-  (C LibC,"libc"),
-  (C CDefault,"c"),
-  (Unsupported,"unsupported")
-  ]
 
-targetFromString :: String -> Target
-targetFromString id
-  = case lookup id (map swap targetIds) of
-      Just t  -> t
-      Nothing -> Default
+unsupportedExternal :: String -> String
+unsupportedExternal fname
+  = trace ("warning: unsupported external: " ++ fname) $
+    "kk_unsupported_external(" ++ show fname ++ ")"
 
 instance Show Target where
-  show tgt = case lookup tgt targetIds of
-               Just s -> s
-               _      -> ""
+  show tgt = case tgt of
+                C CDefault-> "c"
+                C LibC    -> "libc"
+                C Wasm    -> "wasm"
+                C WasmJs  -> "wasmjs"
+                C WasmWeb -> "wasmweb"
+                JS JsNode -> "jsnode"
+                JS JsWeb  -> "jsweb"
+                JS JsDefault -> "js"
+                CS        -> "cs"
+                Default   -> "default"
 
 
 data Platform = Platform{ sizePtr   :: !Int -- sizeof(intptr_t)
@@ -210,52 +206,98 @@ targetPlatformIsDefault :: TargetPlatform -> Bool
 targetPlatformIsDefault (TargetPlatform Default "" "" (Platform 0 0 0 0)) = True
 targetPlatformIsDefault _ = False
 
-lookupBestTarget :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
-lookupBestTarget tpl xs
-  = let targets = let target = tplTarget tpl
-                  in case target of
-                      C WasmJs      -> [target,C Wasm,C CDefault]
-                      C WasmWeb     -> [target,C Wasm,C CDefault]
-                      C CDefault    -> [target]
-                      C _           -> [target,C CDefault]
-                      JS JsDefault  -> [target]
-                      JS _          -> [target,JS JsDefault]
-                      _             -> [target]                      
-    in case catMaybes (map (\t -> targetPlatformBestMatch (tpl{ tplTarget = t }) xs) targets) of
-         (x:_) -> Just x
-         _     -> Nothing
 
-targetPlatformBestMatch :: Ord a => TargetPlatform -> [(TargetPlatform,a)] -> Maybe a
-targetPlatformBestMatch eguard xs
-  = case filter (\(e,_) -> targetPlatformTryMatch eguard e) (reverse (sort xs)) of
-      ((_,x):_) -> Just x
-      _         -> Nothing
+targetFromHost :: String -> Maybe Target
+targetFromHost s
+  = lookup s hostIds
 
-targetPlatformTryMatch :: TargetPlatform -> TargetPlatform -> Bool
-targetPlatformTryMatch tpl1@(TargetPlatform target1 os1 arch1 p1) tpl2@(TargetPlatform target2 os2 arch2 p2)
-  = let match = matchTarget target1 target2 && matchString os1 os2 && matchString arch1 arch2 && matchPlatform p1 p2
-    in -- trace ("try match: " ++ show (tpl1,tpl2) ++ " == " ++ show match) $ 
-       match    
-  where
-    matchTarget t1 t2       
-      = case (t1,t2) of
-          (Default,_)           -> True
-          (_,Default)           -> True
-          (C CDefault, C _)     -> True
-          (JS JsDefault, JS _)  -> True
-          (_,_)                 -> t1 == t2
+hostIds :: [(String,Target)]
+hostIds = [
+  ("libc",C LibC),
+  ("wasm",C Wasm),
+  ("wasmjs",C WasmJs),
+  ("wasmweb",C WasmWeb),
+  ("jsnode",JS JsNode),
+  ("jsweb",JS JsWeb)
+  ]
 
-    matchPlatform (Platform i1 i2 i3 i4) (Platform j1 j2 j3 j4)
-      = matchInt i1 j1 && matchInt i2 j2 && matchInt i3 j3 && matchInt i4 j4
+targetFromBackend :: String -> Maybe Target
+targetFromBackend s
+  = lookup s backendIds
 
-    matchString "" s2  = True
-    matchString s1 ""  = True
-    matchString s1 s2  = (s1==s2)
+backendIds :: [(String,Target)]
+backendIds = [
+  ("c",C CDefault),
+  ("js", JS JsDefault),
+  ("cs",CS),
+  ("default",Default)
+  ]
 
-    matchInt 0 i2      = True
-    matchInt i1 0      = True
-    matchInt i1 i2     = (i1==i2)
+platformFromString :: String -> Maybe Platform
+platformFromString s
+  = lookup s platformIds
 
+platformIds :: [(String,Platform)]
+platformIds = [
+  ("32",platform32), ("p32",platform32),
+  ("64",platform64), ("p64",platform64),
+  ("64c",platform64c), ("p64c",platform64c),
+  ("js",platformJS), ("pjs",platformJS),
+  ("cs",platformCS), ("pcs",platformCS),
+  ("none",platformNone)      
+  ]
+
+targetPlatformFromString :: String -> Maybe TargetPlatform
+targetPlatformFromString s
+  = lookup s targetPlatformIds
+  
+targetPlatformIds :: [(String,TargetPlatform)]
+targetPlatformIds = [
+  ("c",      targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
+  ("c64",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
+  ("c32",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform32 }),
+  ("c64c",   targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64c }),
+  ("js",     targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
+  ("jsnode", targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
+  ("jsweb",  targetPlatformDefault{ tplTarget=JS JsWeb, tplPlatform=platformJS }),
+  ("wasm",   targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
+  ("wasm32", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
+  ("wasm64", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform64 }),
+  ("wasmjs", targetPlatformDefault{ tplTarget=C WasmJs, tplPlatform=platform32 }),
+  ("wasmweb",targetPlatformDefault{ tplTarget=C WasmWeb, tplPlatform=platform32 }),
+  ("cs",     targetPlatformDefault{ tplTarget=CS, tplPlatform=platformCS })
+  ]
+
+matchTargetPlatform :: TargetPlatform -> TargetPlatform -> Bool
+matchTargetPlatform (TargetPlatform b1 os1 arch1 pl1) (TargetPlatform b2 os2 arch2 pl2)
+  = matchTarget b1 b2 && matchStr os1 os2 && matchStr arch1 arch2 && matchPlatform pl1 pl2
+
+matchOS :: String -> String -> Bool
+matchOS = matchStr
+
+matchArch :: String -> String -> Bool
+matchArch = matchStr
+
+matchStr :: String -> String -> Bool
+matchStr "" _ = True
+matchStr s1 s2  = let ss1 = splitOn (\c -> c == '-') s1
+                      ss2 = splitOn (\c -> c == '-') s2
+                  in ss1 `isPrefixOf` ss2
+
+matchPlatform :: Platform -> Platform -> Bool
+matchPlatform (Platform i1 i2 i3 i4) (Platform j1 j2 j3 j4)
+  = matchInt i1 j1 && matchInt i2 j2 && matchInt i3 j3 && matchInt i4 j4
+
+matchInt 0 i2      = True
+matchInt i1 i2     = (i1==i2)
+
+matchTarget :: Target -> Target -> Bool
+matchTarget t1 t2      
+  = case (t1,t2) of
+      (Default,_)           -> True
+      (C CDefault, C _)     -> True
+      (JS JsDefault, JS _)  -> True
+      (_,_)                 -> t1 == t2
 
 {--------------------------------------------------------------------------
   Visibility

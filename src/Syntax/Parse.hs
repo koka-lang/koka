@@ -33,6 +33,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
                    , keyword, dockeyword, docconid
                    , typeDeclKind
                    , paramInfo
+                   , pwarningMessage
                    ) where
 
 import Lib.Trace
@@ -623,8 +624,8 @@ targetGuard
     matchAttr :: TargetPlatform -> String -> (String,Range) -> Range -> LexParser Bool    
     matchAttr tpl attr (val,valrng) rng
       = case attr of 
-          "os"      -> return $ matchStr val (tplOS tpl)
-          "arch"    -> return $ matchStr val (tplArch tpl)
+          "os"      -> return $ matchOS val (tplOS tpl)
+          "arch"    -> return $ matchArch val (tplArch tpl)
           "host"    -> case targetFromHost val of
                          Just tgt -> return $ matchTarget tgt (tplTarget tpl)
                          Nothing  -> do pwarningMessage ("unknown host: " ++ show val) valrng
@@ -645,91 +646,7 @@ targetGuard
           _ -> do pwarningMessage ("unknown attribute for target: " ++ show attr) rng
                   return True
 
-    targetFromHost :: String -> Maybe Target
-    targetFromHost s
-      = lookup s hostIds
-
-    hostIds :: [(String,Target)]
-    hostIds = [
-      ("libc",C LibC),
-      ("wasm",C Wasm),
-      ("wasmjs",C WasmJs),
-      ("wasmweb",C WasmWeb),
-      ("jsnode",JS JsNode),
-      ("jsweb",JS JsWeb)
-     ]
-
-    targetFromBackend :: String -> Maybe Target
-    targetFromBackend s
-      = lookup s backendIds
-
-    backendIds :: [(String,Target)]
-    backendIds = [
-      ("c",C CDefault),
-      ("js", JS JsDefault),
-      ("cs",CS),
-      ("default",Default)
-     ]
-
-    platformFromString :: String -> Maybe Platform
-    platformFromString s
-      = lookup s platformIds
-
-    platformIds :: [(String,Platform)]
-    platformIds = [
-      ("32",platform32), ("p32",platform32),
-      ("64",platform64), ("p64",platform64),
-      ("64c",platform64c), ("p64c",platform64c),
-      ("js",platformJS), ("pjs",platformJS),
-      ("cs",platformCS), ("pcs",platformCS),
-      ("none",platformNone)      
-     ]
-
-    targetPlatformFromString :: String -> Maybe TargetPlatform
-    targetPlatformFromString s
-      = lookup s targetPlatformIds
-      
-    targetPlatformIds :: [(String,TargetPlatform)]
-    targetPlatformIds = [
-      ("c",      targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
-      ("c64",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
-      ("c32",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform32 }),
-      ("c64c",   targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64c }),
-      ("js",     targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
-      ("jsnode", targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
-      ("jsweb",  targetPlatformDefault{ tplTarget=JS JsWeb, tplPlatform=platformJS }),
-      ("wasm",   targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
-      ("wasm32", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
-      ("wasm64", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform64 }),
-      ("wasmjs", targetPlatformDefault{ tplTarget=C WasmJs, tplPlatform=platform32 }),
-      ("wasmweb",targetPlatformDefault{ tplTarget=C WasmWeb, tplPlatform=platform32 }),
-      ("cs",     targetPlatformDefault{ tplTarget=CS, tplPlatform=platformCS })
-     ]
     
-    matchTargetPlatform :: TargetPlatform -> TargetPlatform -> Bool
-    matchTargetPlatform (TargetPlatform b1 os1 arch1 pl1) (TargetPlatform b2 os2 arch2 pl2)
-      = matchTarget b1 b2 && matchStr os1 os2 && matchStr arch1 arch2 && matchPlatform pl1 pl2
-
-    matchStr :: String -> String -> Bool
-    matchStr "" _ = True
-    matchStr s1 s2  = let ss1 = splitOn (\c -> c == '-') s1
-                          ss2 = splitOn (\c -> c == '-') s2
-                      in ss1 `isPrefixOf` ss2
-
-    matchPlatform :: Platform -> Platform -> Bool
-    matchPlatform (Platform i1 i2 i3 i4) (Platform j1 j2 j3 j4)
-      = matchInt i1 j1 && matchInt i2 j2 && matchInt i3 j3 && matchInt i4 j4
-
-    matchInt 0 i2      = True
-    matchInt i1 i2     = (i1==i2)
-
-    matchTarget :: Target -> Target -> Bool
-    matchTarget t1 t2      
-      = case (t1,t2) of
-          (Default,_)           -> True
-          (C CDefault, C _)     -> True
-          (JS JsDefault, JS _)  -> True
-          (_,_)                 -> t1 == t2
 
 
 {--------------------------------------------------------------------------

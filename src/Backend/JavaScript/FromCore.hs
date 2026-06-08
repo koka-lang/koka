@@ -809,8 +809,8 @@ genPure expr
   = case expr of
      TypeApp e _ -> genPure e
      TypeLam _ e -> genPure e
-     Var name (InfoExternal formats)
-       -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
+     Var name (InfoExternal format)
+       -> genWrapExternal name format  -- unapplied inlined external: wrap as function
      Var name info
        -> genTName name
      Con name repr
@@ -864,33 +864,33 @@ genInline expr
 
       _ -> failure ("JavaScript.FromCore.genInline: invalid expression:\n" ++ show expr)
 
-extractExtern :: Expr -> Maybe (TName,[(TargetPlatform,String)])
+extractExtern :: Expr -> Maybe (TName,String)
 extractExtern expr
   = case expr of
-      TypeApp (Var tname (InfoExternal formats)) targs -> Just (tname,formats)
-      Var tname (InfoExternal formats) -> Just (tname,formats)
+      TypeApp (Var tname (InfoExternal format)) targs -> Just (tname,format)
+      Var tname (InfoExternal format) -> Just (tname,format)
       _ -> Nothing
 
 -- not fully applied external gets wrapped in a function
-genWrapExternal :: TName -> [(TargetPlatform,String)] -> Asm Doc
-genWrapExternal tname formats
+genWrapExternal :: TName -> String -> Asm Doc
+genWrapExternal tname format
   = do let n = snd (getTypeArities (typeOf tname))
        vs  <- genVarNames n
-       (decls,doc) <- genExprExternal tname formats vs
+       (decls,doc) <- genExprExternal tname format vs
        return $ parens (text "function" <.> tupled vs <+> block (vcat (decls ++ [text "return" <+> doc <.> semi])))
 
 -- inlined external sometimes  needs wrapping in a applied function block
-genInlineExternal :: TName -> [(TargetPlatform,String)] -> [Doc] -> Asm Doc
-genInlineExternal tname formats argDocs
-  = do (decls,doc) <- genExprExternal tname formats argDocs
+genInlineExternal :: TName -> String -> [Doc] -> Asm Doc
+genInlineExternal tname format argDocs
+  = do (decls,doc) <- genExprExternal tname format argDocs
        if (null decls)
         then return doc
         else return $ parens $ parens (text "function()" <+> block (vcat (decls ++ [text "return" <+> doc <.> semi]))) <.> text "()"
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
-genExprExternal :: TName -> [(TargetPlatform,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternal tname formats argDocs0
-  = do (decls,doc) <- genExprExternalPrim tname formats argDocs0
+genExprExternal :: TName -> String -> [Doc] -> Asm ([Doc],Doc)
+genExprExternal tname format argDocs0
+  = do (decls,doc) <- genExprExternalPrim tname format argDocs0
        case splitFunType (typeOf tname) of
          Nothing -> return (decls,doc)
          Just (pars,eff,res)
@@ -907,8 +907,8 @@ genExprExternal tname formats argDocs0
                          in return ([],try)
 
 -- special case: .cctx-hole-create
-genExprExternalPrim :: TName -> [(TargetPlatform,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternalPrim tname formats [] | getName tname == nameCCtxHoleCreate
+genExprExternalPrim :: TName -> String -> [Doc] -> Asm ([Doc],Doc)
+genExprExternalPrim tname format [] | getName tname == nameCCtxHoleCreate
   = return ([],text "undefined")
 
 {-
@@ -918,9 +918,9 @@ genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCFieldS
 -}
 
 -- normal external
-genExprExternalPrim tname formats argDocs0
+genExprExternalPrim tname format argDocs0
   = let name = getName tname
-        format = getFormat tname formats
+        -- format = getFormat tname formatx
         argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
     in return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of
          [] -> ([],empty)
@@ -943,13 +943,13 @@ genExprExternalPrim tname formats argDocs0
     ppExternalF name (x:xs)  args
      = char x <.> ppExternalF name xs args
 
-getFormat :: TName -> [(TargetPlatform,String)] -> String
-getFormat tname formats
-  = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) formats of  -- TODO: pass specific target from the flags
-      Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
-                 trace( "warning: backend does not support external in " ++ show tname ) $
-                    ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
-      Just s -> s
+-- getFormat :: TName -> [(TargetPlatform,String)] -> String
+-- getFormat tname formats
+--   = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) formats of  -- TODO: pass specific target from the flags
+--       Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
+--                  trace( "warning: backend does not support external in " ++ show tname ) $
+--                     ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
+--       Just s -> s
 
 genDefName :: TName -> Asm Doc
 genDefName tname
@@ -1001,16 +1001,16 @@ trimOptionalArgs args
 extractExternal  :: Expr -> Maybe (TName, String, [Expr])
 extractExternal expr
   = case expr of
-      App (TypeApp (Var tname (InfoExternal formats)) targs) args
-        -> Just (tname, format tname formats, args)
-      App var@(Var tname (InfoExternal formats)) args
-        -> Just (tname, format tname formats, args)
+      App (TypeApp (Var tname (InfoExternal format)) targs) args
+        -> Just (tname, format, args)
+      App var@(Var tname (InfoExternal format)) args
+        -> Just (tname, format, args)
       _ -> Nothing
-  where
-    format tn fs
-      = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) fs of  -- TODO: pass real target from flags
-          Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
-          Just s -> s
+  -- where
+  --   format tn fs
+  --     = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) fs of  -- TODO: pass real target from flags
+  --         Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
+  --         Just s -> s
 
 isFunExpr :: Expr -> Bool
 isFunExpr expr

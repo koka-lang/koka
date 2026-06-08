@@ -315,14 +315,13 @@ type Externals = [External]
 data External = External{ externalName :: !Name
                         , externalType :: !Scheme
                         , externalParams :: ![ParamInfo]
-                        , externalFormat :: ![(TargetPlatform,String)]
+                        , externalFormat :: !String                    -- always for a specific target platform
                         , externalVis'  :: !Visibility
                         , externalFip   :: !Fip
                         , externalRange :: !Range
                         , externalDoc   :: !String
                         }
               | ExternalImport { externalImport :: ![(String,String)]  -- always for a specific target platform
-                               , externalTarget :: TargetPlatform      -- keep it just for documentation
                                , externalRange :: !Range }
 
 externalVis :: External -> Visibility
@@ -330,7 +329,7 @@ externalVis (External{ externalVis' = vis }) = vis
 externalVis _ = Private
 
 externalImportLookup :: BuildType -> String -> External -> Maybe String
-externalImportLookup buildType key (ExternalImport imports tpl range)
+externalImportLookup buildType key (ExternalImport imports range)
   = eimportLookup buildType key imports
 externalImportLookup buildType key ext
   = Nothing
@@ -732,8 +731,8 @@ data Lit =
 
 data VarInfo
   = InfoNone
-  | InfoArity !Int !Int               -- #Type parameters, #parameters
-  | InfoExternal ![(TargetPlatform,String)]  -- inline body
+  | InfoArity !Int !Int                 -- #Type parameters, #parameters
+  | InfoExternal !String                -- inline body
   | InfoReuse !Pattern
   | InfoConField !TName !ConRepr !Name  -- constructor name, repr, field name (inserted by reuse specialization)
 
@@ -1149,7 +1148,7 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
      else -- trace ("open effect: " ++ show (map pretty [effFrom,effTo,tpFrom,tpTo])) $
           App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
   where
-    varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(targetPlatformDefault,"#1")])    -- NOTE: quite fragile as it relies on the exact definition in core.kk
+    varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal "#1")    -- NOTE: quite fragile as it relies on the exact definition in core.kk
     tpOpen  = TForall [e1,e2,a,b] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
     a       = TypeVar (-1) kindStar Bound
     b       = TypeVar (-2) kindStar Bound

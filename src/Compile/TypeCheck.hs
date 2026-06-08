@@ -90,6 +90,7 @@ typeCheck flags defs coreImports program0
         (gamma,coreDefs,mbRangeMap1)
           <- inferTypes
               penv
+              (targetPlatformFromFlags flags)
               mbRangeMap0
               synonyms
               newtypes

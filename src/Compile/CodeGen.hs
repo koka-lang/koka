@@ -685,7 +685,7 @@ externalImportKeyFromCore buildType core key
 
 externalImportsFromCore :: Core.Core -> [[(String,String)]]
 externalImportsFromCore core  
-  = [keyvals | extern@(Core.ExternalImport keyvals _ _) <- Core.coreProgExternals core]
+  = [keyvals | extern@(Core.ExternalImport keyvals _) <- Core.coreProgExternals core]
 
 -- externalImportsFromCore :: TargetPlatform -> Core.Core -> [[(String,String)]]
 -- externalImportsFromCore eguard core

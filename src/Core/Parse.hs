@@ -341,33 +341,27 @@ externDecl env
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        (tp,pinfos) <- pdeftype env
-       formats <- externalBody
-       return (External (qualify (modName env) name) tp pinfos formats vis fip range doc)
+       mbformat <- externalBody
+       format <- case mbformat of
+                   Just format -> return format
+                   Nothing     -> do pwarningMessage ("unsupported external " ++ show name) range
+                                     return (unsupportedExternal (show name))
+       return (External (qualify (modName env) name) tp pinfos format vis fip range doc)
 
 
-externalBody :: LexParser [(TargetPlatform,String)]
+externalBody :: LexParser (Maybe String)
 externalBody
-  = do keyword "="
-       call <- externalEntry
-       case call of
-         Just x  -> return [x]
-         Nothing -> return []
-  <|>
-    do mbentry <- firstof <$> semiBraces externalEntry
-       case mbentry of
-         Just x  -> return [x]
-         Nothing -> return []
+  = do{ keyword "="; externalEntry } <|> firstof <$> semiBraces externalEntry
+    
 
-
+externalEntry :: LexParser (Maybe String)
 externalEntry
-  = do matches <- targetGuard            -- todo: core files should have no targetplatform guard anymore
+  = do matches <- targetGuard            
        optional (specialId "inline")
        (s,_)  <- stringLit
        if matches
-        then do tpl <- getTargetPlatform      
-                return (Just (tpl,s))
-        else --trace ("no match in: " ++ s) $ 
-             return Nothing
+        then return (Just s)
+        else return Nothing
 
 
 {--------------------------------------------------------------------------
@@ -377,9 +371,8 @@ externImportDecl ::  LexParser External
 externImportDecl
   = do try $ do keyword "extern"
                 keyword "import"
-       tpl <- getTargetPlatform
        keyvals <- externalImportBody
-       return (ExternalImport keyvals tpl rangeNull)
+       return (ExternalImport keyvals rangeNull)
 
 externalImportBody :: LexParser [(String,String)]
 externalImportBody

@@ -134,13 +134,13 @@ ppImportProvenance env prov
       ImportTypes    -> keyword env " type"
       ImportCompiler -> keyword env " inline"
 
-prettyExternalImport env tp (ExternalImport imports tpl _)
+prettyExternalImport env tp (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
     -- trace ("external imports: target: " ++ show target ++ ": " ++ show imports) $
     case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") imports of
       [] -> empty
       keyvals -> keyword env "extern import" <+> text "{"
-                  <-> tab (ppTargetPlatformMin env tpl <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                  <-> tab (text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
                   <-> text "};"
   where
     prettyKeyval (key,val)
@@ -173,13 +173,13 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc)
     prettyVis env vis $
     keyword env (sepBySpace [show fip,"extern"]) <+> prettyDefName env name  <.> prettyRange env nameRng
      <+> text ":" <+> prettyDefFunType env pinfos tp
-     <+> prettyEntries body
-  where
-    prettyEntries [(tpl,content)] | targetPlatformIsDefault tpl = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
-    prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
-    prettyEntry (tpl,content)        = ppTargetPlatformMin env tpl <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
+     <+> keyword env "= inline" <+> prettyLit env (LitString body) <.> semi
+  -- where
+  --   prettyEntries [(tpl,content)] | targetPlatformIsDefault tpl = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
+  --   prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
+  --   prettyEntry (tpl,content)        = ppTargetPlatformMin env tpl <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
-prettyExternal env (ExternalImport imports tpl range)
+prettyExternal env (ExternalImport imports range)
   = empty
 
   {-

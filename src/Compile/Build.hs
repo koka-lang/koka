@@ -782,7 +782,7 @@ externalImportKeyFromCore target buildType core key
 
 externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
 externalImportsFromCore target core
-  = [imports  | Core.ExternalImport imports _ _ <- Core.coreProgExternals core]
+  = [imports  | Core.ExternalImport imports _ <- Core.coreProgExternals core]
 
 
 {---------------------------------------------------------------

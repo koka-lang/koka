@@ -43,14 +43,14 @@ import Core.Pretty
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
-ctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CorePhase b ()
-ctailOptimize penv newtypes gamma useContextPath
+ctailOptimize :: Pretty.Env -> TargetPlatform -> Newtypes -> Gamma -> Bool -> CorePhase b ()
+ctailOptimize penv tpl newtypes gamma useContextPath
   = liftCorePhaseUniq $ \uniq defs ->
-    runUnique uniq (uctailOptimize penv newtypes gamma useContextPath defs)
+    runUnique uniq (uctailOptimize penv tpl newtypes gamma useContextPath defs)
 
-uctailOptimize :: Pretty.Env -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
-uctailOptimize penv newtypes gamma useContextPath defs
-  = ctailRun penv newtypes gamma useContextPath (ctailDefGroups True defs)
+uctailOptimize :: Pretty.Env -> TargetPlatform -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
+uctailOptimize penv tpl newtypes gamma useContextPath defs
+  = ctailRun penv tpl newtypes gamma useContextPath (ctailDefGroups True defs)
 
 --------------------------------------------------------------------------
 -- Definition groups
@@ -167,8 +167,9 @@ ctailWrapper slot mbMulti body
 ctailWrapperBody :: Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail Expr
 ctailWrapperBody resTp slot mbMulti targs args
   = do tailVar <- getCTailFun
+       tpl <- getTargetPlatform
        let  ctailCall  = App (makeTypeApp tailVar [TVar tv | tv <- targs])
-                           ([Var name InfoNone | name <- args] ++ [makeCCtxEmpty resTp])
+                           ([Var name InfoNone | name <- args] ++ [makeCCtxEmpty tpl resTp])
        case mbMulti of
          Nothing -> return ctailCall
          Just ctailMultiVar
@@ -272,7 +273,8 @@ ctailExpr top expr
               Nothing   -> return body
               Just slot -> do isMulti <- getIsMulti
                               alwaysAffine <- getIsAlwaysAffine
-                              return (makeCCtxApply isMulti alwaysAffine slot body)
+                              tpl <- getTargetPlatform
+                              return (makeCCtxApply tpl isMulti alwaysAffine slot body)
 
     handleConApp dname cname fcon fargs
       = do let mkCons cpath args = bindArgs args $ \xs -> return ([],mkConApp cpath fcon xs)
@@ -428,7 +430,8 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                                   (defs,cons) <- mkConsApp [hole]
                                   consName    <- uniqueTName (typeOf cons)
                                   alwaysAffine <- getIsAlwaysAffine
-                                  let comp = makeCCtxExtend slot consName (maybe consName id mbC) cname (getName fieldName) resTp alwaysAffine
+                                  tpl <- getTargetPlatform
+                                  let comp = makeCCtxExtend tpl slot consName (maybe consName id mbC) cname (getName fieldName) resTp alwaysAffine
                                       ctailCall   = mkTailApp ctailVar comp
                                   return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                                             ,ctailCall)
@@ -448,16 +451,19 @@ makeHole tp
 
 
 -- Initial empty context (@ctx hole)
-makeCCtxEmpty :: Type -> Expr
-makeCCtxEmpty tp
+makeCCtxEmpty :: TargetPlatform -> Type -> Expr
+makeCCtxEmpty tpl tp
   = App (TypeApp (Var (TName nameCCtxEmpty funType)
                         -- (InfoArity 1 0)
-                        (InfoExternal [(targetPlatformFromTarget (C CDefault),"kk_cctx_empty(kk_context())"),
-                                       (targetPlatformFromTarget (JS JsDefault),"$std_core_types._cctx_empty()")])
+                        (InfoExternal external)
                       ) [tp]) []
   where
     funType = TForall [a] (TFun [] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
+    external = case tplTarget tpl of
+                 C _  -> "kk_cctx_empty(kk_context())"
+                 JS _ -> "$std_core_types._cctx_empty()"
+                 _    -> unsupportedExternal "kk_cctx_empty"
 
 
 -- The adress of a field in a constructor (for context holes)
@@ -472,14 +478,12 @@ makeFieldAddrOf objName conName fieldName tp
 
 
 -- Extend a context with a non-empty context
-makeCCtxExtend :: TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
-makeCCtxExtend slot resName objName conName fieldName tp alwaysAffine
+makeCCtxExtend :: TargetPlatform -> TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
+makeCCtxExtend tpl slot resName objName conName fieldName tp alwaysAffine
   = let fieldOf = makeFieldAddrOf objName conName fieldName tp
     in  App (TypeApp (Var (TName nameCCtxExtend funType)
                 -- (InfoArity 1 3)
-                (InfoExternal [(targetPlatformFromTarget (C CDefault),"kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "")
-                                            ++ "(#1,#2,#3,kk_context())"),
-                               (targetPlatformFromTarget (JS JsDefault),"$std_core_types._cctx_extend(#1,#2,#3)")])
+                (InfoExternal external)
             ) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
@@ -487,19 +491,21 @@ makeCCtxExtend slot resName objName conName fieldName tp alwaysAffine
                                     (nameNil,TVar a),
                                     (nameNil,TApp typeFieldAddr [TVar a])] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
+    external = case tplTarget tpl of
+                 C _  -> "kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "") ++ "(#1,#2,#3,kk_context())"
+                 JS _ -> "$std_core_types._cctx_extend(#1,#2,#3)"
+                 _    -> unsupportedExternal "kk_cctx_extend"
 
 
 
 -- Apply a context to its final value.
-makeCCtxApply :: Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr -> Expr
-makeCCtxApply True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
+makeCCtxApply :: TargetPlatform -> Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr -> Expr
+makeCCtxApply tpl True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
-makeCCtxApply False alwaysAffine slot expr  -- slot is a `ctail<a>`
+makeCCtxApply tpl False alwaysAffine slot expr  -- slot is a `ctail<a>`
   = App (TypeApp (Var (TName nameCCtxApply funType)
                         -- (InfoArity 1 2)
-                        (InfoExternal [(targetPlatformFromTarget (C CDefault),"kk_cctx_apply" ++ (if alwaysAffine then "_linear" else "")
-                                                    ++ "(#1,#2,kk_context())"),
-                                       (targetPlatformFromTarget (JS JsDefault),"$std_core_types._cctx_apply(#1,#2)")])
+                        (InfoExternal external)
                       ) [tp])
         [Var slot InfoNone, expr]
   where
@@ -508,6 +514,10 @@ makeCCtxApply False alwaysAffine slot expr  -- slot is a `ctail<a>`
            TSyn _ [t] _ -> t
     funType = TForall [a] (TFun [(nameNil,typeCCtx (TVar a)),(nameNil,TVar a)] typeTotal (TVar a))
     a = TypeVar (-1) kindStar Bound
+    external = case tplTarget tpl of
+                 C _  -> "kk_cctx_apply" ++ (if alwaysAffine then "_linear" else "") ++ "(#1,#2,kk_context())"
+                 JS _ -> "$std_core_types._cctx_apply(#1,#2)"
+                 _    -> unsupportedExternal "kk_cctx_apply"
 
 
 
@@ -545,7 +555,8 @@ data Env = Env { currentDef :: [Def],
                  ctailSlot :: Maybe TName,
                  isMulti :: Bool,
                  useContextPath :: Bool,
-                 alwaysAffine :: Bool
+                 alwaysAffine :: Bool,
+                 tplatform :: TargetPlatform
                }
 
 data CTailState = CTailState { uniq :: Int }
@@ -571,10 +582,10 @@ updateSt = modify
 getSt :: CTail CTailState
 getSt = get
 
-ctailRun :: Pretty.Env -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
-ctailRun penv newtypes gamma useContextPath (CTail action)
+ctailRun :: Pretty.Env -> TargetPlatform -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
+ctailRun penv tpl newtypes gamma useContextPath (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv newtypes gamma (TName nameNil typeUnit) Nothing True useContextPath False
+      let env = Env [] penv newtypes gamma (TName nameNil typeUnit) Nothing True useContextPath False tpl
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -607,6 +618,10 @@ getUseContextPath
 getIsAlwaysAffine :: CTail Bool
 getIsAlwaysAffine
   = alwaysAffine <$> getEnv
+
+getTargetPlatform :: CTail TargetPlatform
+getTargetPlatform 
+  = tplatform <$> getEnv
 
 getFieldName :: TName -> Int -> CTail (Either String (Expr,TName))
 getFieldName cname field

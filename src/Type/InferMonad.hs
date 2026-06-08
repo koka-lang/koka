@@ -62,6 +62,7 @@ module Type.InferMonad( Inf, InfGamma
                       , checkCasing
                       , normalize
                       , getNewtypes
+                      , getTargetPlatform
 
                       -- * Unification
                       , Context(..)
@@ -104,7 +105,7 @@ import Common.Range hiding (Pos)
 import Common.Unique
 import Common.Failure
 import Common.Error
-import Common.Syntax( Visibility(..), DefSort(..))
+import Common.Syntax( Visibility(..), DefSort(..), TargetPlatform)
 import Common.File(endsWith,normalizeWith, seqqList)
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpIOC,nameTpST,nameTpAsync,
@@ -1762,6 +1763,7 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , scopeNestingDepth :: !Int   -- nested scope level
                  , allowInfiniteChains :: !Bool
                  , niceNames :: !(NM.NameMap Doc)
+                 , tplatform :: !TargetPlatform
                  }
 data St     = St{ uniq :: !Int
                 , sub :: !Sub                            -- current substitution
@@ -1772,9 +1774,9 @@ data St     = St{ uniq :: !Int
                 }
 
 
-runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
-runInfer env mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
-  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty)
+runInfer :: Pretty.Env -> TargetPlatform -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
+runInfer env tpl mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
+  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty tpl)
            (St unique subNull [] infgammaEmpty False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
@@ -1861,6 +1863,10 @@ getPrettyEnv :: Inf Pretty.Env
 getPrettyEnv
   = do env <- getEnv
        return (prettyEnv env)
+
+getTargetPlatform :: Inf TargetPlatform
+getTargetPlatform 
+  = tplatform <$> getEnv
 
 lookupSynonym :: Name -> Inf (Maybe SynInfo)
 lookupSynonym name

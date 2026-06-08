@@ -972,20 +972,19 @@ infExternal names (External name tp pinfos nameRng rng ecall vis fip doc)
                 addRangeInfo rng (Decl "extern" qname (mangle cname tp') (Just tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
        tplatform <- getTargetPlatform
-       return ([Core.External cname tp' pinfos (map (formatCall tplatform tp') [ecall]) vis fip nameRng doc]
+       return ([Core.External cname tp' pinfos (formatCall tplatform tp' ecall) vis fip nameRng doc]
                ,qname:names)
 infExternal names (ExternalImport imports range)
-  = do tplatform <- getTargetPlatform
-       return ([Core.ExternalImport imports tplatform range], names)       
+  = do return ([Core.ExternalImport imports range], names)       
 
-formatCall :: TargetPlatform -> Type -> (ExternalCall) -> (TargetPlatform, String)
-formatCall tplatform tp (ExternalInline inline) = (tplatform,inline)
+formatCall :: TargetPlatform -> Type -> (ExternalCall) -> String
+formatCall tplatform tp (ExternalInline inline) = (inline)
 formatCall tplatform tp (ExternalCall fname)
   = case tplTarget tplatform of
-      CS      -> (tplatform,formatCS)
-      JS _    -> (tplatform,formatJS)
-      C _     -> (tplatform,formatC)
-      _       -> (tplatform,formatJS)      
+      CS      -> formatCS
+      JS _    -> formatJS
+      C _     -> formatC
+      _       -> formatJS
   where
     (foralls,rho) = splitTypeScheme tp
 
