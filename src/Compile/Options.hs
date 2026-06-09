@@ -827,8 +827,9 @@ processInitialOptions flags0 opts
   = case parseOptions flags0 opts of
       Left err -> invokeError [err]
       Right (flags1,mode)
-        -> do arch <- if (null (targetArch flags1)) then getTargetArch else return hostArch
-              let flags2 = flags1{targetPlatform = (targetPlatform flags1){ tplArch = arch } }
+        -> do arch <- if (null (targetArch flags1)) then getTargetArch else return (targetArch flags1)
+              let os     = if (null (targetOS flags1)) then hostOsName else targetOS flags1
+              let flags2 = flags1{targetPlatform = (targetPlatform flags1){ tplArch = arch, tplOS = os } }
                   flags = case mode of
                             ModeInteractive _    -> flags2{evaluate = True}
                             ModeLanguageServer _ -> flags2{genRangeMap = True}
@@ -1129,7 +1130,7 @@ targetFromFlags flags
 
 platformFromFlags :: Flags -> Platform
 platformFromFlags flags
-  = tplPlatform (targetPlatform flags)  
+  = tplPlatform (targetPlatform flags)
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s

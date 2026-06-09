@@ -53,13 +53,13 @@ import Common.File(splitOn)
 
   backend:  c js cs
   host:     c : libc wasm wasmweb  (wasm==wasi wasmweb==emscripten)
-            js: node web  
+            js: node web
             cs: dotnet
   platform: 32 64 64c js cs
   arch:     x86 x64 arm32 arm64 riscv  -<variant>
   os:       windows linux macos unix   -<variant>
 
-  target option:   
+  target option:
     c    c64 c32 c64c
     js   jsnode jsweb
     wasm wasm32 wasm64 wasmjs wasmweb
@@ -245,13 +245,13 @@ platformIds = [
   ("64c",platform64c), ("p64c",platform64c),
   ("js",platformJS), ("pjs",platformJS),
   ("cs",platformCS), ("pcs",platformCS),
-  ("none",platformNone)      
+  ("none",platformNone)
   ]
 
 targetPlatformFromString :: String -> Maybe TargetPlatform
 targetPlatformFromString s
   = lookup s targetPlatformIds
-  
+
 targetPlatformIds :: [(String,TargetPlatform)]
 targetPlatformIds = [
   ("c",      targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
@@ -274,10 +274,13 @@ matchTargetPlatform (TargetPlatform b1 os1 arch1 pl1) (TargetPlatform b2 os2 arc
   = matchTarget b1 b2 && matchStr os1 os2 && matchStr arch1 arch2 && matchPlatform pl1 pl2
 
 matchOS :: String -> String -> Bool
-matchOS = matchStr
+matchOS s1 s2
+  = -- trace ("matchOS: " ++ show (s1,s2)) $
+    matchStr s1 s2
 
 matchArch :: String -> String -> Bool
-matchArch = matchStr
+matchArch s1 s2
+  = matchStr s1 s2
 
 matchStr :: String -> String -> Bool
 matchStr "" _ = True
@@ -293,7 +296,7 @@ matchInt 0 i2      = True
 matchInt i1 i2     = (i1==i2)
 
 matchTarget :: Target -> Target -> Bool
-matchTarget t1 t2      
+matchTarget t1 t2
   = case (t1,t2) of
       (Default,_)           -> True
       (C CDefault, C _)     -> True
