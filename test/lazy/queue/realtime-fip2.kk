@@ -3,7 +3,7 @@
 // - amortized   O(1), persistent O(1)
 module queue/realtime-fip2
 import std/core/unsafe
-import queue/bench
+import bench
 
 type stream<a>
   SNil

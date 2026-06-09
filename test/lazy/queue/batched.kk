@@ -3,7 +3,7 @@
 // - amortized   O(1), persistent O(n)
 module queue/batched
 
-import queue/bench
+import bench
 
 // batched queue
 struct queue<a>

@@ -17,11 +17,11 @@ import std/num/int32
 import std/num/int64
 import std/os/path
 
-import async/async
-import async/channel
-import async/interleave
+import async
+import channel
+import interleave
 
-import async/uv/file
+import uv/file
 
 //-----------------------------------
 // path based api (prefixed with `file-`)

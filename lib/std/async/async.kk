@@ -55,11 +55,11 @@ import std/core/undiv
 import std/core/unsafe
 import std/num/float64
 import std/time/duration
-import async/internal
+import internal
 
-import async/evloop
-  [host=libc|jsnode]    async/uv/evloop
-  [host=jsweb|wasmweb]  async/web/evloop
+import evloop
+  [host=libc|jsnode]    uv/evloop
+  [host=jsweb|wasmweb]  web/evloop
 
 
 pub effect discontinue  

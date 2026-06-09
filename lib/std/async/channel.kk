@@ -9,8 +9,8 @@
 // Asynchronous channels.
 module async/channel
 
-import async/internal
-import async/async
+import internal
+import async
 
 
 // A _channel_ of values of type `:a`. Values can be asynchronously `emit`ed into

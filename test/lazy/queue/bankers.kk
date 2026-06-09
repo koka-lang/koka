@@ -3,7 +3,7 @@
 // - amortized   O(1), persistent O(1)
 module queue/bankers
 
-import queue/bench
+import bench
 
 
 lazy type stream<a>

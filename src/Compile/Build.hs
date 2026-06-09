@@ -576,7 +576,7 @@ modulesResolveDeps rebuild forced cached roots acc
                case mbFound of
                  Just res -> return res
                  _        -> do let relativeDir = dirname (modSourcePath mod)
-                                m <- moduleFromModuleName relativeDir impName
+                                m <- moduleFromModuleName (modName mod) relativeDir impName
                                 -- trace ("import " ++ show impName ++ " as " ++ show (modName m)) $ return ()
                                 mbFound <- checkCached imp (modName m)
                                 case mbFound of
@@ -700,7 +700,7 @@ moduleLex mod
                                 , modDeps    = seqqList $ lexImportNub $
                                                 [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
                                 }
-                  deps <- mapM (\dep -> do{ mname <- moduleNameResolve (dirname (modSourcePath mod) ++ updirs) (lexImportName dep); 
+                  deps <- mapM (\dep -> do{ mname <- moduleNameResolve (dirname (modSourcePath mod) {- ++ updirs -}) (lexImportName dep); 
                                             return dep{lexImportName = mname} 
                                           }) 
                                (modDeps mod1)
@@ -795,35 +795,35 @@ moduleFromSource fpath0
   = do let fpath = normalize fpath0
        mbpath <- searchSourceFile "" fpath
        case mbpath of
-         Nothing          -> throwFileNotFound fpath
-         Just (root,stem) -> do let stemParts  = splitPath (noexts stem)
-                                    sourcePath = if null root then stem   -- on wsl2: ("","/@virtual///wsl.localhost/...")
-                                                              else joinPath root stem
-                                modName <- if isAbsolute stem || any (not . isValidId) stemParts
-                                            then case reverse stemParts of
-                                                    (base:_)  | isValidId base
-                                                      -> return (newModuleName base)  -- module may not be found if imported
-                                                    _ -> throwErrorKind ErrBuild (\penv -> text ("file path cannot be mapped to a valid module name: " ++ sourcePath))
-                                            else return (newModuleName (noexts stem))
-                                ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)                                
-                                moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
+         Nothing              -> throwFileNotFound fpath
+         Just (root,relpath)  -> do let relParts   = splitPath (noexts relpath)
+                                        sourcePath = if null root then relpath   -- on wsl2: ("","/@virtual///wsl.localhost/...")
+                                                                  else joinPath root relpath
+                                    modName <- if isAbsolute relpath || any (not . isValidId) relParts
+                                                then case reverse relParts of
+                                                        (base:_)  | isValidId base
+                                                          -> return (newModuleName base)  -- module may not be found if imported
+                                                        _ -> throwErrorKind ErrBuild (\penv -> text ("file path cannot be mapped to a valid module name: " ++ sourcePath))
+                                                else return (newModuleName (noexts relpath))
+                                    ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)                                
+                                    moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = relpath }
   where
     isValidId :: String -> Bool  -- todo: make it better
     isValidId ""      = False
     isValidId (c:cs)  = (isLower c || c=='@') && all (\c -> isAlphaNum c || c `elem` "_-@") cs
 
 
-moduleFromModuleName :: FilePath -> Name -> Build Module
-moduleFromModuleName relativeDir modName
+moduleFromModuleName :: ModuleName -> FilePath -> Name -> Build Module
+moduleFromModuleName parent relativeDir modName
   = -- trace ("moduleFromModuleName: " ++ show modName ++ ", relative dir: " ++ relativeDir) $
     do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
-         Just (root,stem)
-            -> do let fullModName = pathToModuleName (notext stem) -- maybe larger if looked up relatively
+         Just (root,relpath)
+            -> do let fullModName = pathToModuleName (notext relpath) -- maybe larger if looked up relatively
                   -- trace ("moduleFromModuleName: found: " ++ show fullModName) $ return ()
                   ifacePath    <- outputName (moduleNameToPath fullModName ++ ifaceExtension)
                   libIfacePath <- searchLibIfaceFile (moduleNameToPath fullModName ++ ifaceExtension)
-                  moduleValidate $ (moduleCreateInitial fullModName (joinPath root stem) ifacePath libIfacePath){ modSourceRelativePath = stem }
+                  moduleValidate $ (moduleCreateInitial fullModName (joinPath root relpath) ifacePath libIfacePath){ modSourceRelativePath = relpath }
          Nothing
             -> do ifacePath  <- outputName (moduleNameToPath modName ++ ifaceExtension)
                   libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)                                         
@@ -832,7 +832,7 @@ moduleFromModuleName relativeDir modName
                     then do cs <- getColorScheme
                             addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
                             moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
-                    else throwModuleNotFound rangeNull modName
+                    else throwModuleNotFound parent rangeNull modName
 
 -- Resolve a potentially relative module name to a full module name
 moduleNameResolve :: FilePath -> Name -> Build Name
@@ -840,12 +840,12 @@ moduleNameResolve relativeDir modName
   = do -- trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
        mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
-         Just (root,stem) -> return (pathToModuleName (notext stem)) 
-         Nothing          -> return modName
+         Just (root,relpath) -> return (pathToModuleName (notext relpath)) 
+         Nothing             -> return modName
     
 
 -- Find a source file and resolve it
--- with a `(root,stem)` where `stem` is the minimal module path relative to the include roots.
+-- with a `(root,relpath)` where `relpath` is the minimal module path relative to the include roots.
 -- The root is either in the include paths or the full directory for absolute paths.
 -- (and absolute file paths outside the include roots always have a single module name corresponding to the file)
 -- relativeDir is set when importing from a module so a module name is first resolved relative to the current module
@@ -856,10 +856,10 @@ searchSourceFile relativeDir fname
        mb <- lookupVFS fname
        case mb of  -- must match exactly; we may improve this later on and search relative files as well?
          Just _ -> if fname `startsWith` (virtualMount ++ "///") -- just for wsl paths :-( TODO: fix this in general
-                     then let (root,stem) = getMaximalPrefixPath (virtualMount : includePath flags) fname
+                     then let (root,relpath) = getMaximalPrefixPath (virtualMount : includePath flags) fname
                           in return $! Just $! if root == virtualMount
                                then ("",fname)     -- maintain wsl2 paths: ("","/@virtual///wsl.localhost/...")
-                               else (root,stem)
+                               else (root,relpath)
                      else return $! Just $! getMaximalPrefixPath (virtualMount : includePath flags) fname
          _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir) $
                    liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
@@ -882,13 +882,9 @@ searchLibIfaceFile fname
 
 
 {---------------------------------------------------------------
-  Validate if modules are still valid
+  Validate if modules are still valid (and not out of date
+  with respect to its sources)
 ---------------------------------------------------------------}
-{-
-modulesValidate :: [Module] -> Build [Module]
-modulesValidate modules
-  = mapM moduleValidate modules
--}
 
 moduleValidate :: Module -> Build Module
 moduleValidate mod
@@ -941,11 +937,18 @@ coreReset core
   Helpers
 ---------------------------------------------------------------}
 
-throwModuleNotFound :: Range -> Name -> Build a
-throwModuleNotFound range name
+throwModuleNotFound :: ModuleName -> Range -> Name -> Build a
+throwModuleNotFound parent range name
   = do flags <- getFlags
        vfs <- envVFS <$> getEnv       
-       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" vfs (pretty name)))
+       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" vfs 
+                              (pretty name <.> 
+                                (if nameIsNil parent 
+                                   then Lib.PPrint.empty
+                                   else let scheme = colorSchemeFromFlags flags
+                                        in space <.> color (colorSource scheme) (parens ( (text "imported from") <+> 
+                                                     color (colorModule scheme) (pretty parent))))))
+                                )
 
 throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
@@ -955,8 +958,10 @@ throwFileNotFound name
 
 errorNotFound flags clr kind vfs namedoc
   = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
-    text "search path:" <+> prettyIncludePath flags <->
-    text "vfs        :" <+> pretty (map fst (vfsToList vfs))
+    text "search path:" <+> prettyIncludePath flags <.>
+    (let vfsNames = map fst (vfsToList vfs)
+     in if null vfsNames then Lib.PPrint.empty else
+         Lib.PPrint.empty <-> text "vfs        :" <+> pretty vfsNames)
   where
     cscheme = colorSchemeFromFlags flags
 

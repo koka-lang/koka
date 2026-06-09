@@ -171,7 +171,7 @@ runKoka cfg kokaDir fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        let relTest = makeRelative kokaDir fp
            optFlag   = if (opt (options cfg) /= 0) then ["-O" ++ show (opt (options cfg))] else []
-           kokaFlags = optFlag ++ flags cfg ++ caseFlags
+           kokaFlags = optFlag ++ flags cfg ++ caseFlags           
        if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
                  (exitCode, stdout, stderr) <- readProcessWithExitCode "cabal" argv ""
@@ -272,6 +272,7 @@ getOptions
 
 main :: IO ()
 main = do
+  setEnv "LC_ALL" "C"  -- for unicode
   pwd <- getCurrentDirectory
   (options0, args) <- getOptions
   cabalEnv <- do stackExe <- lookupEnv "STACK_EXE"
