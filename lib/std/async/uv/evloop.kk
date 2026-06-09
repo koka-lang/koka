@@ -15,9 +15,6 @@ extern import
 extern import
   c[host=libc,os=windows] { syslib="user32;iphlpapi;userenv;ws2_32;dbghelp;ole32;uuid" }
   
-extern import  
-  c[host=wasmweb] { header-file="inline/emscripten-uv.h"; file="inline/emscripten-uv.c" }
-
 extern import
   c { header-file="inline/core.h"; file="inline/core.c" }
 

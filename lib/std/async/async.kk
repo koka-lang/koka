@@ -58,8 +58,8 @@ import std/time/duration
 import async/internal
 
 import async/evloop
-  [host=libc|wasmweb|jsnode] async/uv/evloop
-  [host=jsweb]               async/web/evloop
+  [host=libc|jsnode]    async/uv/evloop
+  [host=jsweb|wasmweb]  async/web/evloop
 
 
 pub effect discontinue  

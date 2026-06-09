@@ -6,14 +6,11 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// #define __EMSCRIPTEN__
 // #include <kklib.h>
 // #include "core.h"
 
 #include <fcntl.h>
-#ifndef __EMSCRIPTEN__
 #include <uv.h>
-#endif
 
 int32_t kk_uv_fd_flags_from_filemode( int32_t fmode, kk_context_t* ctx ) {
   kk_unused(ctx);

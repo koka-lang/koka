@@ -7,12 +7,9 @@
 ---------------------------------------------------------------------------*/
 
 // #include "../../../../../kklib/include/kklib.h"
-// #define __EMSCRIPTEN__
 // #include "core.h"
 
-#ifndef __EMSCRIPTEN__
 #include <uv.h>
-#endif
 
 static void kk_uv_timer_callback(uv_timer_t* t) {
   kk_uv_handle_callback((uv_handle_t*)t);

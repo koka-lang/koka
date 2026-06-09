@@ -12,9 +12,7 @@
 // #include "core.h"
 // #include <stdio.h>  // debug
 
-#ifndef __EMSCRIPTEN__
 #include <uv.h>
-#endif
 
 kk_std_core_exn__error kk_result_ok( kk_box_t val, kk_context_t* ctx ) {
   return kk_std_core_types__new_Ok(val,ctx);
