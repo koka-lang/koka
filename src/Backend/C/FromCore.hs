@@ -1412,7 +1412,10 @@ getResultX result (retDoc)
      ResultReturn (Just n) _  | (isTypeUnit (typeOf n))
                               -> retDoc <.> text "; return kk_Unit;"
      ResultReturn _ _  -> text "return" <+> retDoc <.> semi
-     ResultAssign n ml | isTypeUnit (typeOf n) && dstartsWith retDoc "kk_Unit" -> empty
+     ResultAssign n ml | isTypeUnit (typeOf n) && dstartsWith retDoc "kk_Unit"
+                              -> case ml of
+                                   Nothing -> empty
+                                   Just l  -> text "goto" <+> ppName l <.> semi
      ResultAssign n ml -> (if --isWildcard (getName n) ||
                                nameNil == (getName n) || isTypeUnit (typeOf n)
                               then retDoc <.> semi
