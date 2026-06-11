@@ -303,7 +303,7 @@
       },
 
     "externconditional":
-      { "match": "((?:(?:c|cs|js|default)\\s*)?\\[(?:host|backend|platform|target|arch|os)=[^\\]]*\\])(\\s+([a-z][\\w\\-]*/)*[a-z][\\w\\-]*)?"
+      { "match": "((?:(?:c|cs|js|default)\\s*)?\\[(?:host|backend|platform|target|arch|os|buildcfg)=[^\\]]*\\])(\\s+([a-z][\\w\\-]*/)*[a-z][\\w\\-]*)?"
       , "captures": {
           "1": { "name": "keyword.control" },
           "2": { "name": "entity.name.variable koka.moduleid" }

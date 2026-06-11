@@ -308,7 +308,7 @@ flagsNull
           False -- do not execute by default
           []    -- execution options (following --)
           False -- library
-          (TargetPlatform (C LibC) "" "" platform64)  -- 64-bit C with libc
+          targetPlatformC64  -- 64-bit C with libc
           0     -- stack size
           0     -- reserved heap size (for wasm)
           5     -- simplify passes
@@ -442,6 +442,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     ("build under <dir> ('" ++ kkbuild ++ "' by default)")
  , option []    ["buildname"]       (ReqArg outBaseNameFlag "name") "base name of the final output"
  , flag   []    ["buildhash"]       (\b f -> f{useBuildDirHash=b})  "use hash in build directory name"
+ , option []    ["buildcfg"]        (ReqArg buildCfgFlag "def")     "add a build configuration definition (for use in 'buildcfg' conditionals)"
  , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>, defaults to:\n<builddir>/<ver>-<buildtag>/<cc>-<variant>-<hash>"
 
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
@@ -605,6 +606,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   buildTagFlag s
     = Flag (\f -> f{ buildTag = s })
+
+  buildCfgFlag s
+    = Flag (\f -> let tpl = targetPlatform f
+                      defs = map trim (splitOn (\c -> c==',') s)
+                  in f{ targetPlatform = tpl{ tplBuildDefs = (tplBuildDefs tpl) ++ defs } })
 
   outBuildDirFlag s
     = Flag (\f -> f{ outBuildDir = s })

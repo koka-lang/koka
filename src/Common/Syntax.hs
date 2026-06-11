@@ -35,9 +35,9 @@ module Common.Syntax( Visibility(..)
                     , BuildType(..)
                     , sepBySpace, memberDoc
                     , TargetPlatform(..), targetPlatformFromTarget
-                    , targetPlatformDefault, targetPlatformIsDefault
+                    , targetPlatformDefault, targetPlatformIsDefault, targetPlatformC64
                     , targetPlatformFromString, targetFromBackend, targetFromHost, platformFromString
-                    , matchTargetPlatform, matchTarget, matchOS, matchArch, matchPlatform
+                    , matchTargetPlatform, matchTarget, matchOS, matchArch, matchPlatform, matchBuildDefs
                     , targetPlatformIds
                     , unsupportedExternal
                     -- , targetPlatformTryMatch
@@ -158,25 +158,34 @@ instance Show BuildType where
   show RelWithDebInfo = "drelease"
   show Release        = "release"
 
-data TargetPlatform = TargetPlatform{ tplTarget :: !Target, tplOS :: !String, tplArch :: !String, tplPlatform :: Platform }
-                    deriving (Eq)
-
+data TargetPlatform = TargetPlatform{ 
+                         tplTarget :: !Target, 
+                         tplOS :: !String, 
+                         tplArch :: !String, 
+                         tplPlatform :: Platform, 
+                         tplBuildDefs :: ![String] -- arbitrary build defines
+                      }
+                      deriving (Eq)
+{-
 instance Ord TargetPlatform where
   compare :: TargetPlatform -> TargetPlatform -> Ordering
-  compare (TargetPlatform t1 os1 arch1 p1) (TargetPlatform t2 os2 arch2 p2)
+  compare (TargetPlatform t1 os1 arch1 p1 defs1) (TargetPlatform t2 os2 arch2 p2 defs2)
     = case compare t1 t2 of
-        EQ   -> compare (os1,arch1,p1) (os2,arch2,p2)
+        EQ   -> case compare (os1,arch1,p1) (os2,arch2,p2) of
+                  EQ   -> compare (sort defs1) (sort defs2)
+                  ltgt -> ltgt
         ltgt -> ltgt
-
+-}
 instance Show TargetPlatform where
-  show (TargetPlatform tgt os arch p)
+  show (TargetPlatform tgt os arch p defs)
     = showTarget tgt ++ (if null attrs then "" else "[" ++ intercalate "," attrs ++ "]")
     where
       attrs = concat $
         [hostAttr tgt,
          if os=="" then [] else ["os=" ++ os],
          if arch=="" then [] else ["arch=" ++ arch],
-         if p==platformNone then [] else ["platform=" ++ show p]
+         if p==platformNone then [] else ["platform=" ++ show p],
+         if null defs then [] else ["buildcfg=" ++ intercalate "|" defs]
         ]
 
       showTarget t
@@ -197,14 +206,17 @@ instance Show TargetPlatform where
             _         -> []
 
 
+targetPlatformC64 :: TargetPlatform
+targetPlatformC64 = TargetPlatform (C LibC) "" "" platform64 []
+
 targetPlatformDefault :: TargetPlatform
 targetPlatformDefault = targetPlatformFromTarget Default
 
 targetPlatformFromTarget :: Target -> TargetPlatform
-targetPlatformFromTarget target = TargetPlatform target "" "" platformNone
+targetPlatformFromTarget target = TargetPlatform target "" "" platformNone []
 
 targetPlatformIsDefault :: TargetPlatform -> Bool
-targetPlatformIsDefault (TargetPlatform Default "" "" (Platform 0 0 0 0)) = True
+targetPlatformIsDefault (TargetPlatform Default "" "" (Platform 0 0 0 0) []) = True
 targetPlatformIsDefault _ = False
 
 
@@ -270,8 +282,9 @@ targetPlatformIds = [
   ]
 
 matchTargetPlatform :: TargetPlatform -> TargetPlatform -> Bool
-matchTargetPlatform (TargetPlatform b1 os1 arch1 pl1) (TargetPlatform b2 os2 arch2 pl2)
-  = matchTarget b1 b2 && matchStr os1 os2 && matchStr arch1 arch2 && matchPlatform pl1 pl2
+matchTargetPlatform (TargetPlatform b1 os1 arch1 pl1 defs1) (TargetPlatform b2 os2 arch2 pl2 defs2)
+  = matchTarget b1 b2 && matchStr os1 os2 && matchStr arch1 arch2 && matchPlatform pl1 pl2 &&
+    matchBuildDefs defs1 defs2
 
 matchOS :: String -> String -> Bool
 matchOS s1 s2
@@ -302,6 +315,10 @@ matchTarget t1 t2
       (C CDefault, C _)     -> True
       (JS JsDefault, JS _)  -> True
       (_,_)                 -> t1 == t2
+
+matchBuildDefs :: [String] -> [String] -> Bool
+matchBuildDefs defs1 defs2
+  = all (\def -> def `elem` defs2) defs1
 
 {--------------------------------------------------------------------------
   Visibility

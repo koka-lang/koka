@@ -659,7 +659,8 @@ targetGuard
                          Just pl  -> return $ matchPlatform pl (tplPlatform tpl)
                          Nothing  -> do pwarningMessage ("unknown platform: " ++ show val) valrng
                                         return False
-
+          "buildcfg"-> let defs = map trim (splitOn (\c->c==',') val)
+                       in return $ matchBuildDefs defs (tplBuildDefs tpl)
           _ -> do pwarningMessage ("unknown attribute for target: " ++ show attr) rng
                   return True
 
