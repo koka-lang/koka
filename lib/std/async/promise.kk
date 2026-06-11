@@ -8,8 +8,8 @@
 
 module async/promise
 
-import internal      // async-ioc
-import async
+import async/internal      // async-ioc
+import async/async
 
 // ----------------------------------------------------------------------------
 // Promises 

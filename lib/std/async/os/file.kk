@@ -10,7 +10,7 @@
 /* Asynchronous file operations.
 
 */
-module async/file
+module async/os/file
 
 import std/core/undiv
 import std/num/int32
@@ -21,7 +21,8 @@ import async
 import channel
 import interleave
 
-import uv/file
+import api/file 
+  [host=libuv|jsnode] api/uv/file
 
 //-----------------------------------
 // path based api (prefixed with `file-`)

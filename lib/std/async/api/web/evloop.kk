@@ -1,4 +1,4 @@
-module async/web/evloop
+module web/evloop
 
 import std/num/int64
 

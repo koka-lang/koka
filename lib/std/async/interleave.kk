@@ -15,8 +15,8 @@ import std/time/duration
 import std/core/unsafe
 import std/core/undiv 
 
-import async
-import channel
+import async/async
+import async/channel
 
 
 /*
