@@ -287,6 +287,7 @@ data Import  = Import{ importName :: !Name
                      , importProvenance :: !ImportProvenance
                      , importVis  :: !Visibility
                      , importModDoc :: !String
+                     , importNameRange :: !Range
                      }
 
 data ImportProvenance = ImportUser     -- user wrote import
@@ -301,10 +302,10 @@ isCompilerImport imp = (importProvenance imp >= ImportCompiler)
 isUserImport :: Import -> Bool
 isUserImport imp  = (importProvenance imp == ImportUser)
 
-makeImport :: HasCallStack => Name -> String -> ImportProvenance -> Visibility -> String -> Import
-makeImport name pkg provenance vis doc
+makeImport :: HasCallStack => Name -> String -> ImportProvenance -> Visibility -> String -> Range -> Import
+makeImport name pkg provenance vis doc range
   = assertion "invalid import" (show name /= "") $
-    Import name pkg provenance vis doc
+    Import name pkg provenance vis doc range
 
 {--------------------------------------------------------------------------
   Externals

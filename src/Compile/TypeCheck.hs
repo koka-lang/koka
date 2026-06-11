@@ -147,7 +147,7 @@ typeCheck flags defs coreImports program0
             -- add extra imports needed to resolve types in this module
             typeDeps         = extractDepsFromSignatures coreUnique
             currentImports   = S.fromList (map Core.importName coreImports)
-            typeImports      = [Core.Import name "" Core.ImportTypes Private "" | name <- typeDeps, not (S.member name currentImports) && not (name == progName)]
+            typeImports      = [Core.Import name "" Core.ImportTypes Private "" rangeNull| name <- typeDeps, not (S.member name currentImports) && not (name == progName)]
             coreFinal        = coreUnique{ Core.coreProgImports = Core.coreProgImports coreUnique ++ typeImports }
 
         return (coreFinal,mbRangeMap)

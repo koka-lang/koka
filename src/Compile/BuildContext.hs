@@ -111,7 +111,7 @@ buildcAddRootSources fpaths buildc
 -- Add root modules (by module name) to a build context
 buildcAddRootModules :: [ModuleName] -> BuildContext -> Build BuildContext
 buildcAddRootModules moduleNames buildc
-  = do mods <- mapM (moduleFromModuleName nameNil "" {-relative dir-}) moduleNames
+  = do mods <- mapM (\mname -> moduleFromModuleName nameNil "" {-relative dir-} mname rangeNull) moduleNames
        let roots   = nub (map modName mods ++ buildcRoots buildc)
            modules = mergeModulesLeftBias (buildcModules buildc) mods
        return $! buildc{ buildcRoots = seqqList roots, buildcModules = seqqList modules }

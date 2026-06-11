@@ -547,7 +547,7 @@ type Signatures = [Type]
 extractImportFromSignatures :: Signatures -> [Import]
 extractImportFromSignatures sigs
   = let importNames = extractDepsFromSignatures sigs
-    in [makeImport name "" ImportTypes Private "" | name <- importNames]
+    in [makeImport name "" ImportTypes Private "" rangeNull | name <- importNames]
 
 extractDepsFromSignatures :: Signatures -> [ModuleName]
 extractDepsFromSignatures sigs
@@ -556,7 +556,7 @@ extractDepsFromSignatures sigs
 
 extractImportsFromSynInfo :: SynInfo -> Import
 extractImportsFromSynInfo syn
-  = makeImport (qualifier $ synInfoName syn) "" ImportTypes Private ""
+  = makeImport (qualifier $ synInfoName syn) "" ImportTypes Private "" rangeNull
 
 extractDepsFromSynonyms :: Synonyms -> [ModuleName]
 extractDepsFromSynonyms syns

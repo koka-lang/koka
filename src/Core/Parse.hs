@@ -149,7 +149,7 @@ importDecl
        mbalias <- importAlias
        prov <- pimportProvenance
        pkg <- (do{ keyword "="; (s,_) <- stringLit; return s } <|> return "")
-       return $! fmap (\(asname,name,_,_) -> (makeImport name pkg prov vis doc, (asname, name))) mbalias
+       return $! fmap (\(asname,name,_,nameRng) -> (makeImport name pkg prov vis doc nameRng, (asname, name))) mbalias
 
 pimportProvenance :: LexParser ImportProvenance
 pimportProvenance

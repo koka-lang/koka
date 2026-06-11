@@ -491,6 +491,7 @@ coreImportsFromModules lexImports modules
       (case modCore mod of                   -- careful: need to be strict enough or we hang on to the entire "modCore mod" !
         Just core -> Core.coreProgDoc core
         Nothing -> "")
+      (getRange (modName mod))
     | mod <- modules ]
   where
     getVisibility modname
@@ -502,6 +503,11 @@ coreImportsFromModules lexImports modules
       = case find (\imp -> lexImportName imp == modname) lexImports of
           Just imp -> Core.ImportUser
           _        -> Core.ImportPub
+
+    getRange modname
+      = case find (\imp -> lexImportName imp == modname) lexImports of
+          Just imp -> lexImportNameRange imp
+          _        -> rangeNull
 
 
 
@@ -576,7 +582,7 @@ modulesResolveDeps rebuild forced cached roots acc
                case mbFound of
                  Just res -> return res
                  _        -> do let relativeDir = dirname (modSourcePath mod)
-                                m <- moduleFromModuleName (modName mod) relativeDir impName
+                                m <- moduleFromModuleName (modName mod) relativeDir impName (lexImportNameRange imp)
                                 -- trace ("import " ++ show impName ++ " as " ++ show (modName m)) $ return ()
                                 mbFound <- checkCached imp (modName m)
                                 case mbFound of
@@ -698,7 +704,8 @@ moduleLex mod
                                 , modSource  = source
                                 , modLexemes = lexemes
                                 , modDeps    = seqqList $ lexImportNub $
-                                                [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
+                                                [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) (importFullNameRange imp) 
+                                                    | imp <- imports]
                                 }
                   deps <- mapM (\dep -> do{ mname <- moduleNameResolve (dirname (modSourcePath mod) {- ++ updirs -}) (lexImportName dep); 
                                             return dep{lexImportName = mname} 
@@ -739,7 +746,7 @@ modFromIface core parseInlines mod
                              Just f  -> PhaseIfaceLoaded
         , modErrors      = errorsNil
         , modSource      = sourceNull
-        , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False {- @open -}
+        , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False (Core.importNameRange imp) {- @open -}
                                        | imp <- Core.coreProgImports core, not (Core.isCompilerImport imp) ]
         , modCore        = Just $! core
         , modDefinitions = Just $! defsFromCore False core
@@ -813,8 +820,8 @@ moduleFromSource fpath0
     isValidId (c:cs)  = (isLower c || c=='@') && all (\c -> isAlphaNum c || c `elem` "_-@") cs
 
 
-moduleFromModuleName :: ModuleName -> FilePath -> Name -> Build Module
-moduleFromModuleName parent relativeDir modName
+moduleFromModuleName :: ModuleName -> FilePath -> Name -> Range -> Build Module
+moduleFromModuleName parent relativeDir modName modNameRng
   = -- trace ("moduleFromModuleName: " ++ show modName ++ ", relative dir: " ++ relativeDir) $
     do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
@@ -830,9 +837,9 @@ moduleFromModuleName parent relativeDir modName
                   ifaceExist <- buildDoesFileExistAndNotEmpty ifacePath
                   if ifaceExist
                     then do cs <- getColorScheme
-                            addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
+                            addWarningMessage (warningMessageKind ErrBuild modNameRng (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
                             moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
-                    else throwModuleNotFound parent rangeNull modName
+                    else throwModuleNotFound parent modNameRng modName
 
 -- Resolve a potentially relative module name to a full module name
 moduleNameResolve :: FilePath -> Name -> Build Name
@@ -957,11 +964,12 @@ throwFileNotFound name
        throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" vfs (text name)))
 
 errorNotFound flags clr kind vfs namedoc
-  = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
-    text "search path:" <+> prettyIncludePath flags <.>
-    (let vfsNames = map fst (vfsToList vfs)
-     in if null vfsNames then Lib.PPrint.empty else
-         Lib.PPrint.empty <-> text "vfs        :" <+> pretty vfsNames)
+  = vcat $ [
+        text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc,
+        text "search path:" <+> prettyIncludePath flags 
+      ] ++
+      (let vfsNames = map fst (vfsToList vfs)
+       in if null vfsNames then [] else [Lib.PPrint.empty <-> text "vfs        :" <+> pretty vfsNames])
   where
     cscheme = colorSchemeFromFlags flags
 

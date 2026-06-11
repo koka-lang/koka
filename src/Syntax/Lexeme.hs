@@ -170,7 +170,8 @@ showLex lex
 data LexImport = LexImport{ lexImportName  :: !ModuleName
                           , lexImportAlias :: !ModuleName
                           , lexImportVis   :: !Visibility
-                          , lexImportIsOpen :: !Bool }
+                          , lexImportIsOpen :: !Bool
+                          , lexImportNameRange :: !Range }
 
 instance Show LexImport where
   show li = (if isPublic (lexImportVis li) then "pub " else "") ++
