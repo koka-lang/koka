@@ -581,8 +581,8 @@ modulesResolveDeps rebuild forced cached roots acc
                mbFound <- checkCached imp impName
                case mbFound of
                  Just res -> return res
-                 _        -> do let relativeDir = dirname (modSourcePath mod)
-                                m <- moduleFromModuleName (modName mod) relativeDir impName (lexImportNameRange imp)
+                 _        -> do -- let relativeDir = dirname (modSourcePath mod)
+                                m <- moduleFromModuleName (modName mod) {- relativeDir -} impName (lexImportNameRange imp)
                                 -- trace ("import " ++ show impName ++ " as " ++ show (modName m)) $ return ()
                                 mbFound <- checkCached imp (modName m)
                                 case mbFound of
@@ -611,7 +611,6 @@ toBuildOrder modules
           orderedMods <- concat <$> mapM ungroup ordered
           return orderedMods
           
-
 -- validate that dependencies of a module are not out-of-date
 -- modules must be in build order
 validateDependencies :: [Module] -> Build [Module]
@@ -699,20 +698,27 @@ moduleLex mod
                                                      text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod))
                                 else let updirs = concat ["/.." | _ <- init dparts]
                                      in (updirs,errorsNil)
+
+                      deps0 = lexImportNub $
+                              [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) (importFullNameRange imp) 
+                                | imp <- imports]
+
+                      resolveDep :: LexImport -> Build LexImport
+                      resolveDep imp 
+                        = do mbname <- moduleNameResolve (dirname (modSourcePath mod) ++ updirs) (lexImportName imp)
+                             case mbname of
+                               Just mname -> return (imp{ lexImportName = mname })
+                               Nothing    -> throwModuleNotFound declaredModName (lexImportNameRange imp) (lexImportName imp)
+                                                                                              
+                  deps <- mapM resolveDep deps0                       
                   let mod1 = mod{ modPhase   = PhaseLexed
                                 , modErrors  = mergeErrors warns err
                                 , modSource  = source
                                 , modLexemes = lexemes
-                                , modDeps    = seqqList $ lexImportNub $
-                                                [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) (importFullNameRange imp) 
-                                                    | imp <- imports]
+                                , modDeps    = seqqList $ deps
                                 }
-                  deps <- mapM (\dep -> do{ mname <- moduleNameResolve (dirname (modSourcePath mod) {- ++ updirs -}) (lexImportName dep); 
-                                            return dep{lexImportName = mname} 
-                                          }) 
-                               (modDeps mod1)
-                  return mod1{ modDeps = deps }
-
+                  return mod1
+                  
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
@@ -820,10 +826,12 @@ moduleFromSource fpath0
     isValidId (c:cs)  = (isLower c || c=='@') && all (\c -> isAlphaNum c || c `elem` "_-@") cs
 
 
-moduleFromModuleName :: ModuleName -> FilePath -> Name -> Range -> Build Module
-moduleFromModuleName parent relativeDir modName modNameRng
+-- todo: after lexing the import modules are always full module names so we
+-- should never need to look to the relativeDir again? 
+moduleFromModuleName :: ModuleName -> {- FilePath -> -} Name -> Range -> Build Module
+moduleFromModuleName parent {- relativeDir -} modName modNameRng
   = -- trace ("moduleFromModuleName: " ++ show modName ++ ", relative dir: " ++ relativeDir) $
-    do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
+    do mbSourceName <- searchSourceFile "" {-relativeDir-} (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
          Just (root,relpath)
             -> do let fullModName = pathToModuleName (notext relpath) -- maybe larger if looked up relatively
@@ -842,13 +850,15 @@ moduleFromModuleName parent relativeDir modName modNameRng
                     else throwModuleNotFound parent modNameRng modName
 
 -- Resolve a potentially relative module name to a full module name
-moduleNameResolve :: FilePath -> Name -> Build Name
+moduleNameResolve :: FilePath -> Name -> Build (Maybe Name)
 moduleNameResolve relativeDir modName
-  = do -- trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
+  = do trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
        mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
-         Just (root,relpath) -> return (pathToModuleName (notext relpath)) 
-         Nothing             -> return modName
+         Just (root,relpath) -> trace (" resolved to: " ++ show (root,relpath)) $
+                                return (Just (pathToModuleName (notext relpath)))
+         Nothing             -> trace (" could not resolve: " ++ show modName) $
+                                return Nothing -- modName
     
 
 -- Find a source file and resolve it
@@ -868,7 +878,7 @@ searchSourceFile relativeDir fname
                                then ("",fname)     -- maintain wsl2 paths: ("","/@virtual///wsl.localhost/...")
                                else (root,relpath)
                      else return $! Just $! getMaximalPrefixPath (virtualMount : includePath flags) fname
-         _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir) $
+         _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir ++ ", fname: " ++ fname) $
                    liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
 virtualStrip path
@@ -953,7 +963,7 @@ throwModuleNotFound parent range name
                                 (if nameIsNil parent 
                                    then Lib.PPrint.empty
                                    else let scheme = colorSchemeFromFlags flags
-                                        in space <.> color (colorSource scheme) (parens ( (text "imported from") <+> 
+                                        in space <.> color ColorDefault (parens ( (text "imported from") <+> 
                                                      color (colorModule scheme) (pretty parent))))))
                                 )
 
