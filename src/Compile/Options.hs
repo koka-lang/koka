@@ -83,12 +83,12 @@ colorSchemeFromFlags flags
   = colorScheme flags
 
 
-prettyIncludePath :: Flags -> Doc
-prettyIncludePath flags
+prettyIncludePath :: Flags -> [FilePath] -> Doc
+prettyIncludePath flags extra
   = let cscheme = colorScheme flags
         path    = includePath flags
     in align (if null path then color (colorSource cscheme) (text "<empty>")
-               else cat (punctuate comma (map (\p -> color (colorSource cscheme) (text p)) path)))
+               else align (vcat (map (\p -> color (colorSource cscheme) (text p)) (extra ++ path))))
 
 
 data Terminal = Terminal{ termError    :: !(ErrorMessage -> IO ())
@@ -1515,7 +1515,7 @@ commandLineHelp flags
       = color (colorInterpreter colors) (text s)
 
 showIncludeInfo flags
-  = hang 2 (infotext "include path:" <-> prettyIncludePath flags) -- text (if null paths then "<empty>" else paths))
+  = hang 2 (infotext "include path:" <-> prettyIncludePath flags []) -- text (if null paths then "<empty>" else paths))
   where
     paths
       = concat $ intersperse [pathDelimiter] (includePath flags)

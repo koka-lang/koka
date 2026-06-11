@@ -690,14 +690,17 @@ moduleLex mod
          Right ((declaredModName,rng,imports),warns)
             -> do penv <- getPrettyEnv
                   let (updirs,err) 
-                          = let (dparts,mparts) = (splitName declaredModName,splitName (modName mod))
-                            in if not (reverse dparts `isPrefixOf` reverse mparts)
-                                then ("",
-                                      errorsSingle $ errorMessageKind ErrStatic rng $
-                                                     text "the module name" <+> TP.ppName penv declaredModName <+>
-                                                     text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod))
-                                else let updirs = concat ["/.." | _ <- init dparts]
-                                     in (updirs,errorsNil)
+                            = let (dparts,mparts) = (splitName declaredModName,splitName (modName mod))
+                              in if not (reverse dparts `isPrefixOf` reverse mparts)
+                                  then ("",
+                                        errorsSingle $ errorMessageKind ErrStatic rng $
+                                                      text "the module name" <+> TP.ppName penv declaredModName <+>
+                                                      text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod))
+                                  else let updirs = concat ["/.." | _ <- init dparts]
+                                      in (updirs,errorsNil)
+                              
+                      relativeDir 
+                            = (dirname (modSourcePath mod) ++ updirs)
 
                       deps0 = lexImportNub $
                               [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) (importFullNameRange imp) 
@@ -705,10 +708,10 @@ moduleLex mod
 
                       resolveDep :: LexImport -> Build LexImport
                       resolveDep imp 
-                        = do mbname <- moduleNameResolve (dirname (modSourcePath mod) ++ updirs) (lexImportName imp)
+                        = do mbname <- moduleNameResolve relativeDir (lexImportName imp)
                              case mbname of
                                Just mname -> return (imp{ lexImportName = mname })
-                               Nothing    -> throwModuleNotFound declaredModName (lexImportNameRange imp) (lexImportName imp)
+                               Nothing    -> throwModuleNotFound declaredModName relativeDir (lexImportNameRange imp) (lexImportName imp)
                                                                                               
                   deps <- mapM resolveDep deps0                       
                   let mod1 = mod{ modPhase   = PhaseLexed
@@ -847,17 +850,17 @@ moduleFromModuleName parent {- relativeDir -} modName modNameRng
                     then do cs <- getColorScheme
                             addWarningMessage (warningMessageKind ErrBuild modNameRng (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
                             moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
-                    else throwModuleNotFound parent modNameRng modName
+                    else throwModuleNotFound parent "" modNameRng modName
 
 -- Resolve a potentially relative module name to a full module name
 moduleNameResolve :: FilePath -> Name -> Build (Maybe Name)
 moduleNameResolve relativeDir modName
-  = do trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
+  = do -- trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
        mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
-         Just (root,relpath) -> trace (" resolved to: " ++ show (root,relpath)) $
+         Just (root,relpath) -> -- trace (" resolved to: " ++ show (root,relpath)) $
                                 return (Just (pathToModuleName (notext relpath)))
-         Nothing             -> trace (" could not resolve: " ++ show modName) $
+         Nothing             -> -- trace (" could not resolve: " ++ show modName) $
                                 return Nothing -- modName
     
 
@@ -954,11 +957,11 @@ coreReset core
   Helpers
 ---------------------------------------------------------------}
 
-throwModuleNotFound :: ModuleName -> Range -> Name -> Build a
-throwModuleNotFound parent range name
+throwModuleNotFound :: ModuleName -> FilePath -> Range -> Name -> Build a
+throwModuleNotFound parent relativeDir range name
   = do flags <- getFlags
        vfs <- envVFS <$> getEnv       
-       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" vfs 
+       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound relativeDir flags colorModule "module" vfs 
                               (pretty name <.> 
                                 (if nameIsNil parent 
                                    then Lib.PPrint.empty
@@ -971,15 +974,15 @@ throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
   = do flags <- getFlags
        vfs <- envVFS <$> getEnv       
-       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" vfs (text name)))
+       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound "" flags colorSource "" vfs (text name)))
 
-errorNotFound flags clr kind vfs namedoc
-  = vcat $ [
-        text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc,
-        text "search path:" <+> prettyIncludePath flags 
-      ] ++
-      (let vfsNames = map fst (vfsToList vfs)
-       in if null vfsNames then [] else [Lib.PPrint.empty <-> text "vfs        :" <+> pretty vfsNames])
+errorNotFound :: FilePath -> Flags -> (ColorScheme -> Color) -> [Char] -> VFS -> Doc -> Doc
+errorNotFound relativeDir flags clr kind vfs namedoc
+  = vcat $ 
+      [text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc] ++
+      [text "search path:" <+> prettyIncludePath flags (if null relativeDir then [] else [relativeDir])]
+      -- ++ (let vfsNames = map (pretty . fst) (vfsToList vfs)
+      -- in if null vfsNames then [] else [Lib.PPrint.empty <-> text "virtual    :" <+> align (vcat vfsNames)] )
   where
     cscheme = colorSchemeFromFlags flags
 

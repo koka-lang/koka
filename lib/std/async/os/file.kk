@@ -17,12 +17,12 @@ import std/num/int32
 import std/num/int64
 import std/os/path
 
-import async
-import channel
-import interleave
+import async/async
+import async/channel
+import async/interleave
 
-import api/file 
-  [host=libuv|jsnode] api/uv/file
+import async/api/file 
+  [host=libc|jsnode] async/api/uv/file
 
 //-----------------------------------
 // path based api (prefixed with `file-`)
