@@ -12,8 +12,8 @@ import std/num/int64
 import uv/evloop
 
 extern import
-  c  file "inline/file.c"
-  js file "inline/file.js" 
+  c  file "file.c"
+  js file "file.js" 
 
 pub extern fd-flags-from-filemode( fmode : int32 ) : int32
   c  "kk_uv_fd_flags_from_filemode"

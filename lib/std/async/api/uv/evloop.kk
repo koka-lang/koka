@@ -16,11 +16,11 @@ extern import
   c[host=libc,os=windows] { syslib="user32;iphlpapi;userenv;ws2_32;dbghelp;ole32;uuid" }
 
 extern import
-  c { header-file="inline/core.h"; file="inline/core.c" }
+  c { header-file="evloop.h"; file="evloop.c" }
 
 extern import
-  c  file "inline/timer.c"
-  js file "inline/timer.js"
+  c  file "evloop-timer.c"
+  js file "evloop-timer.js"
 
 pub extern event-loop-init() : any
   c "kk_uv_loop_init"

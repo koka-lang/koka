@@ -8,8 +8,8 @@
 
 // for IDE
 // #define __EMSCRIPTEN__
-// #include "../../../../../kklib/include/kklib.h"
-// #include "core.h"
+// #include <kklib.h>
+// #include "evloop.h"
 // #include <stdio.h>  // debug
 
 #include <uv.h>

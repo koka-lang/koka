@@ -9,6 +9,7 @@
 
 /* Asynchronous file operations.
 
+   Currently, this is only supported for the C (with libuv) and NodeJS (`jsnode`) targets.
 */
 module async/os/file
 
@@ -22,7 +23,7 @@ import async/channel
 import async/interleave
 
 import async/api/file 
-  [host=libc|jsnode] async/api/uv/file
+  [host=libc|jsnode] async/api/uv/file  // we only support libuv or nodejs
 
 //-----------------------------------
 // path based api (prefixed with `file-`)

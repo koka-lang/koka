@@ -6,8 +6,8 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// #include "../../../../../kklib/include/kklib.h"
-// #include "core.h"
+// #include <kklib.h>
+// #include "evloop.h"
 
 #include <uv.h>
 
