@@ -7,6 +7,7 @@ found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 import * as child_process from 'child_process'
 import * as fs from "fs"
+import * as vscode from 'vscode'
 
 import {
 	Logger, logger,
@@ -172,6 +173,7 @@ export class KokaDebugSession extends LoggingDebugSession {
 	}
 }
 
+
 class KokaRuntime extends EventEmitter {
 
 	constructor(private readonly config: KokaConfig, private readonly client: LanguageClient) {
@@ -179,11 +181,26 @@ class KokaRuntime extends EventEmitter {
 	}
 	ps?: child_process.ChildProcess | null
 
+  private runcmd(program : string, args : string[] | undefined) {
+    console.log(`Run: ${program} ${args ?? []}`)
+    this.ps = child_process.spawn(program, args ?? [], { cwd: this.config.cwd, env: process.env })
+    this.ps.stdout?.on('data', (data) => {
+      this.emit('output', data.toString(), 'stdout')
+    })
+    this.ps.stderr?.on('data', (data) => {
+      this.emit('output', data.toString(), 'stderr')
+    })
+    this.ps.on('close', (code) => {
+      this.emit('end', code)
+      this.ps = null
+    })
+  }
+
 
 	public async start(args: LaunchRequestArguments) {
 		const target = this.config.target
 		// Args that are parsed by the compiler are in the args field. This leaves the rest of the object open for
-		let additionalArgs = "--buildtag=vscode --target=" + target
+		let additionalArgs = "" // already set at language server start: --buildtag=vscode --target=" + target
 		if (args.compilerArgs) {
 			additionalArgs = additionalArgs + " " + args.compilerArgs
 		}
@@ -196,42 +213,42 @@ class KokaRuntime extends EventEmitter {
 			}
 			console.log(`Generated code at ${resp}`)
 			if (!resp) {
-				this.emit('output', `Compilation error: see the problems tab or language server output for specifics`, 'stderr')
+				this.emit('output', `Compilation error: see the problems- or output tab for specifics`, 'stderr')
 				this.emit('end', -1)
 				return;
 			}
-			if (!fs.existsSync(path.join(this.config.cwd, resp))) {
-				console.log(`Cannot find executable at ${resp}`)
+      const fullpath = path.join(this.config.cwd, resp)
+			if (!fs.existsSync(fullpath)) {
+				console.log(`Cannot find generated executable at: ${resp}`)
 				this.emit('end', -1)
 				return;
 			}
-			if (target == 'c' || target == 'c32' || target == 'c64c') {
-				console.log(`executing ${resp} ${args.programArgs ?? []}`)
-				this.ps = child_process.spawn(resp, args.programArgs ?? [], { cwd: this.config.cwd, env: process.env })
-				this.ps.stdout?.on('data', (data) => {
-					this.emit('output', data.toString(), 'stdout')
-				})
-				this.ps.stderr?.on('data', (data) => {
-					this.emit('output', data.toString(), 'stderr')
-				})
-				this.ps.on('close', (code) => {
-					this.emit('end', code)
-					this.ps = null
-				})
-			}  else if (target == 'jsnode') {
-				this.ps = child_process.spawn('node', [resp, ...(args.programArgs ?? [])], { cwd: this.config.cwd, env: process.env })
-				this.ps.stdout?.on('data', (data) => {
-					this.emit('output', data.toString(), 'stdout')
-				})
-				this.ps.stderr?.on('data', (data) => {
-					this.emit('output', data.toString(), 'stderr')
-				})
-				this.ps.on('close', (code) => {
-					this.emit('end', code)
-					this.ps = null
-				})
-			} else {
-				this.emit('output', `Running code for target ${target} is not yet supported. Output can be found at ${resp}`)
+			if (target == 'c' || target == 'c32' || target == 'c64c') {				
+        this.runcmd(resp,args.programArgs)				
+			} 
+      else if (target == 'jsnode') {
+        this.runcmd("node", [resp, ...(args.programArgs ?? [])] )				
+			}
+      else if (target == 'wasm') {
+        this.runcmd("wasmtime", [resp, ...(args.programArgs ?? [])] )				
+			}
+      else if (target == 'jsweb' || target == 'wasmweb' ) {
+        if (vscode.extensions.getExtension("ms-vscode.live-server")) {
+          this.emit('output', `Opening live preview for ${resp}`)
+          vscode.commands.executeCommand("livePreview.start.preview.atFileString", resp);        
+          this.emit('end', 0)
+        }
+        else {
+          this.emit('output', `Opening integrated browser for ${resp}.\nNote: consider the "Live Preview" vscode extension for better integration.`)
+          const fileUri = vscode.Uri.file(fullpath);
+          vscode.commands.executeCommand("simpleBrowser.api.open", fileUri, {
+            viewColumn: vscode.ViewColumn.Beside, preserveFocus: false
+          });        
+          this.emit('end', 0)
+        }
+      } 
+      else {
+				this.emit('output', `Running code for target ${target} is not yet supported.\nOutput can be found at ${resp}`)
 				this.emit('end', -1)
 			}
 

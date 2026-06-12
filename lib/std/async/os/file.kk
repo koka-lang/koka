@@ -31,19 +31,17 @@ import async/api/file
 
 // Read the full contents of a file.
 pub fun file-read-text( fpath : path ) : <ndet,fsys,exn,async> string
-  val fd = fd-open(fpath, Read)
-  with finally  
-    fd.fd-close
+  with fd = fd-open(fpath, Read)
   fd.fd-read-all-text()
 
 // Emit the full contents of a file to a string channel.
-// Tries to read in chunks of `chunk-len` (=64000)
+// Tries to read in chunks of `chunk-len` (=-1)
 pub fun file-read-text-to-channel( fpath : path, ch : channel<string>, chunk-len : int = -1 ) : <ndet,fsys,exn,async> ()
   with fd = fd-open(fpath, Read) 
   fd.fd-read-text-to-channel(ch,chunk-len)
 
 // Emit the full contents of a file to a bytes channel.
-// Tries to read in chunks of `chunk-len` (=64000)
+// Tries to read in chunks of `chunk-len` (=-1)
 pub fun file-read-to-channel( fpath : path, ch : channel<bytes>, chunk-len : int = -1 ) : <ndet,fsys,exn,async> ()
   with fd = fd-open(fpath, Read)
   fd.fd-read-to-channel(ch,chunk-len)

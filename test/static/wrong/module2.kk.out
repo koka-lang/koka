@@ -1,3 +1,5 @@
-(1, 0): build error: could not find module: static/doesNotExist
- search path: @@@,@@@/lib,@@@/test
-  vfs : []
+test/static/wrong/module2@kk(2,10): build error: could not find module: static/doesNotExist (imported from static/wrong/module2)
+ search path: @@@/test/static/wrong/@@/@@
+ @@@
+ @@@/lib
+ @@@/test

@@ -40,7 +40,7 @@ export class KokaConfig {
   showFullQualifiers!: boolean
 
   getLanguageServerArgs(): string[] {
-    return ["--language-server", "--buildtag=vscode", ...this.includeDirs.map((d) => `-i${d}`), ...this.compilerArgs]
+    return ["--language-server", "--buildtag=vscode","--target=" + this.target, ...this.includeDirs.map((d) => `-i${d}`), ...this.compilerArgs]
   }
 
   refreshConfig(): void {
@@ -67,7 +67,7 @@ export class KokaConfig {
   }
 
   selectTarget(t: string) {
-    if (!['c', 'c32', 'c64c', 'jsnode', 'jsweb', 'wasmjs', 'wasmweb'].includes(t)) {
+    if (!['c', 'c32', 'c64', 'c64c', 'jsnode', 'jsweb', 'wasm', 'wasm32', 'wasm64', 'wasmweb'].includes(t)) {
       return
     }
     this.target = t
