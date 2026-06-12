@@ -301,12 +301,15 @@ genTypeDef (Data info)
     genConstr penv c repr name args tagFields
       = if null args
          then debugWrap "genConstr: null fields"
-            $ constdecl <+> name <+> text "=" <+> object tagFields <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
+            $ constdecl <+> name <+> text "=" <+> object (tagFields ++ lazyFields) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <.> tupled args <+> comment (Pretty.ppType penv (conInfoType c))
           <+> block ( text "return" <+>
                       (if (conInfoName c == nameOptional || isConIso repr) then head args
-                        else object (tagFields ++ map (\arg -> (arg, arg))  args)) <.> semi )
+                        else object (tagFields ++ lazyFields ++ map (\arg -> (arg, arg))  args)) <.> semi )
+      where
+        lazyFields = if conInfoIsLazy c then [(text "_kk_lazy_blocked",text "false")] else []
+
 
 getConTag modName coninfo repr
   = case repr of

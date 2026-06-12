@@ -80,6 +80,18 @@ fun debug-show( xs : stream<a>, ?show : a -> string ) : exn string
     SReverse(xs,acc) -> "SReverse(" ++ debug-show(xs) ++ ", " ++ debug-show(acc) ++ ")"
 
 
+fun example1()
+  val s = SAppend(SCons(1,SNil), SCons(2,SNil))
+  s.debug-show.println
+  match s
+    SCons(_,tl1) -> 
+      s.debug-show.println
+      match tl1
+        SCons(_,_) -> s.debug-show.println
+        _ -> s.debug-show.println            // note how s changes in-place!
+    _ -> s.debug-show.println
+  
+
 // As an example of our lazy streams, let us implement the Bankers Queue
 // (see "Purely Functional Data Structures" by Chris Okasaki, Sect. 6.3.2).
 //
