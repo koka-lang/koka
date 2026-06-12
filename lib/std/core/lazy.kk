@@ -62,8 +62,8 @@ pub inline fip extern datatype-ptr-is-thread-shared(^x : a) : bool
 
 
 // internal: compress indirection chains
-pub fip extern indirect-compress(value : a, indirect-tag:int32) : a
+pub inline fip extern indirect-compress(value : a, indirect-tag:int32) : a
   c  "kk_indirect_compress"
-  js "kk_indirect_compres"
+  js "$std_core_lazy.kk_indirect_compres"
 
 val internal = 42
