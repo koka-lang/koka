@@ -145,10 +145,10 @@ struct kk_std_core_sslice_Sslice kk_slice_advance_borrow( struct kk_std_core_ssl
   const kk_ssize_t cnt0 = kk_integer_clamp_ssize_t_borrow(count,ctx);
   kk_ssize_t cnt = cnt0;
   if (cnt==0) return slice;
-  const uint8_t* sstart;
-  const uint8_t* s0;
-  const uint8_t* s1;
-  const uint8_t* send;
+  const uint8_t* sstart;  // string start
+  const uint8_t* s0;  // slice start
+  const uint8_t* s1;  // slice end
+  const uint8_t* send;  // string end
   kk_sslice_start_end_borrowx(slice,&s0,&s1,&sstart,&send,ctx);
   // advance the start
   const uint8_t* t0  = s0;
@@ -164,10 +164,10 @@ struct kk_std_core_sslice_Sslice kk_slice_advance_borrow( struct kk_std_core_ssl
       cnt++;
     }
   }
-  if (t0 == s0 && cnt0 > 0) return slice;  // start is unchanged
+  
   // "t0" points to the new start, now advance the end by the same amount of codepoints
   const uint8_t* t1 = s1;
-  cnt = cnt0;
+  cnt = cnt0 - cnt;  // only the amount of codepoints that we actually advanced 
   if (cnt >= 0) {
     while (cnt > 0 && t1 < send) {
       t1 = kk_utf8_next(t1);

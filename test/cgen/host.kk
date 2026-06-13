@@ -1,2 +1,2 @@
 fun main()
-  host() == "libc"
+  host() == "libc" || host() == "node"

@@ -45,10 +45,15 @@ pub extern @unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   js inline "Array(#1)"
 
 // Assign to an entry in a local `:vector` variable.
-pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
+inline extern unsafe-assign/@index( ^self : local-var<s,vector<a>>, ^index : ssize_t, assigned : a ) : <local<s>,exn|e> ()
   c  "kk_ref_vector_assign_borrow"
-  cs inline "(#1)[(int)#2] = #3"  // check bounds?
-  js inline "(#1).value[#2] = #3"       // todo: check bounds!
+  js "$std_core_vector.kk_ref_vector_assign_borrow" 
+
+// Assign to an entry in a local `:vector` variable.
+pub inline fun assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
+  with pretend-no-div
+  val idx = index.ssize_t()
+  if idx < self.lengthz then self[idx] := assigned else throw("index out of bounds",ExnRange)  
 
 // Length of a vector.
 inline extern lengthz( ^v : vector<a> ) : ssize_t

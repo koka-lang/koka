@@ -202,7 +202,7 @@ genDef topLevel def@(Def name tp expr vis sort inl rng comm)
        return $ vcat [ text " "
                      , if null comm
                          then empty
-                         else align (vcat (space : map text (lines (trim comm)))) {- already a valid javascript comment -}
+                         else align (vcat (space : map (\s -> text ("// " ++ s)) (lines (trim comm)))) {- already a valid javascript comment -}
                      , defDoc
                      ]
   where
@@ -1299,6 +1299,7 @@ reserved
     , "if"
     , "in"
     , "instanceof"
+    , "let"
     , "new"
     , "return"
     , "switch"

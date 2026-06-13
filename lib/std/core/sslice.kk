@@ -142,7 +142,7 @@ pub extern common-prefix(s : string, t : string, ^upto : int = -1 ) : sslice
 // A negative `count` advances the start position backwards up to the first position
 // in a string.
 // Maintains the character count of the original slice up to the end of the string.
-// For example:
+// For example: 
 //
 // * `"abc".first.advance(1).string == "b"`,
 // * `"abc".first.advance(3).string == ""`,

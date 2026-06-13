@@ -63,7 +63,7 @@ fun example-uncaesar()
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 
 pub fun main()
-  val s = "Kokax is a well-typed language"
+  val s = "Koka is a well-typed language"
   println( "plain  : " ++ s)
   println( "encoded: " ++ s.caesar)
   println( "cracked: " ++ s.caesar.uncaesar)
