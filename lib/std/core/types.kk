@@ -35,7 +35,7 @@ pub infixr 20  (||)
 // prefix     (!), (-)
 
 
-// build: 152
+// build: 156
 
 // ----------------------------------------------------------------------------
 // Core types
@@ -474,16 +474,15 @@ pub value type @optional<a>
   con @NoOptArg   // note: must come second; see Core/Core.hs
 
 
-// Force lazy constructors
-pub inline fip(1) extern force( x : a, eval : a -> <div|e> a ) : <div|e> a
-  c "kk_lazy_force"
+// // Force lazy constructors
+// pub inline fip(1) extern force( x : a, eval : a -> <div|e> a ) : <div|e> a
+//   c "kk_lazy_force"
 
-pub inline fip extern is-lazy( ^x : a ) : bool
-  c "kk_is_lazy"
+// pub inline fip extern is-lazy( ^x : a ) : bool
+//   c "kk_is_lazy"
 
-pub inline fip extern lazy-eval( x : a, eval : a -> <div|e> a ) : <div|e> a
-  c "kk_lazy_eval"
-
+// pub inline fip extern lazy-eval( x : a, eval : a -> <div|e> a ) : <div|e> a
+//   c "kk_lazy_eval"
 
 
 // ----------------------------------------------------------------------------
