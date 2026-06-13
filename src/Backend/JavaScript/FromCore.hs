@@ -696,11 +696,11 @@ genExpr expr
        -> genExpr arg
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameByte && (i >= 0 && i < 256)
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt32 i
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt64 i
        -> return (empty, pretty i <.> text "n")
-
+     
      -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
        -> do conDoc <- genTName con
@@ -727,9 +727,9 @@ genExpr expr
                      -> case args of
                          [Lit (LitInt i)] | getName tname == nameByte  && i >= 0 && i < 256
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT]  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT]  && isSmallInt32 i
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT]  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT]  && isSmallInt64 i
                            -> return (empty,pretty i <.> text "n")
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
@@ -753,6 +753,18 @@ genExpr expr
              return (doc, nameDoc)
 
      _ -> failure ("JavaScript.FromCore.genExpr: invalid expression:\n" ++ show expr)
+
+
+isSmallInt32 i = (i >= minSmallInt32 && i <= maxSmallInt32)
+maxSmallInt32, minSmallInt32 :: Integer
+maxSmallInt32 = 2147483647  -- 2^31 - 1
+minSmallInt32 = -maxSmallInt32 - 1
+
+isSmallInt64 i = (i >= minSmallInt64 && i <= maxSmallInt64)
+maxSmallInt64, minSmallInt64 :: Integer
+maxSmallInt64 = 9223372036854775807  -- 2^63 - 1
+minSmallInt64 = -maxSmallInt64 - 1
+
 
 extractList :: Expr -> Maybe ([Expr],Expr)
 extractList e
@@ -851,16 +863,16 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt32 i
                          -> return (pretty i)
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt64 i
                          -> return (pretty i <.> text "n")
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt32 i
                          -> return (pretty i)
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt64 i
                          -> return (pretty i <.> text "n")
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)
