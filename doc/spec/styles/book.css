@@ -69,6 +69,9 @@ code, .madoko code {
 
 .grammar table,
 table.grammar  {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
   margin: 0.5ex 0.5ex 0.5ex 2ex;
   padding: 0.5ex 1ex 0.5ex 1ex;
 }
@@ -368,4 +371,26 @@ html {
   float:right;
   clear:both;
   margin:0em 0em 1em 2em;
+}
+
+@media screen and (700px < width < 1024px) {
+  .maincontent {
+    max-width: 60em;
+    margin: 0 auto;
+  }
+}
+
+@media screen and (width <= 700px) {
+  .floatright {
+    float: none;
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 1em 0;
+  }
+
+  img {
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+  }
 }
