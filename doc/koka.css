@@ -171,7 +171,8 @@ pre.koka.source {
 }
 
 .madoko pre.koka.source {
-  overflow: visible; /* so tooltips .pc always show */
+  overflow-x: auto;
+  overflow-y: visible; /* so tooltips .pc always show */
 }
 
 .koka.doc .comment p {
