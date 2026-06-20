@@ -388,6 +388,11 @@ html {
     margin: 0 0 1em 0;
   }
 
+  .banners .banner {
+    width: 100%;
+    min-width: 0;
+  }
+
   img {
     max-width: 100% !important;
     width: auto !important;
