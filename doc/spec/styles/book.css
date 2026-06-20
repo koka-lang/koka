@@ -380,6 +380,11 @@ html {
   }
 }
 
+.sidepanel .toc .tocblock {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 @media screen and (width <= 700px) {
   .floatright {
     float: none;
