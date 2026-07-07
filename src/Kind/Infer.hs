@@ -1742,7 +1742,13 @@ resolveApp idmap partialSyn (TpCon name r,args) rng
                             addError rng (text "Type alias" <+> color (colorType cs) (pretty name) <+> text "has too many arguments")
                     else return ()
                   args' <- mapM (resolveType idmap True) args    -- partially applied synonyms are allowed in synonym applications
-                  let tsyn = (TSyn (TypeSyn name kind rank (Just syn)) args' (subNew (zip params args') |-> tp))
+                  let checkSynArg (param,arg')  -- report wrong-kinded arguments and keep the expansion substitution well-kinded
+                        = if getKind param == getKind arg' then return arg'
+                          else do cs <- getColorScheme
+                                  kindError cs (Infer rng) rng NoMatch (KICon (getKind param)) (KICon (getKind arg'))
+                                  return (TVar param)
+                  subArgs <- mapM checkSynArg (zip params args')
+                  let tsyn = (TSyn (TypeSyn name kind rank (Just syn)) args' (subNew (zip params subArgs) |-> tp))
                   -- trace ("resolved type syn: " ++ show (pretty syn)) $
                   return tsyn
                   -- NOTE: on partially applied type synonyms, we get a funky body type with free parameters but this
