@@ -56,7 +56,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       -- * Operations
                       , generalize
-                      , improve
+                      , improve, placeEvidenceDefs
                       , instantiate, instantiateNoEx, instantiateEx
                       , checkCasing
                       , normalize
@@ -123,6 +123,7 @@ import Type.TypeVar
 import Type.Kind
 import qualified Type.Pretty as Pretty
 import qualified Core.Core as Core
+import qualified Core.CoreVar as CoreVar
 import Core.Pretty
 
 import Type.Operations hiding (instantiate, instantiateNoEx, instantiateEx)
@@ -176,7 +177,7 @@ generalizeX contextRange range close (rho0,eff0,bodycore0)
        let free1 = tvsUnion free0 (fuv seff0)
 
        iccore <- tryResolveImplicitConstraints close free1
-       let bodycore1 = iccore bodycore0
+       bodycore1 <- placeEvidenceDefs (iccore bodycore0)
 
        -- normalize type
        seff  <- subst eff0
@@ -1645,12 +1646,12 @@ resolveImplicitConstraints :: Tvs -> [ImplicitConstraint] -> Inf (Core.Expr -> C
 resolveImplicitConstraints free []  = return id
 resolveImplicitConstraints free ics
   = do defs <- mapM resolve ics
-       let fcore core = case core of
-                          -- Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet defs body)
-                          -- Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet defs body))
-                          _ -> Core.makeDefsLet defs core
-
-       return fcore
+       -- queue solved evidence instead of binding it here: the core under
+       -- generalization may be a sibling that does not contain the
+       -- occurrences (see placeEvidenceDefs and
+       -- test/cgen/iev-evidence-placement.kk)
+       updateSt (\st -> st{ pendingEvDefs = defs ++ pendingEvDefs st })
+       return id
   where
     resolve ic
       = do (evidence,tp) <- (icSolve ic) free ic
@@ -1664,11 +1665,9 @@ tryResolveImplicitConstraints close free
   where
     tryResolve :: ([Core.Def],[ImplicitConstraint]) -> [ImplicitConstraint] -> Inf (Core.Expr -> Core.Expr,[ImplicitConstraint])
     tryResolve (defs,acc) []
-      = do let fcore core = case core of
-                              Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet defs body)
-                              Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet defs body))
-                              _ -> Core.makeDefsLet defs core
-           return (fcore, reverse acc)
+      = do -- queue solved evidence for occurrence-driven placement (see placeEvidenceDefs)
+           updateSt (\st -> st{ pendingEvDefs = defs ++ pendingEvDefs st })
+           return (id, reverse acc)
     tryResolve (defs,acc) (ic:ics)
       = do determined <- (icCanSolve ic) free ic
            let force = -- let ftvs = fuv ic
@@ -1822,6 +1821,7 @@ data St     = St{ uniq :: !Int
                 , sub :: !Sub                            -- current substitution
                 , iconstraints :: ![ImplicitConstraint]  -- output
                 , iconstraintsGamma :: !InfGamma         -- adding a constraint adds an implicit local evidence variable
+                , pendingEvDefs :: ![Core.Def]           -- solved implicit-constraint evidence awaiting placement (see placeEvidenceDefs)
                 , holeAllowed :: !Bool                   -- is a hole allowed for a constructor context?
                 , mbRangeMap :: !(Maybe RangeMap)         -- used for errors and IDE integration
                 }
@@ -1830,16 +1830,41 @@ data St     = St{ uniq :: !Int
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
   = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty)
-           (St unique subNull [] infgammaEmpty False mbrm) of
+           (St unique subNull [] infgammaEmpty [] False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
       Ok x st warnings
         -> addWarnings (map (toWarning ErrType) warnings) (ok (x, uniq st, (sub st) |-> mbRangeMap st))
 
 
+-- Bind queued evidence defs whose evidence variable occurs free in `core`;
+-- the others stay queued for an enclosing generalization.
+placeEvidenceDefs :: Core.Expr -> Inf Core.Expr
+placeEvidenceDefs core
+  = do st <- getSt
+       case pendingEvDefs st of
+         [] -> return core
+         defs
+           -> do let freeNames = S.map Core.getName (CoreVar.fv core)
+                     (place,keep) = partition (\def -> S.member (Core.defName def) freeNames) defs
+                 updateSt (\st1 -> st1{ pendingEvDefs = keep })
+                 if null place then return core else
+                   return (case core of
+                     Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet place body)
+                     Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet place body))
+                     _ -> Core.makeDefsLet place core)
+
+-- Drop evidence defs without any occurrence (from speculative elaboration);
+-- evidence values are pure closed constructors, so this is sound.
+dropOrphanEvidenceDefs :: Inf ()
+dropOrphanEvidenceDefs
+  = do updateSt (\st -> st{ pendingEvDefs = [] })
+       return ()
+
 zapSubst :: HasCallStack => Inf ()
 zapSubst
-  = do env <- getEnv
+  = do dropOrphanEvidenceDefs
+       env <- getEnv
        assertion "not an empty infgamma" (infgammaIsEmpty (infgamma env)) $
         do st <- getSt
            when (not (infgammaIsEmpty (iconstraintsGamma st))) $
