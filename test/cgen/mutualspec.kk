@@ -3,8 +3,8 @@
 // only specialized again at a strictly smaller instantiated type (see
 // specStack in Core/Specialize.hs). Multi-step specialization at shrinking
 // types (twostep-large2.kk) must keep working.
-module cgen/specialize/mutualspec
-import cgen/specialize/mutualspec-lib
+module cgen/mutualspec
+import cgen/mutualspec-lib
 
 fun view( sel : int ) : html<int>
   Elem(0, list(1, 4).map( fn(i) Elem(i, [Text(if i == sel then 1 else 0)]) ))

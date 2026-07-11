@@ -1,6 +1,6 @@
 // Support module for mutualspec.kk: mutually recursive functions that all
 // carry a function-typed parameter.
-module cgen/specialize/mutualspec-lib
+module cgen/mutualspec-lib
 import std/core/undiv
 
 pub type node<a>
