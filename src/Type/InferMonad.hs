@@ -1057,7 +1057,10 @@ resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
          _          -> do penv <- getPrettyEnv
                           return $ Left (map (prettyImplicitArg penv) (allCandidates sel))
 
--- register the evidence constraints carried by a committed (winning) resolution
+-- register every evidence constraint in a fully resolved implicit argument tree
+-- (this node's, and recursively those of its implicit arguments). called once per
+-- resolution from `resolveImplicitArg`, only after exploration has completed and
+-- a unique winner is selected -- never during candidate exploration.
 commitImplicitConstraints :: ImplicitArg -> Inf ()
 commitImplicitConstraints (ImplicitArg _ _ _ iargs mbic)
   = do case mbic of
