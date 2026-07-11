@@ -1,0 +1,58 @@
+cgen/specialize/mutualspec/@lift-xxx: (cgen/specialize/mutualspec-lib/html<int>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@lift-xxx: (cgen/specialize/mutualspec-lib/node<int>, cgen/specialize/mutualspec-lib/html<int>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/node<int>>, list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (cgen/specialize/mutualspec-lib/html<int>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (cgen/specialize/mutualspec-lib/html<int>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel@xxx : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel@xxx : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@lift-xxx: (cgen/specialize/mutualspec-lib/node<int>, cgen/specialize/mutualspec-lib/html<int>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/node<int>>, list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (cgen/specialize/mutualspec-lib/html<int>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (cgen/specialize/mutualspec-lib/html<int>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel@xxx : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel@xxx : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@lift-xxx: (sel : int, list<int>) -> list<cgen/specialize/mutualspec-lib/html<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (int, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (int, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, list<cgen/specialize/mutualspec-lib/node<int>>, cgen/specialize/mutualspec-lib/node<int>) -> pure list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (int, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (int, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (int, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, list<cgen/specialize/mutualspec-lib/node<int>>, cgen/specialize/mutualspec-lib/node<int>) -> pure list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (int, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutu4
+alspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (int, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> cgen/specialize/mutualspec-lib/node<int>
+cgen/specialize/mutualspec/@mlift-xxx: (cgen/specialize/mutualspec-lib/node<int>, list<cgen/specialize/mutualspec-lib/node<int>>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (list<cgen/specialize/mutualspec-lib/html<int>>, cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> list<cgen/specialize/mutualspec-lib/node<int>>
+cgen/specialize/mutualspec/@mlift-xxx: (t2 : cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> ()
+cgen/specialize/mutualspec/@mlift-xxx: (t1 : cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> ()
+cgen/specialize/mutualspec/@mlift-xxx: (t0 : cgen/specialize/mutualspec-lib/node<int>) -> <div,exn> ()
+cgen/specialize/mutualspec/main: () -> <pure,console> ()
+cgen/specialize/mutualspec/view: (sel : int) -> cgen/specialize/mutualspec-lib/html<int>
