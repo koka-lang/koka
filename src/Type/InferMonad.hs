@@ -150,7 +150,9 @@ trace s x =
 --------------------------------------------------------------------------}
 generalize :: HasCallStack => Range -> Range -> Bool -> Inf (Rho,Effect,Core.Expr) -> Inf (Scheme,Effect,Core.Expr)
 generalize contextRange range close inf
-  = (if close then id else scopeImplicitConstraints) $
+  = -- invariant: a discharge site only sees constraints arising in its own subtree,
+    -- so the evidence bindings it creates always enclose their occurrences.
+    scopeImplicitConstraints $
     do res <- inf
        generalizeX contextRange range close res
 
@@ -859,7 +861,7 @@ lookupAppName allowDisambiguate name ctx contextRange range
                                  (not allowDisambiguate) {- allow unitFunVal: at first, when allowDisambiguate is False, we like to see all possible instantations -}
                                  ctx range roots
        case res of
-          Right iarg@(ImplicitArg qname _ rho iargs)
+          Right iarg@(ImplicitArg qname _ rho iargs _)
             -> do -- when (not (null iargs)) $ traceDefDoc $ \penv -> text "resolved app name with implicits:" <+> prettyImplicitArg penv iarg
                   -- traceDefDoc $ \penv -> text "lookupAppName:" <+> Pretty.ppName penv name <.> text " to:" <+> prettyImplicitArg penv iarg
                   penv <- getPrettyEnv
@@ -917,18 +919,19 @@ data ImplicitArg   = ImplicitArg{ iaName :: !Name
                                 , iaInfo :: !NameInfo
                                 , iaType :: !Rho          -- instantiated type
                                 , iaImplicitArgs :: ![(Name, ImplicitArg)]
+                                , iaConstraint :: !(Maybe ImplicitConstraint)  -- evidence constraint carried by this candidate
                                 }
 
 -- special empty implicit arg for display purposes (as "...")
 emptyImplicitArg :: ImplicitArg
-emptyImplicitArg = ImplicitArg nameNil emptyInfo typeUnit []
+emptyImplicitArg = ImplicitArg nameNil emptyInfo typeUnit [] Nothing
   where
     emptyInfo = InfoVal Private nameNil typeUnit 0 rangeNull True False ""
 
 prettyImplicitArg :: Pretty.Env -> ImplicitArg -> Doc
-prettyImplicitArg penv (ImplicitArg name info rho iargs)  | nameIsNil name
+prettyImplicitArg penv (ImplicitArg name info rho iargs _)  | nameIsNil name
   = text "..."
-prettyImplicitArg penv (ImplicitArg name info rho iargs)
+prettyImplicitArg penv (ImplicitArg name info rho iargs _)
   = let withColor clr doc = color (clr (Pretty.colors penv)) doc in
     withColor colorImplicitExpr (Pretty.ppNamePlain penv name) <.>
     -- Pretty.ppType penv rho <+>
@@ -961,7 +964,7 @@ iaScopeDepth iarg
 
 -- Convert an implicit argument to an expression (that is supplied as the argument)
 toImplicitArgExpr :: Range -> ImplicitArg -> Expr Type
-toImplicitArgExpr xrange (ImplicitArg iname info itp iargs)
+toImplicitArgExpr xrange (ImplicitArg iname info itp iargs _)
       = let range = rangeHide xrange in  -- don't add things in the expression to the rangemap
         case iargs of
           [] -> Var iname False range
@@ -992,8 +995,8 @@ prettyTypedArg penv (name,info,tp)
   = Pretty.ppParam penv (name,tp)
 
 
-toImplicitArg :: [(Name, ImplicitArg)] -> TypedArg -> ImplicitArg
-toImplicitArg iargs (name,info,rho) = ImplicitArg name info rho iargs
+toImplicitArg :: [(Name, ImplicitArg)] -> (TypedArg, Maybe ImplicitConstraint) -> ImplicitArg
+toImplicitArg iargs ((name,info,rho),mbic) = ImplicitArg name info rho iargs mbic
 
 -----------------------------------------------------------------------
 -- Resolving implicit names
@@ -1048,15 +1051,25 @@ resolveImplicitArg allowDisambiguate allowUnitFunVal ctx range roots
   = do env <- getEnv
        sel <- resolveImplicitArgEx allowDisambiguate allowUnitFunVal (allowInfiniteChains env) [] ctx range roots
        case sel of
-         Found iarg -> return (Right iarg)
+         Found iarg -> do -- invariant: only the winning resolution registers its evidence constraints
+                          commitImplicitConstraints iarg
+                          return (Right iarg)
          _          -> do penv <- getPrettyEnv
                           return $ Left (map (prettyImplicitArg penv) (allCandidates sel))
+
+-- register the evidence constraints carried by a committed (winning) resolution
+commitImplicitConstraints :: ImplicitArg -> Inf ()
+commitImplicitConstraints (ImplicitArg _ _ _ iargs mbic)
+  = do case mbic of
+         Just ic -> registerImplicitConstraint ic
+         Nothing -> return ()
+       mapM_ (commitImplicitConstraints . snd) iargs
 
 -- Resolve an implicit argument fully. This is recursively used with the `chain` of previously resolved implicit names
 resolveImplicitArgEx :: Bool -> Bool -> Bool -> [TypedArg] -> NameContext -> Range -> [(NameInfo -> Bool, Name)] -> Inf ImplicitSelect
 resolveImplicitArgEx allowDisambiguate allowUnitFunVal allowInfiniteChains chain ctx range roots
   = do candidates1 <- concatMapM (\(infoFilter,name) -> lookupImplicitArg allowUnitFunVal infoFilter name ctx range) roots
-       let candidates2 = filter (not . existConCreator candidates1) candidates1
+       let candidates2 = filter (not . existConCreator (map fst candidates1) . fst) candidates1
            sorted = sortCandidates candidates2
       --  when (length chain >= 4) $
       --     traceDefDoc $ \penv -> text "resolveImplicitArg: chain:" <+> list (map (prettyTypedArg penv) chain) <.> text ", continue with:" <->
@@ -1070,19 +1083,20 @@ resolveImplicitArgEx allowDisambiguate allowUnitFunVal allowInfiniteChains chain
       where
         cname = newCreatorName name
 
-    sortCandidates :: [TypedArg] -> [(TypedArg,[(Name,Type)] {- further implicits to resolve-} )]
+    sortCandidates :: [(TypedArg, Maybe ImplicitConstraint)] -> [((TypedArg, Maybe ImplicitConstraint),[(Name,Type)] {- further implicits to resolve-} )]
     sortCandidates candidates
       = let -- find for each candidate which further implicits need to be resolved
-            icandidates  = map (implicitsToResolve ctx) candidates
+            icandidates  = map (\(targ,mbic) -> let (targ',ipars) = implicitsToResolve ctx targ
+                                                in ((targ',mbic),ipars)) candidates
             -- now we can sort them according to their cost
-            cost ((name,info,_),iargs)  = ( -(iargScopeDepth name info) -- inner scopes first
-                                          , length iargs                -- least further implicits arguments first
-                                          )
+            cost (((name,info,_),_),iargs) = ( -(iargScopeDepth name info) -- inner scopes first
+                                             , length iargs                -- least further implicits arguments first
+                                             )
         in sortBy (\x y -> compare (cost x) (cost y)) icandidates
 
 
 -- Resolve the best candidate for an implicit parameter
-resolveUniquely :: Bool -> Bool -> [TypedArg] -> NameContext -> Range -> ImplicitSelect -> [(TypedArg,[(Name,Type)])] -> Inf ImplicitSelect
+resolveUniquely :: Bool -> Bool -> [TypedArg] -> NameContext -> Range -> ImplicitSelect -> [((TypedArg, Maybe ImplicitConstraint),[(Name,Type)])] -> Inf ImplicitSelect
 resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current []
   = -- nothing further to explore
     do -- traceDefDoc $ \penv -> text "resolveUniquely: explored all solutions:" <+> prettySelect penv current
@@ -1094,13 +1108,13 @@ resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current@(A
        let extra = map (toImplicitArg [] . fst) candidates  -- include all remaining potential candidates in the error message?
        return (Amb (ambs ++ extra))
 
-resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Found current) (((qname,info,_),_):_)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range (Found current) ((((qname,info,_),_),_):_)
   | allowDisambiguate && iaScopeDepth current > iargScopeDepth qname info
   = -- if we can disambiguate, the inner scope is always preferred (assuming sorted candidates)
     do -- traceDefDoc $ \penv -> text "resolveUniquely: found innermost solution:" <+> prettyImplicitArg penv current
        return (Found current)
 
-resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((qname,info,rho),ipars) : candidates)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@(((qname,info,rho),_),ipars) : candidates)
   | not allowInfiniteChains && not (isDecreasingChain chain ctx qname rho)
   = -- if this might lead to an infinite derivation
     do -- traceDefDoc $ \penv -> text "resolveUniquely: infinite derivation:" <->
@@ -1116,7 +1130,7 @@ resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current ca
        let sels = map (Infty . toImplicitArg [] . fst) candidates
        return $! foldr merge None sels
 
-resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next@((name,info,rho),ipars) : candidates)
+resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (next : candidates)
   = do -- recursively resolve the required implicit parameters
        -- traceDefDoc $ \penv -> text "resolveUniquely: resolve next candidate:" <+> prettyTypedArg penv (fst next)
        --                          <-> indent 2 (text "current:" <+> prettySelect penv current)
@@ -1125,8 +1139,8 @@ resolveUniquely allowDisambiguate allowInfiniteChains chain ctx range current (n
 
 
 -- Resolve recursively any further required implicit parameters
-resolveImplicitParameters :: Bool -> Bool -> [TypedArg] -> Range -> (TypedArg,[(Name,Type)]) -> Inf ImplicitSelect
-resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (current@(name,info,rho),ipars)
+resolveImplicitParameters :: Bool -> Bool -> [TypedArg] -> Range -> ((TypedArg, Maybe ImplicitConstraint),[(Name,Type)]) -> Inf ImplicitSelect
+resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range ((current@(name,info,rho),mbic),ipars)
   = resolve [] ipars
   where
     chainNew
@@ -1134,7 +1148,7 @@ resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (cur
 
     resolve :: [(Name,ImplicitArg)] -> [(Name,Type)] -> Inf ImplicitSelect
     resolve acc []
-      = return (Found (ImplicitArg name info rho (reverse acc)))
+      = return (Found (ImplicitArg name info rho (reverse acc) mbic))
     resolve acc (par:pars)
       = do sel <- resolveImplicitParameter allowDisambiguate allowInfiniteChains chainNew range par
            case sel of
@@ -1142,7 +1156,7 @@ resolveImplicitParameters allowDisambiguate allowInfiniteChains chain range (cur
                               resolve ((fst par,iarg):acc) pars
              _          -> do -- give up early if we cannot resolve a parameter
                               let makePars iarg   = reverse acc ++ [(fst par, iarg)] ++ [(pname, emptyImplicitArg) | (pname,_) <- pars]
-                                  extendIarg iarg = ImplicitArg name info rho (makePars iarg)
+                                  extendIarg iarg = ImplicitArg name info rho (makePars iarg) mbic
                               return $ mapCandidates extendIarg sel
 
 -- recursively resolve an implicit parameter
@@ -1236,7 +1250,7 @@ implicitsToResolve ctx targ@(name,info,rho)
 -- Looking up application names and implicit names
 -----------------------------------------------------------------------
 
-lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [TypedArg]
+lookupImplicitArg :: Bool -> (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(TypedArg, Maybe ImplicitConstraint)]
 lookupImplicitArg allowUnitFunVal infoFilter name ctx range
   = do -- traceDefDoc $ \penv -> text "lookupImplicitArg:" <+> ppNameCtx penv (name,ctx) <+> text ", previous:" <+> list (map (ppNameCtx penv) previousCtxs)
        candidates0 <- lookupNames infoFilter name ctx range
@@ -1248,14 +1262,14 @@ lookupImplicitArg allowUnitFunVal infoFilter name ctx range
                                  return (nubBy (\(_,info1,_) (_,info2,_) -> infoCName info1 == infoCName info2)
                                                (candidates0 ++ candidates1))
                         _  -> return candidates0
-       -- add implicit constraints
+       -- constraint candidates carry their evidence; it is registered only on commit
        iargs <- case ctx of
                   CtxType expect -> do mbiarg <- checkImplicitConstraint name expect range range
                                        case mbiarg of
-                                         Just iarg -> return [iarg]
-                                         _         -> return []
+                                         Just (iarg,ic) -> return [(iarg, Just ic)]
+                                         _              -> return []
                   _ -> return []
-       return (candidates ++ iargs)
+       return ([(c,Nothing) | c <- candidates] ++ iargs)
 
 
 ----------------------------------------------------------------
@@ -1630,13 +1644,13 @@ implicitConstraints :: [(Name,Name -> Type -> Maybe (Tvs -> ImplicitConstraint -
 implicitConstraints
   = [(nameHeapDiv, checkHeapDivConstraint)]
 
-checkImplicitConstraint :: Name -> Type -> Range -> Range -> Inf (Maybe TypedArg)
+checkImplicitConstraint :: Name -> Type -> Range -> Range -> Inf (Maybe (TypedArg, ImplicitConstraint))
 checkImplicitConstraint name tp rangeContext range
   = case lookup name implicitConstraints of
       Just check
         -> case check name tp of
              Just (canResolve,resolve)
-                -> do iarg <- addImplicitConstraint name tp canResolve resolve rangeContext range
+                -> do iarg <- freshImplicitConstraint name tp canResolve resolve rangeContext range
                       return (Just iarg)
              Nothing -> return Nothing
       Nothing -> return Nothing
@@ -2045,17 +2059,24 @@ isImplicitConstraintEvidenceName :: Name -> Bool
 isImplicitConstraintEvidenceName name
   = nameStartsWith name "iev@"
 
--- add a new implicit constraint with a fresh name (to be solved at generalization time)
-addImplicitConstraint :: Name -> Type -> (Tvs -> ImplicitConstraint -> Inf Bool) -> (Tvs -> ImplicitConstraint -> Inf (Core.Expr, Type)) -> Range -> Range -> Inf TypedArg
-addImplicitConstraint name tp canSolve solve context rng
+-- create an implicit constraint candidate with a fresh evidence name;
+-- does not touch the constraint store (see `registerImplicitConstraint`)
+freshImplicitConstraint :: Name -> Type -> (Tvs -> ImplicitConstraint -> Inf Bool) -> (Tvs -> ImplicitConstraint -> Inf (Core.Expr, Type)) -> Range -> Range -> Inf (TypedArg, ImplicitConstraint)
+freshImplicitConstraint name tp canSolve solve context rng
   = do evName <- Core.freshName "iev"
        let ic       = ImplicitConstraint name tp evName context rng canSolve solve
            nameInfo = createNameInfoX Public evName 2 DefVal rng tp ""
            iarg     = (evName,nameInfo,tp)
+       return (iarg,ic)
+
+-- register a committed implicit constraint: pending until solved at generalization
+-- time, and visible to name lookup so the elaborated `Var iev@N` can be inferred
+registerImplicitConstraint :: ImplicitConstraint -> Inf ()
+registerImplicitConstraint ic
+  = do let nameInfo = createNameInfoX Public (icEvidence ic) 2 DefVal (icRange ic) (icType ic) ""
        updateSt (\st -> st{ iconstraints = ic : iconstraints st,
-                            iconstraintsGamma = infgammaExtend evName nameInfo (iconstraintsGamma st) })
-       -- traceDefDoc $ \penv -> text "add implicit constraint:" <+> ppConstraint penv ic
-       return iarg
+                            iconstraintsGamma = infgammaExtend (icEvidence ic) nameInfo (iconstraintsGamma st) })
+       return ()
 
 solvedImplicitConstraint :: Name -> Type -> Inf ()
 solvedImplicitConstraint evName evTp

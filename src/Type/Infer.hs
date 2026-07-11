@@ -555,7 +555,8 @@ data Expect = Generalized Bool
 
 inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
 inferIsolated contextRange range body inf
-  = -- scopeImplicitConstraints $
+  = -- only discharge constraints arising in the body; leftovers float up on scope exit
+    scopeImplicitConstraints $
     do (tp,eff,core) <- inf
        res@(itp,ieff,coref) <- improve contextRange range True eff tp
        -- traceDefDoc $ \penv -> text "infer isolated:" <+> ppType penv tp <+> text "|" <+> ppType penv ieff <+> text "from" <+> ppType penv eff
