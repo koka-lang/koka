@@ -898,9 +898,13 @@ branchMatchesOn v (Branch [pat] guards)
   = isConPat pat && not (tnamesMember v (bv pat))
     && any (\(Guard g e) -> containsCaseOn v g || containsCaseOn v e) guards
   where
-    isConPat (PatCon{patExists=[]}) = True
-    isConPat (PatVar _ p)           = isConPat p
-    isConPat _                      = False
+    -- a lazy (thunk) constructor is not a stable witness: forcing mutates
+    -- the cell in place, so a later match on the same variable can see a
+    -- different constructor. (whnf constructors are stable: forcing is
+    -- monotone.) Koka is not Haskell: matching can have effects.
+    isConPat (pat@PatCon{patExists=[]}) = not (conInfoIsLazy (patConInfo pat))
+    isConPat (PatVar _ p)               = isConPat p
+    isConPat _                          = False
 branchMatchesOn v _ = False
 
 containsCaseOn :: TName -> Expr -> Bool
@@ -974,7 +978,8 @@ patIrrefutable pat
       PatWild     -> True
       PatVar _ p  -> patIrrefutable p
       PatLit _    -> False
-      PatCon{patConRepr=ConSingle{}, patExists=[]} -> all patIrrefutable (patConPatterns pat)
+      PatCon{patConRepr=ConSingle{}, patExists=[]}
+        | not (conInfoIsLazy (patConInfo pat)) -> all patIrrefutable (patConPatterns pat)
       PatCon{}    -> False
 
 anfArg :: Expr -> Simp ([Def],Expr)
