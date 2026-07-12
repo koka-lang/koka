@@ -22,7 +22,7 @@ import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone
                        --, isValidK , nameLift
                        , nameBind, nameEvvIndex, nameClauseTailNoOp, isClauseTailName
-                       , nameBox, nameUnbox, nameAssert
+                       , nameBox, nameUnbox, nameBoxCon, nameAssert
                        , nameAnd, nameOr, isNameTuple
                        , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty )
 
@@ -127,6 +127,19 @@ topDown (Let dgs body)
           DefRec defs'
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+
+          -- A-normalize constructor arguments: `val x = Con(e1,..,en)` with a
+          -- non-total argument becomes `val y = e1; ..; val x = Con(y,..)`.
+          -- Evaluation order is unchanged, but the constructor binding itself
+          -- becomes total so a single-use `x` can inline into a match over it
+          -- and fold statically (e.g. the optional arguments of an inlined
+          -- record-copy: `m(field = e)` reduces to match+reconstruct).
+          -- Only non-total arguments are split out (total ones inline back),
+          -- so this reaches a fixpoint in one step.
+          DefNonRec def@(Def{defExpr=conapp@(App con args)})  | isConHead con && any (not . isTotal) args
+            -> do (argdefs,args') <- fmap unzip $ mapM anfArg args
+                  let def' = def{ defExpr = App con args' }
+                  topDownLet sub acc (map DefNonRec (concat argdefs) ++ [DefNonRec def'] ++ dgs) body
 
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
             -> -- cannot inline effectful expressions
@@ -567,11 +580,26 @@ kmatchPattern scrut@(Lit lit) (PatLit pLit)
   = --trace "kmatchPat PatLit " $
     if lit /= pLit then NoMatch else Match ([], scrut)
 
-kmatchPattern scrut@(Con name _repr) (PatCon pname [] _prepr _ _ _ _info _)
+kmatchPattern scrut@(Con name _repr) (PatCon pname pats _prepr _ _ _ _info _)
   = --trace ("kmatchPat PatCon empty pats " ++ show name ++ " ___pat___ " ++ show pname) $
-    if name /= pname then NoMatch else
-      --trace ("kmatchPat PatCon empty pats match " ++ show name) $
-      Match ([], scrut)
+    if name /= pname then NoMatch    -- different constructor: no match, whatever its arity
+    else if null pats then Match ([], scrut)
+    else Unknown
+
+-- nullary polymorphic constructor (e.g. `@NoOptArg` at type `forall<a> ? a`)
+kmatchPattern scrut@(TypeApp (Con name _repr) _targs) (PatCon pname pats _prepr _ _ _ _info _)
+  = if name /= pname then NoMatch
+    else if null pats then Match ([], scrut)
+    else Unknown
+
+-- boxing: a `@box(e)` application matches an `@Box(p)` pattern (box is a total injection)
+kmatchPattern scrut@(App box@(Var v _) [arg]) (PatCon pname [p] _prepr _ _ _ _info _)  | getName v == nameBox && getName pname == nameBoxCon
+  = do (defs,newarg) <- kmatchPattern arg p
+       Match (defs, App box [newarg])
+
+kmatchPattern scrut@(App box@(TypeApp (Var v _) _) [arg]) (PatCon pname [p] _prepr _ _ _ _info _)  | getName v == nameBox && getName pname == nameBoxCon
+  = do (defs,newarg) <- kmatchPattern arg p
+       Match (defs, App box [newarg])
 
 kmatchPattern scrut@(App con@(Con name conRepr) args) (PatCon pname pats _ _ _ _ _ _)
   = --trace "kmatchPat PatCon non empty pats " $
@@ -832,6 +860,18 @@ occursOnceApplied name tn n expr
      Just oc -> case oc of
                  Occur 1 tm m vcnt | (tn == tm && m == n) -> Just vcnt
                  _ -> Nothing
+
+-- helpers for constructor-argument A-normalization (see topDownLet)
+isConHead :: Expr -> Bool
+isConHead (Con _ _)             = True
+isConHead (TypeApp (Con _ _) _) = True
+isConHead _                     = False
+
+anfArg :: Expr -> Simp ([Def],Expr)
+anfArg arg
+  = if isTotal arg then return ([],arg)
+    else do name <- uniqueTName (TName (newHiddenName "carg") (typeOf arg))
+            return ([Def (getName name) (typeOf arg) arg Private DefVal InlineAuto rangeNull ""], Var name InfoNone)
 
 occurrencesOf :: Name -> Expr -> Occur
 occurrencesOf name expr

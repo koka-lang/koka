@@ -24,6 +24,48 @@ import std/core = std/core = "";
 pub div type parc/parc22/hello[1,1,2,16] {
  pub con parc/parc22/World[2,3,2,7](i: int){0,1,8} : (i : int) -> parc/parc22/hello = 1;
 };
+pub fun hello/@copy : (@this : parc/parc22/hello, i : ? int) -> parc/parc22/hello
+ = fn(@this: parc/parc22/hello, i: ? int){
+ match (@this) {
+ (@skip parc/parc22/World((@fld0: int)) : parc/parc22/hello )
+ -> val @ru-x1 : @reuse
+ = std/core/types/@no-reuse();
+ val _ : ()
+ = (match ((std/core/types/@is-unique(@this))) {
+ (std/core/types/True() : bool )
+ -> val _ : ()
+ = std/core/types/Unit;
+ std/core/types/@assign-reuse(@ru-x1, (std/core/types/@reuse(@this)));
+ _
+ -> val _ : ()
+ = val _ : int
+ = std/core/types/@dup(@fld0);
+ std/core/types/Unit;
+ val _ : ()
+ = std/core/types/@dec-ref(@this);
+ std/core/types/Unit;
+ });
+ val @ru-x3 : int
+ = (match (i) {
+ (std/core/types/@OptArg(((@skip std/core/types/@Box((@arg-i: int)) : @box ) as @box-xxx: @box)) : ? int )
+ -> val _ : int
+ = std/core/types/@dup(@arg-i);
+ val _ : ()
+ = std/core/types/@drop(i);
+ val _ : ()
+ = std/core/types/@drop(@fld0);
+ @arg-i;
+ (@skip std/core/types/@NoOptArg() : ? int )
+ -> @fld0;
+ });
+ (match ((std/core/types/@reuse-is-valid(@ru-x1))) {
+ (std/core/types/True() : bool )
+ -> std/core/types/@con-fields-assign(@ru-x1, @ru-x3);
+ _
+ -> parc/parc22/World(@ru-x3);
+ });
+ };
+ };
 // Automatically generated@ Retrieves the `i` constructor field of the `:hello` type@
 pub fun hello/i : (^ hello : parc/parc22/hello) -> int
  = fn(hello: parc/parc22/hello){
@@ -32,44 +74,11 @@ pub fun hello/i : (^ hello : parc/parc22/hello) -> int
  -> std/core/types/@dup(@x);
  };
  };
-pub fun hello/@copy : (@this : parc/parc22/hello, i : ? int) -> parc/parc22/hello
- = fn(@this: parc/parc22/hello, i: ? int){
- parc/parc22/World((match (i) {
- (std/core/types/@OptArg(((@skip std/core/types/@Box((@uniq-i@xxx: int)) : @box ) as @box-xxx: @box)) : ? int )
- -> val _ : int
- = std/core/types/@dup(@uniq-i@xxx);
- val _ : ()
- = std/core/types/@drop(i);
- val _ : ()
- = std/core/types/@drop(@this, (std/core/types/@make-int32(1)));
- @uniq-i@xxx;
- (@skip std/core/types/@NoOptArg() : ? int )
- -> (match (@this) {
- (@skip parc/parc22/World((@x: int)) : parc/parc22/hello )
- -> val _ : ()
- = (match ((std/core/types/@is-unique(@this))) {
- (std/core/types/True() : bool )
- -> val _ : ()
- = std/core/types/Unit;
- std/core/types/@free(@this);
- _
- -> val _ : ()
- = val _ : int
- = std/core/types/@dup(@x);
- std/core/types/Unit;
- val _ : ()
- = std/core/types/@dec-ref(@this);
- std/core/types/Unit;
- });
- @x;
- });
- }));
- };
 pub fun f : (h : parc/parc22/hello) -> parc/parc22/hello
  = fn(h: parc/parc22/hello){
- val @ru-x3 : @reuse
+ val @ru-x2 : @reuse
  = std/core/types/@no-reuse();
  val _ : ()
- = std/core/types/@assign-reuse(@ru-x3, (std/core/types/@drop-reuse(h, (std/core/types/@make-int32(1)))));
- std/core/types/@alloc-at(@ru-x3, (parc/parc22/World(2)));
+ = std/core/types/@assign-reuse(@ru-x2, (std/core/types/@drop-reuse(h, (std/core/types/@make-int32(1)))));
+ std/core/types/@alloc-at(@ru-x2, (parc/parc22/World(2)));
  };

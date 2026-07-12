@@ -214,14 +214,40 @@ synCopyCon modName info con
 
         argName  = newName "@this"
 
-        params = [ValueBinder fldName Nothing
-                  (if not (hasAccessor fldName t con)
-                     then Nothing
-                     else (Just (app (var (typeQualifiedNameOf (dataInfoName info) fldName)) [var argName]))) rc rc
-                 | (fldName,t) <- conInfoParams con]
+        -- The body is ONE match on `@this` that reconstructs with each field
+        -- either the (optional) argument or the matched field value. After
+        -- inlining at a call site the optional matches fold away statically
+        -- (see Core/Simplify `kmatchPattern`) leaving a single
+        -- match+reconstruct on the copied value -- the shape that enables
+        -- constructor reuse (in-place update when unique). The previous
+        -- formulation used per-field accessor calls as optional-argument
+        -- defaults, which left one borrow-match per field and never reused.
+        params = [ValueBinder fldName Nothing Nothing rc rc | (fldName,_t) <- conInfoParams con]
+
+        fieldVars = [(fldName, t, newHiddenName ("fld" ++ show i))
+                    | ((fldName,t),i) <- zip (conInfoParams con) [(0::Int)..]]
+
         expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body True rc
-        body = app (var (conInfoName con)) [var name | (name,tp) <- conInfoParams con]
-        def  = DefNonRec (Def (ValueBinder defName () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (defFun []) InlineAuto "")
+        body = Case (var argName) [branch] False rc
+        branch  = Branch (PatCon (conInfoName con) patArgs rc rc)
+                         [Guard guardTrue (app (var (conInfoName con)) (map pick fieldVars))]
+        patArgs = [(Nothing, if hasAccessor fldName t con
+                               then PatVar (ValueBinder x Nothing (PatWild rc) rc rc)
+                               else PatWild rc)   -- unused: such fields pass through the parameter
+                  | (fldName,t,x) <- fieldVars]
+
+        pick (fldName,t,x)
+          = if not (hasAccessor fldName t con)
+              then var fldName    -- required parameter: passed through directly
+              else let v = makeHiddenName "arg" fldName
+                   in Case (var fldName)
+                        [ Branch (PatCon nameOptional [(Nothing, PatVar (ValueBinder v Nothing (PatWild rc) rc rc))] rc rc)
+                                 [Guard guardTrue (var v)]
+                        , Branch (PatWild rc)
+                                 [Guard guardTrue (var x)] ]
+                        False rc
+
+        def  = DefNonRec (Def (ValueBinder defName () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (defFun []) InlineAlways "")
     in def
 
 hasAccessor :: Name -> Type -> ConInfo -> Bool
