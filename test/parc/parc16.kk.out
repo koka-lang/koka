@@ -27,35 +27,26 @@ pub fun test : (xs : list<int>, y : int, z : int) -> int
  = std/core/types/@drop(z);
  match (xs) {
  (std/core/types/Cons(((@skip std/core/types/@Box((x: int)) : @box ) as @box-xxx: @box), (@pat@xxx: list<int>)) : list<int> )
- -> val _ : int
- = std/core/types/@dup(x);
- val _ : ()
- = std/core/types/@drop(y);
- (match (xs) {
- (std/core/types/Cons(((@skip std/core/types/@Box((@pat@xxx: int)) : @box ) as @box-xxx: @box), (@pat@xxx: list<int>)) : list<int> )
  -> val _ : ()
+ = std/core/types/@drop(y);
+ val _ : ()
  = (match ((std/core/types/@is-unique(xs))) {
  (std/core/types/True() : bool )
  -> val _ : ()
  = val _ : ()
  = std/core/types/@drop(@pat@xxx);
- val _ : ()
- = std/core/types/@drop(@pat@xxx);
  std/core/types/Unit;
  std/core/types/@free(xs);
  _
  -> val _ : ()
- = std/core/types/Unit;
+ = val _ : int
+ = std/core/types/@dup(x);
+ std/core/types/Unit;
  val _ : ()
  = std/core/types/@dec-ref(xs);
  std/core/types/Unit;
  });
  x;
- (@skip std/core/types/Nil() : (list<int>) )
- -> val _ : ()
- = std/core/types/@drop(x);
- 2;
- });
  (std/core/types/Cons(((@skip std/core/types/@Box((@pat@xxx: int)) : @box ) as @box-xxx: @box), (@pat@xxx: list<int>)) : list<int> )
  -> val _ : ()
  = std/core/types/@drop(y);

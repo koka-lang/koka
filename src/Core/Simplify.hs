@@ -97,6 +97,14 @@ topDown (Let dgs body)
     topDownLet sub acc [] body
       = case subst sub body of
           Let sdgs sbody -> topDownLet [] acc sdgs sbody  -- merge nested Let's
+          -- sink the remaining bindings into an irrefutable singleton match:
+          -- reads of the scrutinee's fields that precede the match can then
+          -- fold against its pattern (see the known-scrutinee rule)
+          sbody@(Case [scrut@(Var v _)] [Branch [pat] [Guard g cbody]])
+            | not (null acc) && isExprTrue g && patIrrefutable pat
+                && not (tnamesMember v (bv (reverse acc)))
+                && (bv pat `tnamesDisjoint` fv (reverse acc))
+            -> return $ Case [scrut] [Branch [pat] [Guard g (Let (reverse acc) cbody)]]
           sbody -> if (null acc)
                     then return sbody
                     else return $ Let (reverse acc) sbody
@@ -241,6 +249,22 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args)
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
+
+-- Known scrutinee: inside a branch that destructured `v`, a nested match
+-- on `v` folds against the branch's own pattern (wildcard fields are
+-- enriched to fresh pattern variables as needed). This turns e.g. an
+-- inlined field accessor inside a record-copy into a direct use of the
+-- already-destructured field.
+topDown expr@(Case [Var v vinfo] branches)  | any (branchMatchesOn v) branches
+  = do branches' <- mapM knownScrutBranch branches
+       return (Case [Var v vinfo] branches')
+  where
+    knownScrutBranch b@(Branch [pat] guards)  | branchMatchesOn v b
+      = do (pat',mkValue) <- enrichConPattern pat
+           case mkValue of
+             Nothing    -> return b
+             Just value -> return (Branch [pat'] [Guard (foldCasesOn v value g) (foldCasesOn v value e) | Guard g e <- guards])
+    knownScrutBranch b = return b
 
 -- case-of-let
 topDown (Case [Let dgs expr] branches)
@@ -866,6 +890,92 @@ isConHead :: Expr -> Bool
 isConHead (Con _ _)             = True
 isConHead (TypeApp (Con _ _) _) = True
 isConHead _                     = False
+
+-- does the branch destructure the scrutinee with a constructor pattern,
+-- while its bodies still contain a match on the scrutinee variable?
+branchMatchesOn :: TName -> Branch -> Bool
+branchMatchesOn v (Branch [pat] guards)
+  = isConPat pat && not (tnamesMember v (bv pat))
+    && any (\(Guard g e) -> containsCaseOn v g || containsCaseOn v e) guards
+  where
+    isConPat (PatCon{patExists=[]}) = True
+    isConPat (PatVar _ p)           = isConPat p
+    isConPat _                      = False
+branchMatchesOn v _ = False
+
+containsCaseOn :: TName -> Expr -> Bool
+containsCaseOn v expr
+  = case expr of
+      Case [Var u _] _  | u == v -> True
+      Case scruts bs    -> any (containsCaseOn v) scruts
+                           || any (\(Branch pats gs) -> not (tnamesMember v (bv pats))
+                                     && any (\(Guard g e) -> containsCaseOn v g || containsCaseOn v e) gs) bs
+      App f args        -> containsCaseOn v f || any (containsCaseOn v) args
+      Lam pars _ body   -> not (v `elem` pars) && containsCaseOn v body
+      Let dgs body      -> any (containsCaseOn v) (map defExpr (flattenDefGroups dgs))
+                           || (not (tnamesMember v (bv dgs)) && containsCaseOn v body)
+      TypeLam _ e       -> containsCaseOn v e
+      TypeApp e _       -> containsCaseOn v e
+      _                 -> False
+
+-- make every direct field of a constructor pattern a named pattern
+-- variable (wrapping non-var subpatterns as as-patterns), and return the
+-- reconstructed value expression the pattern witnesses.
+enrichConPattern :: Pattern -> Simp (Pattern, Maybe Expr)
+enrichConPattern (PatVar w p)
+  = do (p',mkValue) <- enrichConPattern p
+       return (PatVar w p', mkValue)
+enrichConPattern pat@(PatCon{patExists=[]})
+  = do fields <- mapM enrichField (zip (patConPatterns pat) (patTypeArgs pat))
+       let (pats',vars) = unzip fields
+           -- the pattern's constructor name is already instantiated, so no
+           -- type application is needed (kmatch compares names only anyway)
+           conExpr = Con (patConName pat) (patConRepr pat)
+           value   = if null vars then conExpr
+                                  else App conExpr [Var x InfoNone | x <- vars]
+       return (pat{ patConPatterns = pats' }, Just value)
+  where
+    enrichField (p@(PatVar x _), _tp) = return (p, x)
+    enrichField (p, tp)
+      = do x <- uniqueTName (TName (newHiddenName "fld") tp)
+           return (PatVar x p, x)
+enrichConPattern pat
+  = return (pat, Nothing)
+
+-- fold nested matches on `v` in `expr` given that `v` equals `value`
+-- (a constructor of the enclosing pattern's variables); respects shadowing
+foldCasesOn :: TName -> Expr -> Expr -> Expr
+foldCasesOn v value expr
+  = case expr of
+      Case [Var u vinfo] bs  | u == v
+        -> case kmatchBranches [value] bs of
+             Just e  -> foldCasesOn v value e
+             Nothing -> Case [Var u vinfo] (map goBranch bs)
+      Case scruts bs    -> Case (map go scruts) (map goBranch bs)
+      App f args        -> App (go f) (map go args)
+      Lam pars eff body -> if v `elem` pars then expr else Lam pars eff (go body)
+      Let dgs body      -> let dgs' = map goDefGroup dgs
+                           in Let dgs' (if tnamesMember v (bv dgs) then body else go body)
+      TypeLam ts e      -> TypeLam ts (go e)
+      TypeApp e ts      -> TypeApp (go e) ts
+      _                 -> expr
+  where
+    go = foldCasesOn v value
+    goDefGroup (DefNonRec def) = DefNonRec def{ defExpr = go (defExpr def) }
+    goDefGroup (DefRec defs)   = DefRec [def{ defExpr = go (defExpr def) } | def <- defs]
+    goBranch b@(Branch pats guards)
+      = if tnamesMember v (bv pats) then b
+        else Branch pats [Guard (go g) (go e) | Guard g e <- guards]
+
+-- irrefutable pattern: cannot fail to match
+patIrrefutable :: Pattern -> Bool
+patIrrefutable pat
+  = case pat of
+      PatWild     -> True
+      PatVar _ p  -> patIrrefutable p
+      PatLit _    -> False
+      PatCon{patConRepr=ConSingle{}, patExists=[]} -> all patIrrefutable (patConPatterns pat)
+      PatCon{}    -> False
 
 anfArg :: Expr -> Simp ([Def],Expr)
 anfArg arg
