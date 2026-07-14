@@ -1,0 +1,12 @@
+Tuple2:
+Int
+Tuple2:
+Int
+Int
+(-1,(-1,-1))
+ 
+overload/unit/int/impl: () -> foo int
+overload/unit/tuple2/impl: forall<a,b> (?a/impl : () -> foo a, ?b/impl : () -> foo b) -> foo (a, b)
+overload/unit/foo: (x : string) -> foo ()
+overload/unit/main: () -> console (int, (int, int))
+overload/unit/print-foo: forall<a> (?impl : () -> foo a) -> console a
