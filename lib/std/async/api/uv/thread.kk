@@ -60,6 +60,10 @@ extern xchan-create-prim( evloop : any, deliver : (a) -> ioc (), resume : (any) 
 extern xchan-emit-prim( xc : any, value : a ) : ioc ()
   c "kk_xchan_emit"
 
+// close the channel from the OWNER thread (uv_close + free); no cross-thread free
+extern xchan-close-prim( xc : any ) : ioc ()
+  c "kk_xchan_close"
+
 // True on hosts with real OS worker threads (native); False on web/wasi where
 // `spawn-thread` has no real thread. Callers gate threaded topologies on this.
 pub fun native-threads() : bool
@@ -89,6 +93,13 @@ pub fun xchannel/xemit( x : xchannel<a>, value : a ) : ioc ()
 pub fun xchannel/xreceive( x : xchannel<a> ) : <async,ndet> a
   x.chan.receive
 
+// Close the channel from the OWNER thread. The handle is unrefcounted (not Koka
+// memory), so it does not free on drop -- call this to close the uv_async handle
+// (letting a finite program's loop drain) once no thread will `xemit` again. An
+// app that runs for its whole lifetime need not call it.
+pub fun xchannel/close( x : xchannel<a> ) : ioc ()
+  xchan-close-prim(x.xc)
+
 // ----------------------------------------------------------------
 // spawn-thread: a PERSISTENT worker thread running its OWN async loop.
 
@@ -107,3 +118,6 @@ fun thread-main( body : () -> <async,ioc> () ) : ioc ()
 // Cross-thread communication is via `xchannel`/`xsender` (thread-safe channels).
 pub fun spawn-thread( body : () -> <async,ioc> () ) : ioc ()
   spawn-thread-prim(fn() thread-main(body))
+
+
+

@@ -49,6 +49,10 @@ pub fun xchannel/xemit( x : xchannel<a>, value : a ) : ioc ()
 pub fun xchannel/xreceive( x : xchannel<a> ) : <async,ndet> a
   x.chan.receive
 
+// No native handle to close on a cooperative host; a no-op for API parity.
+pub fun xchannel/close( x : xchannel<a> ) : ioc ()
+  ()
+
 // No OS threads here: gated out by `native-threads()`. If a caller ignores the
 // gate and calls this, it is a no-op (the body never runs) -- deliberately inert
 // rather than throwing, since it is never reached on a correctly-gated path.

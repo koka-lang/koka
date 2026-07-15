@@ -164,22 +164,20 @@ static void kk_xchan_close_cb(uv_handle_t* h) {
   free(c);
 }
 
-// cptr free fun: the last drop of the boxed channel (owner thread) schedules the
-// async handle's close, which frees the struct in `close_cb`
-static void kk_xchan_free(void* p, kk_block_t* block, kk_context_t* ctx) {
-  kk_unused(block); kk_unused(ctx);
-  kk_xchan_t* c = (kk_xchan_t*)p;
-  uv_close((uv_handle_t*)&c->async, kk_xchan_close_cb);
-}
-
 // noop dispose for the creation await (the channel outlives the await -- its
-// lifetime is the boxed cptr handed back through `resume`)
+// lifetime is the UNREFCOUNTED cptr handed back through `resume`, closed
+// explicitly via `xchannel/close`, never by a Koka drop)
 static void kk_xchan_noop_dispose(uv_handle_t* h, void* arg, kk_context_t* ctx) {
   kk_unused(h); kk_unused(arg); kk_unused(ctx);
 }
 
 // Setup (owner loop thread): create the channel on `loop`, deliver its values via
-// `deliver`, and hand the boxed channel pointer back immediately through `resume`.
+// `deliver`, and hand the boxed channel pointer back through `resume`. The handle
+// is boxed as an UNREFCOUNTED raw pointer (kk_cptr_box, a value for heap
+// addresses): it is NOT Koka memory, and a `sender` crosses it to worker threads,
+// so refcounting it would run a destructor on whatever thread drops last (a
+// cross-thread free -> heap corruption). Lifetime is managed explicitly: the
+// channel lives until `xchannel/close` (owner thread) or process exit.
 kk_std_core_exn__error kk_xchan_create(kk_uv_loop_t loop, kk_function_t deliver, kk_function_t resume, kk_context_t* ctx) {
   kk_xchan_t* c = (kk_xchan_t*)calloc(1, sizeof(kk_xchan_t));
   if (c == NULL) { kk_function_drop(deliver, ctx); kk_function_drop(resume, ctx); return kk_error_from_uv_errno(UV_ENOMEM, ctx); }
@@ -188,15 +186,26 @@ kk_std_core_exn__error kk_xchan_create(kk_uv_loop_t loop, kk_function_t deliver,
   if (err != 0) { uv_mutex_destroy(&c->mutex); free(c); kk_function_drop(deliver, ctx); kk_function_drop(resume, ctx); return kk_error_from_uv_errno(err, ctx); }
   c->head = c->tail = NULL;
   c->deliver = (void*)kk_datatype_as_ptr(deliver, ctx);   // owner-thread ref
-  kk_box_t boxed = kk_cptr_raw_box(&kk_xchan_free, c, ctx);
+  kk_box_t boxed = kk_cptr_box(c, ctx);                    // unrefcounted handle
   kk_function_call(kk_unit_t, (kk_function_t, kk_box_t, kk_context_t*), resume, (resume, boxed, ctx), ctx);
   return kk_result_uv_handle_dispose(NULL, NULL, &kk_xchan_noop_dispose, ctx);
+}
+
+// Close the channel from the OWNER thread (the loop that created it): uv_close the
+// async handle, then `close_cb` drains any queued values, drops the deliver, and
+// frees the struct. Owner-thread only, so no cross-thread free. Callers must
+// ensure no other thread `xemit`s after close (senders then dangle).
+kk_unit_t kk_xchan_close(kk_box_t xcbox, kk_context_t* ctx) {
+  kk_xchan_t* c = (kk_xchan_t*)kk_cptr_unbox_borrowed(xcbox, ctx);
+  uv_close((uv_handle_t*)&c->async, kk_xchan_close_cb);
+  kk_box_drop(xcbox, ctx);
+  return kk_Unit;
 }
 
 // Emit `value` into the channel from ANY thread: mark it thread-shared, enqueue
 // under the mutex, and wake the owner loop.
 kk_unit_t kk_xchan_emit(kk_box_t xcbox, kk_box_t value, kk_context_t* ctx) {
-  kk_xchan_t* c = (kk_xchan_t*)kk_cptr_raw_unbox_borrowed(xcbox, ctx);
+  kk_xchan_t* c = (kk_xchan_t*)kk_cptr_unbox_borrowed(xcbox, ctx);
   kk_box_mark_shared(value, ctx);
   kk_xnode_t* n = (kk_xnode_t*)malloc(sizeof(kk_xnode_t));
   n->next = NULL; n->value = value;   // ownership of `value` transferred to the node

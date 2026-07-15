@@ -20,3 +20,4 @@ fun main()
   val got = list(1, 5).map(fn(_) x.xreceive)
   println("received: " ++ got.show)          // [10,20,30,40,50], in order
   println("sum: " ++ got.sum.show)           // 150
+  x.close                                     // close the uv_async handle so the loop drains + the program exits
