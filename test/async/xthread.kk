@@ -7,7 +7,7 @@
 // it to the waiting `xreceive`. Native only (real OS threads).
 import std/async
 import std/time/duration
-import std/async/api/uv/thread
+import std/async/thread     // portable: xchannel / xsender / spawn-thread / native-threads
 
 fun main()
   val x : xchannel<int> = xchannel()      // owned by the MAIN loop

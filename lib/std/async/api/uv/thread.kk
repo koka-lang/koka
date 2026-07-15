@@ -54,9 +54,16 @@ pub fun xchannel/sender( x : xchannel<a> ) : xsender<a>
 extern xchan-create-prim( evloop : any, deliver : (a) -> ioc (), resume : (any) -> ioc () ) : ioc error<() -> ioc ()>
   c "kk_xchan_create"
 
-// enqueue+wake from any thread (the C side marks the value thread-shared)
-extern xchan-emit-prim( xc : any, value : a ) : ()
+// enqueue+wake from any thread (the C side marks the value thread-shared).
+// Typed `ioc` (not total) to match the web/coop fallback (a plain channel emit),
+// so the portable `std/async/thread` signature is host-consistent.
+extern xchan-emit-prim( xc : any, value : a ) : ioc ()
   c "kk_xchan_emit"
+
+// True on hosts with real OS worker threads (native); False on web/wasi where
+// `spawn-thread` has no real thread. Callers gate threaded topologies on this.
+pub fun native-threads() : bool
+  True
 
 // Create a thread-safe channel bound to the CURRENT async loop.
 pub fun xchannel() : async xchannel<a>
@@ -70,12 +77,12 @@ pub fun xchannel() : async xchannel<a>
 // thread-shared and wakes the owner loop; a waiting `xreceive` resumes there. No
 // observable Koka effect (the queue+wake is invisible to the caller). Give a
 // worker `x.sender` -- never the whole `xchannel` (which holds the Koka channel).
-pub fun xsender/xemit( s : xsender<a>, value : a ) : ()
+pub fun xsender/xemit( s : xsender<a>, value : a ) : ioc ()
   xchan-emit-prim(s.xc, value)
 
 // Convenience: emit from the owner side (also fine cross-thread, but a worker
 // should capture `x.sender`, not `x`, to avoid holding the Koka channel).
-pub fun xchannel/xemit( x : xchannel<a>, value : a ) : ()
+pub fun xchannel/xemit( x : xchannel<a>, value : a ) : ioc ()
   xchan-emit-prim(x.xc, value)
 
 // Receive on the OWNER loop (the loop that created the channel).
