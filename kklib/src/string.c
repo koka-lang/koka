@@ -383,6 +383,29 @@ kk_string_t kk_string_alloc_from_utf8(const char* str, kk_context_t* ctx) {
   return kk_string_alloc_from_utf8n(kk_sstrlen(str), str, ctx);
 }
 
+// Initialize a lazily-allocated string literal ONCE, thread-safely (see
+// `kk_init_string_literal`). Literals live in C statics and are used from ANY
+// thread, so: (1) the one-time initialization must be a release-CAS publish (two
+// threads may execute a function-local literal's first use concurrently), and
+// (2) the block's refcount is made STUCK -- a plain refcount on a shared static
+// would be dup/dropped non-atomically across threads (lost counts -> premature
+// free -> heap corruption); stuck makes dup/drop no-ops and the literal lives for
+// the process, exactly like a compile-time static (KK_HEADER_STATIC).
+kk_decl_export void kk_string_literal_init(kk_string_t* p, kk_ssize_t len, const char* chars, kk_context_t* ctx) {
+  kk_string_t s = kk_string_alloc_from_utf8n(len, chars, ctx);
+  if (kk_datatype_is_ptr(s.bytes)) {
+    kk_block_make_stuck(kk_datatype_as_ptr(s.bytes, ctx));
+  }
+  kk_intb_t expected = kk_datatype_null().dbox;
+  if (!kk_atomic_cas_strong_acq_rel((_Atomic(kk_intb_t)*)&(p->bytes.dbox), &expected, s.bytes.dbox)) {
+    // another thread won the initialization: discard ours (un-stick, then drop)
+    if (kk_datatype_is_ptr(s.bytes)) {
+      kk_block_refcount_set(kk_datatype_as_ptr(s.bytes, ctx), 0);
+      kk_string_drop(s, ctx);
+    }
+  }
+}
+
 kk_string_t kk_string_convert_from_qutf8(kk_bytes_t str, kk_context_t* ctx) {
   // to avoid reallocation (to accommodate invalid sequences), we first check if
   // it is already valid utf-8 which should be very common; in that case we return the bytes/string as-is.

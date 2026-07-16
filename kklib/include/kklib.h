@@ -962,6 +962,9 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 kk_decl_export void        kk_block_mark_shared(kk_block_t* b, kk_context_t* ctx);
 kk_decl_export void        kk_box_mark_shared(kk_box_t b, kk_context_t* ctx);
 kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void        kk_block_make_stuck(kk_block_t* b);  // refcount becomes stuck: dup/drop no-ops, never freed (for process-lifetime globals)
+kk_decl_export void        kk_block_mark_static(kk_block_t* b, kk_context_t* ctx);  // mark a reachable graph stuck (toplevel constants)
+kk_decl_export void        kk_box_mark_static(kk_box_t b, kk_context_t* ctx);
 
 
 /*--------------------------------------------------------------------------------------
