@@ -1087,9 +1087,12 @@ infLamValueBinder (ValueBinder name mbTp mbExpr nameRng rng)
        mbExpr' <- case mbExpr of
                   Nothing   -> return Nothing
                   Just (Parens (Var iname _ nrng) nm pre prng)  | isImplicitParamName name  -- ?? unpack
-                            -> do (qname,ikind,_) <- findInfKind iname rng
-                                  -- kind          <- resolveKind ikind
-                                  -- addRangeInfo r (Id qname (NITypeCon kind) [] False)
+                            -> do -- when the parameter name IS a type, qualify it (`.?order` unpacks
+                                  -- an `order`); otherwise pass the plain name through -- the type
+                                  -- checker unpacks via the parameter's type annotation instead
+                                  -- (`.?key : child` unpacks a `child`).
+                                  mbQname <- lookupInfKindName iname
+                                  let qname = case mbQname of { Just q -> q; Nothing -> iname }
                                   return (Just (Parens (Var qname False nrng) nm "implicit" prng))
                   Just expr -> do expr' <- infExpr expr
                                   return (Just expr')

@@ -1437,16 +1437,17 @@ inferLam topLevel propagated expect bindersL body0 rng
   where
     infBody isNamed =
      do -- traceDoc $ \env -> text "infer lam:" <+> pretty (map binderName bindersL) <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated <+> text (if isNamed then "(named)" else "")
-        (bindersX,unpackImplicitss) <- unzip <$> mapM inferImplicitParam bindersL
-        let body = foldr (\f x -> f x) body0 unpackImplicitss
-
-        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length bindersX) propagated
+        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length bindersL) propagated
         -- traceDoc $ \env -> text "  prop eff:" <+> ppProp env propEff
 
-        let binders0 = [case binderType binder of
+        -- fill in propagated parameter types FIRST so implicit-parameter unpacking
+        -- (`.?name : tp`) can find the struct via the parameter's type
+        let bindersP = [case binderType binder of
                           Nothing -> binder{ binderType = fmap snd mbProp }
                           Just _  -> binder
-                        | (binder,mbProp) <- zip bindersX propArgs]
+                        | (binder,mbProp) <- zip bindersL propArgs]
+        (binders0,unpackImplicitss) <- unzip <$> mapM inferImplicitParam bindersP
+        let body = foldr (\f x -> f x) body0 unpackImplicitss
         binders1 <- mapM instantiateBinder binders0
         -- traceDoc $ \env -> text "infexExpr.Lam: binder types: " <+> list [ppName env (binderName b) <+> text "=" <+> ppType env (binderType b) | b <- binders1] <+>
         --                    text ", propagated body: " <+> ppProp env propBody
@@ -2001,13 +2002,13 @@ inferBinders scopeDepth infgamma binders
 
 -- infer implicit parameter declaration:
 -- check if the expression is a single identifier and possibly generate unpacking of fields
-inferImplicitParam :: ValueBinder t1 (Maybe (Expr t2)) -> Inf (ValueBinder t1 (Maybe (Expr t2)), Expr Type -> Expr Type)
+inferImplicitParam :: ValueBinder (Maybe Type) (Maybe (Expr t2)) -> Inf (ValueBinder (Maybe Type) (Maybe (Expr t2)), Expr Type -> Expr Type)
 inferImplicitParam par
   = if isImplicitParamName (binderName par)
      then  do -- let pname = plainImplicitParamName (binderName par)
               unpack <- case binderExpr par of
                 Just (Parens (Var qname _ rng) _ _ _) -- encoded in the parser as a default expression
-                           -> inferImplicitUnpack (rangeHide (binderRange par)) (rangeHide rng) (binderName par) qname
+                           -> inferImplicitUnpack (rangeHide (binderRange par)) (rangeHide rng) (binderName par) qname (binderType par)
                 Nothing    -> return id
                 Just expr  -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
                                  return id
@@ -2018,10 +2019,24 @@ inferImplicitParam par
 qualifyUnpacked :: Name -> Name -> Name
 qualifyUnpacked pname fname = (qualifyLocally (nameAsModuleName $ fromImplicitParamName pname) fname)
 
-inferImplicitUnpack :: Range -> Range -> Name -> Name -> Inf (Expr Type -> Expr Type)
-inferImplicitUnpack rng nrng pname qname
+inferImplicitUnpack :: Range -> Range -> Name -> Name -> Maybe Type -> Inf (Expr Type -> Expr Type)
+inferImplicitUnpack rng nrng pname qname mbParTp
   = do nt <- getNewtypes
-       case newtypesLookupAny qname nt of
+       let mbInfo = case newtypesLookupAny qname nt of
+                      Just di -> Just di
+                      Nothing -> -- the parameter name is not a type: unpack via the
+                                 -- parameter's type annotation (`.?key : child`)
+                                 case mbParTp of
+                                   Just tp -> case typeConNameOf tp of
+                                                Just tc -> newtypesLookupAny tc nt
+                                                Nothing -> Nothing
+                                   Nothing -> Nothing
+           typeConNameOf tp = case expandSyn tp of
+                                TCon tcon     -> Just (typeconName tcon)
+                                TApp t _      -> typeConNameOf t
+                                TForall _ t   -> typeConNameOf t
+                                _             -> Nothing
+       case mbInfo of
         Just (DataInfo{dataInfoSort=Inductive,
                         dataInfoConstrs=[conInfo],
                         dataInfoDef=ddef})  | not (dataDefIsOpen ddef)
@@ -2045,11 +2060,22 @@ inferImplicitUnpack rng nrng pname qname
                         TCon tcon              -> [typeConName tcon]
                         _                      -> []
 
-              in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng (qualifyUnpacked pname fname) fqname) bases  -- todo: stop recursion!
+              in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng (qualifyUnpacked pname fname) fqname Nothing) bases  -- todo: stop recursion!
                     return (compose (unpack:unpackBases))
 
-        _  -> do -- traceDefDoc $ \penv -> text "inferImplicitUnpack: cannot resolve" <+> text (show qname)
+        _  -> do penv <- getPrettyEnv
+                 contextError rng nrng
+                   (text "cannot unpack the implicit parameter" <+> ppParam penv (fromImplicitParamName pname))
+                   [(text "because", text "no struct type" <+> ppParam penv qname <+> text "is defined" <.>
+                                     (case mbParTp of
+                                        Just tp -> text ", and its type" <+> ppType penv tp <+> text "is not a (non-open) struct"
+                                        Nothing -> text ", and it has no type annotation")),
+                    (text "hint", text "annotate with a struct type to unpack, e.g." <+>
+                                  text "`.?" <.> ppParam penv (fromImplicitParamName pname) <.> text " : mystruct`" <.>
+                                  text ", or use a plain `?` parameter to pass it through unchanged")]
                  return id
+  where
+    ppParam penv nm = ppName penv nm
 
 
 -- | Infer automatic unwrapping for parameters with default values, and adjust their type from optional<a> to a

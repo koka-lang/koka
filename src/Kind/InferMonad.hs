@@ -15,7 +15,7 @@ module Kind.InferMonad( KInfer
                       , addSynonym
                       , getSynonyms, getAllNewtypes, getPlatform
                       , extendInfGamma, extendKGamma, extendKSub
-                      , findInfKind
+                      , findInfKind, lookupInfKindName
                       , getColorScheme
                       , lookupSynInfo, lookupDataInfo
                       , qualifyDef
@@ -318,6 +318,26 @@ infQualifiedName name range
 
 ppModule cs name
   = color (colorModule cs) (text (nameModule name))
+
+-- Resolve a type name WITHOUT reporting errors: used by implicit-parameter
+-- unpacking (`.?name`), where the parameter name may not be a type at all
+-- (the unpack type then comes from the parameter's type annotation instead).
+lookupInfKindName :: Name -> KInfer (Maybe Name)
+lookupInfKindName name0
+  = do env <- getKindEnv
+       let name  = case importsExpand name0 (imports env) of
+                     Right (name',_) -> name'
+                     _               -> name0
+           qname = if isQualified name then name else qualify (currentModule env) name
+       case M.lookup name (infgamma env) of
+         Just _  -> return (Just name)
+         Nothing ->
+           case M.lookup qname (infgamma env) of
+             Just _  -> return (Just qname)
+             Nothing ->
+               case kgammaLookup (currentModule env) name (kgamma env) of
+                 Found qname' _ -> return (Just qname')
+                 _              -> return Nothing
 
 findInfKind :: Name -> Range -> KInfer (Name,InfKind,String)
 findInfKind name0 range
