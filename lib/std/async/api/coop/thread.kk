@@ -18,7 +18,7 @@ import async/async
 import async/channel
 
 // Run `work` cooperatively: yield to other strands, then compute inline.
-pub fun await-compute( work : () -> a ) : async a
+pub fun await-compute( work : () -> ioc a ) : <async|ioc> a
   yield()
   work()
 

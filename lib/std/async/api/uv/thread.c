@@ -67,11 +67,10 @@ static void kk_uv_compute_after_cb(uv_work_t* req, int status) {
   kk_uv_compute_t* w = (kk_uv_compute_t*)req;
   void* resume_ptr = w->resume;
   w->resume = NULL;
-  if (resume_ptr != NULL) {
+  if (resume_ptr != NULL && w->ran) {
     // normal delivery on the loop thread; `resume` consumes both itself and the boxed result
     kk_function_t resume = kk_datatype_from_ptr((kk_ptr_t)resume_ptr, ctx);
-    kk_box_t res = (w->ran ? w->result : kk_box_any(ctx));
-    kk_function_call(kk_unit_t, (kk_function_t, kk_box_t, kk_context_t*), resume, (resume, res, ctx), ctx);
+    kk_function_call(kk_unit_t, (kk_function_t, kk_box_t, kk_context_t*), resume, (resume, w->result, ctx), ctx);
   }
   else {
     // disposed/canceled before delivery: release anything still held
@@ -152,7 +151,7 @@ static void kk_xchan_async_cb(uv_async_t* async) {
     kk_function_t deliver = kk_datatype_from_ptr((kk_ptr_t)c->deliver, ctx);
     kk_function_dup(deliver, ctx);
     kk_function_call(kk_unit_t, (kk_function_t, kk_box_t, kk_context_t*), deliver, (deliver, n->value, ctx), ctx);
-    free(n);
+    kk_free(n, ctx);
     n = next;
   }
 }
@@ -163,9 +162,9 @@ static void kk_xchan_close_cb(uv_handle_t* h) {
   kk_context_t* ctx = kk_get_context();
   uv_mutex_destroy(&c->mutex);
   kk_xnode_t* n = c->head;
-  while (n != NULL) { kk_xnode_t* next = n->next; kk_box_drop(n->value, ctx); free(n); n = next; }
+  while (n != NULL) { kk_xnode_t* next = n->next; kk_box_drop(n->value, ctx); kk_free(n, ctx); n = next; }
   if (c->deliver != NULL) kk_datatype_drop(kk_datatype_from_ptr((kk_ptr_t)c->deliver, ctx), ctx);
-  free(c);
+  kk_free(c, ctx);
 }
 
 // noop dispose for the creation await (the channel outlives the await -- its
@@ -183,11 +182,11 @@ static void kk_xchan_noop_dispose(uv_handle_t* h, void* arg, kk_context_t* ctx) 
 // cross-thread free -> heap corruption). Lifetime is managed explicitly: the
 // channel lives until `xchannel/close` (owner thread) or process exit.
 kk_std_core_exn__error kk_xchan_create(kk_uv_loop_t loop, kk_function_t deliver, kk_function_t resume, kk_context_t* ctx) {
-  kk_xchan_t* c = (kk_xchan_t*)calloc(1, sizeof(kk_xchan_t));
+  kk_xchan_t* c = (kk_xchan_t*)kk_zalloc(sizeof(kk_xchan_t), ctx);
   if (c == NULL) { kk_function_drop(deliver, ctx); kk_function_drop(resume, ctx); return kk_error_from_uv_errno(UV_ENOMEM, ctx); }
   uv_mutex_init(&c->mutex);
   int err = uv_async_init(kk_uv_loop(loop, ctx), &c->async, kk_xchan_async_cb);
-  if (err != 0) { uv_mutex_destroy(&c->mutex); free(c); kk_function_drop(deliver, ctx); kk_function_drop(resume, ctx); return kk_error_from_uv_errno(err, ctx); }
+  if (err != 0) { uv_mutex_destroy(&c->mutex); kk_free(c, ctx); kk_function_drop(deliver, ctx); kk_function_drop(resume, ctx); return kk_error_from_uv_errno(err, ctx); }
   c->head = c->tail = NULL;
   c->deliver = (void*)kk_datatype_as_ptr(deliver, ctx);   // owner-thread ref
   kk_box_t boxed = kk_cptr_box(c, ctx);                    // unrefcounted handle
@@ -211,7 +210,7 @@ kk_unit_t kk_xchan_close(kk_box_t xcbox, kk_context_t* ctx) {
 kk_unit_t kk_xchan_emit(kk_box_t xcbox, kk_box_t value, kk_context_t* ctx) {
   kk_xchan_t* c = (kk_xchan_t*)kk_cptr_unbox_borrowed(xcbox, ctx);
   kk_box_mark_shared(value, ctx);
-  kk_xnode_t* n = (kk_xnode_t*)malloc(sizeof(kk_xnode_t));
+  kk_xnode_t* n = (kk_xnode_t*)kk_malloc(sizeof(kk_xnode_t), ctx);
   n->next = NULL; n->value = value;   // ownership of `value` transferred to the node
   uv_mutex_lock(&c->mutex);
   if (c->tail != NULL) c->tail->next = n; else c->head = n;

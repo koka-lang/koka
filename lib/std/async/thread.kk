@@ -12,8 +12,9 @@ This module offloads heavy, self-contained computations onto worker threads so
 they do not block the async loop that requested them. On native (`libc`) hosts
 the work runs on a libuv threadpool thread with its own Koka heap; the result is
 marked _thread-shared_ (atomic refcounts) before it crosses back to the
-requesting loop. On hosts without OS threads (web/wasi) `compute` degrades to a
+requesting loop. On hosts without OS threads (web/wasm) `compute` degrades to a
 cooperative strand with the exact same API, so applications stay portable.
+Wasi should support threads, but we don't support wasi threads yet.
 
 # Data offload
 
@@ -36,25 +37,11 @@ import async/async
 // `xsender`, `spawn-thread`, `native-threads` -- through `std/async/thread`.
 pub import async/api/thread
   [host=libc]                          async/api/uv/thread
-  [host=jsnode|jsweb|wasmweb|wasi-web] async/api/coop/thread
+  [host=jsnode|jsweb|wasmweb] async/api/coop/thread
 
-// Offload the pure computation `work` onto a worker thread (native) or a
-// cooperative strand (web/wasi), and await its result on the current async loop
+// Offload the pure computation `work` onto a worker thread (native/wasi) or a
+// cooperative strand (web/wasm), and await its result on the current async loop
 // without blocking it. Other strands (timers, subscriptions, animations) keep
-// running while `work` executes.
-//
-// `work` must be _self-contained_: it may only read thread-shared/immutable
-// values captured in its closure and must not mutate shared state or perform
-// I/O — on native hosts it runs on a separate thread with NO effect handlers in
-// scope (a worker starts with an empty evidence vector). `work` is `pure`
-// (`<exn,div>`), and `exn` is handler-based, so we must INSTALL a fresh `exn`
-// handler on the worker itself: `error/try(work)` does that when the thunk runs
-// there, catching any exception into an `error<a>` that crosses back and is
-// rethrown here. (`unsafe-total(work)` would only cast the effect away and
-// segfault — its own docs warn of this; here `unsafe-total` dismisses just the
-// leftover `div`, which is handler-free and safe.) Its result is marked
-// thread-shared before it crosses back.
-pub fun compute( work : () -> pure a ) : async a
-  match await-compute( fn() unsafe-total{ error/try(work) } )
-    Ok(x)    -> x
-    Error(e) -> impossible("async/compute: `work` must not raise, but it did: " ++ e.show)
+// running while `work` executes.  Its result is marked thread-shared before it crosses back.
+pub fun compute( work : () -> ioc a ) : <async|ioc> a
+  await-compute(work)

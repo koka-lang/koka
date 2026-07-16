@@ -23,12 +23,11 @@ extern import
 
 // Primitive: queue `work` on the loop's threadpool, delivering its result to
 // `resume` on the loop thread. Returns a dispose function (cancels the work).
-extern compute-prim( evloop : any, work : () -> a, resume : (a) -> ioc () ) : ioc error<() -> ioc ()>
+extern compute-prim( evloop : any, work : () -> ioc a, resume : (a) -> ioc () ) : ioc error<() -> ioc ()>
   c "kk_uv_queue_work"
 
 // Run `work` on a worker thread and await its result on the current loop.
-// `work` must be self-contained over thread-shared/immutable input (see `compute`).
-pub fun await-compute( work : () -> a ) : async a
+pub fun await-compute( work : () -> ioc a ) : <async|ioc> a
   match setup/await-error("compute", fn(evloop, resume) compute-prim(evloop, work, resume))
     Ok(x)      -> x
     Error(exn) -> impossible("async/compute: failed to queue work: " ++ exn.show)
