@@ -92,6 +92,11 @@ pub fun xchannel/xemit( x : xchannel<a>, value : a ) : ioc ()
 pub fun xchannel/xreceive( x : xchannel<a> ) : <async,ndet> a
   x.chan.receive
 
+// Receive on the OWNER loop without waiting: `Just` if a value has already
+// been delivered to this loop, `Nothing` otherwise.
+pub fun xchannel/try-xreceive( x : xchannel<a> ) : <async,ndet> maybe<a>
+  x.chan.try-receive
+
 // Close the channel from the OWNER thread. The handle is unrefcounted (not Koka
 // memory), so it does not free on drop -- call this to close the uv_async handle
 // (letting a finite program's loop drain) once no thread will `xemit` again. An

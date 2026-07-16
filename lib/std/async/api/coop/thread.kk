@@ -49,6 +49,9 @@ pub fun xchannel/xemit( x : xchannel<a>, value : a ) : ioc ()
 pub fun xchannel/xreceive( x : xchannel<a> ) : <async,ndet> a
   x.chan.receive
 
+pub fun xchannel/try-xreceive( x : xchannel<a> ) : <async,ndet> maybe<a>
+  x.chan.try-receive
+
 // No native handle to close on a cooperative host; a no-op for API parity.
 pub fun xchannel/close( x : xchannel<a> ) : ioc ()
   ()
