@@ -24,6 +24,10 @@
 
 #include <uv.h>
 
+#if defined(__APPLE__)
+#include <pthread/qos.h>
+#endif
+
 // -------------------------------------------------------------------------
 // compute: offload a pure `work` computation to a libuv threadpool thread
 // -------------------------------------------------------------------------
@@ -228,6 +232,14 @@ kk_unit_t kk_xchan_emit(kk_box_t xcbox, kk_box_t value, kk_context_t* ctx) {
 // -------------------------------------------------------------------------
 
 static void kk_thread_entry(void* arg) {
+#if defined(__APPLE__)
+  // Once the process becomes a Cocoa GUI app (GLFW/Metal init), macOS applies
+  // QoS-based timer coalescing: a default/background-QoS worker thread has its
+  // libuv timers batched to ~1s, so a persistent worker loop barely ticks. Pin
+  // the worker to user-interactive QoS so its timers fire promptly, matching the
+  // main (UI) thread.
+  pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+#endif
   // `arg` is the `() -> ioc ()` body block ptr (marked thread-shared before spawn)
   kk_context_t* ctx = kk_get_context();   // fresh, lazily-created per-thread context
   kk_function_t body = kk_datatype_from_ptr((kk_ptr_t)arg, ctx);
