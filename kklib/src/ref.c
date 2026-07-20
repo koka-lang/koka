@@ -46,8 +46,7 @@ kk_decl_export kk_box_t kk_ref_swap_thread_shared_borrow(struct kk_ref_s* r, kk_
   return b;
 }
 
-// TODO: inline this function?
-// Update is owned since it is likely a closure, copy is borrowed since it is likely a static function.
+// `update` is owned (typically a closure); the reference itself is borrowed.
 kk_decl_export kk_unit_t kk_ref_update_borrow(kk_ref_t _r, kk_function_t update, kk_context_t* ctx) {
   struct kk_ref_s* r = kk_datatype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
   if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
