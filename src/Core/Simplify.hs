@@ -932,12 +932,23 @@ enrichConPattern (PatVar w p)
 enrichConPattern pat@(PatCon{patExists=[]})
   = do fields <- mapM enrichField (zip (patConPatterns pat) (patTypeArgs pat))
        let (pats',vars) = unzip fields
-           -- the pattern's constructor name is already instantiated, so no
-           -- type application is needed (kmatch compares names only anyway)
-           conExpr = Con (patConName pat) (patConRepr pat)
+           -- reconstruct the constructor at its generic scheme with an explicit
+           -- type instantiation derived from the pattern result type: the
+           -- pattern's own constructor name carries an instantiated type which
+           -- does not survive core (de)serialization (the core parser resolves
+           -- constructors to their generic scheme), so a bare `Con` application
+           -- would become ill-typed when this expression is inlined cross-module.
+           conScheme = conInfoType (patConInfo pat)
+           (tvars,_) = splitTypeScheme conScheme
+           targs     = case expandSyn (patTypeRes pat) of
+                         TApp _ ts -> ts
+                         _         -> []
+           conExpr = makeTypeApp (Con (TName (getName (patConName pat)) conScheme) (patConRepr pat)) targs
            value   = if null vars then conExpr
                                   else App conExpr [Var x InfoNone | x <- vars]
-       return (pat{ patConPatterns = pats' }, Just value)
+       if (length tvars == length targs)
+         then return (pat{ patConPatterns = pats' }, Just value)
+         else return (pat, Nothing)  -- cannot reconstruct the instantiation: skip the fold
   where
     enrichField (p@(PatVar x _), _tp) = return (p, x)
     enrichField (p, tp)

@@ -1,0 +1,239 @@
+module parc/parc24
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+// nested match on an already-destructured polymorphic scrutinee:
+// the known-scrutinee fold must reconstruct the constructor witness
+// with an explicit type application (see `enrichConPattern` in Core/Simplify),
+// since the core parser resolves constructors to their generic scheme
+// when the witness is inlined cross-module@
+pub type pbox[6,1,8,11] <a> :: V -> V {
+ // nested match on an already-destructured polymorphic scrutinee:
+// the known-scrutinee fold must reconstruct the constructor witness
+// with an explicit type application (see `enrichConPattern` in Core/Simplify),
+// since the core parser resolves constructors to their generic scheme
+// when the witness is inlined cross-module@
+ pub con Pbox[6,8,6,11](fst: a, snd: int){0,2,8} : forall<a> (fst : a, snd : int) -> (pbox :: V -> V)<a> = 1;
+};
+pub fun pbox/@copy : forall<a> (@this : pbox<a>, fst : ? a, snd : ? int) -> pbox<a>
+ = forall<a> fn(@this: pbox<a>, fst: ? a, snd: ? int){
+ (match (@this) {
+ ((@skip parc/parc24/Pbox((@fld0: a) : a, (@fld1: int) : int) : pbox<a> ) as @pat: (pbox<a>))
+ -> parc/parc24/Pbox<a>((match (fst) {
+ ((std/core/types/@OptArg((@arg-fst: a) : a) : ? a ) as @pat@xxx: ? a)
+ -> @arg-fst;
+ ((@skip std/core/types/@NoOptArg() : ? a ) as @pat@xxx: ? a)
+ -> @fld0;
+ }), (match (snd) {
+ ((std/core/types/@OptArg((@arg-snd: int) : int) : ? int ) as @pat@xxx: ? int)
+ -> @arg-snd;
+ ((@skip std/core/types/@NoOptArg() : ? int ) as @pat@xxx: ? int)
+ -> @fld1;
+ }));
+ });
+ };
+// Automatically generated@ Retrieves the `fst` constructor field of the `:pbox` type@
+pub fun pbox/fst : forall<a> (^ pbox : pbox<a>) -> a
+ = forall<a> fn(pbox: pbox<a>){
+ (match (pbox) {
+ ((@skip parc/parc24/Pbox((@x: a) : a, (@pat@xxx: int) : int) : pbox<a> ) as @pat: (pbox<a>))
+ -> @x;
+ });
+ };
+// Automatically generated@ Retrieves the `snd` constructor field of the `:pbox` type@
+pub fun pbox/snd : forall<a> (^ pbox : pbox<a>) -> int
+ = forall<a> fn(pbox: pbox<a>){
+ (match (pbox) {
+ ((@skip parc/parc24/Pbox((@pat@xxx: a) : a, (@x: int) : int) : pbox<a> ) as @pat: (pbox<a>))
+ -> @x;
+ });
+ };
+pub fun test : forall<a> (b : pbox<a>) -> (pbox<a>, int)
+ = forall<a> fn(b: pbox<a>){
+ (match (b) {
+ ((@skip parc/parc24/Pbox((@pat@xxx: a) : a, (n: int) : int) : pbox<a> ) as @pat: (pbox<a>))
+ -> std/core/types/Tuple2<pbox<a>,int>((parc/parc24/Pbox<a>(@pat@xxx, n)), (std/core/int/int-add(n, 1)));
+ });
+ };
+// record-copy on a polymorphic struct goes through the same fold
+pub fun bump : forall<a> (b : pbox<a>) -> pbox<a>
+ = forall<a> fn(b: pbox<a>){
+ (match (b) {
+ ((@skip parc/parc24/Pbox((@fld0: a) : a, (@fld1: int) : int) : pbox<a> ) as @pat@xxx: (pbox<a>))
+ -> val @carg@xxx : int
+ = std/core/int/int-add(@fld1, 1);
+ parc/parc24/Pbox<a>(@fld0, @carg@xxx);
+ });
+ };
+module parc/parc24
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+// nested match on an already-destructured polymorphic scrutinee:
+// the known-scrutinee fold must reconstruct the constructor witness
+// with an explicit type application (see `enrichConPattern` in Core/Simplify),
+// since the core parser resolves constructors to their generic scheme
+// when the witness is inlined cross-module@
+pub type parc/parc24/pbox[6,1,8,11] <a> :: V -> V {
+ // nested match on an already-destructured polymorphic scrutinee:
+// the known-scrutinee fold must reconstruct the constructor witness
+// with an explicit type application (see `enrichConPattern` in Core/Simplify),
+// since the core parser resolves constructors to their generic scheme
+// when the witness is inlined cross-module@
+ pub con parc/parc24/Pbox[6,8,6,11](fst: a, snd: int){0,2,8} : forall<a> (fst : a, snd : int) -> (parc/parc24/pbox :: V -> V)<a> = 1;
+};
+pub fun pbox/@copy : forall<a> (@this : parc/parc24/pbox<a>, fst : ? a, snd : ? int) -> parc/parc24/pbox<a>
+ = fn(@this: parc/parc24/pbox<0>, fst: ? 64, snd: ? int){
+ match (@this) {
+ (@skip parc/parc24/Pbox((@fld0: 64) : a, (@fld1: int) : int) : parc/parc24/pbox<a> )
+ -> val @ru-x5 : @reuse
+ = std/core/types/@no-reuse();
+ val _ : ()
+ = (match ((std/core/types/@is-unique(@this))) {
+ (std/core/types/True() : bool )
+ -> val _ : ()
+ = std/core/types/Unit;
+ std/core/types/@assign-reuse(@ru-x5, (std/core/types/@reuse(@this)));
+ _
+ -> val _ : ()
+ = val _ : a
+ = std/core/types/@dup(@fld0);
+ val _ : int
+ = std/core/types/@dup(@fld1);
+ std/core/types/Unit;
+ val _ : ()
+ = std/core/types/@dec-ref(@this);
+ std/core/types/Unit;
+ });
+ std/core/types/@alloc-at(@ru-x5, (parc/parc24/Pbox((match (fst) {
+ (std/core/types/@OptArg((@arg-fst: 64) : a) : ? a )
+ -> val _ : ()
+ = std/core/types/@drop(@fld0);
+ @arg-fst;
+ (@skip std/core/types/@NoOptArg() : ? a )
+ -> @fld0;
+ }), (match (snd) {
+ (std/core/types/@OptArg(((@skip std/core/types/@Box((@arg-snd: int) : int) : @box ) as @box-xxx: @box) : int) : ? int )
+ -> val _ : int
+ = std/core/types/@dup(@arg-snd);
+ val _ : ()
+ = std/core/types/@drop(snd);
+ val _ : ()
+ = std/core/types/@drop(@fld1);
+ @arg-snd;
+ (@skip std/core/types/@NoOptArg() : ? int )
+ -> @fld1;
+ }))));
+ };
+ };
+// Automatically generated@ Retrieves the `fst` constructor field of the `:pbox` type@
+pub fun pbox/fst : forall<a> (^ pbox : parc/parc24/pbox<a>) -> a
+ = fn(pbox: parc/parc24/pbox<0>){
+ match (pbox) {
+ (@skip parc/parc24/Pbox((@x: 83) : a, (@pat@xxx: int) : int) : parc/parc24/pbox<a> )
+ -> std/core/types/@dup(@x);
+ };
+ };
+// Automatically generated@ Retrieves the `snd` constructor field of the `:pbox` type@
+pub fun pbox/snd : forall<a> (^ pbox : parc/parc24/pbox<a>) -> int
+ = fn(pbox: parc/parc24/pbox<0>){
+ match (pbox) {
+ (@skip parc/parc24/Pbox((@pat@xxx: 102) : a, (@x: int) : int) : parc/parc24/pbox<a> )
+ -> std/core/types/@dup(@x);
+ };
+ };
+pub fun test : forall<a> (b : parc/parc24/pbox<a>) -> (parc/parc24/pbox<a>, int)
+ = fn(b: parc/parc24/pbox<0>){
+ match (b) {
+ (@skip parc/parc24/Pbox((@pat@xxx: 143) : a, (n: int) : int) : parc/parc24/pbox<a> )
+ -> val @ru-x6 : @reuse
+ = std/core/types/@no-reuse();
+ val _ : ()
+ = (match ((std/core/types/@is-unique(b))) {
+ (std/core/types/True() : bool )
+ -> val _ : ()
+ = std/core/types/Unit;
+ std/core/types/@assign-reuse(@ru-x6, (std/core/types/@reuse(b)));
+ _
+ -> val _ : ()
+ = val _ : a
+ = std/core/types/@dup(@pat@xxx);
+ val _ : int
+ = std/core/types/@dup(n);
+ std/core/types/Unit;
+ val _ : ()
+ = std/core/types/@dec-ref(b);
+ std/core/types/Unit;
+ });
+ val @b-x2@4 : int
+ = std/core/int/int-add((std/core/types/@dup(n)), 1);
+ std/core/types/Tuple2((std/core/types/@box((std/core/types/@alloc-at(@ru-x6, (parc/parc24/Pbox(@pat@xxx, n)))))), (std/core/types/@box(@b-x2@4)));
+ };
+ };
+// record-copy on a polymorphic struct goes through the same fold
+pub fun bump : forall<a> (b : parc/parc24/pbox<a>) -> parc/parc24/pbox<a>
+ = fn(b: parc/parc24/pbox<0>){
+ match (b) {
+ (@skip parc/parc24/Pbox((@fld0: 257) : a, (@fld1: int) : int) : parc/parc24/pbox<a> )
+ -> val @ru-x7 : @reuse
+ = std/core/types/@no-reuse();
+ val _ : ()
+ = (match ((std/core/types/@is-unique(b))) {
+ (std/core/types/True() : bool )
+ -> val _ : ()
+ = std/core/types/Unit;
+ std/core/types/@assign-reuse(@ru-x7, (std/core/types/@reuse(b)));
+ _
+ -> val _ : ()
+ = val _ : a
+ = std/core/types/@dup(@fld0);
+ val _ : int
+ = std/core/types/@dup(@fld1);
+ std/core/types/Unit;
+ val _ : ()
+ = std/core/types/@dec-ref(b);
+ std/core/types/Unit;
+ });
+ val @carg@xxx : int
+ = std/core/int/int-add(@fld1, 1);
+ std/core/types/@alloc-at(@ru-x7, (parc/parc24/Pbox(@fld0, @carg@xxx)));
+ };
+ };
