@@ -1,8 +1,7 @@
-// nested match on an already-destructured polymorphic scrutinee:
-// the known-scrutinee fold must reconstruct the constructor witness
-// with an explicit type application (see `enrichConPattern` in Core/Simplify),
-// since the core parser resolves constructors to their generic scheme
-// when the witness is inlined cross-module.
+// nested match on an already-destructured polymorphic scrutinee: the
+// known-scrutinee fold reconstructs the constructor witness with an
+// explicit type application (`enrichConPattern` in Core/Simplify);
+// the .out pins the typed witness shape under --showcoretypes.
 struct pbox<a>
   fst : a
   snd : int

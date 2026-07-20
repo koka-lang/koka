@@ -606,7 +606,7 @@ kmatchPattern scrut@(Lit lit) (PatLit pLit)
 
 kmatchPattern scrut@(Con name _repr) (PatCon pname pats _prepr _ _ _ _info _)
   = --trace ("kmatchPat PatCon empty pats " ++ show name ++ " ___pat___ " ++ show pname) $
-    if name /= pname then NoMatch    -- different constructor: no match, whatever its arity
+    if name /= pname then NoMatch    -- different constructor: no match
     else if null pats then Match ([], scrut)
     else Unknown
 
@@ -932,12 +932,9 @@ enrichConPattern (PatVar w p)
 enrichConPattern pat@(PatCon{patExists=[]})
   = do fields <- mapM enrichField (zip (patConPatterns pat) (patTypeArgs pat))
        let (pats',vars) = unzip fields
-           -- reconstruct the constructor at its generic scheme with an explicit
-           -- type instantiation derived from the pattern result type: the
-           -- pattern's own constructor name carries an instantiated type which
-           -- does not survive core (de)serialization (the core parser resolves
-           -- constructors to their generic scheme), so a bare `Con` application
-           -- would become ill-typed when this expression is inlined cross-module.
+           -- build the witness at the generic constructor scheme with an explicit
+           -- type application: core (de)serialization resolves constructors to
+           -- their generic scheme (the pattern's own name is instantiated)
            conScheme = conInfoType (patConInfo pat)
            (tvars,_) = splitTypeScheme conScheme
            targs     = case expandSyn (patTypeRes pat) of

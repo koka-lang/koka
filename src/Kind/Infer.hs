@@ -214,14 +214,12 @@ synCopyCon modName info con
 
         argName  = newName "@this"
 
-        -- The body is ONE match on `@this` that reconstructs with each field
+        -- The body is one match on `@this` that reconstructs with each field
         -- either the (optional) argument or the matched field value. After
         -- inlining at a call site the optional matches fold away statically
-        -- (see Core/Simplify `kmatchPattern`) leaving a single
-        -- match+reconstruct on the copied value -- the shape that enables
-        -- constructor reuse (in-place update when unique). The previous
-        -- formulation used per-field accessor calls as optional-argument
-        -- defaults, which left one borrow-match per field and never reused.
+        -- (see Core/Simplify `kmatchPattern`), leaving a single
+        -- match+reconstruct -- the shape that enables constructor reuse
+        -- (in-place update when unique).
         params = [ValueBinder fldName Nothing Nothing rc rc | (fldName,_t) <- conInfoParams con]
 
         fieldVars = [(fldName, t, newHiddenName ("fld" ++ show i))
