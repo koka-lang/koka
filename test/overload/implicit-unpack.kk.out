@@ -2,10 +2,16 @@
 > a (implicit fields)
 # b
 # b (implicit fields)
+$c!
  
 overload/implicit-unpack/env/indent: (env : env) -> int
 overload/implicit-unpack/env/pre: (env : env) -> string
+overload/implicit-unpack/wide/indent: (wide : wide) -> int
+overload/implicit-unpack/wide/post: (wide : wide) -> string
+overload/implicit-unpack/wide/pre: (wide : wide) -> string
 overload/implicit-unpack/Env: (indent : int, pre : string) -> env
+overload/implicit-unpack/Wide: (indent : int, pre : string, post : string) -> wide
 overload/implicit-unpack/line: (s : string, ?indent : int, ?pre : string) -> console ()
 overload/implicit-unpack/main: () -> console ()
 overload/implicit-unpack/section: (title : string, ?fmt : env) -> console ()
+overload/implicit-unpack/tagged: (title : string, ?env : wide) -> console ()

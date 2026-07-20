@@ -2022,15 +2022,15 @@ qualifyUnpacked pname fname = (qualifyLocally (nameAsModuleName $ fromImplicitPa
 inferImplicitUnpack :: Range -> Range -> Name -> Name -> Maybe Type -> Inf (Expr Type -> Expr Type)
 inferImplicitUnpack rng nrng pname qname mbParTp
   = do nt <- getNewtypes
-       let mbInfo = case newtypesLookupAny qname nt of
+       let -- the type annotation (`.?key : child`) takes precedence over the
+           -- parameter name: it is the declared type of the parameter
+           mbAnnotInfo = do tp <- mbParTp
+                            tc <- typeConNameOf tp
+                            newtypesLookupAny tc nt
+           mbNameInfo  = newtypesLookupAny qname nt
+           mbInfo = case mbAnnotInfo of
                       Just di -> Just di
-                      Nothing -> -- the parameter name is not a type: unpack via the
-                                 -- parameter's type annotation (`.?key : child`)
-                                 case mbParTp of
-                                   Just tp -> case typeConNameOf tp of
-                                                Just tc -> newtypesLookupAny tc nt
-                                                Nothing -> Nothing
-                                   Nothing -> Nothing
+                      Nothing -> mbNameInfo
            typeConNameOf tp = case expandSyn tp of
                                 TCon tcon     -> Just (typeconName tcon)
                                 TApp t _      -> typeConNameOf t
@@ -2064,12 +2064,22 @@ inferImplicitUnpack rng nrng pname qname mbParTp
                     return (compose (unpack:unpackBases))
 
         _  -> do penv <- getPrettyEnv
+                 let ppNotUnpackable di
+                       | dataInfoSort di /= Inductive     = text "is not an inductive type"
+                       | dataDefIsOpen (dataInfoDef di)   = text "is an open type"
+                       | length (dataInfoConstrs di) /= 1 = text "has more than one constructor"
+                       | otherwise                        = text "cannot be unpacked"
+                     reasonAnnot = case mbParTp of
+                       Nothing -> text "the parameter has no type annotation"
+                       Just tp -> case mbAnnotInfo of
+                                    Just di -> text "its type" <+> ppType penv tp <+> ppNotUnpackable di
+                                    Nothing -> text "its type" <+> ppType penv tp <+> text "is not a struct type"
+                     reasonName = case mbNameInfo of
+                       Just di -> text "the type" <+> ppParam penv qname <+> ppNotUnpackable di
+                       Nothing -> text "no struct type" <+> ppParam penv qname <+> text "is defined"
                  contextError rng nrng
                    (text "cannot unpack the implicit parameter" <+> ppParam penv (fromImplicitParamName pname))
-                   [(text "because", text "no struct type" <+> ppParam penv qname <+> text "is defined" <.>
-                                     (case mbParTp of
-                                        Just tp -> text ", and its type" <+> ppType penv tp <+> text "is not a (non-open) struct"
-                                        Nothing -> text ", and it has no type annotation")),
+                   [(text "because", reasonAnnot <.> text ", and" <+> reasonName),
                     (text "hint", text "annotate with a struct type to unpack, e.g." <+>
                                   text "`.?" <.> ppParam penv (fromImplicitParamName pname) <.> text " : mystruct`" <.>
                                   text ", or use a plain `?` parameter to pass it through unchanged")]
