@@ -179,11 +179,9 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                         case lsTo of
                           [] | matchType tlFrom tlTo -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
-                          _  -> 
-                              trace ("  different effects: " ++ show (ppType penv tlFrom) ++ ", to " ++ show (ppType penv tlTo)
-                                     ++ " with effects: " ++ show (map (ppType penv) lsFrom, map (ppType penv) lsTo)) $  
-                              if isHandlerFree expr then expr
-                              else if (n <= 4)
+                          _  -> trace ("  no handled effect but different tails; use none: " ++ show expr) $
+                                if isHandlerFree expr then expr
+                                else if (n <= 4)
                                  then wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
                                       -- expr  -- fails in nim as it evidence is not cleared
                                  else wrapperThunk (resolve (nameOpenNone 0)) []
