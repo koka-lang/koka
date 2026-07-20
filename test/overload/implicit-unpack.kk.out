@@ -1,4 +1,11 @@
->  a
->  a (implicit fields)
-#    b
-#    b (implicit fields)
+> a
+> a (implicit fields)
+# b
+# b (implicit fields)
+ 
+overload/implicit-unpack/env/indent: (env : env) -> int
+overload/implicit-unpack/env/pre: (env : env) -> string
+overload/implicit-unpack/Env: (indent : int, pre : string) -> env
+overload/implicit-unpack/line: (s : string, ?indent : int, ?pre : string) -> console ()
+overload/implicit-unpack/main: () -> console ()
+overload/implicit-unpack/section: (title : string, ?fmt : env) -> console ()
