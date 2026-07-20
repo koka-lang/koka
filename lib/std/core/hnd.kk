@@ -551,8 +551,7 @@ pub fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r
 // But because we are manually finalizing out of context, we are returning in a new context
 // where only `()` makes sense, because we do not want to require a dummy value to finalize
 extern unsafe-cast-unit-context(r: resume-context<b,e,e0,r>): resume-context<b,e,e0,()>
-  c inline "#1"
-  js inline "#1"
+  inline "#1"
 
 pub fun finalize( r : resume-context<b,e,e0,r> ) : e ()
   // finalize(r.k,x)
