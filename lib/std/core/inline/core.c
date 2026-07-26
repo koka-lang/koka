@@ -11,3 +11,11 @@ kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx ) {
   return kk_function_call(kk_box_t,(kk_function_t,kk_unit_t,kk_context_t*),action,(action,kk_Unit,ctx),ctx);
 }
 
+// exit flushes the standard streams and runs kklib's atexit handler,
+// so the message printed just before this is not lost
+kk_unit_t kk_exit_failure( kk_context_t* ctx ) {
+  kk_unused(ctx);
+  exit(1);
+  return kk_Unit;
+}
+
