@@ -45,6 +45,8 @@ Options:
 --shard=<i>/<n>              # Only run every n-th test starting at the i-th (1 <= i <= n), used to split CI jobs
 ```
 
+A test with a `.kk.out` file can also provide a `.kk.exit` file containing the expected numeric exit status. Tests without it check output only.
+
 Per-directory test configuration uses `config.json` and supports:
 
 ```json

@@ -190,11 +190,6 @@ expectedSanitize :: String -> String
 expectedSanitize input
   = filter (/='\r') input   -- on windows \r still gets through sometimes
 
-runKoka :: Cfg -> FilePath -> FilePath -> IO String
-runKoka cfg kokaDir fp
-  = do (_, out, _) <- runKokaProcess cfg kokaDir fp
-       return (testSanitize kokaDir out)
-
 -- precompile and stop on failure (as parallel tests would otherwise race to build the same modules)
 precompile :: Cfg -> FilePath -> IO ()
 precompile cfg fp
@@ -230,7 +225,16 @@ makeTest counter cfg fp
            when (shouldRun && idx `mod` n == i - 1) $
              it (takeBaseName fp) $ do
                kokaDir <- getCurrentDirectory
-               out <- runKoka cfg kokaDir fp
+               (exitCode, stdout, _) <- runKokaProcess cfg kokaDir fp
+               let out = testSanitize kokaDir stdout
+                   status = case exitCode of
+                              ExitSuccess   -> 0
+                              ExitFailure n -> n
+                   statusFile = fp ++ ".exit"
+               checkStatus <- doesFileExist statusFile
+               when checkStatus $ do
+                 expectedStatus <- trim <$> readFile statusFile
+                 show status `shouldBe` expectedStatus
                unless (mode (options cfg) == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
                expected <- testSanitize kokaDir <$> readFile expectedFile
                out `shouldBe` expected

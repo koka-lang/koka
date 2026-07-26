@@ -233,10 +233,17 @@ pub extern host() : ndet string
   js inline "$std_core_console._host"
 
 
-// The default exception handler prints an exception to the console as "uncaught".
+extern @exit-failure() : ()
+  c  "kk_exit_failure"
+  cs inline "System.Environment.Exit(1)"
+  // In Node, let the diagnostic drain before exiting (stdout may be a pipe).
+  js inline "((typeof process !== 'undefined' && process.stdout && process.exit) ? void process.stdout.write('', () => process.exit(1)) : undefined)"
+
+// The default exception handler reports an uncaught exception and exits with failure.
 pub fun @default-exn(action : () -> <exn,console|e> () ) : <console|e> ()
   with final ctl throw-exn( exn : exception )
-    println( "uncaught exception: " ++ exn.show )    
+    println( "uncaught exception: " ++ exn.show )
+    @exit-failure()
   action()
 
 
