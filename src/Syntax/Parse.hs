@@ -1735,7 +1735,7 @@ withstat
                                            (keyword "=" <|> keyword "<-")
                                            return x
            e <- basicexpr <|> handlerExprWith krng HandlerInstance
-           pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
+           pure $ applyToContinuationWith krng [promoteValueBinder par] transform e
         <|>
         do e <- basicexpr <|> handlerExprWith krng HandlerNormal
            return (applyToContinuation krng [] e)
@@ -1747,7 +1747,12 @@ withstat
            _ -> binder
 
 applyToContinuation wrng params expr body
-  = let lam = Lam params body False (combineRanged wrng body)
+  = applyToContinuationWith wrng params id expr body
+
+-- A pattern parameter's transform inserts its match inside the continuation lambda.
+applyToContinuationWith :: Range -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> (UserExpr -> UserExpr) -> UserExpr -> UserExpr -> UserExpr
+applyToContinuationWith wrng params transform expr body
+  = let lam = transform (Lam params body False (combineRanged wrng body))
         fun = Parens lam (newName "with") "expr" wrng -- Parens makes it last in type inference so types can better propagate (ambients/heap1) (todo: no longer the case right?)
         funarg = [(Nothing,fun)]
         fullrange = combineRanged wrng fun
