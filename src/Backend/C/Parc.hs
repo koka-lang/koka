@@ -259,7 +259,14 @@ parcGuard scrutinees pats live (Guard test expr)
          do let shapes = inferShapes scrutinees pats  -- create alias map for the pattern
             extendShapes shapes $ -- merge with current alias map
               do (expr', liveInThisBranch) <- isolateWith live $ parcExpr expr
-                 markLives liveInThisBranch
+                 -- A guard `test` may reference variables that are not bound by the pattern and
+                 -- not used in the branch body (e.g. `... | info.field -> body` where `body` does
+                 -- not use `info`). Such variables must stay live into the match so they are not
+                 -- dropped before the guard runs (otherwise the guard reads a dropped value -- a
+                 -- use-after-free). They are still dropped after the test via `drops` below, which
+                 -- is computed from the body-only `liveInThisBranch`.
+                 let testFvs = fv test `S.difference` pvs
+                 markLives (liveInThisBranch `S.union` testFvs)
                  test' <- withOwned S.empty $ parcExpr test
                  return $ \liveInSomeBranch -> scoped pvs $ extendOwned ownedPvs $ extendShapes shapes $ do
                   let dups = S.intersection ownedPvs liveInThisBranch
