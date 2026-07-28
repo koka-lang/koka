@@ -650,7 +650,7 @@ messageHeader st
 semiRandom min max
   = do t <- getCurrentTime
        let i = fileTimeToPicoseconds t `div` 100000000000
-       return (fromInteger (min + (i `mod` (max - min))))
+       return (fromInteger (min + (i `mod` (max - min + 1))))
 
 putQuote ::  State -> IO ()
 putQuote st
