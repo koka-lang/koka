@@ -1729,6 +1729,10 @@ resolveApp idmap partialSyn (TpCon name r,[fixed,ext]) rng  | name == nameEffect
        return (shallowEffectExtend fixed' ext')
 
 resolveApp idmap partialSyn (TpCon name r,args) rng
+  | M.member name idmap
+  = resolveApp idmap partialSyn (TpVar name r,args) rng
+
+resolveApp idmap partialSyn (TpCon name r,args) rng
   =  do (qname,ikind,doc) <- findInfKind name rng
         kind  <- resolveKind ikind
         addRangeInfo r (Id qname (NITypeCon kind doc) [] False)
