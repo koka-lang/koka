@@ -2508,7 +2508,8 @@ matchFunTypeArgs context fun tp fresolved fixed named
     matchNamed pars ((i,((name,rng),arg)):named)
       = case extract name [] pars of
           Nothing -> do -- trace ("matchNamed: no parameter with name " ++ show name ++ " in " ++ show pars) $ return ()
-                        typeError context (getRange fun) (text "there is no parameter with name" <+> pretty name) tp []
+                        penv <- getPrettyEnv
+                        typeError context (getRange fun) (text "there is no parameter with name" <+> ppName penv name) tp []
                         matchNamed pars named
           Just (j,tp,pars1)
               -> do newarg  <- if (isOptional tp)
