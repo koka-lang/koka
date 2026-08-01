@@ -34,6 +34,8 @@ import Core.Simplify( simplifyDefs )
 import Core.FunLift( liftFunctions )
 import Core.UnReturn( unreturn )
 import Core.Fusion( fuseMutRec )
+import Core.Inline( inlineDefs )
+import Core.Inlines( inlinesEmpty )
 import Core.Borrowed ( borrowedExtendICore )
 import Core.Uniquefy( uniquefy )
 
@@ -143,7 +145,19 @@ typeCheck flags defs coreImports program0
         -- private mutrec types are appended to the module core; extend
         -- newtypes/gamma with them so later lookups (and checkCore) see them.
         newFusionTypeDefs <- if optFusion flags && not (isPrimitiveModule progName)
-                                   then fuseMutRec penv newtypes (platformFromFlags flags)
+                                   then do tdefs <- fuseMutRec penv newtypes (platformFromFlags flags)
+                                           -- Inline the freshly emitted forceinline wrappers into the
+                                           -- driver right away: this both collapses the @run <-> wrapper
+                                           -- cycle into a directly self-recursive @run, and (as a side
+                                           -- effect of inlineDefs' own inline-simplify-inline shape) fires
+                                           -- Core.Simplify's @coerce fusion rule, recovering the bare tail
+                                           -- form for ordinary tail calls -- see "Tail calls vs. inlining"
+                                           -- in Core.Fusion's module header. Done here, right after the
+                                           -- pass, rather than left to wait for the general optimizer
+                                           -- (Compile.Optimize), so the fused driver's constant-stack
+                                           -- guarantee does not depend on optimization flags.
+                                           when (not (null tdefs)) $ inlineDefs penv (2*optInlineMax flags) inlinesEmpty
+                                           return tdefs
                                    else return []
         let coreProgramT = coreProgram{ Core.coreProgTypeDefs = Core.coreProgTypeDefs coreProgram ++ newFusionTypeDefs }
             fusionCore = (Core.coreNull progName){ Core.coreProgTypeDefs = newFusionTypeDefs }

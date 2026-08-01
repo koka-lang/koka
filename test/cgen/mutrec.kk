@@ -37,12 +37,9 @@ fun pong( n : int ) : div int
   else ping(n - 1)                        // tail
 
 // 5. Polymorphic mutual recursion, mismatched argument counts (2 vs 3).
-//    zip-even/zip-odd's own type variables are independent existentials on
-//    their own @Call-* constructor (see test 8). The sibling call here is
-//    nested under Cons (modulo-cons); this pass does not fuse that into the
-//    loop -- it's an ordinary non-tail call, correct but O(n) stack, so only
-//    a shallow case is exercised here (a follow-up adds constant-stack
-//    modulo-cons fusion).
+//    Also a modulo-cons SCC: zip-even/zip-odd's own type variables are
+//    independent existentials on their own @Call-* constructor (see test 8),
+//    and the driver returns the shared list<r> so ctail's TRMC can fire.
 fun zip-even( xs : list<a>, ys : list<b> ) : div list<(a,b)>
   match xs
     Nil        -> []
@@ -201,9 +198,14 @@ fun main()
   // 4: mixed tail/non-tail
   println(ping(6).show)             // 6
 
-  // 5: polymorphic, mismatched arg counts (shallow: modulo-cons isn't fused yet)
+  // 5: polymorphic, mismatched arg counts, deep
   val r = zip-even([1,2,3], ['a','b','c'])
   println(r.show-list(fn((a,b)) { "(" ++ a.show ++ "," ++ b.show ++ ")" }))
+  val big = zip-even(list(1, 100000), list(1, 100000))
+  println(big.length.show)          // 100000
+  match big.last
+    Just((a,b)) -> println("(" ++ a.show ++ "," ++ b.show ++ ")")
+    Nothing     -> println("empty")
 
   // 6: single-member SCC (no trampolining)
   println(self-sum(10, 0).show)     // 55
