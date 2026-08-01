@@ -95,7 +95,7 @@ import qualified Data.Set as S
 import Kind.Kind
 import Kind.Pretty ()
 import Type.Kind
-import Type.Type
+import Type.Type hiding ( matchEffect )
 import qualified Data.Maybe as M
 
 {--------------------------------------------------------------------------
@@ -646,7 +646,7 @@ matchType tp1 tp2 =
     _ -> False
 
 matchTypes ts1 ts2 =
-  and (zipWith matchType ts1 ts2)
+  length ts1 == length ts2 && and (zipWith matchType ts1 ts2)
 
 matchEffect eff1 eff2 =
   matchType (orderEffect eff1) (orderEffect eff2)
