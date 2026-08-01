@@ -105,7 +105,9 @@ prettyCore env0 eguard inlineDefs core@(Core modName imports fixDefs typeDefGrou
     env  = env1{ expandSynonyms = False }
     envX = env1{ showKinds = True, expandSynonyms = True }
 
-    signatures   = extractSignatures core
+    -- also scan bodies written to .inline-section: a synonym used only on a nested
+    -- binder there (never in the def's own signature) needs mirroring too
+    signatures   = extractSignatures core ++ concatMap (fts . inlineExpr) inlineDefs
     importedSyns = extractImportedSynonyms (coreProgName core) signatures
     extraImports1 = map extractImportsFromSynInfo importedSyns
     extraImports2 = extractImportFromSignatures signatures
@@ -638,6 +640,11 @@ instance HasTypeVar DefGroup where
         DefRec defs   -> ftc defs
         DefNonRec def -> ftc def
 
+  fts defGroup
+    = case defGroup of
+        DefRec defs   -> fts defs
+        DefNonRec def -> fts def
+
 
 instance HasTypeVar Def where
   sub `substitute` (Def name scheme expr vis isVal inl nameRng doc)
@@ -651,6 +658,9 @@ instance HasTypeVar Def where
 
   ftc (Def name scheme expr vis isVal inl nameRng doc)
     = tcsUnion (ftc scheme) (ftc expr)
+
+  fts (Def name scheme expr vis isVal inl nameRng doc)
+    = fts scheme ++ fts expr
 
 instance HasTypeVar Expr where
   sub `substitute` expr
@@ -705,6 +715,18 @@ instance HasTypeVar Expr where
                   Case exprs branches -> ftc exprs `tcsUnion` ftc branches
       in tcs
 
+  fts expr
+    = case expr of
+        Lam tname eff expr -> fts tname ++ fts eff ++ fts expr
+        Var tname info     -> fts tname
+        App a b            -> fts a ++ fts b
+        TypeLam tvs expr   -> fts expr
+        TypeApp expr tp    -> fts expr ++ fts tp
+        Con tname repr     -> fts tname
+        Lit lit            -> []
+        Let defGroups expr -> fts defGroups ++ fts expr
+        Case exprs branches -> fts exprs ++ fts branches
+
 instance HasTypeVar Branch where
   sub `substitute` (Branch patterns guards)
     = let sub' = subRemove (tvsList (btv patterns)) sub
@@ -719,6 +741,9 @@ instance HasTypeVar Branch where
   ftc (Branch patterns guards)
     = tcsUnion (ftc patterns) (ftc guards)
 
+  fts (Branch patterns guards)
+    = fts patterns ++ fts guards
+
 instance HasTypeVar Guard where
   sub `substitute` (Guard test expr)
     = Guard (sub `substitute` test) (sub `substitute` expr)
@@ -731,6 +756,9 @@ instance HasTypeVar Guard where
 
   ftc (Guard test expr)
     = ftc test `tcsUnion` ftc expr
+
+  fts (Guard test expr)
+    = fts test ++ fts expr
 
 instance HasTypeVar Pattern where
   sub `substitute` pat
@@ -768,6 +796,13 @@ instance HasTypeVar Pattern where
       in -- trace ("ftc :" ++ show (tvsList (tvs)) ++ ", in pattern: " ++ show pat) $
          tcs
 
+  fts pat
+    = case pat of
+        PatVar tname pat    -> fts tname ++ fts pat
+        PatCon tname args _ targs exists tres _ _ -> fts tname ++ fts args ++ fts targs ++ fts tres
+        PatWild             -> []
+        PatLit lit          -> []
+
 instance HasTypeVar TName where
   sub `substitute` (TName name tp)
     = TName name (sub `substitute` tp)
@@ -775,5 +810,7 @@ instance HasTypeVar TName where
     = ftv tp
   btv (TName name tp)
     = btv tp
+  fts (TName name tp)
+    = fts tp
   ftc (TName name tp)
     = ftc tp
