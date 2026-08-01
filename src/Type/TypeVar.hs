@@ -11,7 +11,7 @@
 
 module Type.TypeVar
   ( -- * Type substitutable entities
-    HasTypeVar (substitute, ftv, btv, ftc),
+    HasTypeVar (substitute, ftv, btv, ftc, fts),
     (|->),
     alltv,
     fuv,
@@ -455,6 +455,12 @@ class HasTypeVar a where
   -- | Return used type constructors
   ftc :: a -> TypeCons
 
+  -- | Return every type synonym reference found (unlike 'ftc', which only records the
+  -- synonym's name via its underlying TypeCon, this keeps the full 'Type' -- e.g. so
+  -- callers can inspect its 'SynInfo'). Default: none.
+  fts :: a -> [Type]
+  fts _ = []
+
 -- | Entities that contain type variables that can be put in a particular order
 class HasOrderedTypeVar a where
   -- | Return free type variables in a particular order, may contain duplicates
@@ -494,6 +500,8 @@ instance (HasTypeVar a) => HasTypeVar [a] where
     tvsUnions (map btv xs)
   ftc xs =
     S.unions (map ftc xs)
+  fts xs =
+    concatMap fts xs
 
 instance HasTypeVar Range where
   sub `substitute` r = r
@@ -560,7 +568,17 @@ instance HasTypeVar Type where
       TCon tcon -> S.singleton tcon
       TVar tvar -> S.empty
       TApp tp arg -> S.union (ftc tp) (ftc arg)
-      TSyn syn xs tp -> S.union (ftc xs) (ftc tp)
+      -- also include the synonym's own name, not just its expansion's constructors
+      TSyn syn xs tp -> S.insert (TypeCon (typesynName syn) (typesynKind syn)) (S.union (ftc xs) (ftc tp))
+
+  fts tp0 =
+    case tp0 of
+      TForall vars tp -> fts tp
+      TFun args effect result -> concat (fts effect : fts result : map (fts . snd) args)
+      TCon tcon -> []
+      TVar tvar -> []
+      TApp tp arg -> fts tp ++ fts arg
+      TSyn syn xs tp -> tp0 : (fts xs ++ fts tp)
 
 instance HasTypeVar Name where
   sub `substitute` name = name
