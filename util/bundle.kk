@@ -143,6 +143,7 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
   val stdlibdir = sharedir / "lib"
   println("copy standard libraries...")
   copy-directory("lib/std".path, stdlibdir / "std")
+  copy-directory("lib/uv".path, stdlibdir / "uv")
   copy-file-to-dir("lib/toc.kk".path, stdlibdir)
   copy-file-to-dir("lib/package.std.json".path, stdlibdir)
 

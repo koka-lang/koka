@@ -412,9 +412,9 @@ val mjd-epoch-delta = timespan(51544)
 
 /* Return the Julian date ([JD](https://en.wikipedia.org/wiki/Julian_day))
 number for a given `:time` `t`. This interprets the Julian date in the calendar of `t` with
-the timezone of `t` applied.\
-`time(-4713,11,24,12,cal=cal-tt).jd == "0"`\
-`time(1972,1,2,tz=tz-fixed(1)).jd == "2441318.5"`\
+the timezone of `t` applied.&br;
+`time(-4713,11,24,12,cal=cal-tt).jd == "0"`&br;
+`time(1972,1,2,tz=tz-fixed(1)).jd == "2441318.5"`&br;
 `time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-ti).show(9) == "2441318.458333333"`
 
 Takes leap seconds into account when calculating the fraction of the day,

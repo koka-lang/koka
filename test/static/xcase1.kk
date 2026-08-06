@@ -1,2 +1,3 @@
+module static/xcase1
 import static/modA 
-alias bar = modA/aint
+pub alias bar = modA/aint

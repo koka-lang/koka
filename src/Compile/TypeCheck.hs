@@ -72,7 +72,7 @@ typeCheck flags defs coreImports program0
           <- inferKinds
               (Core.dataInfoIsValue)
               (colorSchemeFromFlags flags)
-              (platform flags)
+              (targetPlatformFromFlags flags)
               (if (outHtml flags > 0 || genRangeMap flags) then Just rangeMapNew else Nothing)
               importMap
               (defsKGamma defs)
@@ -90,6 +90,7 @@ typeCheck flags defs coreImports program0
         (gamma,coreDefs,mbRangeMap1)
           <- inferTypes
               penv
+              (targetPlatformFromFlags flags)
               mbRangeMap0
               synonyms
               newtypes
@@ -116,7 +117,7 @@ typeCheck flags defs coreImports program0
         -- checkCoreDefs "unreturn"
         coreDefs1 <- Core.getCoreDefs
         let borrowed = borrowedExtendICore (coreProgram{ Core.coreProgDefs = coreDefs1 }) (defsBorrowed defs)
-        checkFBIP penv (platform flags) newtypes borrowed gamma
+        checkFBIP penv (platformFromFlags flags) newtypes borrowed gamma
 
         -- initial simplify
         let ndebug  = optimize flags > 0
@@ -146,7 +147,7 @@ typeCheck flags defs coreImports program0
             -- add extra imports needed to resolve types in this module
             typeDeps         = extractDepsFromSignatures coreUnique
             currentImports   = S.fromList (map Core.importName coreImports)
-            typeImports      = [Core.Import name "" Core.ImportTypes Private "" | name <- typeDeps, not (S.member name currentImports) && not (name == progName)]
+            typeImports      = [Core.Import name "" Core.ImportTypes Private "" rangeNull| name <- typeDeps, not (S.member name currentImports) && not (name == progName)]
             coreFinal        = coreUnique{ Core.coreProgImports = Core.coreProgImports coreUnique ++ typeImports }
 
         return (coreFinal,mbRangeMap)

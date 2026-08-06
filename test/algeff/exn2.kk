@@ -17,14 +17,14 @@ fun xor() : <amb,exn> bool {
 
 fun foo() : <amb,state<int>,io> bool {
   val p = flip()
-  try {
+  try fn(exn){ False } {
     finally { println("exit") }
     {
       val i = get()
       set(i+1)
       if (i>0 && p) then xor() else False
     }
-  } fn(exn){ False }
+  } 
 }
 
 

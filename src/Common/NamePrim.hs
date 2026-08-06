@@ -123,8 +123,8 @@ module Common.NamePrim
 
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32, nameTpFloat16
-          , nameTpString
-          -- , nameTpByte
+          , nameTpString, nameTpBytes
+          , nameTpByte
           , nameTpInt8, nameTpInt16, nameTpInt32, nameTpInt64
           , nameTpSSizeT,nameTpIntPtrT
           , nameTpAny
@@ -145,7 +145,7 @@ module Common.NamePrim
           , nameTpNamed, nameTpScope
 
 
-          , nameTpAsync, nameTpAsyncX
+          , nameTpAsync
           {-
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
@@ -169,7 +169,7 @@ module Common.NamePrim
           , nameTpTotal, nameTpDiv, nameTpPartial, nameTpPure
           , nameTpST
           , nameTpWrite, nameTpRead
-          , nameTpIO
+          , nameTpIO, nameTpIOC, nameTpIOCTotal
           , nameTpAlloc
 
           , nameTuple, isNameTuple
@@ -221,12 +221,14 @@ nameCase        = newName "case"
   Core
 --------------------------------------------------------------------------}
 nameTpIO        = preludeName "io"
+nameTpIOC       = preludeName "ioc"
+nameTpIOCTotal  = preludeName "ioc-total"
 nameTpNamed     = preludeName "nmd"
 nameTpScope     = preludeName "scope"
 nameTpPure      = preludeName "pure"
 
-nameTpAsync     = newQualified "std/async" "async"
-nameTpAsyncX    = newQualified "std/async" "asyncx"
+nameTpAsync     = newQualified "std/async/async" "async"
+
 nameTpBuilder   = newQualified "std/text/string" "builder"
 nameTpArray     = newQualified "std/data/array" "array"
 nameTpMDict     = qualify nameDict (newName "mdict")
@@ -460,7 +462,7 @@ nameTpUnit      = coreTypesName "unit"
 nameTpBool      = coreTypesName "bool"
 nameTpInt       = coreTypesName "int"
 
--- nameTpByte      = coreTypesName "uint8"
+nameTpByte      = coreTypesName "uint8"
 nameTpInt8      = coreTypesName "int8"
 nameTpInt16     = coreTypesName "int16"
 nameTpInt32     = coreTypesName "int32"
@@ -474,6 +476,7 @@ nameTpFloat16   = coreTypesName "float16"
 
 nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
+nameTpBytes     = coreTypesName "bytes"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 

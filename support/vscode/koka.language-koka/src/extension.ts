@@ -249,13 +249,14 @@ function createCommands(
     }),
 
     vscode.commands.registerCommand('koka.selectTarget', async () => {
-      const result = await vscode.window.showQuickPick(['c', 'c32', 'c64c', 'jsnode', 'jsweb', 'wasmjs', 'wasmweb'])
+      const result = await vscode.window.showQuickPick(['c', 'c32', 'c64c', 'jsnode', 'jsweb', 'wasm', 'wasmweb'])
       if (result) {
         kokaConfig.selectTarget(result)
       }
       if (selectCompileTarget) {
         selectCompileTarget.text = `Koka Target: ${kokaConfig.target}`
       }
+      await vscode.commands.executeCommand("koka.restartLanguageServer")  // updates backend compiler path
     }),
 
     vscode.commands.registerCommand('koka.installSpecificCompiler', async () => {

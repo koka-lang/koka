@@ -29,15 +29,15 @@ fun foo3( action ) {
 }
 
 fun bar(f,action) {
-  try {
-    try {
-      f(action)
-    } fn(exn) {
-      println("caught on inner level: " ++ exn.message)
-    }
-  } fn(exn) {
+  try fn(exn) {
     println("caught on outer level: " ++ exn.message)
-  }
+  } {
+    try fn(exn) {
+      println("caught on inner level: " ++ exn.message)
+    } {
+      f(action)
+    } 
+  } 
 }
 
 fun test(f,err) {

@@ -24,7 +24,6 @@ module Compile.Options( -- * Command line options
                        , outName, fullBuildDir, buildVariant, buildLibVariant
                        , optionCompletions
                        , targetExeExtension
-                       , targets
                        , conanSettingsFromFlags
                        , vcpkgFindRoot
                        , onWindows, onMacOS
@@ -33,6 +32,7 @@ module Compile.Options( -- * Command line options
                        , Terminal(..)
                        , parseOptions
                        , flagsNull
+                       , targetPlatformFromFlags, targetFromFlags, platformFromFlags
                        ) where
 
 import Debug.Trace
@@ -83,12 +83,12 @@ colorSchemeFromFlags flags
   = colorScheme flags
 
 
-prettyIncludePath :: Flags -> Doc
-prettyIncludePath flags
+prettyIncludePath :: Flags -> [FilePath] -> Doc
+prettyIncludePath flags extra
   = let cscheme = colorScheme flags
         path    = includePath flags
     in align (if null path then color (colorSource cscheme) (text "<empty>")
-               else cat (punctuate comma (map (\p -> color (colorSource cscheme) (text p)) path)))
+               else align (vcat (map (\p -> color (colorSource cscheme) (text p)) (extra ++ path))))
 
 
 data Terminal = Terminal{ termError    :: !(ErrorMessage -> IO ())
@@ -159,10 +159,7 @@ data Flags
          , evaluate         :: !Bool
          , execOpts         :: ![String]
          , library          :: !Bool
-         , target           :: !Target
-         , targetOS         :: !String        -- windows, macos, linux, ...
-         , targetArch       :: !String        -- x64, arm64, ...
-         , platform         :: !Platform
+         , targetPlatform   :: !TargetPlatform
          , stackSize        :: !Int
          , heapSize         :: !Int
          , simplify         :: !Int
@@ -252,10 +249,7 @@ instance Hashable Flags where
          h
     where
       relevantFlags = [
-          show $ target flags,
-          targetOS flags,
-          targetArch flags,
-          show $ platform flags,
+          show $ targetPlatform flags,
           -- show $ stackSize flags,
           -- show $ heapSize flags,
           show $ simplify flags,
@@ -314,10 +308,7 @@ flagsNull
           False -- do not execute by default
           []    -- execution options (following --)
           False -- library
-          (C LibC)  -- target
-          hostOsName  -- target OS
-          ""    -- target CPU architecture
-          platform64
+          targetPlatformC64  -- 64-bit C with libc
           0     -- stack size
           0     -- reserved heap size (for wasm)
           5     -- simplify passes
@@ -442,7 +433,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , configstr [] ["target"]          (map fst targets) "target" targetFlag  ("target: " ++ showL (map fst targets))
+ , configstr [] ["target"]          (map fst targetPlatformIds) "target" targetFlag  ("target: " ++ showL (map fst targetPlatformIds))
  , configstr [] ["target-arch"]     targetArchs "arch" targetArchFlag ("target architecture: " ++ showL targetArchs)
  -- , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , emptyline
@@ -451,6 +442,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     ("build under <dir> ('" ++ kkbuild ++ "' by default)")
  , option []    ["buildname"]       (ReqArg outBaseNameFlag "name") "base name of the final output"
  , flag   []    ["buildhash"]       (\b f -> f{useBuildDirHash=b})  "use hash in build directory name"
+ , option []    ["buildcfg"]        (ReqArg buildCfgFlag "def")     "add a build configuration definition (for use in 'buildcfg' conditionals)"
  , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>, defaults to:\n<builddir>/<ver>-<buildtag>/<cc>-<variant>-<hash>"
 
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
@@ -581,13 +573,14 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = config short long (map (\s -> (s,s)) opts) argDesc f desc
 
   targetFlag t f
-    = case lookup t targets of
-        Just update -> update f
-        Nothing     -> f
+    = case targetPlatformFromString t of
+        Just tgt -> let tpl = targetPlatform f
+                    in f{ targetPlatform = tpl{ tplTarget = tplTarget tgt, tplPlatform = tplPlatform tgt } }
+        Nothing  -> f
 
   targetArchFlag t f
     = if t `elem` targetArchs
-        then f{ targetArch = t }
+        then f{ targetPlatform=(targetPlatform f){ tplArch = t } }
         else f
 
   targetArchs :: [String]
@@ -613,6 +606,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   buildTagFlag s
     = Flag (\f -> f{ buildTag = s })
+
+  buildCfgFlag s
+    = Flag (\f -> let tpl = targetPlatform f
+                      defs = map trim (splitOn (\c -> c==',') s)
+                  in f{ targetPlatform = tpl{ tplBuildDefs = (tplBuildDefs tpl) ++ defs } })
 
   outBuildDirFlag s
     = Flag (\f -> f{ outBuildDir = s })
@@ -730,22 +728,6 @@ readHtmlBases s
              (_:post) -> (pre,post)
              _        -> ("",xs)
 
-targets :: [(String,Flags -> Flags)]
-targets =
-    [("c",      \f -> f{ target=C LibC, platform=platform64 }),
-     ("c64",    \f -> f{ target=C LibC, platform=platform64 }),
-     ("c32",    \f -> f{ target=C LibC, platform=platform32 }),
-     ("c64c",   \f -> f{ target=C LibC, platform=platform64c }),
-     ("js",     \f -> f{ target=JS JsNode, platform=platformJS }),
-     ("jsnode", \f -> f{ target=JS JsNode, platform=platformJS }),
-     ("jsweb",  \f -> f{ target=JS JsWeb, platform=platformJS }),
-     ("wasm",   \f -> f{ target=C Wasm, platform=platform32 }),
-     ("wasm32", \f -> f{ target=C Wasm, platform=platform32 }),
-     ("wasm64", \f -> f{ target=C Wasm, platform=platform64 }),
-     ("wasmjs", \f -> f{ target=C WasmJs, platform=platform32 }),
-     ("wasmweb",\f -> f{ target=C WasmWeb, platform=platform32 }),
-     ("cs",     \f -> f{ target=CS, platform=platformCS })
-    ]
 
 -- | Environment table
 environment :: [ (String, String, (String -> [String]), String) ]
@@ -795,7 +777,11 @@ processExtraOptions flags0 args
         Left err -> Left err
         Right (flags1,mode) -> Right (processDerivedOptions defaultFlags flags1, mode)
 
+platform flags    = tplPlatform (targetPlatform flags)
+targetArch flags  = tplArch (targetPlatform flags)
+targetOS flags    = tplOS (targetPlatform flags)
 
+target flags      = tplTarget (targetPlatform flags)
 
 processOptions :: Flags -> [String] -> IO (Flags,Mode)
 processOptions flags0 opts
@@ -847,11 +833,13 @@ processInitialOptions flags0 opts
   = case parseOptions flags0 opts of
       Left err -> invokeError [err]
       Right (flags1,mode)
-        -> do arch <- if (null (targetArch flags1)) then getTargetArch else return hostArch
-              let flags = case mode of
-                            ModeInteractive _    -> flags1{evaluate = True, targetArch = arch }
-                            ModeLanguageServer _ -> flags1{genRangeMap = True, targetArch = arch }
-                            _                    -> flags1{targetArch = arch}
+        -> do arch <- if (null (targetArch flags1)) then getTargetArch else return (targetArch flags1)
+              let os     = if (null (targetOS flags1)) then hostOsName else targetOS flags1
+              let flags2 = flags1{targetPlatform = (targetPlatform flags1){ tplArch = arch, tplOS = os } }
+                  flags = case mode of
+                            ModeInteractive _    -> flags2{evaluate = True}
+                            ModeLanguageServer _ -> flags2{genRangeMap = True}
+                            _                    -> flags2
               buildDir <- getKokaBuildDir (buildDir flags) (evaluate flags)
               buildTag <- if (null (buildTag flags)) then getDefaultBuildTag else return (buildTag flags)
               ed   <- if (null (editor flags))
@@ -1138,6 +1126,18 @@ targetLibFile target fname
       JS _     -> fname ++ ".mjs" -- ?
       _        -> libPrefix ++ fname ++ libExtension
 
+targetPlatformFromFlags :: Flags -> TargetPlatform
+targetPlatformFromFlags flags
+  = targetPlatform flags
+
+targetFromFlags :: Flags -> Target
+targetFromFlags flags
+  = tplTarget (targetPlatform flags)
+
+platformFromFlags :: Flags -> Platform
+platformFromFlags flags
+  = tplPlatform (targetPlatform flags)
+
 outName :: Flags -> FilePath -> FilePath
 outName flags s
   = joinPath (fullBuildDir flags) s
@@ -1269,6 +1269,7 @@ ccFromPath flags path
                      }
         emcc    = (ccGcc name path False)
                      { ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
+                       ccFlagsLink = ccFlagsLink gcc ++ ["-sWASM_BIGINT=1","-sEXPORTED_RUNTIME_METHODS=ccall,cwrap"],
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
                        ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
@@ -1520,7 +1521,7 @@ commandLineHelp flags
       = color (colorInterpreter colors) (text s)
 
 showIncludeInfo flags
-  = hang 2 (infotext "include path:" <-> prettyIncludePath flags) -- text (if null paths then "<empty>" else paths))
+  = hang 2 (infotext "include path:" <-> prettyIncludePath flags []) -- text (if null paths then "<empty>" else paths))
   where
     paths
       = concat $ intersperse [pathDelimiter] (includePath flags)

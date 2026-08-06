@@ -12,10 +12,10 @@
 
 module Core.AnalysisCCtx( analyzeCCtx,
 
-                          makeCCtxEmpty,
-                          makeCCtxCreate,
-                          makeCCtxSetContextPath,
-                          makeFieldAddrOf
+                          -- makeCCtxEmpty,
+                          -- makeCCtxCreate,
+                          -- makeCCtxSetContextPath,
+                          -- makeFieldAddrOf
                           -- getFieldName
                         ) where
 
@@ -42,14 +42,14 @@ import Core.Core
 import Core.Pretty
 
 -- take a context and check if it is well-formed and return a well-typed context expression
-analyzeCCtx :: Range -> Newtypes -> Expr -> (Int -> ((Expr,[(Range,Doc)]),Int))
-analyzeCCtx rng newtypes expr uniq
-  = let (res,uniq') = runCCtx rng newtypes uniq (cctxCreate expr)
+analyzeCCtx :: TargetPlatform -> Range -> Newtypes -> Expr -> (Int -> ((Expr,[(Range,Doc)]),Int))
+analyzeCCtx tpl rng newtypes expr uniq
+  = let (res,uniq') = runCCtx tpl rng newtypes uniq (cctxCreate expr)
     in case res of
          Right e   -> ((e,[]),uniq')
          Left errs -> let errs' = if null errs then [(rng,text "ill-formed context")]
                                                else errs
-                      in ((makeCCtxEmpty (typeOf expr),errs'),uniq)
+                      in ((makeCCtxEmpty tpl (typeOf expr),errs'),uniq)
 
 
 data Hole = Hole{ holeAddr :: Expr, holeType :: Type }
@@ -58,13 +58,15 @@ data Ctx  = Ctx{ defs :: [Def], top :: Expr, hole :: Hole }
 cctxCreate :: Expr -> CCtx Expr
 -- empty context?
 cctxCreate expr | isHole expr
-  = do return (makeCCtxEmpty (typeOf expr))
+  = do tpl <- getTargetPlatform
+       return (makeCCtxEmpty tpl (typeOf expr))
 -- non-empty context
 cctxCreate expr
   = do -- mtrace ("expr: " ++ show expr)
        (Ctx defs top (Hole addr holetp)) <- cctxExpr expr
+       tpl <- getTargetPlatform
        let tp = typeOf top
-       let cctx = makeCCtxCreate tp holetp top addr
+       let cctx = makeCCtxCreate tpl tp holetp top addr
        return (Let (map DefNonRec defs) cctx)
 
 
@@ -158,31 +160,31 @@ isHole (App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [TypeApp (Va
 isHole _ = False
 
 -- Initial empty context (ctx hole)
-makeCCtxEmpty :: Type -> Expr
-makeCCtxEmpty tp
-  = App (TypeApp (Var (TName nameCCtxEmpty funType)
-                        -- (InfoArity 1 0)
-                        (InfoExternal [(C CDefault,"kk_cctx_empty(kk_context())"),(JS JsDefault,"$std_core_types._cctx_empty()")])
-                      ) [tp]) []
+makeCCtxEmpty :: TargetPlatform -> Type -> Expr
+makeCCtxEmpty tpl tp
+  = App (TypeApp (Var (TName nameCCtxEmpty funType) (InfoExternal external)) [tp]) []
   where
     funType = TForall [a] (TFun [] typeTotal (typeCCtx (TVar a)))
     a = TypeVar 0 kindStar Bound
-
+    external = case tplTarget tpl of
+                 C _  -> "kk_cctx_empty(kk_context())"
+                 JS _ -> "$std_core_types._cctx_empty()"
+                 _    -> unsupportedExternal "kk_cctx_empty"
 
 -- Create a context (ctx Cons(e,Cons(2,hole)))
-makeCCtxCreate :: Type -> Type -> Expr -> Expr -> Expr
-makeCCtxCreate tp holetp top holeaddr
-  = App (TypeApp (Var (TName nameCCtxCreate funType)
-                -- (InfoArity 1 3)
-                (InfoExternal [(C CDefault,"kk_cctx_create(#1,#2,kk_context())"),
-                               (JS JsDefault,"$std_core_types._cctx_create(#1,#2)")])
-         ) [tp,holetp]) [top,holeaddr]
+makeCCtxCreate :: TargetPlatform -> Type -> Type -> Expr -> Expr -> Expr
+makeCCtxCreate tpl tp holetp top holeaddr
+  = App (TypeApp (Var (TName nameCCtxCreate funType) (InfoExternal external)) [tp,holetp]) [top,holeaddr]
   where
     funType = TForall [a,b] (TFun [(nameNil,TVar a),
                                       (nameNil,TApp typeFieldAddr [TVar a])]
                                       typeTotal (TApp typeCCtxx [TVar a,TVar b]))
     a = TypeVar 0 kindStar Bound
     b = TypeVar 1 kindStar Bound
+    external = case tplTarget tpl of
+                 C _  -> "kk_cctx_create(#1,#2,kk_context())"
+                 JS _ -> "$std_core_types._cctx_create(#1,#2)"
+                 _    -> unsupportedExternal "kk_cctx_create"
 
 
 -- The adress of a field in a constructor (for context holes)
@@ -198,7 +200,7 @@ makeFieldAddrOf obj conName fieldName fieldTp
 -- Set the index of the field in a constructor to follow the path to the hole at runtime.
 makeCCtxSetContextPath :: Expr -> TName -> Name -> Expr
 makeCCtxSetContextPath obj conName fieldName
-  = App (Var (TName nameCCtxSetCtxPath funType) (InfoExternal [(Default,"@cctx-setcp(#1,#2,#3)")]))
+  = App (Var (TName nameCCtxSetCtxPath funType) (InfoExternal "@cctx-setcp(#1,#2,#3)"))
         [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
     tp = typeOf obj
@@ -211,15 +213,15 @@ makeCCtxSetContextPath obj conName fieldName
 
 newtype CCtx a = CCtx (Int -> CCtxEnv -> Result a)
 
-runCCtx :: Range -> Newtypes -> Int -> CCtx a -> (Either [(Range,Doc)] a,Int)
-runCCtx rng nt uniq (CCtx c)
-  = case (c uniq (CCtxEnv rng nt)) of
+runCCtx :: TargetPlatform -> Range -> Newtypes -> Int -> CCtx a -> (Either [(Range,Doc)] a,Int)
+runCCtx tpl rng nt uniq (CCtx c)
+  = case (c uniq (CCtxEnv rng nt tpl)) of
       Ok x u'  -> (Right x,u')
       Err errs -> (Left errs,uniq)
 
 
 
-data CCtxEnv = CCtxEnv{ rng :: Range, newtypes :: Newtypes }
+data CCtxEnv = CCtxEnv{ rng :: !Range, newtypes :: !Newtypes, tplatform :: !TargetPlatform }
 
 data Result a = Err [(Range,Doc)]
               | Ok a Int
@@ -266,7 +268,10 @@ emitErrors errs
   = do -- mtrace ("emit errors: " ++ show errs)
        (CCtx (\u env -> Err errs))
 
-
+getTargetPlatform :: CCtx TargetPlatform
+getTargetPlatform
+  = tplatform <$> getEnv
+      
 try :: CCtx a -> CCtx (Either [(Range,Doc)] a)
 try (CCtx c)
   = CCtx (\u env -> case c u env of

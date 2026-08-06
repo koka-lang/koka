@@ -369,6 +369,8 @@ kk_decl_export kk_string_t    kk_string_alloc_from_utf16n(kk_ssize_t len, const 
 kk_decl_export kk_string_t    kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* codepage /*NULL == windows-1252*/, kk_context_t* ctx);
 
 kk_decl_export kk_string_t    kk_string_convert_from_qutf8(kk_bytes_t b, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_convert_from_qutf8_slice(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx);
+
 
 kk_decl_export uint16_t*      kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx);
 kk_decl_export const char*    kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
@@ -498,5 +500,7 @@ kk_decl_export kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_conte
 kk_decl_export kk_string_t kk_double_show_exp(double d, int32_t prec, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_double_show(double d, int32_t prec, kk_context_t* ctx);
 
+kk_decl_export kk_ssize_t  kk_bytes_utf8_partial_pre_borrow(kk_bytes_t b, kk_context_t* ctx);
+kk_decl_export kk_ssize_t  kk_bytes_utf8_partial_post_borrow(kk_bytes_t b, kk_context_t* ctx);
 
 #endif // include guard

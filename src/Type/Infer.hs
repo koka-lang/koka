@@ -83,14 +83,14 @@ import Syntax.Pretty (ppSyntaxExpr)
 {--------------------------------------------------------------------------
   Infer Types
 --------------------------------------------------------------------------}
-inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> Bool -> DefGroups Type
+inferTypes :: Env -> TargetPlatform -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> Bool -> DefGroups Type
                 -> Core.CorePhase b (Gamma, Core.DefGroups, Maybe RM.RangeMap )
-inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context allowInfiniteChains defs
+inferTypes prettyEnv tpl mbRangeMap syns newTypes cons imports gamma0 context allowInfiniteChains defs
   = -- error "Type.Infer.inferTypes: not yet implemented"
     -- return (gamma0,[],uniq0)
     do uniq0 <- unique
        ((gamma1, coreDefs),uniq1,mbRm) <- Core.liftError $
-                                          runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context allowInfiniteChains
+                                          runInfer prettyEnv tpl mbRangeMap syns newTypes imports gamma0 context allowInfiniteChains
                                             (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
                                             (inferDefGroups True (arrange defs))
        setUnique uniq1
@@ -625,7 +625,7 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
                           let typeReturn = typeFun [(nameNil,tp)] typeTotal resTp
                           addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue "expr" tp "" False) [] False)
                           return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn)
-                                                (Core.InfoExternal [(Default,"return #1")])) [core])
+                                                (Core.InfoExternal "return #1")) [core])  -- TODO: fragile
 -- | Assign expression
 inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
   = case lval of
@@ -718,7 +718,8 @@ inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxn
              contextError rng rng (text "ill-formed constructor context") [(text "because",text "the context has no hole"),(text "hint",text "perhaps you used an underscore instead of the" <+> dquotes (keyword penv "hole") <+> text "keyword?")]
        newtypes <- getNewtypes
        score <- subst core
-       (ccore,errs) <- withUnique (analyzeCCtx rng newtypes score)
+       tpl <- getTargetPlatform
+       (ccore,errs) <- withUnique (analyzeCCtx tpl rng newtypes score)
        mapM_ (\(rng,err) -> infError rng err) errs
        let ctp = Core.typeOf ccore
        addRangeInfo nameRng (RM.Id (newName "ctx") (RM.NIValue "expr" ctp "" False) [] False)
@@ -1500,7 +1501,7 @@ inferLam topLevel propagated expect bindersL body0 rng
                                           subst topEff
                                           -- subst eff
         -- traceDefDoc $ \env -> text " inferExpr.Lam: topeff: " <+> ppType env topEff
-        parTypes2 <- subst (map binderType binders1)
+        parTypes2 <- mapM subst (map binderType binders1)
         let optPars   = zip (map binderName binders1) parTypes2 -- (map binderName binders1) parTypes2
             bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
         bodyCore2 <- subst bodyCore1

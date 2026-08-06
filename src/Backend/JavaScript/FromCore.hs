@@ -156,7 +156,7 @@ moduleImport imp
 
 includeExternal ::  BuildType -> External -> [Doc]
 includeExternal buildType  ext
-  = case externalImportLookup (JS JsDefault) buildType "include-inline" ext of
+  = case externalImportLookup buildType "include-inline" ext of
       Just content -> [align $ vcat $! map text (lines content)]
       _ -> []
 
@@ -164,8 +164,8 @@ includeExternal buildType  ext
 
 importExternal :: BuildType -> External -> [(Doc,Doc)]
 importExternal buildType  ext
-  = case externalImportLookup (JS JsDefault) buildType  "library" ext of
-      Just path -> [(text path, case externalImportLookup (JS JsDefault) buildType  "library-id" ext of
+  = case externalImportLookup buildType  "library" ext of
+      Just path -> [(text path, case externalImportLookup buildType  "library-id" ext of
                                   Just name -> text name
                                   Nothing   -> text path)]
       _ -> []
@@ -202,7 +202,7 @@ genDef topLevel def@(Def name tp expr vis sort inl rng comm)
        return $ vcat [ text " "
                      , if null comm
                          then empty
-                         else align (vcat (space : map text (lines (trim comm)))) {- already a valid javascript comment -}
+                         else align (vcat (space : map (\s -> text ("// " ++ s)) (lines (trim comm)))) {- already a valid javascript comment -}
                      , defDoc
                      ]
   where
@@ -301,12 +301,15 @@ genTypeDef (Data info)
     genConstr penv c repr name args tagFields
       = if null args
          then debugWrap "genConstr: null fields"
-            $ constdecl <+> name <+> text "=" <+> object tagFields <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
+            $ constdecl <+> name <+> text "=" <+> object (tagFields ++ lazyFields) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <.> tupled args <+> comment (Pretty.ppType penv (conInfoType c))
           <+> block ( text "return" <+>
                       (if (conInfoName c == nameOptional || isConIso repr) then head args
-                        else object (tagFields ++ map (\arg -> (arg, arg))  args)) <.> semi )
+                        else object (tagFields ++ lazyFields ++ map (\arg -> (arg, arg))  args)) <.> semi )
+      where
+        lazyFields = if conInfoIsLazy c then [(text "_kk_lazy_blocked",text "false")] else []
+
 
 getConTag modName coninfo repr
   = case repr of
@@ -693,11 +696,11 @@ genExpr expr
        -> genExpr arg
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameByte && (i >= 0 && i < 256)
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt32 i
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt64 i
        -> return (empty, pretty i <.> text "n")
-
+     
      -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
        -> do conDoc <- genTName con
@@ -724,9 +727,9 @@ genExpr expr
                      -> case args of
                          [Lit (LitInt i)] | getName tname == nameByte  && i >= 0 && i < 256
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT]  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT]  && isSmallInt32 i
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT]  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT]  && isSmallInt64 i
                            -> return (empty,pretty i <.> text "n")
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
@@ -750,6 +753,18 @@ genExpr expr
              return (doc, nameDoc)
 
      _ -> failure ("JavaScript.FromCore.genExpr: invalid expression:\n" ++ show expr)
+
+
+isSmallInt32 i = (i >= minSmallInt32 && i <= maxSmallInt32)
+maxSmallInt32, minSmallInt32 :: Integer
+maxSmallInt32 = 2147483647  -- 2^31 - 1
+minSmallInt32 = -maxSmallInt32 - 1
+
+isSmallInt64 i = (i >= minSmallInt64 && i <= maxSmallInt64)
+maxSmallInt64, minSmallInt64 :: Integer
+maxSmallInt64 = 9223372036854775807  -- 2^63 - 1
+minSmallInt64 = -maxSmallInt64 - 1
+
 
 extractList :: Expr -> Maybe ([Expr],Expr)
 extractList e
@@ -809,8 +824,8 @@ genPure expr
   = case expr of
      TypeApp e _ -> genPure e
      TypeLam _ e -> genPure e
-     Var name (InfoExternal formats)
-       -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
+     Var name (InfoExternal format)
+       -> genWrapExternal name format  -- unapplied inlined external: wrap as function
      Var name info
        -> genTName name
      Con name repr
@@ -848,49 +863,49 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt32 i
                          -> return (pretty i)
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt64 i
                          -> return (pretty i <.> text "n")
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT,nameInternalInt32,nameInternalSSizeT] && isSmallInt32 i
                          -> return (pretty i)
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt64 i
                          -> return (pretty i <.> text "n")
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)
 
       _ -> failure ("JavaScript.FromCore.genInline: invalid expression:\n" ++ show expr)
 
-extractExtern :: Expr -> Maybe (TName,[(Target,String)])
+extractExtern :: Expr -> Maybe (TName,String)
 extractExtern expr
   = case expr of
-      TypeApp (Var tname (InfoExternal formats)) targs -> Just (tname,formats)
-      Var tname (InfoExternal formats) -> Just (tname,formats)
+      TypeApp (Var tname (InfoExternal format)) targs -> Just (tname,format)
+      Var tname (InfoExternal format) -> Just (tname,format)
       _ -> Nothing
 
 -- not fully applied external gets wrapped in a function
-genWrapExternal :: TName -> [(Target,String)] -> Asm Doc
-genWrapExternal tname formats
+genWrapExternal :: TName -> String -> Asm Doc
+genWrapExternal tname format
   = do let n = snd (getTypeArities (typeOf tname))
        vs  <- genVarNames n
-       (decls,doc) <- genExprExternal tname formats vs
+       (decls,doc) <- genExprExternal tname format vs
        return $ parens (text "function" <.> tupled vs <+> block (vcat (decls ++ [text "return" <+> doc <.> semi])))
 
 -- inlined external sometimes  needs wrapping in a applied function block
-genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
-genInlineExternal tname formats argDocs
-  = do (decls,doc) <- genExprExternal tname formats argDocs
+genInlineExternal :: TName -> String -> [Doc] -> Asm Doc
+genInlineExternal tname format argDocs
+  = do (decls,doc) <- genExprExternal tname format argDocs
        if (null decls)
         then return doc
         else return $ parens $ parens (text "function()" <+> block (vcat (decls ++ [text "return" <+> doc <.> semi]))) <.> text "()"
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
-genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternal tname formats argDocs0
-  = do (decls,doc) <- genExprExternalPrim tname formats argDocs0
+genExprExternal :: TName -> String -> [Doc] -> Asm ([Doc],Doc)
+genExprExternal tname format argDocs0
+  = do (decls,doc) <- genExprExternalPrim tname format argDocs0
        case splitFunType (typeOf tname) of
          Nothing -> return (decls,doc)
          Just (pars,eff,res)
@@ -907,8 +922,8 @@ genExprExternal tname formats argDocs0
                          in return ([],try)
 
 -- special case: .cctx-hole-create
-genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternalPrim tname formats [] | getName tname == nameCCtxHoleCreate
+genExprExternalPrim :: TName -> String -> [Doc] -> Asm ([Doc],Doc)
+genExprExternalPrim tname format [] | getName tname == nameCCtxHoleCreate
   = return ([],text "undefined")
 
 {-
@@ -918,9 +933,9 @@ genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCFieldS
 -}
 
 -- normal external
-genExprExternalPrim tname formats argDocs0
+genExprExternalPrim tname format argDocs0
   = let name = getName tname
-        format = getFormat tname formats
+        -- format = getFormat tname formatx
         argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
     in return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of
          [] -> ([],empty)
@@ -943,13 +958,13 @@ genExprExternalPrim tname formats argDocs0
     ppExternalF name (x:xs)  args
      = char x <.> ppExternalF name xs args
 
-getFormat :: TName -> [(Target,String)] -> String
-getFormat tname formats
-  = case lookupTarget (JS JsDefault) formats of  -- TODO: pass specific target from the flags
-      Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
-                 trace( "warning: backend does not support external in " ++ show tname ) $
-                    ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
-      Just s -> s
+-- getFormat :: TName -> [(TargetPlatform,String)] -> String
+-- getFormat tname formats
+--   = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) formats of  -- TODO: pass specific target from the flags
+--       Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
+--                  trace( "warning: backend does not support external in " ++ show tname ) $
+--                     ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
+--       Just s -> s
 
 genDefName :: TName -> Asm Doc
 genDefName tname
@@ -1001,16 +1016,16 @@ trimOptionalArgs args
 extractExternal  :: Expr -> Maybe (TName, String, [Expr])
 extractExternal expr
   = case expr of
-      App (TypeApp (Var tname (InfoExternal formats)) targs) args
-        -> Just (tname, format tname formats, args)
-      App var@(Var tname (InfoExternal formats)) args
-        -> Just (tname, format tname formats, args)
+      App (TypeApp (Var tname (InfoExternal format)) targs) args
+        -> Just (tname, format, args)
+      App var@(Var tname (InfoExternal format)) args
+        -> Just (tname, format, args)
       _ -> Nothing
-  where
-    format tn fs
-      = case lookupTarget (JS JsDefault) fs of  -- TODO: pass real target from flags
-          Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
-          Just s -> s
+  -- where
+  --   format tn fs
+  --     = case lookupBestTarget (targetPlatformFromTarget (JS JsDefault)) fs of  -- TODO: pass real target from flags
+  --         Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
+  --         Just s -> s
 
 isFunExpr :: Expr -> Bool
 isFunExpr expr
@@ -1284,6 +1299,7 @@ reserved
     , "if"
     , "in"
     , "instanceof"
+    , "let"
     , "new"
     , "return"
     , "switch"

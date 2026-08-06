@@ -1,7 +1,7 @@
 /* Example of red-black tree<a> balanced insertion.
    See also the benchmarks in `test/bench/koka`
 */
-module rbtree
+module rbtree-poly
 
 import std/os/env
 
@@ -15,7 +15,7 @@ type tree<a>
   Leaf
   
 
-fun is-red(t : tree<a>) : bool
+fun tree/is-red(t : tree<a>) : bool
   match t
     Node(Red) -> True
     _         -> False
@@ -81,7 +81,7 @@ fun fold(t : tree<a>, acc : b, f : (int, a, b) -> b) : b
 
 // Make a boolean tree
 fun make-tree(n : int) : tree<bool>
-  fold-int( 0, n - 1, Leaf) fn(i,t)
+  fold( 0, n - 1, Leaf) fn(i,t)
     t.insert( i, i%10 == 0 )
 
 

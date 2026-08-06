@@ -47,6 +47,7 @@ import Compile.Options
 import Compile.Module( Definitions(..), Module(..), modCoreImports )
 import Compile.TypeCheck( importMapFromCoreImports )    -- todo: break this dependency?
 import Type.InferMonad (traceDefDoc)
+import Core.Core (Core(coreProgExternals))
 
 
 data LinkResult = LinkDone
@@ -74,9 +75,9 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
            inlineDefs = case modInlines mod of
                           Right defs -> defs
                           Left _     -> []
-           ifaceDoc   = Core.Pretty.prettyCore penv{ coreIface = True } (target flags) inlineDefs core
+           ifaceDoc   = Core.Pretty.prettyCore penv{ coreIface = True } (targetPlatformFromFlags flags) inlineDefs core
                          <-> Lib.PPrint.empty
-           coreDoc    = Core.Pretty.prettyCore penv{ coreIface = False, coreShowDef = (showCore flags) } (target flags) inlineDefs core
+           coreDoc    = Core.Pretty.prettyCore penv{ coreIface = False, coreShowDef = (showCore flags) } (targetPlatformFromFlags flags) inlineDefs core
                          <-> Lib.PPrint.empty
 
        -- create output directory if it does not exist
@@ -93,7 +94,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
             let outCore  = outBase ++ ".kkc"
             writeDocW 10000 outCore coreDoc  -- just for debugging
 
-       when (showCore flags || (showFinalCore flags && not (isTargetC (target flags)))) $
+       when (showCore flags || (showFinalCore flags && not (isTargetC (targetFromFlags flags)))) $
          do termInfo term coreDoc
 
        -- write documentation
@@ -128,7 +129,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
               LinkExe out _
                 -> do let finalOut = outFinalPath flags
                       exe <- if (not (null finalOut))
-                                then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))
+                                then do let targetOut = ensureExt finalOut (targetExeExtension (targetFromFlags flags))
                                         when onMacOS $
                                           removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
                                         copyExeFile out targetOut
@@ -140,7 +141,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
             return (mbRun)
   where
     backend :: Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type) -> FilePath -> Core.Core -> IO Link
-    backend  = case target flags of
+    backend  = case targetFromFlags flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
                  _    -> {-
@@ -149,7 +150,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                              -- imported modules.
                              newtypesAll = foldr1 newtypesCompose (map (extractNewtypes . modCore) (loadedModule loaded : loadedModules loaded))
                          in -}
-                         codeGenC (modSourcePath mod) newtypes borrowed 0 {-unique-}
+                         codeGenC (modSourcePath mod) newtypes borrowed imported 0 {-unique-}
 
 
 {---------------------------------------------------------------
@@ -254,7 +255,7 @@ codeGenJS term flags sequential entry outBase core
                               ]
             termTrace term ("generate index html: " ++ outHtml)
             writeDoc outHtml contentHtml
-            case target flags of
+            case targetFromFlags flags of
               JS JsWeb ->
                do return (\_ -> return (LinkExe outHtml (runSystemEcho term flags (dquote outHtml ++ " &"))))
               _ ->
@@ -269,10 +270,10 @@ codeGenJS term flags sequential entry outBase core
   C backend
 ---------------------------------------------------------------}
 
-codeGenC :: FilePath -> Newtypes -> Borrowed -> Int
+codeGenC :: FilePath -> Newtypes -> Borrowed -> [Module] -> Int
              -> Terminal -> Flags -> (IO () -> IO ()) -> Maybe (Name,Type)
               ->FilePath -> Core.Core -> IO Link
-codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBase core0
+codeGenC sourceFile newtypes borrowed0 imported unique0 term flags sequential entry outBase core0
  = do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir     = dirname sourceFile
@@ -281,17 +282,13 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBa
                             Just (name,tp) -> Just (name,isAsyncFunction tp)
                             _              -> Nothing
       -- generate C
-      let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          ctarget = case target flags of
-                      C ctarget -> ctarget
-                      _         -> CDefault
-          (cdoc,hdoc,_,bcore) = cFromCore False
-                                          ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
+      let (cdoc,hdoc,_,bcore) = cFromCore False
+                                          (buildType flags) sourceDir (prettyEnvFromFlags flags) (platformFromFlags flags)
                                           newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                           (parcBorrowInference flags) (optEagerPatBind flags) (stackSize flags) mbEntry
                                           (if null (outputEntryName flags) then "main" else outputEntryName flags)
                                           core0
-          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
+          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (targetPlatformFromFlags flags) [] bcore
 
       -- writeDocW 120 (outBase ++ ".c.kkc") bcoreDoc
       when (showFinalCore flags) $
@@ -304,9 +301,15 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags sequential entry outBa
       when (showAsmC flags) (termInfo term (hdoc <//> cdoc))
 
       -- copy libraries
-      let cc       = ccomp flags
-          eimports = externalImportsFromCore (target flags) bcore
-          clibs    = clibsFromCore flags bcore
+      -- Multiple modules can declare the same `extern import { c { library="..." } }`
+      -- (e.g., when several files in `lib/uv/` each name libuv). We `nub` so a
+      -- given library is copied/linked only once instead of once per declaring
+      -- module, which also silences "ignoring duplicate libraries" linker warnings.
+      let importcores = map (fromJust . modCore) imported
+          cores = bcore:importcores
+          cc       = ccomp flags
+          eimports = nub $ concatMap (externalImportsFromCore) cores
+          clibs    = nub $ concatMap (clibsFromCore flags) cores
       extraIncDirs <- concat <$> mapM (copyCLibrary term flags sequential cc (dirname outBase)) eimports
 
       -- return the C compilation and final link as a separate IO action to increase concurrency
@@ -337,23 +340,23 @@ codeGenLinkC term flags sequential cc progName imported outBase clibs
                       [outName (ccObjFile cc (moduleNameToPath mname))
                           | mname <- map modName imported ++ [progName]]
                       -- ++ [mainObj]
-            syslibs= concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
+            syslibs= nub $ concat [csyslibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
                       ++ ccompLinkSysLibs flags
-                      ++ (if onWindows && not (isTargetWasm (target flags))
+                      ++ (if onWindows && not (isTargetWasm (targetFromFlags flags))
                             then ["bcrypt","psapi","advapi32"]
                             else ["m","pthread"])
             libs   = -- ["kklib"] -- [normalizeWith '/' (outName (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
                       -- ++
-                      clibs
+                      nub $ clibs
                       ++
                       concat [clibsFromCore flags mcore | mcore <- map (fromJust . modCore) imported]
 
             libpaths = map (\lib -> outName (ccLibFile cc lib)) libs
 
-            stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (target flags)))
+            stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (targetFromFlags flags)))
                         then 8*1024*1024    -- default to 8Mb on windows and wasi
                         else stackSize flags
-            hpsize  = if (heapSize flags == 0 && isTargetWasm (target flags))
+            hpsize  = if (heapSize flags == 0 && isTargetWasm (targetFromFlags flags))
                         then 1024*1024*1024 -- default to 1Gb on wasi
                         else heapSize flags
 
@@ -397,14 +400,14 @@ codeGenLinkExe term flags stksize clink mainExe
   = do  runCommand term flags clink
 
         -- return command line to execute
-        let mainTarget = mainExe ++ targetExeExtension (target flags)
+        let mainTarget = mainExe ++ targetExeExtension (targetFromFlags flags)
         when (not (null (outFinalPath flags)) && verbose flags > 1) $
           termPhase term $ color (colorInterpreter (colorScheme flags)) (text "created :") <+>
                                 color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
         let mainflags = (if (showElapsed flags) then ["--kktime"] else []) ++ execOpts flags
 
         -- termInfo term $ text "flags:" <+> text (show flags) <+> text "\n"
-        case target flags of
+        case targetFromFlags flags of
           C Wasm
             -> do return (LinkExe mainTarget
                             (runCommand term flags ([wasmrun flags,mainTarget] ++ mainflags)))
@@ -451,15 +454,16 @@ ccompile term flags cc ctargetObj extraIncDirs csources
 -- return needed include paths for imported C code
 copyCLibrary :: Terminal -> Flags -> (IO () -> IO ()) -> CC -> FilePath -> [(String,String)] -> IO [FilePath] {-include paths-}
 copyCLibrary term flags sequential cc outDir eimport
-  = case Core.eimportLookup (buildType flags) "library" eimport of
+  = let find name = Core.eimportLookup (buildType flags) name eimport
+    in case find "library" of
       Nothing -> return []
       Just clib
         -> do mb  <- do mbSearch <- search [] [ searchCLibrary flags cc clib (ccompLibDirs flags)
-                                              , case lookup "vcpkg" eimport of
+                                              , case find "vcpkg" of
                                                   Just pkg
                                                     -> vcpkgCLibrary term flags sequential cc eimport clib pkg
                                                   _ -> return (Left [])
-                                              , case lookup "conan" eimport of
+                                              , case find "conan" of
                                                   Just pkg | not (null (conan flags))
                                                     -> conanCLibrary term flags sequential cc eimport clib pkg
                                                   _ -> return (Left [])
@@ -470,10 +474,21 @@ copyCLibrary term flags sequential cc outDir eimport
                                           return Nothing
               case mb of
                 Just (libPath,includes)
-                  -> do termPhase term (color (colorInterpreter (colorScheme flags)) (text "library :") <+>
-                          color (colorSource (colorScheme flags)) (text libPath))
-                        -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
-                        sequential $ copyBinaryIfNewer (rebuild flags) libPath (joinPath outDir (ccLibFile cc clib))
+                  -> do let outLib = joinPath outDir (ccLibFile cc clib)
+                        -- Only emit the "library :" trace and copy when the file actually
+                        -- changed: the same external library is otherwise reported once
+                        -- per declaring module, which is noisy when many modules share a
+                        -- transitive dependency (e.g. `lib/uv/*.kk` all declaring libuv).
+                        -- We deliberately ignore `rebuild flags` here: an external library
+                        -- is treated as already-built input, not Koka-generated output.
+                        needsCopy <- if libPath == outLib then return False
+                                     else do ord <- fileTimeCompare libPath outLib
+                                             return (ord == GT)
+                        when needsCopy $ do
+                          termPhase term (color (colorInterpreter (colorScheme flags)) (text "library :") <+>
+                            color (colorSource (colorScheme flags)) (text libPath))
+                          -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib)
+                          sequential $ copyBinaryIfNewer False libPath outLib
                         return includes
                 Nothing
                   -> -- TODO: suggest conan and/or vcpkg install?
@@ -493,12 +508,17 @@ copyCLibrary term flags sequential cc outDir eimport
 
 searchCLibrary :: Flags -> CC -> FilePath -> [FilePath] -> IO (Either [Doc] (FilePath {-libPath-},[FilePath] {-include paths-}))
 searchCLibrary flags cc clib searchPaths
-  = do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
-                 -- and the actual name of the library is not easy to extract from vcpkg (we could read
-                 -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
-                 do let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
-                    -- trace ("search in: " ++ show searchPaths) $
-                    searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)
+  = do -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
+       -- and the actual name of the library is not easy to extract from vcpkg (we could read
+       -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
+       let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
+           -- on MSVC ccLibFile has no "lib" prefix, but vcpkg may still install the file
+           -- with one (e.g. libuv -> lib/libuv.lib). Try both names.
+           mainName   = ccLibFile cc clib
+           candidates = mainName :
+                        (if "lib" `isPrefixOf` mainName then []
+                          else [ccLibFile cc ("lib" ++ clib)])
+       mbPath <- searchFirst candidates suffixes
        case mbPath of
         Just fname
           -> case reverse (splitPath fname) of
@@ -506,6 +526,12 @@ searchCLibrary flags cc clib searchPaths
                (_:"lib":rbase)         -> return (Right (fname, [joinPaths (reverse rbase ++ ["include"])])) -- e.g. /usr/local/lib
                _                       -> return (Right (fname, []))
         _ -> return (Left [])
+  where
+    searchFirst [] _              = return Nothing
+    searchFirst (name:rest) suffs = do mb <- searchPathsSuffixes searchPaths [] suffs name
+                                       case mb of
+                                         Just _  -> return mb
+                                         Nothing -> searchFirst rest suffs
 
 
 
@@ -524,7 +550,7 @@ conanCLibrary term flags sequential cc eimport clib pkg
                                      <-> text "         or see <" <.> clrSource (text "https://docs.conan.io/en/latest/installation.html") <.> text ">"]
          Just conanCmd | onWindows && not (any (\pre -> ccName cc `startsWith` pre) ["cl","clang-cl"])
           -> do return $ Left [text "conan can only be used with the 'cl' or 'clang-cl' compiler on Windows"]
-         Just conanCmd | isTargetWasm (target flags)
+         Just conanCmd | isTargetWasm (targetFromFlags flags)
           -> do return $ Left [text "conan can not be used with a wasm target"]
          Just conanCmd
           -> do mbPkgDir <- getPackageDir conanCmd
@@ -628,7 +654,7 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
     install rootDir libDir vcpkgCmd
       = do  let packageDir = joinPaths [rootDir,"packages",pkg ++ "_" ++ vcpkgTriplet flags]
             pkgExist <- doesDirectoryExist packageDir
-            when (pkgExist) $
+            when pkgExist $
               termWarning term flags $
                 text "vcpkg" <+> clrSource (text pkg) <+>
                 text "is installed but the library" <+> clrSource (text clib) <+>
@@ -646,17 +672,26 @@ vcpkgCLibrary term flags sequential cc eimport clib pkg
                       sequential $ runCommand term flags installCmd
                       searchCLibrary flags cc clib [libDir] -- try to find again after install
 
-clibsFromCore flags core    = externalImportKeyFromCore (target flags) (buildType flags) core "library"
-csyslibsFromCore flags core = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
+clibsFromCore flags core    = nub $ splitFileList $ externalImportKeyFromCore (buildType flags) core "library"
+csyslibsFromCore flags core = splitFileList $ externalImportKeyFromCore (buildType flags) core "syslib"
 
+splitFileList :: [String] -> [String]
+splitFileList xs
+  = concatMap (splitOn (==';')) xs
 
-externalImportKeyFromCore :: Target -> BuildType -> Core.Core -> String -> [String]
-externalImportKeyFromCore target buildType core key
-  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore target core]
+externalImportKeyFromCore :: BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore buildType core key
+  = catMaybes [Core.externalImportLookup buildType key external  | external <- Core.coreProgExternals core]
 
-externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
-externalImportsFromCore target core
-  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (target,keyvals) <- imports]
+externalImportsFromCore :: Core.Core -> [[(String,String)]]
+externalImportsFromCore core  
+  = [keyvals | extern@(Core.ExternalImport keyvals _) <- Core.coreProgExternals core]
+
+-- externalImportsFromCore :: TargetPlatform -> Core.Core -> [[(String,String)]]
+-- externalImportsFromCore eguard core
+--   = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, 
+--                 let Just keyvals = lookupBestTarget eguard imports]
+--                 -- (eg,keyvals) <- imports, targetPlatformTryMatch eguard eg]
 
 
 {---------------------------------------------------------------
@@ -744,7 +779,7 @@ shellQuoted args
   = unwords (map shellQuote args)
 
 shellQuote s
-  = if (all (\c -> isAlphaNum c || c `elem` ":/-_.=") s) then s
+  = if (all (\c -> isAlphaNum c || c `elem` ":/-_.=,[]") s) then s
      else dquote s
 
 joinWith sep xs

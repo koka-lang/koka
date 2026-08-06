@@ -16,6 +16,7 @@ module Type.Operations( instantiate
                       , freshSub
                       , isOptionalOrImplicit, splitOptionalImplicit, requiresImplicits
                       , hasOptionalOrImplicits
+                      , useCommonAliases, realiasEffect, realiasType
                       ) where
 
 
@@ -26,9 +27,13 @@ import Common.Failure
 import Kind.Kind
 import Type.Type
 import Type.TypeVar
+import Lib.PPrint
+import Type.Pretty
 import Core.Core as Core
 import Core.CoreVar
 import Type.Assumption
+import Kind.Synonym
+import Common.NamePrim ( nameTpIO, nameTpIOC, nameTpIOCTotal, nameTpST, nameTpPure, nameTpAsync )
 
 requiresImplicits :: Type -> [(Name, Type)]
 requiresImplicits tp
@@ -179,3 +184,100 @@ freshStar :: HasUnique m => m Tau
 freshStar
   = freshTVar kindStar Meta
 
+{--------------------------------------------------------------------------
+   Synonym map
+--------------------------------------------------------------------------}  
+
+-- todo: check kind instead of only realiasing function effects?
+-- todo: expand any synonyms, not just for common effects?
+realiasType :: Synonyms -> Type -> Type
+realiasType synonyms tp
+  = realias tp
+  where
+    realias tp
+      = case tp of
+          TFun args eff res -> TFun [(argname,realias arg) | (argname,arg) <- args] (realiasEffect synonyms eff) (realias res)
+          TForall vars t    -> TForall vars (realias t)
+          TApp t args       -> TApp (realias t) (map realias args)
+          TSyn syn args t   -> TSyn syn (map realias args) (realias t)
+          _                 -> tp
+
+
+realiasEffect :: Synonyms -> Effect -> Effect
+realiasEffect synonyms eff
+  = let (ls,tl) = extractOrderedEffect eff
+        ls' = useCommonAliases synonyms ls           
+    in (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
+
+
+commonAliases
+  = [nameTpIO, nameTpIOC, nameTpIOCTotal, nameTpST, nameTpPure, nameTpAsync]
+
+useCommonAliases synonyms ls
+  = useAliases synonyms commonAliases ls
+
+useAliases :: Synonyms -> [Name] -> [Tau] -> [Tau]
+useAliases synonyms names ls
+  = case names of
+      [] -> ls
+      (name:ns)
+        -> let (aliass,post) = tryAlias ls name
+               ls' = useAliases synonyms ns post
+           in (aliass ++ ls')
+  where
+    tryAlias :: [Tau] -> Name -> ([Tau],[Tau])
+    tryAlias [] name
+      = ([],[])
+    tryAlias ls name
+      = let mbsyn = synonymsLookup name synonyms
+        in case mbsyn of
+             Nothing -> -- trace ("* cannot find alias: " ++ show name) $ 
+                        ([],ls)
+             Just syn
+              -> let (ls2,tl2) = extractOrderedEffect (synInfoType syn)
+                 in if (null ls2 || not (isEffectEmpty tl2))
+                     then -- trace ("* strange alias: " ++ show name ++ ": " ++ show (pretty tl2)) $
+                          ([],ls)
+                     else let params      = synInfoParams syn
+                              (sls,insts) = findInsts params ls2 ls
+                          in -- trace ("* try alias: " ++ show (synInfoName syn) ++ "\n  " ++ show (map pretty sls) ++ "\n  " ++ show (map pretty ls)) $
+                             if (length sls > length ls) 
+                              then ([],ls)
+                              else case (isSubsetEq [] sls ls) of
+                                    Just rest
+                                      -> -- trace (" synonym replace: " ++ show (synInfoName syn, pretty rest)) $
+                                         ([TSyn (TypeSyn name (synInfoKind syn) (synInfoRank syn) (Just syn)) insts (effectFixed sls)], rest)
+                                    _ -> ([], ls)
+
+findInsts :: [TypeVar] -> [Tau] -> [Tau] -> ([Tau],[Tau])
+findInsts [] ls _
+  = (ls,[])
+findInsts params ls1 ls2
+  = case filter matchParams ls1 of
+      [] -> (ls1,map TVar params)
+      (tp:_)
+        -> let name = labelName tp
+           in case filter (\t -> labelName t == name) ls2 of
+                (TApp _ args : _) | length args == length params
+                  -> (subNew (zip params args) |-> ls1, args)
+                _ -> (ls1, map TVar params)
+  where
+    matchParams (TApp _ args) = eqTypes (map TVar params) args
+    matchParams _ = False
+
+
+
+isSubsetEq :: [Tau] -> [Tau] -> [Tau] -> Maybe [Tau]
+isSubsetEq acc ls1 ls2
+  = case (ls1,ls2) of
+      ([],[])       -> Just (reverse acc)
+      ([],(l2:ll2)) -> Just (reverse acc ++ ls2)
+      (l1:ll1, [])  -> Nothing
+      (l1:ll1,l2:ll2)
+        -> if (labelName l1 < labelName l2)
+            then Nothing
+           else if (labelName l1 > labelName l2)
+            then isSubsetEq (l2:acc) ls1 ll2
+           else if (eqType l1 l2)
+            then isSubsetEq acc ll1 ll2
+            else Nothing

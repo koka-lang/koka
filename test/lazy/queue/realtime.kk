@@ -1,7 +1,8 @@
 // Realtime queue (see "Purely Functional Data Structures" by Chris Okasaki, Sect. 7.2)
 // - worst-case  O(1), persistent O(1)
 // - amortized   O(1), persistent O(1)
-module queue/realtime
+module realtime
+
 import bench
 
 type stream<a>

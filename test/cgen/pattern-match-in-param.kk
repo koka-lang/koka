@@ -33,7 +33,7 @@ pub fun main() {
     f(2, [1], Just([2, 3])).println
 
     "f(1, [1], Just([1]))\t-> ".print
-    (fn() { f(1, [1], Just([1])).show }).try(show).println
+    try(show,fn() { f(1, [1], Just([1])).show }).println
 
     "g(1, 2)\t\t\t-> ".print
     g(1, 2).println
@@ -51,7 +51,7 @@ pub fun main() {
     j(0).println
 
     "k([])\t\t\t-> ".print
-    (fn() { k([]).show }).try(show).println
+    try(show,fn() { k([]).show }).println
 
     "l((1, 2, 3))\t\t-> ".print
     l((1, 2, 3)).println

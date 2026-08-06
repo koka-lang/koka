@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          178    // modify on changes to trigger recompilation..
+#define KKLIB_BUILD          186    // modify on changes to trigger recompilation..
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -523,12 +523,14 @@ static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
 }
 
 static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
-  kk_unused(ctx);
   return mi_heap_zalloc(ctx->heap, (size_t)sz);
 }
 
+static inline void* kk_zalloc_small(kk_ssize_t sz, kk_context_t* ctx) {
+  return mi_heap_zalloc_small(ctx->heap, (size_t)sz);
+}
+
 static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
-  kk_unused(ctx);
   return mi_heap_realloc(ctx->heap, p, (size_t)sz);
 }
 
@@ -542,17 +544,19 @@ static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
   return mi_theap_malloc_small(ctx->heap, (size_t)sz);
 }
 
+static inline void* kk_zalloc_small(kk_ssize_t sz, kk_context_t* ctx) {
+  return mi_theap_zalloc_small(ctx->heap, (size_t)sz);
+}
+
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
   return mi_theap_malloc(ctx->heap, (size_t)sz);
 }
 
 static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
-  kk_unused(ctx);
   return mi_theap_zalloc(ctx->heap, (size_t)sz);
 }
 
 static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
-  kk_unused(ctx);
   return mi_theap_realloc(ctx->heap, p, (size_t)sz);
 }
 
@@ -592,6 +596,10 @@ static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
 static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
   kk_unused(ctx);
   return calloc(1, (size_t)sz);
+}
+
+static inline void* kk_zalloc_small(kk_ssize_t sz, kk_context_t* ctx) {
+  return kk_zalloc(sz,ctx);
 }
 
 static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
@@ -674,6 +682,15 @@ static inline kk_block_t* kk_block_alloc(kk_ssize_t size, kk_ssize_t scan_fsize,
   return b;
 }
 
+static inline kk_block_t* kk_block_zalloc(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
+  kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
+  kk_assert(!kk_tag_is_raw(tag) || scan_fsize == 0);
+  kk_block_t* b = (kk_block_t*)kk_zalloc_small(size, ctx);
+  kk_block_init(b, size, scan_fsize, 0, tag);
+  return b;
+}
+
+
 static inline kk_block_t* kk_block_alloc_raw(kk_ssize_t size, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert(kk_tag_is_raw(tag));
   return kk_block_alloc(size, 0, tag, ctx);
@@ -682,6 +699,13 @@ static inline kk_block_t* kk_block_alloc_raw(kk_ssize_t size, kk_tag_t tag, kk_c
 static inline kk_block_t* kk_block_alloc_any(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_block_t* b = (kk_block_t*)kk_malloc(size, ctx);
+  kk_block_init(b, size, scan_fsize, 0, tag);
+  return b;
+}
+
+static inline kk_block_t* kk_block_zalloc_any(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
+  kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
+  kk_block_t* b = (kk_block_t*)kk_zalloc(size, ctx);
   kk_block_init(b, size, scan_fsize, 0, tag);
   return b;
 }

@@ -44,7 +44,7 @@ module Common.Name
           , toOpenTagName, isOpenTagName
           , toLazyIndirectConName, isLazyIndirectConName
           , toValueOperationName, isValueOperationName, fromValueOperationsName, toBasicOperationsName
-          , splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
+          , splitName, splitModuleName, unsplitModuleName, mergeCommonPath, splitLocalQualName
           , missingQualifier
           , isEarlyBindName
           , toImplicitParamName, isImplicitParamName, splitImplicitParamName
@@ -59,6 +59,7 @@ module Common.Name
           , prettyName, prettyCoreName
           , requalifyLocally, qualifyLocally, unqualifyFull, isLocallyQualified, fullQualifier
           , unqualifyAsModuleName, unqualifyLocally
+          , removeCommonPrefix
 
           , nameMapStem
           , isInDefaultNameSpace, isInWrongNameSpace
@@ -530,6 +531,19 @@ isInSpecialNameSpace name ns
 ----------------------------------------------------------------
 -- Modules paths
 ----------------------------------------------------------------
+
+removeCommonPrefix :: Name -> Name -> Name
+removeCommonPrefix mname name
+  = let ns = splitModuleName name
+        ms = splitModuleName mname
+        ns' = drop (length (takeWhile (\(n,m) -> n == m) (zip ns ms))) ns
+    in if null ns' then name 
+        else -- trace ("removeCommonPrefix: " ++ show (ns,ms,ns',unqualify name)) $
+             qualify (unsplitModuleName ns') (unqualify name)
+
+splitName :: Name -> [String]
+splitName name
+  = filter (not . null) $ splitModuleName name ++ splitLocalQualName name ++ [nameStem name]
 
 splitModuleName :: Name -> [String]
 splitModuleName name

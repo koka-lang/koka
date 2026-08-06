@@ -50,7 +50,7 @@ kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx) {
   return kk_vector_realloc(vec, len, kk_box_null(), ctx);
 }
 
-kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t _r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
+kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t _r, kk_ssize_t idx, kk_box_t value, kk_context_t* ctx) {
   struct kk_ref_s* r = kk_datatype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
   if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
     // fast path
@@ -63,10 +63,9 @@ kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t _r, kk_integer_t idx, kk_box_t va
     }
     kk_ssize_t len;
     kk_box_t* p = kk_vector_buf_borrow(v, &len, ctx);
-    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx, ctx);
-    kk_assert(i < len);
-    kk_box_drop(p[i], ctx);
-    p[i] = value;
+    kk_assert(idx >= 0 && idx < len);
+    kk_box_drop(p[idx], ctx);
+    p[idx] = value;
   }
   else {
     // thread shared

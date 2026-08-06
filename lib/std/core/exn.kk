@@ -51,28 +51,33 @@ pub fun throw( message: string, info : exception-info = ExnError ) : exn a
 
 // Catch any exception raised in `action` and handle it.
 // Use `on-exit` when appropriate.
-pub fun handle/try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a
+pub fun handle/try( hndl: exception -> e a, action : () -> <exn|e> a ) : e a
   with final ctl throw-exn(exn) hndl(exn)
   action()
 
-// Catch an exception raised by `throw` and handle it.
-// This is `try` but with the arguments reversed, and is
-// often convenient to use as `with catch fn(e) ...`
-pub inline fun catch(hndl: exception -> e a, action : () -> <exn|e> a) : e a
-  try(action,hndl)
+// _deprecated_. Catch an exception raised by `throw` and handle it.
+pub fun catch(hndl: exception -> e a, action : () -> <exn|e> a) : e a
+  try(hndl,action)
 
 // An `:error<a>` type represents a first-class exception result as a `:result<a,exception>`.
 pub alias error<a> = result<a,exception>
 
 // Transform an exception effect to an  `:error` type.
-pub fun try( action : () -> <exn|e> a ) : e error<a>
-  try({ Ok(action()) }, fn(exn){ Error(exn) })
+pub fun error/try( action : () -> <exn|e> a ) : e error<a>
+  with try fn(exn)
+    Error(exn) 
+  Ok(action())
 
 // Transform an exception result type back to an `exn` effect (by throwing on an `Error`)
 pub fun untry( err : error<a> ) : exn a
   match err
     Error(exn) -> throw-exn(exn)
     Ok(x)      -> x
+
+pub fun error/map( err : error<a>, f : a -> e b ) : e error<b>
+  match err
+    Error(exn) -> Error(exn)
+    Ok(x)      -> Ok(f(x))
 
 // Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
 pub fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
@@ -85,3 +90,10 @@ pub fun exn-error-range() : exn a
 pub fun prepend( exn : exception, pre : string ) : exception
   Exception(pre ++ ": " ++ exn.message, exn.info)
 
+pub fun try-exn-prepend( pre : string, action : () -> <exn|e> a) : <exn|e> a
+  try-exn-map( fn(exn) exn.prepend(pre), action )
+
+pub fun try-exn-map( f : exception -> exception, action : () -> <exn|e> a) : <exn|e> a
+  with override final ctl throw-exn(exn)
+    f(exn).throw-exn
+  action()

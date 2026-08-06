@@ -268,22 +268,40 @@ static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
   kk_intx_t count = kk_intf_unbox(self->count);
   kk_function_t* conts = &self->conts[0];
   // call each continuation in order
-  for(kk_intx_t i = 0; i < count; i++) {
-    // todo: take uniqueness of fself into account to avoid dup_function
-    kk_function_t f = kk_function_dup(conts[i],ctx);
-    x = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), f, (f, x, ctx), ctx);
-    if (kk_yielding(ctx)) {
-      // if yielding, `yield_next` all continuations that still need to be done
-      while(++i < count) {
-        // todo: if fself is unique, we could copy without dup?
-        kk_yield_extend(kk_function_dup(conts[i],ctx),ctx);
+  if kk_likely(kk_datatype_ptr_is_unique(fself, ctx)) {
+    // Special handling for unique continuation function to avoid dup/drop overhead for the continuation and captured variables.
+    for(kk_intx_t i = 0; i < count; i++) {
+      kk_function_t f = conts[i];
+      x = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), f, (f, x, ctx), ctx);
+      if (kk_yielding(ctx)) {
+        // if yielding, `yield_next` all continuations that still need to be done
+        while(++i < count) {
+          kk_yield_extend(conts[i],ctx); // just move the continuation (no dup needed since it's parent is unique and being dropped)
+        }
+        kk_free((void*)self, ctx);
+        kk_box_drop(x,ctx);     // still drop even though we yield as it may release a boxed value type?
+        return kk_box_any(ctx); // return yielding
       }
-      kk_function_drop(fself,ctx);
-      kk_box_drop(x,ctx);     // still drop even though we yield as it may release a boxed value type?
-      return kk_box_any(ctx); // return yielding
     }
+    kk_free((void*)self, ctx);
+    // kk_function_drop(self,ctx); Can't do this, since all of it's child functions are dropped!
+  } else {
+    for(kk_intx_t i = 0; i < count; i++) {
+      // todo: take uniqueness of fself into account to avoid dup_function
+      kk_function_t f = kk_function_dup(conts[i],ctx);
+      x = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), f, (f, x, ctx), ctx);
+      if (kk_yielding(ctx)) {
+        // if yielding, `yield_next` all continuations that still need to be done
+        while(++i < count) {
+          kk_yield_extend(kk_function_dup(conts[i],ctx),ctx);
+        }
+        kk_function_drop(fself,ctx);
+        kk_box_drop(x,ctx);     // still drop even though we yield as it may release a boxed value type?
+        return kk_box_any(ctx); // return yielding
+      }
+    }
+    kk_function_drop(fself,ctx);
   }
-  kk_function_drop(fself,ctx);
   return x;
 }
 
@@ -420,37 +438,48 @@ kk_unit_t  kk_evv_guard(kk_evv_t evv, kk_context_t* ctx) {
   return kk_Unit;
 }
 
-typedef struct yield_info_s {
-  struct kk_std_core_hnd__yield_info_s _base;
+typedef struct kk_yield_context_s {
   kk_function_t clause;
   kk_function_t conts[KK_YIELD_CONT_MAX];
   kk_intf_t     conts_count;
   kk_marker_t   marker;
   int8_t        yielding;
-}* yield_info_t;
+} kk_yield_context_t;
 
-kk_std_core_hnd__yield_info kk_yield_capture(kk_context_t* ctx) {
+static void kk_yield_context_free( void* yield_context, kk_block_t* block, kk_context_t* ctx) {
+  kk_yield_context_t* yld = (kk_yield_context_t*)yield_context;
+  kk_function_drop(yld->clause,ctx);
+  for(kk_ssize_t i = 0; i < yld->conts_count; i++) {
+    kk_function_drop(yld->conts[i],ctx);
+  }
+  kk_free(yield_context,ctx);
+}
+
+kk_box_t kk_yield_capture(kk_context_t* ctx) {
   kk_assert_internal(kk_yielding(ctx));
-  yield_info_t yld = kk_block_alloc_as(struct yield_info_s, 1 + KK_YIELD_CONT_MAX, (kk_tag_t)1, ctx);
+  kk_yield_context_t* yld = (kk_yield_context_t*)kk_zalloc(sizeof(kk_yield_context_t),ctx);
   yld->clause = ctx->yield.clause;
+  ctx->yield.clause = kk_function_null(ctx);
   kk_ssize_t i = 0;
   for( ; i < ctx->yield.conts_count; i++) {
     yld->conts[i] = ctx->yield.conts[i];
+    ctx->yield.conts[i] = kk_function_null(ctx);
   }
   for( ; i < KK_YIELD_CONT_MAX; i++) {
     yld->conts[i] = kk_function_null(ctx);
   }
   yld->conts_count = ctx->yield.conts_count;
-  yld->marker = ctx->yield.marker;
-  yld->yielding = ctx->yielding;
+  yld->marker      = ctx->yield.marker;
+  yld->yielding    = ctx->yielding;
   ctx->yielding = 0;
   ctx->yield.conts_count = 0;
-  return kk_datatype_from_base(&yld->_base,ctx);
+  ctx->yield.marker = 0;
+  return kk_cptr_raw_box(&kk_yield_context_free,yld,ctx);
 }
 
-kk_box_t kk_yield_reyield( kk_std_core_hnd__yield_info yldinfo, kk_context_t* ctx) {
+kk_box_t kk_yield_reyield( kk_box_t yldb, kk_context_t* ctx) {
   kk_assert_internal(!kk_yielding(ctx));
-  yield_info_t yld = kk_datatype_as_assert(yield_info_t, yldinfo, (kk_tag_t)1, ctx);
+  kk_yield_context_t* yld = (kk_yield_context_t*)kk_cptr_raw_unbox_borrowed(yldb,ctx);
   ctx->yield.clause = kk_function_dup(yld->clause,ctx);
   ctx->yield.marker = yld->marker;
   ctx->yield.conts_count = yld->conts_count;
@@ -458,6 +487,6 @@ kk_box_t kk_yield_reyield( kk_std_core_hnd__yield_info yldinfo, kk_context_t* ct
   for(kk_ssize_t i = 0; i < yld->conts_count; i++) {
     ctx->yield.conts[i] = kk_function_dup(yld->conts[i],ctx);
   }
-  kk_constructor_drop(yld,ctx);
+  kk_box_drop(yldb,ctx);
   return kk_box_any(ctx);
 }

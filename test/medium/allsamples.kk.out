@@ -154,13 +154,3 @@ run rbtree (this can take a bit longer@xxx)
 420000
  
 medium/allsamples/main: () -> <pure,console,ndet> ()
-samples/handlers/named/file-scoped@kk(40, 3): type warning: abstract type(s) escape(s) into the context
- term : with f <- file("stack@yaml")
- fn
- inferred type: (f : ev<file<$s>>) -> <file<$s>|_e> (() -> <file<$s>|_e1> string)
- hint : give a higher-rank type annotation to a function parameter?
-samples/handlers/named/file-scoped@kk(45, 3): type warning: abstract type(s) escape(s) into the context
- term : with f = file("stack@yaml")
- f
- inferred type: (f : ev<file<$s>>) -> <file<$s>|_e> ev<file<$s>>
- hint : give a higher-rank type annotation to a function parameter?

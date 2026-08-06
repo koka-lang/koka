@@ -47,9 +47,9 @@ fun join-combining( cs : list<char>, comb : list<char> = [], acc : list<grapheme
     Nil        -> consrev(comb,acc).reverse
   }
 }
-fun consrev(xs,xss) {
+fun consrev(xs : list<char>, xss : list<string>) : list<string> 
   if (xs.is-nil) then xss else Cons(xs.reverse.string,xss)
-}
+
 
 // Convert a string to a list of graphemes.
 // Each grapheme will be in `NFC` normalized form.

@@ -13,7 +13,7 @@ abstract type config<s,a,c>
   Start
 
 // starting machine configuration with all zeros
-val start : config<state-a,inf,cons<sym0,inf>> = Start 
+val start-config : config<state-a,inf,cons<sym0,inf>> = Start 
 
 // halting state
 fun halt/trans() : ()  
@@ -59,5 +59,5 @@ fun inf/c/b/trans( st : config<state-c,l,cons<sym0,inf>>,
                    ?trans : (config<state-c,l,cons<sym0,cons<sym0,inf>>>) -> () ) : ()
   ()
 fun main()
-  trans( start )
+  trans( start-config )
   println("done.")

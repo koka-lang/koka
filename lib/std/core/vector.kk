@@ -45,10 +45,15 @@ pub extern @unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a>
   js inline "Array(#1)"
 
 // Assign to an entry in a local `:vector` variable.
-pub inline extern assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
+inline extern unsafe-assign/@index( ^self : local-var<s,vector<a>>, ^index : ssize_t, assigned : a ) : <local<s>,exn|e> ()
   c  "kk_ref_vector_assign_borrow"
-  cs inline "(#1)[(int)#2] = #3"  // check bounds?
-  js inline "(#1).value[#2] = #3"       // todo: check bounds!
+  js "$std_core_vector.kk_ref_vector_assign_borrow" 
+
+// Assign to an entry in a local `:vector` variable.
+pub inline fun assign/@index( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> ()
+  with pretend-no-div
+  val idx = index.ssize_t()
+  if idx < self.lengthz then self[idx] := assigned else throw("index out of bounds",ExnRange)  
 
 // Length of a vector.
 inline extern lengthz( ^v : vector<a> ) : ssize_t
@@ -69,11 +74,14 @@ extern vector-alloc-total(n : ssize_t, f : ssize_t -> a) : vector<a>
   js inline "_vector_initf(#1,#2)"
 
 // Create an empty vector.
-pub inline extern unit/vector : forall<a> () -> vector<a>
-  c inline "kk_vector_empty()"
+extern prim-empty() : vector<a>
+  c  inline "kk_vector_empty()"
   cs inline "new ##1[0]"
   js inline "[]"
 
+// Create an empty vector
+pub fun empty() : vector<a> 
+  prim-empty()
 
 // Return the element at position `index`  in vector `v`.
 // Raise an out of bounds exception if `index < 0`  or `index >= v.length`.
@@ -187,13 +195,13 @@ inline fip extern ssize_t/(<)  : (ssize_t,ssize_t) -> bool
   inline "(#1 < #2)"
 
 inline fip extern ssize_t/(+)  : (ssize_t,ssize_t) -> ssize_t
-  inline "(#1 + #2)"
   js inline "((#1 + #2)|0)"
-
+  inline "(#1 + #2)"
+  
 inline fip extern ssize_t/(-)  : (ssize_t,ssize_t) -> ssize_t
-  inline "(#1 - #2)"
   js inline "((#1 - #2)|0)"
-
+  inline "(#1 - #2)"
+  
 inline fip extern ssize_t/is-pos( i : ssize_t ) : bool
   inline "(#1 > 0)"
 
@@ -201,9 +209,9 @@ inline fip extern ssize_t/is-neg( i : ssize_t ) : bool
   inline "(#1 < 0)"
 
 fip extern ssize_t/is-zero( i : ssize_t ) : bool
-  inline "(#1 == 0)"
   js inline "(#1 === 0)"
-
+  inline "(#1 == 0)"
+  
 fip extern ssize_t/decr(i : ssize_t ) : ssize_t
   inline "(#1 - 1)"
 

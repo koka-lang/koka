@@ -1,7 +1,7 @@
 // Batched queue (see "Purely Functional Data Structures" by Chris Okasaki, Sect. 5.2)
 // - worst-case  O(n), persistent O(n)
 // - amortized   O(1), persistent O(n)
-module queue/batched
+module batched
 
 import bench
 

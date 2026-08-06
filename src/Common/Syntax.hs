@@ -9,6 +9,7 @@
     Common syntactical constructs (for Syntax.Syntax and Core.Core)
 -}
 -----------------------------------------------------------------------------
+{-# LANGUAGE InstanceSigs #-}
 module Common.Syntax( Visibility(..)
                     , Assoc(..)
                     , Fixity(..)
@@ -28,22 +29,47 @@ module Common.Syntax( Visibility(..)
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
                     , OperationSort(..), readOperationSort, opSortString
-                    , Platform(..), platform32, platform64, platformCS, platformJS, platform64c
+                    , Platform(..), platform32, platform64, platformCS, platformJS, platform64c, platformNone
                     , platformHasCompressedFields
                     , alignedSum, alignedAdd, alignUp
                     , BuildType(..)
                     , sepBySpace, memberDoc
+                    , TargetPlatform(..), targetPlatformFromTarget
+                    , targetPlatformDefault, targetPlatformIsDefault, targetPlatformC64
+                    , targetPlatformFromString, targetFromBackend, targetFromHost, platformFromString
+                    , matchTargetPlatform, matchTarget, matchOS, matchArch, matchPlatform, matchBuildDefs
+                    , targetPlatformIds
+                    , unsupportedExternal
+                    -- , targetPlatformTryMatch
                     ) where
-
-import Data.List(intersperse)
+import Debug.Trace
+import Data.Tuple(swap)
+import Data.Maybe(catMaybes)
+import Data.List(intersperse,sort,intercalate,isPrefixOf)
+import Common.File(splitOn)
 
 {--------------------------------------------------------------------------
   Backend targets
+
+  backend:  c js cs
+  host:     c : libc wasm wasmweb  (wasm==wasi wasmweb==emscripten)
+            js: node web
+            cs: dotnet
+  platform: 32 64 64c js cs
+  arch:     x86 x64 arm32 arm64 riscv  -<variant>
+  os:       windows linux macos unix   -<variant>
+
+  target option:
+    c    c64 c32 c64c
+    js   jsnode jsweb
+    wasm wasm32 wasm64 wasmjs wasmweb
+    cs
+
 --------------------------------------------------------------------------}
-data JsTarget = JsDefault | JsNode | JsWeb                 deriving (Eq,Ord)
+data JsTarget = JsDefault | JsNode | JsWeb                deriving (Eq,Ord)
 data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
 
-data Target = CS | JS !JsTarget| C !CTarget | Default deriving (Eq,Ord)
+data Target = Default | CS | JS !JsTarget| C !CTarget | Unsupported    deriving (Eq,Ord)
 
 isTargetC (C _) = True
 isTargetC _     = False
@@ -60,24 +86,30 @@ isTargetWasm target
       _         -> False
 
 
+unsupportedExternal :: String -> String
+unsupportedExternal fname
+  = trace ("warning: unsupported external: " ++ fname) $
+    "kk_unsupported_external(" ++ show fname ++ ")"
+
 instance Show Target where
   show tgt = case tgt of
-               CS        -> "cs"
-               JS JsWeb  -> "jsweb"
-               JS JsNode -> "jsnode"
-               JS _      -> "js"
-               C  Wasm   -> "wasm"
-               C  WasmJs -> "wasmjs"
-               C  WasmWeb-> "wasmweb"
-               C  LibC   -> "libc"
-               C  _      -> "c"
-               Default   -> ""
+                C CDefault-> "c"
+                C LibC    -> "libc"
+                C Wasm    -> "wasm"
+                C WasmJs  -> "wasmjs"
+                C WasmWeb -> "wasmweb"
+                JS JsNode -> "jsnode"
+                JS JsWeb  -> "jsweb"
+                JS JsDefault -> "js"
+                CS        -> "cs"
+                Default   -> "default"
+
 
 data Platform = Platform{ sizePtr   :: !Int -- sizeof(intptr_t)
                         , sizeSize  :: !Int -- sizeof(size_t)
                         , sizeField :: !Int -- sizeof(kk_field_t), usually intptr_t but may be smaller for compression
                         , sizeHeader:: !Int -- used for correct alignment calculation
-                        } deriving Eq
+                        } deriving (Eq,Ord)
 
 platform32, platform64, platform64c, platformJS, platformCS :: Platform
 platform32  = Platform 4 4 4 8
@@ -85,12 +117,20 @@ platform64  = Platform 8 8 8 8
 platform64c = Platform 8 8 4 8  -- compressed fields
 platformJS  = Platform 8 4 8 0
 platformCS  = Platform 8 4 8 0
+platformNone = Platform 0 0 0 0
+
+instance Show Platform where
+  show p
+    = if p==platform32 then "p32"
+      else if p==platform64 then "p64"
+      else if p==platform64c then "p64c"
+      else if p==platformNone then "none"
+      else platformShow p
 
 
 platformHasCompressedFields (Platform sp _ sf _) = (sp /= sf)
 
-instance Show Platform where
-  show (Platform sp ss sf sh) = "Platform(sizeof(void*)=" ++ show sp ++
+platformShow (Platform sp ss sf sh) = "p(sizeof(void*)=" ++ show sp ++
                                         ",sizeof(size_t)=" ++ show ss ++
                                         ",sizeof(kk_box_t)=" ++ show sf ++
                                         ",sizeof(kk_header_t)=" ++ show sh ++
@@ -118,6 +158,167 @@ instance Show BuildType where
   show RelWithDebInfo = "drelease"
   show Release        = "release"
 
+data TargetPlatform = TargetPlatform{ 
+                         tplTarget :: !Target, 
+                         tplOS :: !String, 
+                         tplArch :: !String, 
+                         tplPlatform :: Platform, 
+                         tplBuildDefs :: ![String] -- arbitrary build defines
+                      }
+                      deriving (Eq)
+{-
+instance Ord TargetPlatform where
+  compare :: TargetPlatform -> TargetPlatform -> Ordering
+  compare (TargetPlatform t1 os1 arch1 p1 defs1) (TargetPlatform t2 os2 arch2 p2 defs2)
+    = case compare t1 t2 of
+        EQ   -> case compare (os1,arch1,p1) (os2,arch2,p2) of
+                  EQ   -> compare (sort defs1) (sort defs2)
+                  ltgt -> ltgt
+        ltgt -> ltgt
+-}
+instance Show TargetPlatform where
+  show (TargetPlatform tgt os arch p defs)
+    = showTarget tgt ++ (if null attrs then "" else "[" ++ intercalate "," attrs ++ "]")
+    where
+      attrs = concat $
+        [hostAttr tgt,
+         if os=="" then [] else ["os=" ++ os],
+         if arch=="" then [] else ["arch=" ++ arch],
+         if p==platformNone then [] else ["platform=" ++ show p],
+         if null defs then [] else ["buildcfg=" ++ intercalate "|" defs]
+        ]
+
+      showTarget t
+        = case t of
+            C _  -> "c"
+            JS _ -> "js"
+            CS   -> "cs"
+            _    -> "default"
+
+      hostAttr t
+        = case t of
+            C LibC    -> ["host=libc"]
+            C Wasm    -> ["host=wasm"]
+            C WasmJs  -> ["host=wasmjs"]
+            C WasmWeb -> ["host=wasmweb"]
+            JS JsNode -> ["host=jsnode"]
+            JS JsWeb  -> ["host=jsweb"]
+            _         -> []
+
+
+targetPlatformC64 :: TargetPlatform
+targetPlatformC64 = TargetPlatform (C LibC) "" "" platform64 []
+
+targetPlatformDefault :: TargetPlatform
+targetPlatformDefault = targetPlatformFromTarget Default
+
+targetPlatformFromTarget :: Target -> TargetPlatform
+targetPlatformFromTarget target = TargetPlatform target "" "" platformNone []
+
+targetPlatformIsDefault :: TargetPlatform -> Bool
+targetPlatformIsDefault (TargetPlatform Default "" "" (Platform 0 0 0 0) []) = True
+targetPlatformIsDefault _ = False
+
+
+targetFromHost :: String -> Maybe Target
+targetFromHost s
+  = lookup s hostIds
+
+hostIds :: [(String,Target)]
+hostIds = [
+  ("libc",C LibC),
+  ("wasm",C Wasm),
+  ("wasmjs",C WasmJs),
+  ("wasmweb",C WasmWeb),
+  ("jsnode",JS JsNode),
+  ("jsweb",JS JsWeb)
+  ]
+
+targetFromBackend :: String -> Maybe Target
+targetFromBackend s
+  = lookup s backendIds
+
+backendIds :: [(String,Target)]
+backendIds = [
+  ("c",C CDefault),
+  ("js", JS JsDefault),
+  ("cs",CS),
+  ("default",Default)
+  ]
+
+platformFromString :: String -> Maybe Platform
+platformFromString s
+  = lookup s platformIds
+
+platformIds :: [(String,Platform)]
+platformIds = [
+  ("32",platform32), ("p32",platform32),
+  ("64",platform64), ("p64",platform64),
+  ("64c",platform64c), ("p64c",platform64c),
+  ("js",platformJS), ("pjs",platformJS),
+  ("cs",platformCS), ("pcs",platformCS),
+  ("none",platformNone)
+  ]
+
+targetPlatformFromString :: String -> Maybe TargetPlatform
+targetPlatformFromString s
+  = lookup s targetPlatformIds
+
+targetPlatformIds :: [(String,TargetPlatform)]
+targetPlatformIds = [
+  ("c",      targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
+  ("c64",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64 }),
+  ("c32",    targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform32 }),
+  ("c64c",   targetPlatformDefault{ tplTarget=C LibC, tplPlatform=platform64c }),
+  ("js",     targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
+  ("jsnode", targetPlatformDefault{ tplTarget=JS JsNode, tplPlatform=platformJS }),
+  ("jsweb",  targetPlatformDefault{ tplTarget=JS JsWeb, tplPlatform=platformJS }),
+  ("wasm",   targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
+  ("wasm32", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform32 }),
+  ("wasm64", targetPlatformDefault{ tplTarget=C Wasm, tplPlatform=platform64 }),
+  ("wasmjs", targetPlatformDefault{ tplTarget=C WasmJs, tplPlatform=platform32 }),
+  ("wasmweb",targetPlatformDefault{ tplTarget=C WasmWeb, tplPlatform=platform32 }),
+  ("cs",     targetPlatformDefault{ tplTarget=CS, tplPlatform=platformCS })
+  ]
+
+matchTargetPlatform :: TargetPlatform -> TargetPlatform -> Bool
+matchTargetPlatform (TargetPlatform b1 os1 arch1 pl1 defs1) (TargetPlatform b2 os2 arch2 pl2 defs2)
+  = matchTarget b1 b2 && matchStr os1 os2 && matchStr arch1 arch2 && matchPlatform pl1 pl2 &&
+    matchBuildDefs defs1 defs2
+
+matchOS :: String -> String -> Bool
+matchOS s1 s2
+  = -- trace ("matchOS: " ++ show (s1,s2)) $
+    matchStr s1 s2
+
+matchArch :: String -> String -> Bool
+matchArch s1 s2
+  = matchStr s1 s2
+
+matchStr :: String -> String -> Bool
+matchStr "" _ = True
+matchStr s1 s2  = let ss1 = splitOn (\c -> c == '-') s1
+                      ss2 = splitOn (\c -> c == '-') s2
+                  in ss1 `isPrefixOf` ss2
+
+matchPlatform :: Platform -> Platform -> Bool
+matchPlatform (Platform i1 i2 i3 i4) (Platform j1 j2 j3 j4)
+  = matchInt i1 j1 && matchInt i2 j2 && matchInt i3 j3 && matchInt i4 j4
+
+matchInt 0 i2      = True
+matchInt i1 i2     = (i1==i2)
+
+matchTarget :: Target -> Target -> Bool
+matchTarget t1 t2
+  = case (t1,t2) of
+      (Default,_)           -> True
+      (C CDefault, C _)     -> True
+      (JS JsDefault, JS _)  -> True
+      (_,_)                 -> t1 == t2
+
+matchBuildDefs :: [String] -> [String] -> Bool
+matchBuildDefs defs1 defs2
+  = all (\def -> def `elem` defs2) defs1
 
 {--------------------------------------------------------------------------
   Visibility

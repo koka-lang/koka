@@ -1,7 +1,7 @@
 // Bankers queue  (see "Purely Functional Data Structures" by Chris Okasaki, Sect. 6.3.2)
 // - worst-case  O(n), persistent O(n)
 // - amortized   O(1), persistent O(1)
-module queue/bankers
+module bankers
 
 import bench
 

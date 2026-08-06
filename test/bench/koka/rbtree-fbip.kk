@@ -40,7 +40,7 @@ fun ins(t : tree, k : int32, v : bool, z : zipper) : tree
     Node(c, l, kx, vx, r)
       -> if k < kx   then ins(l, k, v, NodeL(c, z, kx, vx, r))
          elif k > kx then ins(r, k, v, NodeR(c, l, kx, vx, z))
-         else z.move-up(Node(c, l, kx, vx, r))  // z.move-up(t) is slower (but not a reuse bug); to be investigated
+         else z.move-up(Node(c, l, kx, vx, r))  
     Leaf -> z.balance-red(Leaf, k, v, Leaf)
 
 fun insert(t : tree, k : int32, v : bool) : tree
@@ -67,5 +67,5 @@ fun make-tree(n : int32) : tree
 pub fun main()
   val n = get-args().head("").parse-int.default(4200000).int32
   val t = make-tree(n, Leaf)
-  val v = t.fold(zero) fn(k,v,r:int32){ if v then r.inc else r }
+  val v = t.fold(zero) fn(k,v,r){ if v then r.inc else r }
   v.show.println

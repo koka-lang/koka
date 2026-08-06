@@ -44,7 +44,7 @@ source env doc
   Show instance declarations
 --------------------------------------------------------------------------}
 
-instance Show Core      where show = show . prettyCore      defaultEnv Default []
+instance Show Core      where show = show . prettyCore      defaultEnv targetPlatformDefault []
 instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
@@ -58,8 +58,8 @@ instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
   Pretty-printers proper
 --------------------------------------------------------------------------}
 
-prettyCore :: Env -> Target -> [InlineDef] -> Core -> Doc
-prettyCore env0 target inlineDefs core@(Core modName imports fixDefs typeDefGroups defGroups externals doc)
+prettyCore :: Env -> TargetPlatform -> [InlineDef] -> Core -> Doc
+prettyCore env0 eguard inlineDefs core@(Core modName imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
     (if (coreIface env) then text "interface" <+> prettyModuleName env modName -- text (moduleNameToPath modName)
@@ -68,7 +68,7 @@ prettyCore env0 target inlineDefs core@(Core modName imports fixDefs typeDefGrou
       [ separator "import declarations"
       , map (prettyImport envX) (imports)
       , separator "external imports"
-      , map (prettyExternalImport envX target) externals
+      , map (prettyExternalImport envX eguard) externals
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
       , separator "local imported aliases"
@@ -134,22 +134,19 @@ ppImportProvenance env prov
       ImportTypes    -> keyword env " type"
       ImportCompiler -> keyword env " inline"
 
-prettyExternalImport env target (ExternalImport imports _)
+prettyExternalImport env tp (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
     -- trace ("external imports: target: " ++ show target ++ ": " ++ show imports) $
-    case lookupTarget target imports of
-      Nothing -> empty
-      Just keyvals0
-        -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
-             [] -> empty
-             keyvals -> keyword env "extern import" <+> text "{"
-                          <-> tab (ppTarget env target <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
-                          <-> text "};"
+    case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") imports of
+      [] -> empty
+      keyvals -> keyword env "extern import" <+> text "{"
+                  <-> tab (text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                  <-> text "};"
   where
     prettyKeyval (key,val)
       = prettyLit env (LitString key) <.> text "=" <.> prettyLit env (LitString val) <.> semi
 
-prettyExternalImport env target _ = empty
+prettyExternalImport env tp _ = empty
 
 
 
@@ -176,11 +173,11 @@ prettyExternal env (External name tp pinfos body vis fip nameRng doc)
     prettyVis env vis $
     keyword env (sepBySpace [show fip,"extern"]) <+> prettyDefName env name  <.> prettyRange env nameRng
      <+> text ":" <+> prettyDefFunType env pinfos tp
-     <+> prettyEntries body
-  where
-    prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
-    prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
-    prettyEntry (target,content)      = ppTarget env target <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
+     <+> keyword env "= inline" <+> prettyLit env (LitString body) <.> semi
+  -- where
+  --   prettyEntries [(tpl,content)] | targetPlatformIsDefault tpl = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
+  --   prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
+  --   prettyEntry (tpl,content)        = ppTargetPlatformMin env tpl <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
 prettyExternal env (ExternalImport imports range)
   = empty
@@ -194,14 +191,17 @@ prettyExternal env (ExternalImport imports range)
         = ppTarget env target <.> prettyLit env (LitString content)
   -}
 
+ppTargetPlatform :: Env -> TargetPlatform -> Doc
+ppTargetPlatform env tpl
+  = text (show tpl) <.> space
 
+ppTargetPlatformMin :: Env -> TargetPlatform -> Doc
+ppTargetPlatformMin env tpl
+  = text (show (tpl{ tplOS="", tplArch="", tplPlatform=platformNone })) <.> space
+
+ppTarget :: Env -> Target -> Doc
 ppTarget env target
-  = case target of
-      Default -> empty
-      CS      -> text "cs "
-      C _     -> text "c "
-      JS _    -> text "js "
-      -- _       -> keyword env (show target) <.> space
+  = text (show target) <.> space
 
 
 prettyTypeDefGroup :: Env -> TypeDefGroup -> Doc
@@ -547,7 +547,7 @@ type Signatures = [Type]
 extractImportFromSignatures :: Signatures -> [Import]
 extractImportFromSignatures sigs
   = let importNames = extractDepsFromSignatures sigs
-    in [makeImport name "" ImportTypes Private "" | name <- importNames]
+    in [makeImport name "" ImportTypes Private "" rangeNull | name <- importNames]
 
 extractDepsFromSignatures :: Signatures -> [ModuleName]
 extractDepsFromSignatures sigs
@@ -556,7 +556,7 @@ extractDepsFromSignatures sigs
 
 extractImportsFromSynInfo :: SynInfo -> Import
 extractImportsFromSynInfo syn
-  = makeImport (qualifier $ synInfoName syn) "" ImportTypes Private ""
+  = makeImport (qualifier $ synInfoName syn) "" ImportTypes Private "" rangeNull
 
 extractDepsFromSynonyms :: Synonyms -> [ModuleName]
 extractDepsFromSynonyms syns

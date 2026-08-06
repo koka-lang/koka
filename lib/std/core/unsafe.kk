@@ -20,7 +20,7 @@ import std/core/types
 // - behavioral: `:div` (non-termination/divergence), `:ndet` (non-determinism)
 // - state: `:alloc`, `:read`, `:write`, `:st`
 // - external: `:ui`, `:fsys`, `:net`, `:blocking`
-// - combinations: `:io-total` and `:io-noexn`
+// - combinations: `:ioc-total` and `:ioc`
 //
 // Do _not_ dismiss `:io` since it has the `:exn` effect that should be handled (and an evidence
 // vector should be passed in).
@@ -40,13 +40,22 @@ inline fip extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() 
 
 // _Unsafe_. This function pretends the given `action` is deterministic
 pub fun pretend-no-ndet( action : () -> <ndet|e> a ) : e a
-  unsafe-total-cast( action )()
+  // unsafe-total-cast( action )()  // this can segfault as it drops the e which can contain handled effects
+  unsafe-no-ndet-cast(action)()
+
+inline fip extern unsafe-no-ndet-cast: forall<a,e> (() -> <ndet|e> a) -> (() -> e a) 
+  inline "#1" 
+
+// Collapse multiple ndet effects into one (this is safe).
+pub fun collapse-ndet( action : () -> <ndet,ndet|e> a ) : <ndet|e> a
+  pretend-no-ndet(action)
+
 
 // _Unsafe_. This function checks if two objects have the same address in the heap.
 // The results may vary on the backend or compiler optimizations but the function pretends to be `:total`.
 // Note also that value types always compare unequal since each value will be boxed fresh in the heap
 // when calling this function.
-pub inline extern unsafe-ptr-eq( x : a, y : a ) : bool
+pub noinline extern unsafe-ptr-eq( x : a, y : a ) : bool
   c  inline "kk_box_eq(#1,#2)"
   cs inline "Object.ReferenceEquals(#1,#2)"
   js inline "Object.is(#1,#2)"

@@ -13,6 +13,7 @@ module Type.InferMonad( Inf, InfGamma
                       -- * substitutation
                       , zapSubst
                       , subst, extendSub
+                      , substNice
 
                       -- * Environment
                       , getGamma
@@ -61,6 +62,7 @@ module Type.InferMonad( Inf, InfGamma
                       , checkCasing
                       , normalize
                       , getNewtypes
+                      , getTargetPlatform
 
                       -- * Unification
                       , Context(..)
@@ -103,10 +105,10 @@ import Common.Range hiding (Pos)
 import Common.Unique
 import Common.Failure
 import Common.Error
-import Common.Syntax( Visibility(..), DefSort(..))
+import Common.Syntax( Visibility(..), DefSort(..), TargetPlatform)
 import Common.File(endsWith,normalizeWith, seqqList)
 import Common.Name
-import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
+import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpIOC,nameTpST,nameTpAsync,
                        nameTpRead,nameTpWrite,nameTypeHeapDiv,nameHeapDiv,nameEvHeapDiv,nameEvHeapNoDiv,
                        nameReturn,nameTpLocal, nameCopy)
 
@@ -135,7 +137,7 @@ import Common.Message( docFromRange, table, tablex)
 
 import Core.Pretty()
 
-import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert, rangeMapAppend )
+import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert, rangeMapAppend, substNiceRangeMap )
 import Syntax.Syntax(Expr(..),ValueBinder(..))
 
 import qualified Debug.Trace as DT
@@ -397,75 +399,19 @@ normalizeX close free tp
 
 nicefyEffect :: Effect -> Inf Effect
 nicefyEffect eff
-  = do let (ls,tl) = extractOrderedEffect eff
-       ls' <- matchAliases [nameTpIO, nameTpST, nameTpPure, nameTpAsyncX] ls
-       return (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
-  where
-    matchAliases :: [Name] -> [Tau] -> Inf [Tau]
-    matchAliases names ls
-      = case names of
-          [] -> return ls
-          (name:ns)
-            -> do (pre,post) <- tryAlias ls name
-                  post' <- matchAliases ns post
-                  return (pre ++ post')
-
-    tryAlias :: [Tau] -> Name -> Inf ([Tau],[Tau])
-    tryAlias [] name
-      = return ([],[])
-    tryAlias ls name
-      = do mbsyn <- lookupSynonym name
-           case mbsyn of
-             Nothing -> return ([],ls)
-             Just syn
-              -> let (ls2,tl2) = extractOrderedEffect (synInfoType syn)
-                 in if (null ls2 || not (isEffectEmpty tl2))
-                     then return ([],ls)
-                     else let params      = synInfoParams syn
-                              (sls,insts) = findInsts params ls2 ls
-                          in -- Lib.Trace.trace ("* try alias: " ++ show (synInfoName syn, ls, sls)) $
-                             case (isSubset [] sls ls) of
-                                Just rest
-                                  -> -- trace (" synonym replace: " ++ show (synInfoName syn, ls, sls, rest)) $
-                                     return ([TSyn (TypeSyn name (synInfoKind syn) (synInfoRank syn) (Just syn)) insts (effectFixed sls)], rest)
-                                _ -> return ([], ls)
-
-findInsts :: [TypeVar] -> [Tau] -> [Tau] -> ([Tau],[Tau])
-findInsts [] ls _
-  = (ls,[])
-findInsts params ls1 ls2
-  = case filter matchParams ls1 of
-      [] -> (ls1,map TVar params)
-      (tp:_)
-        -> let name = labelName tp
-           in case filter (\t -> labelName t == name) ls2 of
-                (TApp _ args : _) | length args == length params
-                  -> (subNew (zip params args) |-> ls1, args)
-                _ -> (ls1, map TVar params)
-  where
-    matchParams (TApp _ args) = eqTypes (map TVar params) args
-    matchParams _ = False
-
-
-
-isSubset :: [Tau] -> [Tau] -> [Tau] -> Maybe [Tau]
-isSubset acc ls1 ls2
-  = case (ls1,ls2) of
-      ([],[])       -> Just (reverse acc)
-      ([],(l2:ll2)) -> Just (reverse acc ++ ls2)
-      (l1:ll1, [])  -> Nothing
-      (l1:ll1,l2:ll2)
-        -> if (labelName l1 < labelName l2)
-            then Nothing
-           else if (labelName l1 > labelName l2)
-            then isSubset (l2:acc) ls1 ll2
-           else if (eqType l1 l2)
-            then isSubset acc ll1 ll2
-            else Nothing
+  = do env <- getEnv
+       return (realiasEffect (synonyms env) eff)
 
 splitEffect :: Effect -> Inf ([Tau],Effect)
 splitEffect eff
   = nofailUnify (extractNormalizeEffect eff)
+
+-- substitute and re-alias synonyms
+substNice :: Type -> Inf Type
+substNice tp
+  = do stp <- subst tp
+       env <- getEnv 
+       return (realiasType (synonyms env) stp)
 
 
 {--------------------------------------------------------------------------
@@ -1834,6 +1780,7 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , scopeNestingDepth :: !Int   -- nested scope level
                  , allowInfiniteChains :: !Bool
                  , niceNames :: !(NM.NameMap Doc)
+                 , tplatform :: !TargetPlatform
                  }
 data St     = St{ uniq :: !Int
                 , sub :: !Sub                            -- current substitution
@@ -1844,14 +1791,17 @@ data St     = St{ uniq :: !Int
                 }
 
 
-runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
-runInfer env mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
-  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty)
+runInfer :: Pretty.Env -> TargetPlatform -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
+runInfer env tpl mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
+  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty tpl)
            (St unique subNull [] infgammaEmpty False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
       Ok x st warnings
-        -> addWarnings (map (toWarning ErrType) warnings) (ok (x, uniq st, (sub st) |-> mbRangeMap st))
+        -> addWarnings (map (toWarning ErrType) warnings) (ok (x, uniq st, 
+              case mbRangeMap st of
+                Nothing -> Nothing
+                Just rm -> Just (substNiceRangeMap syns (sub st) rm)))
 
 
 zapSubst :: HasCallStack => Inf ()
@@ -1930,6 +1880,10 @@ getPrettyEnv :: Inf Pretty.Env
 getPrettyEnv
   = do env <- getEnv
        return (prettyEnv env)
+
+getTargetPlatform :: Inf TargetPlatform
+getTargetPlatform 
+  = tplatform <$> getEnv
 
 lookupSynonym :: Name -> Inf (Maybe SynInfo)
 lookupSynonym name

@@ -100,14 +100,14 @@ pub val neginf : float64 = make-neginf()
 
 // Are two floating point number equal?
 pub inline fip extern (==)(x : float64, y : float64) : bool
-  inline "(#1 == #2)"
   js inline "(#1 === #2)"
-
+  c inline "(#1 == #2)"
+  
 // Are two floating point number not equal?
 pub inline fip extern (!=)(x : float64, y : float64) : bool
-  inline "(#1 != #2)"
   js inline "(#1 !== #2)"
-
+  c inline "(#1 != #2)"
+  
 // Is the first floating point number smaller or equal to the second?
 pub inline fip extern (<=)( x : float64, y : float64) : bool
   inline "(#1 <= #2)"

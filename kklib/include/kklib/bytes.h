@@ -90,17 +90,35 @@ static inline kk_bytes_t kk_bytes_dup(kk_bytes_t b, kk_context_t* ctx) {
 // Allocate `len` bytes.
 // If (p /= NULL) then initialize with at most `min(len,plen)` bytes from `p`, which must point to at least `plen` valid bytes.
 // Adds a terminating zero at the end. Return the raw buffer pointer in `buf` if non-NULL
-kk_decl_export kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_alloc_len_zero(bool zeroinit, kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
 kk_decl_export kk_bytes_t kk_bytes_adjust_length(kk_bytes_t p, kk_ssize_t newlen, kk_context_t* ctx);
+
+static inline kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx) {
+  return kk_bytes_alloc_len_zero(false,len,plen,p,buf,ctx);
+}
+
+static inline kk_bytes_t kk_bytes_zalloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx) {
+  return kk_bytes_alloc_len_zero(true,len,plen,p,buf,ctx);
+}
 
 // allocate uninitialized bytes
 static inline kk_bytes_t kk_bytes_alloc_buf(kk_ssize_t len, uint8_t** buf, kk_context_t* ctx) {
   return kk_bytes_alloc_len(len, 0, NULL, buf, ctx);
 }
 
+// allocate initialized zero bytes
+static inline kk_bytes_t kk_bytes_zalloc_buf(kk_ssize_t len, uint8_t** buf, kk_context_t* ctx) {
+  return kk_bytes_zalloc_len(len, 0, NULL, buf, ctx);
+}
+
 // allocate uninitialized chars
 static inline kk_bytes_t kk_bytes_alloc_cbuf(kk_ssize_t len, char** buf, kk_context_t* ctx) {
   return kk_bytes_alloc_len(len, 0, NULL, (uint8_t**)buf, ctx);
+}
+
+// allocate initialized 0 chars
+static inline kk_bytes_t kk_bytes_zalloc_cbuf(kk_ssize_t len, char** buf, kk_context_t* ctx) {
+  return kk_bytes_zalloc_len(len, 0, NULL, (uint8_t**)buf, ctx);
 }
 
 
@@ -157,7 +175,10 @@ static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, kk_ssize_t* l
   return (const char*)kk_bytes_buf_borrow(b, len, ctx);
 }
 
-
+static inline uint8_t kk_bytes_at(kk_bytes_t p, kk_ssize_t i, kk_context_t* ctx){
+  const uint8_t* buf = kk_bytes_buf_borrow(p, NULL, ctx);
+  return buf[i];
+}
 
 /*--------------------------------------------------------------------------------------------------
   Length, compare
@@ -189,6 +210,19 @@ static inline kk_bytes_t kk_bytes_copy(kk_bytes_t b, kk_context_t* ctx) {
     kk_bytes_t bc = kk_bytes_alloc_dupn(len, buf, ctx);
     kk_bytes_drop(b, ctx);
     return bc;
+  }
+}
+
+static inline kk_bytes_t kk_bytes_set(kk_bytes_t bytes, kk_ssize_t i, uint8_t b, kk_context_t* ctx){
+  if (kk_datatype_ptr_is_unique(bytes, ctx)) {
+    uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(bytes, NULL, ctx);
+    buf[i] = b;
+    return bytes;
+  } else {
+    kk_bytes_t bytes_new = kk_bytes_copy(bytes, ctx);
+    uint8_t* buf = (uint8_t*)kk_bytes_buf_borrow(bytes_new, NULL, ctx);
+    buf[i] = b;
+    return bytes_new;
   }
 }
 
@@ -258,5 +292,10 @@ kk_decl_export bool    kk_bytes_contains(kk_bytes_t str, kk_bytes_t sub, kk_cont
 
 kk_decl_export kk_bytes_t  kk_bytes_join(kk_vector_t v, kk_context_t* ctx);
 kk_decl_export kk_bytes_t  kk_bytes_join_with(kk_vector_t v, kk_bytes_t sep, kk_context_t* ctx);
+
+kk_decl_export kk_bytes_t  kk_bytes_subbytes(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_bytes_subvector(kk_bytes_t b, kk_ssize_t start, kk_ssize_t len, kk_context_t* ctx);
+kk_decl_export kk_bytes_t  kk_bytes_from_vector(kk_vector_t v, kk_context_t* ctx);
+
 
 #endif // KK_BYTES_H

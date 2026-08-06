@@ -25,6 +25,8 @@ pub import std/core/order
 pub import std/core/char
 pub import std/core/int
 pub import std/core/vector
+pub import std/core/bytes
+pub import std/core/bslice
 pub import std/core/string
 pub import std/core/sslice
 pub import std/core/list
@@ -69,14 +71,14 @@ pub type ui :: X
 // The `:blocking` effect signifies that a function may block
 pub type blocking :: X
 
-// The `:io-total` effect is used for functions that perform arbitrary I/O operations, but are terminating without raising exceptions.
-pub alias io-total = <ndet,console,net,fsys,ui,st<global>>
+// The `:ioc-total` effect is used for functions that perform arbitrary I/O operations, but are terminating without raising exceptions.
+pub alias ioc-total = <ndet,console,net,fsys,ui,st<global>>
 
-// The `:io-noexn` effect is used for functions that perform arbitrary I/O operations, but raise no exceptions
-pub alias io-noexn = <div,io-total>
+// The `:ioc` effect ("I/O as in C") is used for functions that perform arbitrary I/O operations, but raise no exceptions
+pub alias ioc = <div,ioc-total>
 
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
-pub alias io = <exn,io-noexn>
+pub alias io = <exn,ioc>
 
 // The `:named` effect is the default umbrella effect for named effects
 pub type nmd :: X
@@ -231,12 +233,11 @@ pub extern host() : ndet string
   js inline "$std_core_console._host"
 
 
-// The default exception handler
+// The default exception handler prints an exception to the console as "uncaught".
 pub fun @default-exn(action : () -> <exn,console|e> () ) : <console|e> ()
-  handle( action )
-    final ctl throw-exn( exn : exception )
-      "uncaught exception: ".print
-      exn.println
+  with final ctl throw-exn( exn : exception )
+    println( "uncaught exception: " ++ exn.show )    
+  action()
 
 
 // ----------------------------------------------------------------------------

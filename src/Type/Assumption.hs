@@ -54,7 +54,7 @@ import Lib.PPrint
 import qualified Common.NameMap as M
 import Common.Name
 import Common.ColorScheme
-import Common.Syntax( Visibility(..), Target )
+import Common.Syntax( Visibility(..), TargetPlatform )
 import Type.Type
 import Type.TypeVar
 import Type.Pretty
@@ -68,7 +68,7 @@ data NameInfo
   = InfoVal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoScopeDepthX :: !Int, infoRange :: !Range, infoIsVar :: !Bool, infoAllowImplictMaskX :: !Bool, infoDoc :: !String }
   | InfoFun{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoScopeDepthX :: !Int, infoArity :: !(Int,Int), infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String }
   | InfoCon{ infoVis :: !Visibility, infoType :: !Scheme, infoRepr  :: !Core.ConRepr, infoCon :: !ConInfo, infoRange :: !Range, infoDoc :: !String }
-  | InfoExternal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoFormat :: ![(Target,String)], infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String}
+  | InfoExternal{ infoVis :: !Visibility, infoCName :: !Name, infoType :: !Scheme, infoFormat :: !String, infoFip :: !Fip, infoRange :: !Range, infoDoc :: !String}
   | InfoImport{ infoVis :: !Visibility, infoType :: !Scheme, infoAlias :: !Name, infoFullName :: !Name, infoRange :: !Range}
   deriving (Show)
 
@@ -435,6 +435,7 @@ getArity tp
       _                        -> failure ("Type.Assumption.createNameInfo.getArity: illegal type?" ++ show tp)
 
 
+extractExternal :: (Visibility -> Visibility) -> Core.External -> Gamma
 extractExternal updateVis (Core.External name tp pinfos body vis fip nameRng doc)
   = gammaSingle name {- (nonCanonicalName name) -} (InfoExternal (updateVis vis) name tp body fip nameRng doc)
 extractExternal updateVis _

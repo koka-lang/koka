@@ -40,15 +40,15 @@ pub extern vector : ( s : string ) -> vector<char>
 
 // Are two strings equal?
 // Uses exact equality between character codes.
-pub inline extern (==) : (string,string) -> bool
+pub extern (==) : (string,string) -> bool
   c  "kk_string_is_eq"
   cs inline "(#1 == #2)"
   js inline "(#1 === #2)"
 
 // Are two strings not equal?
-pub inline extern (!=) : (string,string) -> bool
+pub extern (!=) : (string,string) -> bool
   c  "kk_string_is_neq"
-  inline "(#1 != #2)"
+  cs inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 
 fip extern string-cmp( ^x : string, ^y : string ) : int
@@ -84,19 +84,19 @@ pub extern chars/count( s : string ) : int
 
 
 // Does string `s` contain the string `sub`?
-pub inline extern contains: (s : string, sub : string ) -> bool
+pub extern contains: (s : string, sub : string ) -> bool
   c  "kk_string_contains"
   cs inline "((#1).Contains(#2))"
   js inline "((#1).indexOf(#2) >= 0)"
 
 // Concatenate a vector of strings
-pub inline extern vector/join: (v : vector<string> ) -> string
+pub extern vector/join: (v : vector<string> ) -> string
   c  "kk_string_join"
   cs "String.Concat"
   js inline "((#1).join(''))"
 
 // Concatenate a vector of strings with a separator `sep`
-pub inline extern vectorsep/join: (v : vector<string>, sep : string ) -> total string
+pub extern vectorsep/join: (v : vector<string>, sep : string ) -> total string
   c  "kk_string_join_with"
   cs "Primitive.Concat"
   js inline "((#1).join(#2))"
@@ -131,13 +131,13 @@ pub fun maybe( s : string ) : maybe<string>
 
 
 // Replace every occurrence of `pattern` to `repl` in a string.
-pub inline extern replace-all( s : string, pattern : string, repl : string ) : string
+pub extern replace-all( s : string, pattern : string, repl : string ) : string
   c  "kk_string_replace_all"
   cs inline "(#1).Replace(#2,#3)"
   js inline r"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)"
 
 // Count occurrences of `pattern` in a string.
-pub inline extern stringpat/count( s : string, pattern : string ) : int
+pub extern stringpat/count( s : string, pattern : string ) : int
   c  "kk_string_count_pattern"
   cs inline "Primitive.Count(#1,#2)"
   js inline r"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)"
@@ -178,25 +178,25 @@ pub fun trim( s : string ) : string
   s.trim-left.trim-right
 
 // Trim the starting white space of a string
-pub inline extern trim-left( s : string ) : string
+pub extern trim-left( s : string ) : string
   c  "kk_string_trim_left"
   cs inline "(#1).TrimStart()"
   js inline "((#1).replace(/^\\s\\s*/,''))"
 
 // Trim the ending white space of a string.
-pub inline extern trim-right( s : string ) : string
+pub extern trim-right( s : string ) : string
   c  "kk_string_trim_right"
   cs inline "(#1).TrimEnd()"
   js inline "((#1).replace(/\\s+$/,''))"
 
 
 
-inline extern splitv( s : string,  sep : string ) : vector<string>
+extern splitv( s : string,  sep : string ) : vector<string>
   c  "kk_string_splitv"
   cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))"
   js inline "((#1).split(#2))"
 
-inline extern splitvn( s : string,  sep : string, n : ssize_t ) : vector<string>
+extern splitvn( s : string,  sep : string, n : ssize_t ) : vector<string>
   c  "kk_string_splitv_atmost"
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)"
   js inline "(#1).split(#2, #3)"

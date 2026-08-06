@@ -604,7 +604,7 @@ getBoxForm' platform newtypes tp
            case extractDataDefType tp of
              Just name
                | name `elem` [nameTpInt, nameTpFieldAddr] ||
-                 ((name `elem` [nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
+                 ((name `elem` [nameTpByte, nameTpInt8, nameTpInt16, nameTpFloat16]) && sizePtr platform > 2) ||
                  ((name `elem` [nameTpChar, nameTpInt32, nameTpMarker, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> if m < sizePtr platform   -- for example, `bool`, but not `int64`
@@ -634,7 +634,7 @@ genDecRef tname
        if not needs
          then return Nothing
          else return $ Just $
-                        App (Var (TName nameDecRef funTp) (InfoExternal [(C CDefault, "decref(#1,current_context())")]))
+                        App (Var (TName nameDecRef funTp) (InfoExternal "decref(#1,current_context())"))
                             [Var tname InfoNone]
   where
     funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
@@ -742,12 +742,12 @@ genDrop name = do shape <- getShapeInfo name
 dupDropFun :: Bool -> Type -> Maybe (ConRepr,Name) -> Maybe Int -> Expr -> Expr
 dupDropFun False {-drop-} tp (Just (conRepr,_)) (Just scanFields) arg
    | scanFields > 0 && not (conReprIsValue conRepr) && not (isConAsJust conRepr) && not (isBoxType tp) -- drop with known number of scan fields
-  = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]
+  = App (Var (TName name coerceTp) (InfoExternal "dropn(#1,#2)")) [arg,makeInt32 (toInteger scanFields)]
   where
     name = nameDrop
     coerceTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeUnit
 dupDropFun isDup tp mbConRepr mbScanCount arg
-  = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, (if isDup then "dup" else "drop") ++ "(#1)")])) [arg]
+  = App (Var (TName name coerceTp) (InfoExternal ((if isDup then "dup" else "drop") ++ "(#1)"))) [arg]
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)

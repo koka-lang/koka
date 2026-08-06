@@ -71,10 +71,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: Bool -> CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> String -> Core -> (Doc,Doc,Maybe Doc,Core)
-cFromCore separateMain ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference eagerPatBind stackSize mbMain mainName core
+cFromCore :: Bool -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> String -> Core -> (Doc,Doc,Maybe Doc,Core)
+cFromCore separateMain buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference eagerPatBind stackSize mbMain mainName core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform eagerPatBind)
-           (genModule separateMain ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain mainName core) of
+           (genModule separateMain buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain mainName core) of
       ((bcore,mainDoc),cdoc,hdoc) -> (cdoc,hdoc,mainDoc,bcore)
   where
     moduleName = coreProgName core
@@ -86,8 +86,8 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: Bool -> CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> String -> Core -> Asm (Core,Maybe Doc)
-genModule separateMain ctarget buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain mainName core0
+genModule :: Bool -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> String -> Core -> Asm (Core,Maybe Doc)
+genModule separateMain buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain mainName core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                let borrowed = borrowedExtendICore bcore borrowed0
                                pcore <- parcCore penv platform newtypes borrowed enableSpecialize bcore -- precise automatic reference counting
@@ -166,20 +166,20 @@ genModule separateMain ctarget buildType sourceDir penv platform newtypes borrow
 
     externalIncludesC :: [Doc]
     externalIncludesC
-      = concatMap (includeExternalC ctarget buildType) (coreProgExternals core0)
+      = concatMap (includeExternalC buildType) (coreProgExternals core0)
 
     externalIncludesH :: [Doc]
     externalIncludesH
-      = concatMap (includeExternalH ctarget buildType) (coreProgExternals core0)
+      = concatMap (includeExternalH buildType) (coreProgExternals core0)
 
     externalEndIncludesH :: [Doc]
     externalEndIncludesH
-      = concatMap (includeEndExternalH ctarget buildType) (coreProgExternals core0)
+      = concatMap (includeEndExternalH buildType) (coreProgExternals core0)
 
 
     externalImportIncludes :: [Doc]
     externalImportIncludes
-      = concatMap (importExternalInclude ctarget buildType sourceDir) (coreProgExternals core0)
+      = concatMap (importExternalInclude buildType sourceDir) (coreProgExternals core0)
 
     initImport :: Import -> Doc
     initImport imp
@@ -198,27 +198,27 @@ moduleImport imp
       then dquotes (text (moduleNameToPath  (importName imp)) <.> text ".h")
       else brackets (text (importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp))) <.> text ".h")
 
-includeExternalC :: CTarget -> BuildType -> External -> [Doc]
-includeExternalC ctarget buildType  ext
-  = case externalImportLookup (C ctarget) buildType  "include-inline" ext of
+includeExternalC :: BuildType -> External -> [Doc]
+includeExternalC buildType  ext
+  = case externalImportLookup buildType  "include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
-includeExternalH :: CTarget -> BuildType -> External -> [Doc]
-includeExternalH ctarget buildType ext
-  = case externalImportLookup (C ctarget) buildType  "header-include-inline" ext of
+includeExternalH :: BuildType -> External -> [Doc]
+includeExternalH buildType ext
+  = case externalImportLookup buildType  "header-include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
-includeEndExternalH :: CTarget -> BuildType -> External -> [Doc]
-includeEndExternalH ctarget buildType ext
-  = case externalImportLookup (C ctarget) buildType  "header-end-include-inline" ext of
+includeEndExternalH :: BuildType -> External -> [Doc]
+includeEndExternalH buildType ext
+  = case externalImportLookup buildType  "header-end-include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
-importExternalInclude :: CTarget -> BuildType -> FilePath -> External -> [Doc]
-importExternalInclude ctarget buildType sourceDir ext
-  = case externalImportLookup (C ctarget) buildType  "include" ext of
+importExternalInclude :: BuildType -> FilePath -> External -> [Doc]
+importExternalInclude buildType sourceDir ext
+  = case externalImportLookup buildType  "include" ext of
       Just path -> [(text "#include" <+>
                       (if (head path == '<')
                         then text path
@@ -797,7 +797,7 @@ genBoxCall tp arg
         ctx  = contextDoc
     in case cType tp of
       CFun _ _   -> primName_t prim "function_t" <.> tupled ([arg,ctx])
-      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t" -- || val == "kk_integer_t"
+      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t" || val == "kk_bytes_t" -- || val == "kk_integer_t"
                  -> primName_t prim val <.> parens arg  -- no context
       CData name -> primName prim (ppName name) <.> tupled [arg,ctx]
       _          -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]  -- kk_box_t, int32_t
@@ -814,7 +814,7 @@ genUnboxCall tp arg argBorrow
         ctx  = contextDoc
     in case cType tp of
       CFun _ _   -> primName_t prim "function_t" <.> tupled [arg,ctx] -- no borrow
-      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t"
+      CPrim val  | val == "kk_unit_t" || val == "bool" || val == "kk_string_t" || val == "kk_bytes_t"
                     -> primName_t prim val <.> parens arg  -- no borrow, no context
                  | otherwise
                     -> primName_t prim val <.>  tupled ([arg] ++ (if (cPrimCanBeBoxed val) then [argBorrow] else []) ++ [ctx])
@@ -1112,7 +1112,7 @@ genDupDropCallX prim tp args
   = case cType tp of
       CFun _ _   -> [(primName_t prim "function_t") <.> args]
       CBox       -> [(primName_t prim "box_t") <.> args]
-      CPrim val   | val == "kk_integer_t" || val == "kk_string_t" || val == "kk_vector_t" || val == "kk_evv_t" || val == "kk_ref_t" || val == "kk_reuse_t" || val == "kk_box_t"
+      CPrim val   | val == "kk_integer_t" || val == "kk_bytes_t" || val == "kk_string_t" || val == "kk_vector_t" || val == "kk_evv_t" || val == "kk_ref_t" || val == "kk_reuse_t" || val == "kk_box_t"
                   -> [(primName_t prim val) <.> args]
                   | otherwise
                   -> -- trace ("** skip dup/drop call: " ++ prim ++ ": " ++ show args) $
@@ -1163,6 +1163,7 @@ genHoleCall tp        = --  ppType tp <.> text "_hole()")
                         case cType tp of
                           CPrim "kk_integer_t" -> text "kk_integer_zero"
                           CPrim "kk_string_t"  -> text "kk_string_empty()"
+                          CPrim "kk_bytes_t"  -> text "kk_bytes_empty()"
                           CPrim "kk_vector_t"  -> text "kk_vector_empty()"
                           _      -> text "kk_datatype_null()"
 
@@ -1350,6 +1351,8 @@ cTypeCon c
          then CPrim "kk_integer_t"
         else if (name == nameTpString)
          then CPrim "kk_string_t"
+        else if (name == nameTpBytes)
+         then CPrim "kk_bytes_t"
         else if (name == nameTpVector)
          then CPrim "kk_vector_t"
         else if (name ==  nameTpEvv)
@@ -1368,8 +1371,8 @@ cTypeCon c
          then CPrim "kk_unit_t"
         else if (name == nameTpInt64)
          then CPrim "int64_t"
-        -- else if (name == nameTpByte)
-        --  then CPrim "uint8_t"
+        else if (name == nameTpByte)
+         then CPrim "uint8_t"
         else if (name == nameTpInt8)
          then CPrim "int8_t"
         else if (name == nameTpInt16)
@@ -1865,7 +1868,7 @@ genPure expr
                         body   = (App expr [Var name InfoNone | name <- tnames])
                     genLambda tnames eff body
             _ -> case info of
-                   InfoExternal formats -> genInlineExternal name formats []
+                   InfoExternal format -> genInlineExternal name format []
                    _ -> return (ppName (getName name))
      Con name info
        | getName name == nameTrue -> return (text "true")
@@ -2153,26 +2156,26 @@ genAppInline f args
 -- Externals
 ---------------------------------------------------------------------------------
 
-extractExtern :: Expr -> Maybe (TName,[(Target,String)])
+extractExtern :: Expr -> Maybe (TName,String)
 extractExtern expr
   = case expr of
-      TypeApp (Var tname (InfoExternal formats)) targs -> Just (tname,formats)
-      Var tname (InfoExternal formats) -> Just (tname,formats)
+      TypeApp (Var tname (InfoExternal format)) targs -> Just (tname,format)
+      Var tname (InfoExternal format) -> Just (tname,format)
       _ -> Nothing
 
 -- inlined external sometimes  needs wrapping in a applied function block
-genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
-genInlineExternal tname formats argDocs
-  = do (decls,doc) <- genExprExternal tname formats argDocs
+genInlineExternal :: TName -> String -> [Doc] -> Asm Doc
+genInlineExternal tname format argDocs
+  = do (decls,doc) <- genExprExternal tname format argDocs
        if (null decls)
         then return doc
         else error ("Backend.C.FromCore.genInlineExternal: TODO: inline external declarations: " ++ show (vcat (decls++[doc])))
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
-genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
+genExprExternal :: TName -> String -> [Doc] -> Asm ([Doc],Doc)
 
 -- special case box/unbox
-genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tname == nameUnbox
+genExprExternal tname format [argDoc] | getName tname == nameBox || getName tname == nameUnbox
   = let isBox = (getName tname == nameBox)
         tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> if (isBox) then fromTp else toTp
@@ -2182,7 +2185,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tna
 
 
 -- special case dropn
-genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDrop
+genExprExternal tname format [argDoc,scanDoc] | getName tname == nameDrop
   = let isDup = (getName tname == nameDup)
         tp    = case typeOf tname of
                   TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
@@ -2209,7 +2212,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tna
     in return ([], call)
 
 -- special case is-unique
-genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
+genExprExternal tname format [argDoc] | getName tname == nameIsUnique
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
                   _ -> failure $ ("Backend.C.genExprExternal.is_unique: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
@@ -2217,7 +2220,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
     in return ([], call)
 
 -- special case free
-genExprExternal tname formats [argDoc] | getName tname == nameFree
+genExprExternal tname format [argDoc] | getName tname == nameFree
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
                   _ -> failure $ ("Backend.C.genExprExternal.free: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
@@ -2225,7 +2228,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameFree
     in return ([], call)
 
 -- special case decref
-genExprExternal tname formats [argDoc] | getName tname == nameDecRef
+genExprExternal tname format [argDoc] | getName tname == nameDecRef
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
                   _ -> failure $ ("Backend.C.genExprExternal.decref: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
@@ -2233,7 +2236,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDecRef
     in return ([], call)
 
 -- special case reuse
-genExprExternal tname formats [argDoc] | getName tname == nameReuse
+genExprExternal tname format [argDoc] | getName tname == nameReuse
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
                   _ -> failure $ ("Backend.C.genExprExternal.reuse: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
@@ -2241,7 +2244,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameReuse
     in return ([], call)
 
 -- special case: cfield hole
-genExprExternal tname formats [] | getName tname == nameCCtxHoleCreate
+genExprExternal tname format [] | getName tname == nameCCtxHoleCreate
   = return ([], genHoleCall (resultType (typeOf tname))) -- ppType (resultType (typeOf tname)) <.> text "_hole()")
 
 {-
@@ -2251,13 +2254,14 @@ genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSet
 -}
 
 -- normal external
-genExprExternal tname formats argDocs0
-  = let name = getName tname
-        format = getFormat tname formats
-        argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
-    in return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of
-         [] -> ([],empty)
-         ds -> (init ds, last ds)
+genExprExternal tname format argDocs0
+  = do
+      let name = getName tname
+          -- format = getFormat tname formats
+          argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
+      return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of
+          [] -> ([],empty)
+          ds -> (init ds, last ds)
   where
     ppExternalF :: Name -> String -> [Doc] -> Doc
     ppExternalF name []  args
@@ -2276,13 +2280,13 @@ genExprExternal tname formats argDocs0
     ppExternalF name (x:xs)  args
      = char x <.> ppExternalF name xs args
 
-getFormat :: TName -> [(Target,String)] -> String
-getFormat tname formats
-  = case lookupTarget (C CDefault) formats of  -- TODO: pass real ctarget from flags
-      Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
-                 trace( "warning: C backend does not support external in " ++ show tname ) $
-                      ("kk_unsupported_external(\"" ++ (show tname) ++ "\")")
-      Just s -> s
+-- getFormat :: TName -> [(TargetPlatform,String)] -> String
+-- getFormat tname formats
+--   = case lookupBestTarget (targetPlatformFromTarget (C CDefault)) formats of  -- TODO: pass real ctarget from flags
+--       Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
+--                  trace( "warning: C backend does not support external in " ++ show tname ++ " looking in " ++ show formats ) $
+--                       ("kk_unsupported_external(\"" ++ (show tname) ++ "\")")
+--       Just s -> s
 
 genDefName :: TName -> Asm Doc
 genDefName tname
@@ -2312,16 +2316,16 @@ genCommentTName (TName n t)
 extractExternal  :: Expr -> Maybe (TName, String, [Expr])
 extractExternal expr
   = case expr of
-      App (TypeApp (Var tname (InfoExternal formats)) targs) args
-        -> Just (tname, format tname formats, args)
-      App var@(Var tname (InfoExternal formats)) args
-        -> Just (tname, format tname formats, args)
+      App (TypeApp (Var tname (InfoExternal format)) targs) args
+        -> Just (tname, format, args)
+      App var@(Var tname (InfoExternal format)) args
+        -> Just (tname, format, args)
       _ -> Nothing
-  where
-    format tn fs
-      = case lookupTarget (C CDefault) fs of  -- TODO: pass real target from flags
-          Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
-          Just s -> s
+  -- where
+  --   format tn fs
+  --     = case lookupBestTarget (targetPlatformFromTarget (C CDefault)) fs of  -- TODO: pass real target from flags
+  --         Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
+  --         Just s -> s
 
 isFunExpr :: Expr -> Bool
 isFunExpr expr
@@ -2771,6 +2775,9 @@ reserved
     [ "errno"
     , "exception_info"
     , "or"
+    ]
+    ++ -- common globals
+    [ "timezone"
     ]
 
 inlineblock :: Doc -> Doc

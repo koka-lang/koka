@@ -12,10 +12,12 @@
 // with wrapping on overflow, e.g. `max-int64 + 1.int64 == min-int64`
 module std/num/int64
 
+import std/num/int32    // for js primitives
 import std/core/undiv
 
 extern import
   c  file "int64-inline.c"
+  js file "int64-inline.js"
 
 // The maximal integer value before overflow happens
 pub val max-int64 : int64 =  0x7FFF_FFFF_FFFF_FFFF.int64
@@ -50,12 +52,12 @@ pub inline fip fun i64( i : int ) : int64
 
 // Convert an `:int64` to a boolean.
 pub fun bool( i : int64 ) : bool
-  (i!=zero)
+  (i!=int64/zero)
 
 
 // Convert a boolean to an `:int64`.
 pub fip fun bool/int64( b : bool ) : int64
-  if b then one else zero
+  if b then one else int64/zero
 
 // Convert an `:int32` to an `:int64` (using sign extension).
 pub inline fip extern int32/int64( i : int32 ) : int64
@@ -133,14 +135,14 @@ pub fun show-hex64( i : int64, width : int = 16, use-capitals : bool = True, pre
 
 // Are two 64-bit integers equal?
 pub inline fip extern (==)(x : int64, y : int64) : bool
-  inline "(#1 == #2)"
   js inline "(#1 === #2)"
-
+  c inline "(#1 == #2)"
+  
 // Are two 64-bit integers not equal?
 pub inline fip extern (!=)(x : int64, y : int64) : bool
-  inline "(#1 != #2)"
   js inline "(#1 !== #2)"
-
+  c inline "(#1 != #2)"
+  
 // Is the first 64-bit integer smaller or equal to the second?
 pub inline fip extern (<=)(x : int64, y : int64) : bool
   inline "(#1 <= #2)"
@@ -169,17 +171,17 @@ pub inline fip extern (-)(x : int64, y : int64) : int64
 
 // Is the 64-bit integer negative?
 pub inline fip extern is-neg( i : int64 ) : bool
-  inline "0 > #1"
   js inline "0n > #1"
-
+  c inline "0 > #1"
+  
 // Is the 64-bit integer positive? (i.e. larger than zero)
 pub inline fip extern is-pos( i : int64 ) : bool
-  inline "0 < #1"
+  c inline "0 < #1"
   js inline "0n < #1"
 
 // Is the 64-bit integer zero?
 pub inline fip extern is-zero( i : int64 ) : bool
-  inline "0 == #1"
+  c inline "0 == #1"
   js inline "0n === #1"
 
 // The 64-bit integer for zero.
@@ -264,7 +266,7 @@ pub fip fun (^)( x : int64, y : int64) : int64
 
 // Bitwise _not_ of an `:int64`, i.e. flips all bits.
 pub inline fip extern not : ( i : int64 ) -> int64
-  inline "~#1"
+  c inline "~#1"
   js inline "BigInt.asIntN(64, ~#1)"
 
 
@@ -365,6 +367,7 @@ pub inline fip extern bit-reverse( i : int64 ) : int64
 // `bit-gather(0x1234.int64, 0x0F0F.int64).show-hex == "0x24"`
 pub inline fip extern bit-gather( i : int64, m : int64 ) : int64
   c inline "kk_bits_gather64(#1,#2)"
+  js "$std_num_int64._int64_gather"
 
 // Bit scatter (also known as _pdep_ or parallel bit deposit).
 // For each 1-bit in mask `m`, set the corresponding bit in the result from the
@@ -373,6 +376,7 @@ pub inline fip extern bit-gather( i : int64, m : int64 ) : int64
 // `bit-scatter(0x1234.int64, 0x0F0F.int64).show-hex == "0x304"`
 pub inline fip extern bit-scatter( i : int64, m : int64 ) : int64
   c inline "kk_bits_scatter64(#1,#2)"
+  js "$std_num_int64._int64_scatter"
 
 // Interleave the hi 32-bits with the lo 32-bits of the argument `i` such
 // that the hi bits are spread over the odd bits and the lo bits over the even bits
@@ -380,6 +384,7 @@ pub inline fip extern bit-scatter( i : int64, m : int64 ) : int64
 // `bit-zip(x.and(0xFFFF_FFFF.int64)) == bit-scatter(x,0x5555_5555_5555_5555.int64)`
 pub inline fip extern bit-zip( i : int64 ) : int64
   c inline "kk_bits_zip64(#1)"
+  js "$std_num_int64._int64_zip"
 
 // De-interleave the bits in `i` such that the odd bits are gathered in the
 // hi 32-bits of the result, and the even bits (starting at bit 0)
@@ -387,11 +392,13 @@ pub inline fip extern bit-zip( i : int64 ) : int64
 // `bit-unzip(x).and(0xFFFF_FFFF.int64) == bit-gather(x,0x5555_5555_5555_5555.int64)`
 pub inline fip extern bit-unzip( i : int64 ) : int64
   c inline "kk_bits_unzip64(#1)"
+  js "$std_num_int64._int64_unzip"
 
 // Or-combine: for every byte `b` in the argument `i`, the corresponding
 // byte in the result becomes 0 if `b==0`, and `0xFF` otherwise.
 pub inline fip extern orc( i : int64 ) : int64
   c inline "kk_bits_orc64(#1)"
+  js "$std_num_int64._int64_orc"
 
 // Carry-less multiplication (or _xor_ multiplication).
 // See also <https://en.wikipedia.org/wiki/Carry-less_product>
@@ -403,12 +410,14 @@ pub inline fip extern orc( i : int64 ) : int64
 //    `clmul(x,-1.int64).shr(63).bool == x.parity`
 pub inline fip extern clmul( x : int64, y : int64 ) : int64
   c inline "(int64_t)kk_clmul64((uint64_t)#1,(uint64_t)#2)"
+  js "$std_num_int64._int64_clmul" 
 
 // Wide carry-less multiplication (or _xor_ multiplication) to `(hi,lo)`,
 // where `(hi,lo).int == hi.int * 0x1_0000_0000_0000_0000 + lo.uint`.
 // See also <https://en.wikipedia.org/wiki/Carry-less_product>.
 pub fip extern clmul-wide( x : int64, y : int64 ) : (int64,int64)
   c "kk_clmul64x_wide"
+  js "_int64_clmul_wide"
 
 // Reverse carry-less multiplication.
 // Defined as `clmulr(x,y) == clmul(x.bit-reverse,y.bitreverse).bitreverse`
@@ -417,6 +426,7 @@ pub fip extern clmul-wide( x : int64, y : int64 ) : (int64,int64)
 // - `zip(x) == clmul(x,x) | clmulr(x,x)`.
 pub inline fip extern clmulr( x : int64, y : int64 ) : int64
   c inline "(int64_t)kk_clmulr64((uint64_t)#1,(uint64_t)#2)"
+  js "$std_num_int64._int64_clmulr"
 
 
 // Return the minimum of two integers

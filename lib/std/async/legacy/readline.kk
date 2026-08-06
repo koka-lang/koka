@@ -10,9 +10,9 @@
 
    test `std/async` and `module std/time/instant`.
 */
-module std/async/readline
+module async/readline
 
-import std/async
+import async
 
 extern import {
   cs file "readline-inline.cs"
@@ -33,12 +33,12 @@ pub fun readline() : <asyncx,console> string {
   }
 }
 
-extern prim-readline( cb : (null<exception>,string) -> io-noexn () ) : io any {
+extern prim-readline( cb : (null<exception>,string) -> ioc () ) : io any {
   cs "_Readline.Readline"
   js "_readline"
 }
 
-extern prim-cancel-readline( id : any ) : io-noexn () {
+extern prim-cancel-readline( id : any ) : ioc () {
   cs "_Readline.CancelReadline"
   js "_cancel_readline"
 }

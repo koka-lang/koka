@@ -1,3 +1,3 @@
 ok : V
  
-pub alias ok = static/modA/aint = 2
+pub alias ok = modA/aint = 2

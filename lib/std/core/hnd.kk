@@ -152,6 +152,7 @@ value type marker<e::E,a>
 
 // Are two markers equal?
 extern eq-marker( x : marker<e1,a1>, y : marker<e2,a2> ) : bool
+  js inline "#1===#2"
   inline "#1==#2"
 
 extern fresh-marker() : marker<e,a>
@@ -321,15 +322,22 @@ noinline fun yield-to( m : marker<e1,r>, clause : (resume-result<b,r> -> e1 r) -
     // val keep1 = guard(w0)  // check the evidence is correctly restored
     f()
 
-pub type yield-info
+abstract struct yield-context( yld : any )
 
-extern yield-capture() : e yield-info
+extern yield-capture-prim() : e any
   c "kk_yield_capture"
   js "_yield_capture"
 
-pub extern unsafe-reyield(yld : yield-info) : e a
+extern unsafe-reyield-prim(yld : any) : e a
   c "kk_yield_reyield"
   js "_reyield"
+
+pub fun yield-capture() : e yield-context
+  Yield-context(yield-capture-prim())
+
+pub fun unsafe-reyield(Yield-context(yld) : yield-context ) : e a
+  unsafe-reyield-prim(yld)
+
 
 
 // -------------------------------------------
@@ -603,31 +611,41 @@ fun get( ref: ref<h,a>) : <read<h>,div> a
 inline extern unsafe-st(f : () -> <st<global>|e> a ) : (() -> e a)
   inline "#1"
 
-fun protect-prompt( resumed : ref<global,bool>,  k : resume-result<b,r> -> e r, res : r ) : e r
-  val did-resume : bool = (unsafe-st{ !resumed })()
-  if did-resume then
-    // if resumed, we no longer need to protect
-    res
-  elif !yielding() then
-    // otherwise, if we are not yielding, resume k with finalization (to run all finally clauses)
-    k(Finalize(res))
-  elif yielding-non-final() then
-    // if we yield non-final to an operation, extend the continuation with this prompt (so we keep protecting after being resumed)
-    yield-cont( fn(cont,x) protect-prompt(pretend-decreasing(resumed),k,cont(x)) )
-  else
-    // if we are in a final yield, capture it, resume k with finalization, and reyield
-    val yld = yield-capture()
-    k(Finalize(res))
-    if yielding() return yield-extend( fn(_x) unsafe-reyield(yld) ) // yikes, a finally clause is itself yielding...
-    unsafe-reyield(yld)
+type protect-state<b,r,e>
+  NeedsFinalization(k : resume-result<b,r> -> e r)
+  NoFinalization
+
+fun protect-prompt( resumed : ref<global,protect-state<b,r,e>>, res : r) : e r
+  // `@Hnodiv` is consumed by the divergence checker via implicit parameters:
+  // because `resumed` lives in `global` state we'd otherwise be flagged as
+  // potentially divergent through self-reference; binding `@Hnodiv` here
+  // satisfies the checker that this prompt does not introduce divergence.
+  val hdiv=@Hnodiv
+  val did-resume : some<b,r,e> protect-state<b,r,e> = (unsafe-st{ !resumed })()
+  match did-resume
+    NoFinalization -> // resumed already, no need to protect
+      res
+    NeedsFinalization(k) ->
+      if !yielding() then
+        // otherwise, if we are not yielding, resume k with finalization (to run all finally clauses)
+        k(Finalize(res))
+      elif yielding-non-final() then
+        // if we yield non-final to an operation, extend the continuation with this prompt (so we keep protecting after being resumed)
+        yield-cont( fn(cont,x) protect-prompt(pretend-decreasing(resumed),cont(x)) )
+      else
+        // if we are in a final yield, capture it, resume k with finalization, and reyield
+        val yld = yield-capture()
+        k(Finalize(res))
+        if yielding() return yield-extend( fn(_x) unsafe-reyield(yld) ) // yikes, a finally clause is itself yielding...
+        unsafe-reyield(yld)
 
 fun protect( x : a, clause : (x:a, k: b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r
-  val resumed = (unsafe-st{ref(False)})()
+  val resumed = (unsafe-st{ref(NeedsFinalization(k))})()
   fun kprotect(ret)
-    (unsafe-st{resumed := True})()
+    (unsafe-st{resumed := NoFinalization})()
     k(Deep(ret))
   val res = clause(x,kprotect)
-  protect-prompt(resumed,k,res)
+  protect-prompt(resumed,res)
 
 /*
 pub fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e,r>
@@ -715,12 +733,12 @@ fun under2( ev : ev<h>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b
   z
 
 fun protect2( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r
-  val resumed = (unsafe-st{ref(False)})()
+  val resumed = (unsafe-st{ref(NeedsFinalization(k))})()
   fun kprotect(ret)
-    (unsafe-st{ resumed := True })()
+    (unsafe-st{ resumed := NoFinalization })()
     k(Deep(ret))
   val res = clause(x1,x2,kprotect)
-  protect-prompt(resumed,k,res)
+  protect-prompt(resumed,res)
 
 pub fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2<a1,a2,b,h,e,r>
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ protect2(x1,x2,clause,k) }) })
@@ -930,9 +948,13 @@ pub fun @open4<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a
 // capture yields
 // -------------------------------------------
 
-pub fun unsafe-try-finalize( action : () -> e a ) : e either<yield-info,a>
-  try-finalize-prompt(action());
+// catch finalization and return the current yield state
+pub noinline fun unsafe-unfinalize( action : () -> e a ) : e either<yield-context,a>
+  unfinalize-prompt(action());
 
-fun try-finalize-prompt( res : a ) : e either<yield-info,a>
-  if yielding-non-final() return yield-cont(fn(cont,x) try-finalize-prompt(pretend-decreasing(cont(x))) )
-  if !yielding() then Right(res) else Left(yield-capture())
+fun unfinalize-prompt( res : a ) : e either<yield-context,a>
+  if yielding-non-final()
+    then yield-cont(fn(cont,x) unfinalize-prompt(pretend-decreasing(cont(x))) )
+  elif !yielding()
+    then Right(res)
+    else Left(yield-capture())

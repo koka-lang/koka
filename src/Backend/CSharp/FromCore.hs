@@ -30,7 +30,7 @@ import Type.Kind( getKind )
 import Type.Assumption( getArity )
 import Type.Pretty( niceType )
 
-import Common.Syntax( Target(..), BuildType(..) )
+import Common.Syntax
 import Common.Name hiding (ModuleName)
 import Common.NamePrim
 import Common.Failure
@@ -80,7 +80,7 @@ csharpFromCore buildType useCps mbMain core
 
 includeExternal :: BuildType -> External -> [Doc]
 includeExternal buildType  ext
-  = case externalImportLookup CS buildType  "include-inline" ext of
+  = case externalImportLookup buildType  "include-inline" ext of
       Just content -> [text content]
       _ -> []
 
@@ -588,14 +588,14 @@ genExpr expr
 
 
 
-genExternal :: TName -> [(Target,String)] -> [Type] -> [Expr] -> Asm ()
-genExternal  tname formats targs args
+genExternal :: TName -> String -> [Type] -> [Expr] -> Asm ()
+genExternal  tname format targs args
  = do let (m,n) = getTypeArities (typeOf tname)
       cps <- useCps
       ctx <- getModule
       if (n > length args)
         then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
-             do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
+             do eta <- etaExpand (TypeApp (Var tname (InfoExternal format)) targs) args n
                 genExpr eta
       {- else if (not cps && getName tname == nameYieldOp && length targs == 2)
         then do let resTp = last (filter (\t -> isKindStar (getKind t)) targs)
@@ -617,7 +617,7 @@ genExternal  tname formats targs args
                       do currentDef <- getCurrentDef
                          let resTp = resultType targs (typeOf tname)
                              targDocs = map (ppType ctx) targs
-                             extDoc = ppExternal currentDef tname formats (ppType ctx resTp) targDocs argDocs
+                             extDoc = ppExternal currentDef tname format (ppType ctx resTp) targDocs argDocs
                          if (isTypeUnit resTp)
                            then do putLn (extDoc <.> semi)
                                    result (text "Unit.unit")
@@ -788,17 +788,13 @@ ppConSingleton :: ModuleName -> Name -> TName -> [Type] -> Doc
 ppConSingleton ctx typeName tname targs
   = ppQName ctx (typeClassName typeName) <.> ppTypeArgs ctx targs <.> text "." <.> ppDefName (conClassName (getName tname))
 
-ppExternal :: Name -> TName -> [(Target,String)] -> Doc -> [Doc] -> [Doc] -> Doc
-ppExternal currentDef extName formats resTp targs args0
+ppExternal :: Name -> TName -> String -> Doc -> [Doc] -> [Doc] -> Doc
+ppExternal currentDef extName format resTp targs args0
   = let args = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) args0
-    in case lookup CS formats of
-     Nothing -> case lookup Default formats of
-      Nothing ->
-        trace( "warning: backend does not support external in " ++ show currentDef ) $
-        (text "Primitive.UnsupportedExternal<" <.>
-          resTp <.> text ">(\"" <.> text (show currentDef) <.> text "\")")
-      Just s  -> ppExternalF s targs args
-     Just s -> ppExternalF s targs args
+    in -- trace( "warning: backend does not support external in " ++ show currentDef ) $
+       -- (text "Primitive.UnsupportedExternal<" <.>
+       --   resTp <.> text ">(\"" <.> text (show currentDef) <.> text "\")")
+       ppExternalF format targs args
   where
     ppExternalF :: String -> [Doc] -> [Doc] -> Doc
     ppExternalF fmt targs args
@@ -1392,6 +1388,8 @@ ppTypeCon ctx c kind
         else if (name == nameTpChar)
          then text "int"  -- we need to represent as int since Char in C# is only defined as a UTF16 point
         else if (name == nameTpInt8)
+         then text "byte" -- sbyte is not CLS compliant
+        else if (name == nameTpByte)
          then text "byte" -- sbyte is not CLS compliant
         else if (name == nameTpInt16)
          then text "Int16"

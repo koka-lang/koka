@@ -7,6 +7,8 @@ import std/core/order = std/core/order pub = "";
 import std/core/char = std/core/char pub = "";
 import std/core/int = std/core/int pub = "";
 import std/core/vector = std/core/vector pub = "";
+import std/core/bytes = std/core/bytes pub = "";
+import std/core/bslice = std/core/bslice pub = "";
 import std/core/string = std/core/string pub = "";
 import std/core/sslice = std/core/sslice pub = "";
 import std/core/list = std/core/list pub = "";

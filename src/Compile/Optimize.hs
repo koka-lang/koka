@@ -106,7 +106,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
 
         -- tail-call-modulo-cons optimization
         when (optctail flags) $
-          ctailOptimize penv newtypes gamma (optctailCtxPath flags)
+          ctailOptimize penv (targetPlatformFromFlags flags) newtypes gamma (optctailCtxPath flags)
 
         -- transform effects to explicit monadic binding (and resolve .open calls)
         when (enableMon flags && not (isPrimitiveModule progName)) $
@@ -150,7 +150,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
             regularDeps      = extractDepsFromDefs coreDefsFinal
             allDeps          = nub (inlineDeps ++ regularDeps)
             currentImports   = map Core.importName (Core.coreProgImports coreProgram)
-            inlineImports    = [Core.makeImport name "" Core.ImportCompiler Private "" | name <- allDeps, not (name `elem` currentImports) && not (name == progName)]
+            inlineImports    = [Core.makeImport name "" Core.ImportCompiler Private "" rangeNull | name <- allDeps, not (name `elem` currentImports) && not (name == progName)]
             coreFinal        = (if (null inlineImports || verbose flags <= 2) then id else trace (show progName ++ ": extra inline imports: " ++ show (map Core.importName inlineImports))) $
                                uniquefy $ coreProgram {
                                  Core.coreProgDefs = coreDefsFinal,

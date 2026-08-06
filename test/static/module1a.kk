@@ -1,4 +1,4 @@
-module module1a {
+module static/module1a {
   import static/modA
   import static/modB  
 

@@ -27,3 +27,7 @@ pub fun pretend-no-div( action : () -> <div|e> a ) : e a
 inline fip extern pretend-nodiv-cast : forall<e,a> ( action : () -> <div|e> a ) -> (() -> e a)
   inline "#1"
 
+// Collapse multiple div effects into one (this is safe).
+pub fun collapse-div( action : () -> <div,div|e> a ) : <div|e> a
+  pretend-no-div(action)
+

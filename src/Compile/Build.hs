@@ -6,7 +6,7 @@
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 module Compile.Build( Build
-                      , VFS(..), noVFS
+                      , VFS, noVFS, vfsEmpty, vfsSingleton, vfsFromList, vfsToList
                       , runBuildIO, runBuildMaybe, runBuild
 
                       , modulesFullBuild
@@ -94,7 +94,7 @@ modulesFullBuild rebuild forced mainEntries cachedImports roots
 -- Given a complete list of modules in build order (and main entry points), build them all.
 modulesBuild :: [Name] -> [Module] -> Build [Module]
 modulesBuild mainEntries modules
-  = -- phaseTimed 2 "build" (\_ -> Lib.PPrint.empty) $ -- (list (map (pretty . modName) modules))
+  = phaseTimed 2 "build" (\_ -> Lib.PPrint.empty) $                          
     do parsedMap   <- modmapCreate modules
        tcheckedMap <- modmapCreate modules
        optimizedMap<- modmapCreate modules
@@ -108,6 +108,9 @@ modulesBuild mainEntries modules
                        modules
        -- mapM_ modmapClear [tcheckedMap,optimizedMap,codegenMap,linkedMap]
        return compiled -- modulesFlushErrors compiled
+  
+-- ppMod m = pretty (modName m) <.> colon <+> list (map (pretty . lexImportName) (modDeps m))
+-- traceModDeps msg mods = phaseVerbose 2 (msg ++ ": moddeps: ") (\_ -> vcat (map ppMod mods))
 
 -- Given a complete list of modules in build order, type check them all.
 modulesTypeCheck :: [Module] -> Build [Module]
@@ -362,7 +365,7 @@ moduleWaitForImports recurse modmap alreadyDone0 importNames
   like perceus ref counting etc.)
 ---------------------------------------------------------------}
 
-moduleOptimize :: ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
+moduleOptimize :: HasCallStack => ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build Module
 moduleOptimize parsedMap tcheckedMap optimizedMap
   = moduleGuard PhaseTyped PhaseOptimized optimizedMap id id (moduleTypeCheck parsedMap tcheckedMap) $ \done mod ->
      do -- wait for imports to be optimized (and include imports needed for inline definitions)
@@ -426,7 +429,7 @@ moduleWaitForInlineImports modmap importNames
   Type check a module
 ---------------------------------------------------------------}
 
-moduleTypeCheck :: ModuleMap -> ModuleMap -> Module -> Build Module
+moduleTypeCheck :: HasCallStack => ModuleMap -> ModuleMap -> Module -> Build Module
 moduleTypeCheck parsedMap tcheckedMap
   = moduleGuard PhaseParsed PhaseTyped tcheckedMap id id (moduleParse parsedMap) $ \done mod ->
      do -- wait for direct imports to be type checked
@@ -457,7 +460,7 @@ moduleTypeCheck parsedMap tcheckedMap
 
 
 -- Recursively load public imports from imported modules in a fixpoint
-moduleWaitForPubImports :: ModuleMap -> [ModuleName] -> [(Bool,ModuleName)] -> Build [Module]
+moduleWaitForPubImports :: HasCallStack => ModuleMap -> [ModuleName] -> [(Bool,ModuleName)] -> Build [Module]
 moduleWaitForPubImports tcheckedMap alreadyDone0 importDeps
   = do -- wait for imported modules to be type checked
        let (importOpen,importNames) = unzip importDeps
@@ -488,6 +491,7 @@ coreImportsFromModules lexImports modules
       (case modCore mod of                   -- careful: need to be strict enough or we hang on to the entire "modCore mod" !
         Just core -> Core.coreProgDoc core
         Nothing -> "")
+      (getRange (modName mod))
     | mod <- modules ]
   where
     getVisibility modname
@@ -499,6 +503,11 @@ coreImportsFromModules lexImports modules
       = case find (\imp -> lexImportName imp == modname) lexImports of
           Just imp -> Core.ImportUser
           _        -> Core.ImportPub
+
+    getRange modname
+      = case find (\imp -> lexImportName imp == modname) lexImports of
+          Just imp -> lexImportNameRange imp
+          _        -> rangeNull
 
 
 
@@ -513,21 +522,15 @@ moduleParse tparsedMap
         phase "parse" $ \penv -> text (if verbose flags > 1 || isAbsolute (modSourceRelativePath mod)
                                         then modSourcePath mod
                                         else ".../" ++ modSourceRelativePath mod)
-        case checkError (parseProgramFromLexemes (modSource mod) (modLexemes mod)) of
+        case checkError (parseProgramFromLexemes (targetPlatformFromFlags flags) (modSource mod) (modLexemes mod)) of
           Left errs
             -> done mod{ modPhase  = PhaseParsedError
                        , modErrors = mergeErrors errs (modErrors mod)
                        }
           Right (prog,warns)
-            -> do penv <- getPrettyEnv
-                  let err = if not (reverse (show (programName prog)) `isPrefixOf` reverse (show (modName mod)))
-                             then errorsSingle $ errorMessageKind ErrStatic (programNameRange prog) $
-                                                 text "the module name" <+> TP.ppName penv (programName prog) <+>
-                                                 text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod)
-                             else errorsNil
-                  done mod{ modPhase   = PhaseParsed
-                          , modErrors  = mergeErrors warns (mergeErrors err (modErrors mod))
-                          , modProgram = Just $! prog{ programName = modName mod }  -- todo: test suffix!
+            -> do done mod{ modPhase   = PhaseParsed
+                          , modErrors  = mergeErrors warns (modErrors mod)
+                          , modProgram = Just $! prog{ programName = modName mod }
                           }
 
 
@@ -542,16 +545,18 @@ moduleParse tparsedMap
 -- to determine dependencies
 modulesResolveDependencies :: Bool -> [ModuleName] -> [Module] -> [Module] -> Build [Module]
 modulesResolveDependencies rebuild forced cached roots
-  = do ordered <- -- phaseTimed "resolving" (list (map (pretty . modName) roots)) $
+  = do ordered <- -- phaseTimed 0 "resolving" (\tpenv -> list (map (pretty . modName) roots)) $
                   modulesResolveDeps rebuild forced cached roots []
        return ordered
 
 modulesResolveDeps :: Bool -> [ModuleName] -> [Module] -> [Module] -> [Module] -> Build [Module]
 modulesResolveDeps rebuild forced cached roots acc
-  = do lroots     <- mapConcurrentModules (moduleLoad rebuild forced) roots    -- we can concurrently load (and lex) modules
+  = do lroots    <- mapConcurrentModules (moduleLoad rebuild forced) roots    -- we can concurrently load (and lex) modules
        let loaded = lroots ++ acc
-       newimports <- nubBy (\m1 m2 -> modName m1 == modName m2) <$> concat <$>
-                     mapM (addImports loaded) lroots
+       -- trace ("resolveDeps: loaded: " ++ show (map modName loaded)) $ return ()
+       newimportss <- mapM (addImports (map modName loaded)) lroots
+       let newimports = nubBy (\m1 m2 -> modName m1 == modName m2) $ concat newimportss
+       
        if (null newimports)
          then do ordered <- toBuildOrder loaded    -- all modules in build order
                  validateDependencies ordered      -- now bottom-up reload also modules whose dependencies have updated
@@ -560,34 +565,52 @@ modulesResolveDeps rebuild forced cached roots acc
                                                    -- in which case we need to load from source anyways. (This is still good as any
                                                    -- definitions from the interface etc. will stay even if there are compilation
                                                    -- errors which helps for the IDE.)
-         else do -- phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
+         else do phaseVerbose 2 "resolve" $ \penv -> list (map (TP.ppName penv . modName) newimports)
                  modulesResolveDeps rebuild forced cached newimports loaded  -- keep resolving until all have been loaded
   where
-    addImports loaded mod
-      = catMaybes <$> mapM (addImport . lexImportName) (modDeps mod)
+    addImports :: [ModuleName] -> Module -> Build [Module]
+    addImports loadedNames mod
+      = catMaybes <$> mapM addImport (modDeps mod)           
       where
-        addImport :: ModuleName -> Build (Maybe Module)
-        addImport impName
-          = if any (\m -> modName m == impName) loaded  -- already done?
-              then return Nothing
+        -- note: we may import `mod` relatively, so it gets resolved to the full `dir/mod`
+        -- and thus we need to update the LexImport's as only now we know the full module name 
+        -- (after calling moduleFromModuleName)
+        addImport :: LexImport -> Build (Maybe Module)
+        addImport imp
+          = do let impName = lexImportName imp
+               mbFound <- checkCached imp impName
+               case mbFound of
+                 Just res -> return res
+                 _        -> do -- let relativeDir = dirname (modSourcePath mod)
+                                m <- moduleFromModuleName (modName mod) {- relativeDir -} impName (lexImportNameRange imp)
+                                -- trace ("import " ++ show impName ++ " as " ++ show (modName m)) $ return ()
+                                mbFound <- checkCached imp (modName m)
+                                case mbFound of
+                                  Just res -> return res
+                                  Nothing  -> return (Just m)
+
+        checkCached :: LexImport -> ModuleName -> Build (Maybe (Maybe Module))
+        checkCached imp impName
+          = if any (impName==) loadedNames  -- already done?
+              then return (Just Nothing)
               else case find (\m -> modName m == impName) cached of   -- do we already have this module cached?
-                     Just mod  -> do return (Just mod)
-                     _         -> do let relativeDir = dirname (modSourcePath mod)
-                                     m <- moduleFromModuleName relativeDir impName
-                                     return (Just m)
+                     Just mod  -> return (Just (Just mod))
+                     Nothing   -> return Nothing
 
 -- order the loaded modules in build order (by using scc)
 toBuildOrder :: [Module] -> Build [Module]
 toBuildOrder modules
   = -- todo: might be faster to check if the modules are already in build order before doing a full `scc` ?
-    let deps    = [(modName mod, map lexImportName (modDeps mod)) | mod <- modules]
+    let deps    = [(modName mod, map lexImportName (modDeps mod)) | mod <- modules]    
         ordered = scc deps
         ungroup [mname]  | Just mod <- find (\m -> modName m == mname) modules  = return [mod]
         ungroup grp      = do throwErrorKind ErrBuild (\penv -> text "recursive imports:" <+> list (map (TP.ppName penv) grp))
                               return []
     in do phaseVerbose 3 "build order" $ \penv -> list (map (\grp -> hsep (map (TP.ppName penv) grp)) ordered)
-          concat <$> mapM ungroup ordered
-
+          -- trace ("toBuildOrder: deps: " ++ show deps) $ return ()
+          orderedMods <- concat <$> mapM ungroup ordered
+          return orderedMods
+          
 -- validate that dependencies of a module are not out-of-date
 -- modules must be in build order
 validateDependencies :: [Module] -> Build [Module]
@@ -602,9 +625,12 @@ validateDependencies modules
           else let imports = map lexImportName (modDeps mod)
                    phases  = map (\iname -> case find (\m -> modName m == iname) visited of
                                               Just m -> modPhase m
-                                              _      -> PhaseInit) imports
-               in if (minimum phases < modPhase mod)
-                    then -- trace ("invalidated: " ++ show (modName mod)) $
+                                              _      -> -- trace ("cannot find: " ++ show iname) $ 
+                                                        PhaseInit) imports
+                   minphase = minimum phases
+               in if (minphase < PhaseIfaceLoaded && -- once IfaceLoaded we are good?
+                      minphase < modPhase mod) 
+                    then -- trace ("invalidated: " ++ show (modName mod) ++ show (modPhase mod) ++ " > " ++ show (zip imports phases)) $
                          do mod' <- moduleLoad True [] mod
                             return (mod' : visited)
                     else return (mod : visited)
@@ -655,34 +681,65 @@ moduleLex mod
        input <- getFileContents (modSourcePath mod)
        let source  = Source (modSourcePath mod) input
            lexemes = lexSource allowAt (semiInsert flags) id 1 source
-       case checkError (parseDependencies source lexemes) of
+       case checkError (parseDependencies (targetPlatformFromFlags flags) source lexemes) of
          Left errs
             -> return mod{ modPhase  = PhaseInit
                          , modErrors = errs
                          , modSource = source
                          }
-         Right (imports,warns)
-            -> return mod{ modPhase   = PhaseLexed
-                         , modErrors  = warns
-                         , modSource  = source
-                         , modLexemes = lexemes
-                         , modDeps    = seqqList $ lexImportNub $
-                                        [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) | imp <- imports]
-                         }
+         Right ((declaredModName,rng,imports),warns)
+            -> do penv <- getPrettyEnv
+                  let (updirs,err) 
+                            = let (dparts,mparts) = (splitName declaredModName,splitName (modName mod))
+                              in if not (reverse dparts `isPrefixOf` reverse mparts)
+                                  then ("",
+                                        errorsSingle $ errorMessageKind ErrStatic rng $
+                                                      text "the module name" <+> TP.ppName penv declaredModName <+>
+                                                      text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod))
+                                  else let updirs = concat ["/.." | _ <- init dparts]
+                                      in (updirs,errorsNil)
+                              
+                      relativeDir 
+                            = (dirname (modSourcePath mod) ++ updirs)
 
+                      deps0 = lexImportNub $
+                              [LexImport (importFullName imp) (importName imp) (importVis imp) (importOpen imp) (importFullNameRange imp) 
+                                | imp <- imports]
+
+                      resolveDep :: LexImport -> Build LexImport
+                      resolveDep imp 
+                        = do mbname <- moduleNameResolve relativeDir (lexImportName imp)
+                             case mbname of
+                               Just mname -> return (imp{ lexImportName = mname })
+                               Nothing    -> throwModuleNotFound declaredModName relativeDir (lexImportNameRange imp) (lexImportName imp)
+                                                                                              
+                  deps <- mapM resolveDep deps0                       
+                  let mod1 = mod{ modPhase   = PhaseLexed
+                                , modErrors  = mergeErrors warns err
+                                , modSource  = source
+                                , modLexemes = lexemes
+                                , modDeps    = seqqList $ deps
+                                }
+                  return mod1
+                  
 
 moduleLoadIface :: Module -> Build Module
 moduleLoadIface mod
   = do phase "load" $ \penv -> TP.ppName penv (modName mod)
-       (core,parseInlines) <- liftIOError $ parseCore (modIfacePath mod) (modSourcePath mod)
-       return (modFromIface core parseInlines mod)
+       flags <- getFlags
+       (core,parseInlines) <- liftIOError $ parseCore (targetPlatformFromFlags flags) (modIfacePath mod) (modSourcePath mod)
+       let modi = modFromIface core parseInlines mod
+       -- phase "loaded" $ \penv -> TP.ppName penv (modName modi) <+> text (": " ++ show (modPhase modi))
+       return modi
+       
+
 
 moduleLoadLibIface :: Module -> Build Module
 moduleLoadLibIface mod
   = do cscheme <- getColorScheme
-       phase "load" $ \penv -> TP.ppName penv (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod)
-       (core,parseInlines) <- liftIOError $ parseCore (modLibIfacePath mod) (modSourcePath mod)
+       phase "load" $ \penv -> TP.ppName penv (modName mod) <+> color (colorInterpreter cscheme) (text "from:") <+> text (modLibIfacePath mod)       
        flags   <- getFlags
+       (core,parseInlines) <- liftIOError $ parseCore (targetPlatformFromFlags flags) (modLibIfacePath mod) (modSourcePath mod)
        pooledIO $ copyLibIfaceToOutput flags (modLibIfacePath mod) (modIfacePath mod) core
        -- Use both timestamps: ifacePath for the copy, libIfacePath for the original.
        -- On WASI, setFileTime is a no-op so the copy's mtime won't match the source.
@@ -698,7 +755,7 @@ modFromIface core parseInlines mod
                              Just f  -> PhaseIfaceLoaded
         , modErrors      = errorsNil
         , modSource      = sourceNull
-        , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False {- @open -}
+        , modDeps        = seqqList $ [LexImport (Core.importName imp) nameNil (Core.importVis imp) False (Core.importNameRange imp) {- @open -}
                                        | imp <- Core.coreProgImports core, not (Core.isCompilerImport imp) ]
         , modCore        = Just $! core
         , modDefinitions = Just $! defsFromCore False core
@@ -712,7 +769,7 @@ copyLibIfaceToOutput flags libIfacePath ifacePath core  {- core is needed to kno
   = do let withext fname ext = notext fname ++ ext
            force = rebuild flags
        copyTextIfNewer force libIfacePath ifacePath
-       case target flags of
+       case targetFromFlags flags of
         CS    -> do copyBinaryIfNewer force (withext libIfacePath dllExtension) (withext ifacePath dllExtension)
         JS _  -> do copyTextIfNewer force (withext libIfacePath ".mjs") (withext ifacePath ".mjs")
         C _   -> do copyTextIfNewer force (withext libIfacePath ".c") (withext ifacePath ".c")
@@ -728,20 +785,20 @@ copyLibIfaceToOutput flags libIfacePath ifacePath core  {- core is needed to kno
 
 clibsFromCore :: Flags -> Core -> [String]
 clibsFromCore flags core
-  = externalImportKeyFromCore (target flags) (buildType flags) core "library"
+  = externalImportKeyFromCore (buildType flags) core "library"
 
 csyslibsFromCore :: Flags -> Core -> [String]
 csyslibsFromCore flags core
-  = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
+  = externalImportKeyFromCore (buildType flags) core "syslib"
 
 
-externalImportKeyFromCore :: Target -> BuildType -> Core.Core -> String -> [String]
-externalImportKeyFromCore target buildType core key
-  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore target core]
+externalImportKeyFromCore :: BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore buildType core key
+  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore core]
 
-externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
-externalImportsFromCore target core
-  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (target,keyvals) <- imports]
+externalImportsFromCore :: Core.Core -> [[(String,String)]]
+externalImportsFromCore core
+  = [imports  | Core.ExternalImport imports _ <- Core.coreProgExternals core]
 
 
 {---------------------------------------------------------------
@@ -754,60 +811,77 @@ moduleFromSource fpath0
   = do let fpath = normalize fpath0
        mbpath <- searchSourceFile "" fpath
        case mbpath of
-         Nothing          -> throwFileNotFound fpath
-         Just (root,stem) -> do let stemParts  = splitPath (noexts stem)
-                                    sourcePath = if null root then stem   -- on wsl2: ("","/@virtual///wsl.localhost/...")
-                                                              else joinPath root stem
-                                modName <- if isAbsolute stem || any (not . isValidId) stemParts
-                                            then case reverse stemParts of
-                                                    (base:_)  | isValidId base
-                                                      -> return (newModuleName base)  -- module may not be found if imported
-                                                    _ -> throwErrorKind ErrBuild (\penv -> text ("file path cannot be mapped to a valid module name: " ++ sourcePath))
-                                            else return (newModuleName (noexts stem))
-                                ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)
-                                -- trace ("moduleFromSource: " ++ show (root,stem,sourcePath,ifacePath)) $
-                                moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = stem }
+         Nothing              -> throwFileNotFound fpath
+         Just (root,relpath)  -> do let relParts   = splitPath (noexts relpath)
+                                        sourcePath = if null root then relpath   -- on wsl2: ("","/@virtual///wsl.localhost/...")
+                                                                  else joinPath root relpath
+                                    modName <- if isAbsolute relpath || any (not . isValidId) relParts
+                                                then case reverse relParts of
+                                                        (base:_)  | isValidId base
+                                                          -> return (newModuleName base)  -- module may not be found if imported
+                                                        _ -> throwErrorKind ErrBuild (\penv -> text ("file path cannot be mapped to a valid module name: " ++ sourcePath))
+                                                else return (newModuleName (noexts relpath))
+                                    ifacePath <- outputName (moduleNameToPath modName ++ ifaceExtension)                                
+                                    moduleValidate $ (moduleCreateInitial modName sourcePath ifacePath ""){ modSourceRelativePath = relpath }
   where
     isValidId :: String -> Bool  -- todo: make it better
     isValidId ""      = False
     isValidId (c:cs)  = (isLower c || c=='@') && all (\c -> isAlphaNum c || c `elem` "_-@") cs
 
 
-moduleFromModuleName :: FilePath -> Name -> Build Module
-moduleFromModuleName relativeDir modName
+-- todo: after lexing the import modules are always full module names so we
+-- should never need to look to the relativeDir again? 
+moduleFromModuleName :: ModuleName -> {- FilePath -> -} Name -> Range -> Build Module
+moduleFromModuleName parent {- relativeDir -} modName modNameRng
   = -- trace ("moduleFromModuleName: " ++ show modName ++ ", relative dir: " ++ relativeDir) $
-    do mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)
-       ifacePath    <- outputName (moduleNameToPath modName ++ ifaceExtension)
-       libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)
+    do mbSourceName <- searchSourceFile "" {-relativeDir-} (nameToPath modName ++ sourceExtension)       
        case mbSourceName of
-         Just (root,stem)
-            -> moduleValidate $ (moduleCreateInitial modName (joinPath root stem) ifacePath libIfacePath){ modSourceRelativePath = stem }
+         Just (root,relpath)
+            -> do let fullModName = pathToModuleName (notext relpath) -- maybe larger if looked up relatively
+                  -- trace ("moduleFromModuleName: found: " ++ show fullModName) $ return ()
+                  ifacePath    <- outputName (moduleNameToPath fullModName ++ ifaceExtension)
+                  libIfacePath <- searchLibIfaceFile (moduleNameToPath fullModName ++ ifaceExtension)
+                  moduleValidate $ (moduleCreateInitial fullModName (joinPath root relpath) ifacePath libIfacePath){ modSourceRelativePath = relpath }
          Nothing
-            -> do ifaceExist <- buildDoesFileExistAndNotEmpty ifacePath
+            -> do ifacePath  <- outputName (moduleNameToPath modName ++ ifaceExtension)
+                  libIfacePath <- searchLibIfaceFile (moduleNameToPath modName ++ ifaceExtension)                                         
+                  ifaceExist <- buildDoesFileExistAndNotEmpty ifacePath
                   if ifaceExist
                     then do cs <- getColorScheme
-                            addWarningMessage (warningMessageKind ErrBuild rangeNull (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
+                            addWarningMessage (warningMessageKind ErrBuild modNameRng (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
                             moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
-                    else throwModuleNotFound rangeNull modName
+                    else throwModuleNotFound parent "" modNameRng modName
+
+-- Resolve a potentially relative module name to a full module name
+moduleNameResolve :: FilePath -> Name -> Build (Maybe Name)
+moduleNameResolve relativeDir modName
+  = do -- trace ("moduleNameResolve: " ++ show modName ++ ", relative to: " ++ relativeDir) $ return ()
+       mbSourceName <- searchSourceFile relativeDir (nameToPath modName ++ sourceExtension)       
+       case mbSourceName of
+         Just (root,relpath) -> -- trace (" resolved to: " ++ show (root,relpath)) $
+                                return (Just (pathToModuleName (notext relpath)))
+         Nothing             -> -- trace (" could not resolve: " ++ show modName) $
+                                return Nothing -- modName
+    
 
 -- Find a source file and resolve it
--- with a `(root,stem)` where `stem` is the minimal module path relative to the include roots.
+-- with a `(root,relpath)` where `relpath` is the minimal module path relative to the include roots.
 -- The root is either in the include paths or the full directory for absolute paths.
 -- (and absolute file paths outside the include roots always have a single module name corresponding to the file)
 -- relativeDir is set when importing from a module so a module name is first resolved relative to the current module
 searchSourceFile :: FilePath -> FilePath -> Build (Maybe (FilePath,FilePath))
 searchSourceFile relativeDir fname
-  = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
-       flags <- getFlags
+  = do flags <- getFlags
+       -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        mb <- lookupVFS fname
        case mb of  -- must match exactly; we may improve this later on and search relative files as well?
          Just _ -> if fname `startsWith` (virtualMount ++ "///") -- just for wsl paths :-( TODO: fix this in general
-                     then let (root,stem) = getMaximalPrefixPath (virtualMount : includePath flags) fname
+                     then let (root,relpath) = getMaximalPrefixPath (virtualMount : includePath flags) fname
                           in return $! Just $! if root == virtualMount
                                then ("",fname)     -- maintain wsl2 paths: ("","/@virtual///wsl.localhost/...")
-                               else (root,stem)
-                     else return $! Just $! (getMaximalPrefixPath (virtualMount : includePath flags) fname)
-         _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir) $
+                               else (root,relpath)
+                     else return $! Just $! getMaximalPrefixPath (virtualMount : includePath flags) fname
+         _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir ++ ", fname: " ++ fname) $
                    liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
 virtualStrip path
@@ -828,13 +902,9 @@ searchLibIfaceFile fname
 
 
 {---------------------------------------------------------------
-  Validate if modules are still valid
+  Validate if modules are still valid (and not out of date
+  with respect to its sources)
 ---------------------------------------------------------------}
-{-
-modulesValidate :: [Module] -> Build [Module]
-modulesValidate modules
-  = mapM moduleValidate modules
--}
 
 moduleValidate :: Module -> Build Module
 moduleValidate mod
@@ -887,19 +957,32 @@ coreReset core
   Helpers
 ---------------------------------------------------------------}
 
-throwModuleNotFound :: Range -> Name -> Build a
-throwModuleNotFound range name
+throwModuleNotFound :: ModuleName -> FilePath -> Range -> Name -> Build a
+throwModuleNotFound parent relativeDir range name
   = do flags <- getFlags
-       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound flags colorModule "module" (pretty name)))
+       vfs <- envVFS <$> getEnv       
+       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound relativeDir flags colorModule "module" vfs 
+                              (pretty name <.> 
+                                (if nameIsNil parent 
+                                   then Lib.PPrint.empty
+                                   else let scheme = colorSchemeFromFlags flags
+                                        in space <.> color ColorDefault (parens ( (text "imported from") <+> 
+                                                     color (colorModule scheme) (pretty parent))))))
+                                )
 
 throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
   = do flags <- getFlags
-       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound flags colorSource "" (text name)))
+       vfs <- envVFS <$> getEnv       
+       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound "" flags colorSource "" vfs (text name)))
 
-errorNotFound flags clr kind namedoc
-  = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
-    text "search path:" <+> prettyIncludePath flags
+errorNotFound :: FilePath -> Flags -> (ColorScheme -> Color) -> [Char] -> VFS -> Doc -> Doc
+errorNotFound relativeDir flags clr kind vfs namedoc
+  = vcat $ 
+      [text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc] ++
+      [text "search path:" <+> prettyIncludePath flags (if null relativeDir then [] else [relativeDir])]
+      -- ++ (let vfsNames = map (pretty . fst) (vfsToList vfs)
+      -- in if null vfsNames then [] else [Lib.PPrint.empty <-> text "virtual    :" <+> align (vcat vfsNames)] )
   where
     cscheme = colorSchemeFromFlags flags
 
@@ -924,16 +1007,39 @@ ifaceExtension
   Compilation monad
   carries flags and terminal and catches errors
 ---------------------------------------------------------------}
-data VFS = VFS { vfsFind :: FilePath -> Maybe (BString,FileTime) }
+data VFS = VFS { vfiles :: !(M.Map FilePath (BString,FileTime)) }
+
+vfsFind :: VFS -> FilePath -> Maybe (BString,FileTime)
+vfsFind (VFS vfiles) fpath
+  = M.lookup fpath vfiles
 
 noVFS :: VFS
-noVFS = VFS (\fpath -> Nothing)
+noVFS = vfsEmpty
 
-composeVFS :: VFS -> VFS -> VFS
-composeVFS (VFS find1) (VFS find2)
-  = VFS (\fpath -> case find2 fpath of
-                     Just res -> Just res
-                     Nothing  -> find1 fpath)
+vfsEmpty :: VFS
+vfsEmpty = VFS M.empty
+
+vfsSingleton :: FilePath -> BString -> FileTime -> VFS
+vfsSingleton fpath content ftime
+  = VFS (M.singleton fpath (content,ftime))
+
+vfsFromList :: [(FilePath,(BString,FileTime))] -> VFS
+vfsFromList xs
+  = VFS (M.fromList xs)
+
+vfsToList :: VFS -> [(FilePath,(BString,FileTime))]  
+vfsToList (VFS vfiles)
+  = M.toList vfiles
+
+instance Show VFS where
+  show (VFS vfiles) = show (map fst (M.toList vfiles))
+
+vfsCompose :: VFS -> VFS -> VFS
+vfsCompose (VFS find1) (VFS find2)
+  = VFS (M.union find2 find2)  -- left biased
+    -- \fpath -> case find2 fpath of
+    --                  Just res -> Just res
+    --                  Nothing  -> find1 fpath)
 
 
 data Build a = Build (Env -> IO a)
@@ -1192,7 +1298,8 @@ withEnv modify (Build action)
 
 withVFS :: VFS -> Build a -> Build a
 withVFS vfs build
-  = withEnv (\env -> env{ envVFS = composeVFS (envVFS env) vfs }) build
+  = trace ("vfs: " ++ show vfs) $
+    withEnv (\env -> env{ envVFS = vfsCompose (envVFS env) vfs }) build
 
 lookupVFS :: FilePath -> Build (Maybe (BString,FileTime))
 lookupVFS fpath
