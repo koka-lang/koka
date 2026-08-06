@@ -529,6 +529,9 @@ pub fun any( xs : list<a>, predicate : a -> e bool ) : e bool
     Cons(x,xx) -> if predicate(x) then True else xx.any(predicate)
     Nil -> False
 
+pub fun contains( xs : list<a>, item: a, ^?(==): (x: a, y: a) -> bool) : bool
+  xs.any(_ == item)
+
 // Return the sum of a list of integers
 pub fun sum( xs : list<int> ) : int
   xs.foldl( 0, fn(x,y) { x + y } )
