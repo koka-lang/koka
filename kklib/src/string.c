@@ -15,20 +15,16 @@
 #include "kklib.h"
 #include <string.h>
 #include <stdio.h>
-
+#include <unicode/ucasemap.h>
+#include <unicode/uchar.h>
+#include <unicode/utf8.h>
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define KK_ARCH_ALLOW_WORD_READS  (1)  
 
 
-static uint8_t kk_ascii_toupper(uint8_t c) {
-  return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
-}
 static uint8_t kk_ascii_tolower(uint8_t c) {
   return (c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
-}
-static uint8_t kk_ascii_iswhite(uint8_t c) {
-  return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
 }
 
 static int kk_memicmp(const uint8_t* s, const uint8_t* t, kk_ssize_t len) {
@@ -791,21 +787,32 @@ kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
     kk_string_drop(str, ctx);
     return kk_string_empty();
   }
-  kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
+  kk_ssize_t original_len;
+  const uint8_t *s = kk_string_buf_borrow(str, &original_len, ctx);
+
+  UErrorCode status = U_ZERO_ERROR;
+  UCaseMap *case_map = ucasemap_open(NULL, 0, &status);
+  kk_assert_internal(!U_FAILURE(status));
+  int32_t new_len = ucasemap_utf8ToUpper(case_map, NULL, 0, (const char *)s, original_len, &status); 
+  kk_assert_internal(status == U_BUFFER_OVERFLOW_ERROR);
+  status = U_ZERO_ERROR;
+  
   kk_string_t tstr;
-  if (kk_datatype_is_unique(str.bytes, ctx)) {
+  if (kk_datatype_is_unique(str.bytes, ctx) && new_len <= original_len) {
     tstr = str;  // update in-place
   }
   else {
     kk_string_dup(str, ctx);  // multi-thread safe as we still reference str with s
-    tstr = kk_string_copy(str, ctx);
+    uint8_t *tbytes;
+    tstr = kk_unsafe_string_alloc_buf(new_len, &tbytes, ctx);
     kk_assert_internal(!kk_datatype_eq(str.bytes, tstr.bytes));
   }
   uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr, NULL, ctx);   // t & s may alias!
-  for (kk_ssize_t i = 0; i < len; i++) {
-    t[i] = kk_ascii_toupper(s[i]);
-  }
+
+  ucasemap_utf8ToUpper(case_map, (char *)t, new_len, (const char *)s, original_len, &status);
+  ucasemap_close(case_map);
+  kk_assert_internal(!U_FAILURE(status));
+
   if (!kk_datatype_eq(str.bytes, tstr.bytes)) kk_string_drop(str, ctx);  // drop if not reused in-place
   return tstr;
 }
@@ -815,21 +822,32 @@ kk_string_t  kk_string_to_lower(kk_string_t str, kk_context_t* ctx) {
     kk_string_drop(str, ctx);
     return kk_string_empty();
   }
-  kk_ssize_t len;
-  const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
+  kk_ssize_t original_len;
+  const uint8_t *s = kk_string_buf_borrow(str, &original_len, ctx);
+
+  UErrorCode status = U_ZERO_ERROR;
+  UCaseMap *case_map = ucasemap_open(NULL, 0, &status);
+  kk_assert_internal(!U_FAILURE(status));
+  int32_t new_len = ucasemap_utf8ToLower(case_map, NULL, 0, (const char *)s, original_len, &status); 
+  kk_assert_internal(status == U_BUFFER_OVERFLOW_ERROR);
+  status = U_ZERO_ERROR;
+  
   kk_string_t tstr;
-  if (kk_datatype_is_unique(str.bytes, ctx)) {
+  if (kk_datatype_is_unique(str.bytes, ctx) && new_len <= original_len) {
     tstr = str;  // update in-place
   }
   else {
     kk_string_dup(str, ctx);  // multi-thread safe as we still reference str with s
-    tstr = kk_string_copy(str, ctx);
+    uint8_t *tbytes;
+    tstr = kk_unsafe_string_alloc_buf(new_len, &tbytes, ctx);
     kk_assert_internal(!kk_datatype_eq(str.bytes, tstr.bytes));
   }
   uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr, NULL, ctx);   // t & s may alias!
-  for (kk_ssize_t i = 0; i < len; i++) {
-    t[i] = kk_ascii_tolower(s[i]);
-  }
+
+  ucasemap_utf8ToLower(case_map, (char *)t, new_len, (const char *)s, original_len, &status);
+  ucasemap_close(case_map);
+  kk_assert_internal(!U_FAILURE(status));
+
   if (!kk_datatype_eq(str.bytes, tstr.bytes)) kk_string_drop(str, ctx);  // drop if not reused in-place
   return tstr;
 }
@@ -837,11 +855,21 @@ kk_string_t  kk_string_to_lower(kk_string_t str, kk_context_t* ctx) {
 kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
-  const uint8_t* p = s;
-  for (; *p != 0 && kk_ascii_iswhite(*p); p++) {}
-  if (p == s) return str;           // no trim needed
-  const kk_ssize_t tlen = len - (p - s);      // todo: if s is unique and tlen close to slen, move inplace?
-  kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(tlen, p, ctx);
+  
+  UChar32 codepoint;
+  int32_t offset = 0;
+  while (offset < len) {
+    int32_t prev_offset = offset;
+    U8_NEXT(s, offset, len, codepoint); // changes both ptr and offset
+    if (!u_isUWhiteSpace(codepoint)) {
+      offset = prev_offset;
+      break;
+    }
+  }
+
+  if (offset == 0) return str; // no trim needed
+  const kk_ssize_t tlen = len - offset; // todo: if s is unique and tlen close to slen, move inplace?
+  kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(tlen, s + offset, ctx);
   kk_string_drop(str, ctx);
   return tstr;
 }
@@ -849,11 +877,20 @@ kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
 kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   kk_ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
-  const uint8_t* p = s + len - 1;
-  for (; p >= s && kk_ascii_iswhite(*p); p--) {}
-  const kk_ssize_t tlen = (p - s) + 1;
-  if (len == tlen) return str;  // no trim needed
-  kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(tlen, s, ctx);
+  
+  UChar32 codepoint;
+  int32_t offset = len;
+  while (offset > 0) {
+    int32_t prev_offset = offset;
+    U8_PREV(s, 0, offset, codepoint); // changes both ptr and offset
+    if (!u_isUWhiteSpace(codepoint)) {
+      offset = prev_offset;
+      break;
+    }
+  }
+
+  if (len == offset - 1) return str;  // no trim needed
+  kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(offset, s, ctx);
   kk_string_drop(str, ctx);
   return tstr;
 }
