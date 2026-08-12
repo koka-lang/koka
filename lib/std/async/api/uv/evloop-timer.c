@@ -15,6 +15,15 @@ static void kk_uv_timer_callback(uv_timer_t* t) {
   kk_uv_handle_callback((uv_handle_t*)t);
 }
 
+static void kk_uv_timer_call(kk_function_t cb, uv_handle_t* h, kk_context_t* ctx) {
+  kk_unused(h);
+  kk_function_call0(cb,ctx);  // drops the `cb` copy
+}
+
+static void kk_uv_repeat_timer_callback(uv_timer_t* t) {
+  kk_uv_handle_callback_repeat((uv_handle_t*)t, &kk_uv_timer_call);
+}
+
 static void kk_uv_timer_dispose(uv_handle_t* h, void* arg, kk_context_t* ctx) {
   uv_timer_stop((uv_timer_t*)h);
   kk_uv_handle_close(h);
@@ -27,6 +36,18 @@ kk_std_core_exn__error kk_timer_setup(kk_uv_loop_t loop, int64_t millisecs, kk_f
   err = uv_timer_init(kk_uv_loop(loop,ctx),t);
   if (err!=0) { kk_uv_handle_free((uv_handle_t*)t,ctx); return kk_error_from_uv_errno(err,ctx); }
   err = uv_timer_start(t, &kk_uv_timer_callback, (millisecs < 0 ? 0 : (uint64_t)millisecs), 0 /* no repeat */);
+  if (err!=0) { kk_uv_handle_close((uv_handle_t*)t); return kk_error_from_uv_errno(err,ctx); }
+  return kk_result_uv_handle_dispose((uv_handle_t*)t,NULL,&kk_uv_timer_dispose,ctx);
+}
+
+// A repeating timer: fires its callback every `millisecs` until disposed.
+kk_std_core_exn__error kk_timer_setup_repeat(kk_uv_loop_t loop, int64_t millisecs, kk_function_t cb, kk_context_t* ctx) {
+  uv_timer_t* t;
+  int err = kk_uv_handle_create(sizeof(uv_timer_t), cb, (uv_handle_t**)&t, ctx);
+  if (err!=0) return kk_error_from_uv_errno(err,ctx);
+  err = uv_timer_init(kk_uv_loop(loop,ctx),t);
+  if (err!=0) { kk_uv_handle_free((uv_handle_t*)t,ctx); return kk_error_from_uv_errno(err,ctx); }
+  err = uv_timer_start(t, &kk_uv_repeat_timer_callback, (millisecs < 0 ? 0 : (uint64_t)millisecs), 1 /* repeat */);
   if (err!=0) { kk_uv_handle_close((uv_handle_t*)t); return kk_error_from_uv_errno(err,ctx); }
   return kk_result_uv_handle_dispose((uv_handle_t*)t,NULL,&kk_uv_timer_dispose,ctx);
 }

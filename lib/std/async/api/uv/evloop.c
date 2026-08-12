@@ -180,6 +180,7 @@ static void kk_uv_handle_close_cb(uv_handle_t* h) {
 
 void kk_uv_handle_close(uv_handle_t* h) {
   if (h==NULL) return;
+  if (uv_is_closing(h)) return;  // already closing (or closed); avoid calling `uv_close` twice
   if (h->data != NULL) {
     // drop the callback function right away
     // if a handle is disposed, uv might still schedule the callback; setting it to NULL prevents the callback still being called
@@ -206,6 +207,21 @@ void kk_uv_handle_callback(uv_handle_t* h) {
     kk_function_call0(cb,ctx);
   }
   kk_uv_handle_close(h);
+}
+
+// Invoke the stored callback of a repeating handle. The stored callback is
+// duplicated (the `call` drops its copy) so the original remains available for
+// the next invocation, and the handle is kept open. If the handle was closed or
+// disposed (its `data` is set to NULL) a pending libuv invocation is ignored.
+// This may be called from inside the callback itself to dispose of the handle:
+// the handle is then closed, and subsequent invocations are ignored.
+void kk_uv_handle_callback_repeat(uv_handle_t* h, kk_uv_handle_call_fun_t* call ) {
+  if (h==NULL) return;
+  if (h->data != NULL) {
+    kk_context_t* ctx = kk_get_context();
+    kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(h->data),ctx);  // borrow the stored callback
+    call(kk_datatype_dup(cb,ctx),h,ctx);  // the call drops its own copy
+  }
 }
 
 
