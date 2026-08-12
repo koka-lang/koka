@@ -2723,7 +2723,16 @@ reserved
     , "double"
     ]
     ++ -- C keywords
-    [ "async"
+    [ "auto"
+    , "extern"
+    , "float"
+    , "goto"
+    , "inline"
+    , "restrict"
+    , "sizeof"
+    , "static"
+    , "volatile"
+    , "async"
     , "await"
     , "break"
     , "case"
