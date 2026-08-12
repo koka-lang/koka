@@ -1,4 +1,5 @@
 repeat count: 3
 disposed count: 0
+single count: 1
  
 async/timer-repeat/main: () -> ioc ()

@@ -215,12 +215,14 @@ void kk_uv_handle_callback(uv_handle_t* h) {
 // disposed (its `data` is set to NULL) a pending libuv invocation is ignored.
 // This may be called from inside the callback itself to dispose of the handle:
 // the handle is then closed, and subsequent invocations are ignored.
-void kk_uv_handle_callback_repeat(uv_handle_t* h, kk_uv_handle_call_fun_t* call ) {
+// `arg` is passed opaquely to the call-site (e.g. `&status` for connection
+// callbacks); repeating timers pass NULL.
+void kk_uv_handle_callback_repeat(uv_handle_t* h, void* arg, kk_uv_handle_call_fun_t* call ) {
   if (h==NULL) return;
   if (h->data != NULL) {
     kk_context_t* ctx = kk_get_context();
     kk_function_t cb = kk_datatype_from_ptr((kk_ptr_t)(h->data),ctx);  // borrow the stored callback
-    call(kk_datatype_dup(cb,ctx),h,ctx);  // the call drops its own copy
+    call(kk_datatype_dup(cb,ctx),h,arg,ctx);  // the call drops its own copy
   }
 }
 

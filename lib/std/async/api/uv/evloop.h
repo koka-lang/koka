@@ -41,9 +41,11 @@ void kk_uv_handle_callback(uv_handle_t* h);                  // call callback an
 
 // call the stored callback without closing the handle; the stored callback is
 // duplicated for the invocation so it stays available for the next one.
-// used for repeating operations like `uv_listen`, `uv_read_start`, fs watchers, or repeating timers.
-typedef void (kk_uv_handle_call_fun_t)(kk_function_t cb, uv_handle_t* handle, kk_context_t* ctx);
-void kk_uv_handle_callback_repeat(uv_handle_t* h, kk_uv_handle_call_fun_t* call );
+// `arg` is passed opaquely to the call-site so call-sites can hand event data
+// to the Koka callback (e.g. a `&status` for connection callbacks). Used for
+// repeating operations like `uv_listen`, `uv_read_start`, fs watchers, or repeating timers.
+typedef void (kk_uv_handle_call_fun_t)(kk_function_t cb, uv_handle_t* handle, void* arg, kk_context_t* ctx);
+void kk_uv_handle_callback_repeat(uv_handle_t* h, void* arg, kk_uv_handle_call_fun_t* call );
 
 // ---------------------
 // Handle results
