@@ -328,8 +328,12 @@ pub fun filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 
 // Remove those elements of a list that satisfy the given predicate `pred`.
 // For example: `remove([1,2,3],odd?) == [2]`
-pub fun remove( xs : list<a>, pred : a -> e bool ) : e list<a>
+pub fun pred/remove( xs : list<a>, pred : a -> e bool ) : e list<a>
   xs.filter( fn(x) !pred(x) )
+
+// Remove those elements of a list that are equal to `value`.
+pub fun eq/remove( xs : list<a>, value : a, ?(==) : (a,a) -> e bool ) : e list<a>
+  xs.filter( fn(x) !(x==value) )
 
 // Partition a list in two lists where the first list contains
 // those elements that satisfy the given predicate `pred`.
@@ -353,6 +357,12 @@ pub fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
       Nothing -> xx.filter-map(pred)
       Just(y) -> Cons(y,xx.filter-map(pred))
 
+// Does the list contain the given value?
+pub fun contains( xs : list<a>, value : a, ?(==) : (a,a) -> e bool ) : e bool
+  match xs
+    Cons(x,xx) -> if x==value then True else xx.contains(value)
+    Nil -> False
+
 // Find the first element satisfying some predicate
 pub fun find( xs : list<a>, pred : a -> e bool ) : e maybe<a>
   xs.foreach-while fn(x)
@@ -363,10 +373,14 @@ pub fun find-maybe( xs : list<a>, pred : a -> e maybe<b> ) : e maybe<b>
   xs.foreach-while(pred)
 
 // Lookup the first element satisfying some predicate
-pub fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
-  xs.foreach-while fn(kv)
-    if pred(kv.fst) then Just(kv.snd) else Nothing
+pub fun pred/lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
+  xs.foreach-while fn((fst, snd))
+    if pred(fst) then Just(snd) else Nothing
 
+// Lookup the value for a given key
+pub fun eq/lookup( xs : list<(a,b)>, key : a, ?(==) : (a,a) -> e bool ) : e maybe<b>
+  xs.foreach-while fn((fst, snd))
+    if fst==key then Just(snd) else Nothing
 
 // Convert a `:maybe` type to a list type.
 pub fun maybe/list( m : maybe<a> ) : list<a>
@@ -381,8 +395,16 @@ fun index-of-acc( xs : list<a>, pred : a -> e bool, idx : int ) : e int
 
 
 // Returns the index of the first element where `pred` holds, or `-1` if no such element exists.
-pub fun index-of( xs : list<a>, pred : a -> e bool ) : e int
+pub fun pred/index-of( xs : list<a>, pred : a -> e bool ) : e int
   index-of-acc( xs, pred, 0 )
+
+// Returns the index of the first element equal to `value` or `-1` if no such element exists.
+pub fun eq/index-of( xs : list<a>, value : a, ?(==) : (a,a) -> e bool ) : e maybe<int>
+  fun recur( ys, idx )
+    match ys
+      Cons(y,yy) -> if y==value then Just(idx) else recur(yy,idx+1)
+      Nil        -> Nothing
+  recur(xs,0)
 
 // Invoke `action` for each element of a list
 pub fun foreach( xs : list<a>, action : (a) -> e () ) : e ()
