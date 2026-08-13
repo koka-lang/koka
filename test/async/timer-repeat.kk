@@ -1,5 +1,7 @@
 // Regression tests for repeated libuv handle callbacks
 // (`kk_uv_handle_callback_repeat`).
+// This test targets the C/libuv backend: the JS backend's event-loop-run is
+// intentionally a no-op, so the test selects C in timer-repeat.kk.flags.
 //
 // The one-shot `kk_uv_handle_callback` consumes the callback stored in the
 // handle `data` field and closes the handle. Repeating libuv operations
