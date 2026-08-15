@@ -367,7 +367,7 @@ tryTailCall result expr
     genOverride params args
       = fmap (debugWrap "genOverride") $
         do (stmts, varNames) <- do args' <- mapM tailCallArg args
-                                   bs    <- mapM genVarBinding args'
+                                   bs    <- mapM (genTailVarBinding params) (zip params args')
                                    return (unzip bs)
            docs1             <- mapM genTName params
            docs2             <- mapM genTName varNames
@@ -377,6 +377,24 @@ tryTailCall result expr
                                 ) (zip docs1 docs2)
            return $
              linecomment (text "tail call") <-> vcat stmts <-> vcat assigns
+
+    -- the parameters are assigned in order, so an argument that still reads an
+    -- earlier one must be bound to a temporary first (as in Backend/C/FromCore).
+    -- Unlike C, a pattern variable is not a local here but a substituted field
+    -- path rooted at its scrutinee (`k1` is emitted as `z.key`), so it needs a
+    -- temporary too.
+    genTailVarBinding :: [TName] -> (TName,Expr) -> Asm (Doc,TName)
+    genTailVarBinding params (param,expr)
+      = case expr of
+          Var tn _ | tn /= param
+            -> do env <- getEnv
+                  let isSubstituted = case lookup tn (substEnv env) of
+                                        Just _  -> True
+                                        Nothing -> False
+                  if (tn `elem` params || isSubstituted)
+                    then genVarBindingAlways expr
+                    else genVarBinding expr
+          _ -> genVarBinding expr
 
     -- if local variables are captured inside a tailcalling function argument,
     -- we need to capture it by value (instead of reference since we will overwrite the local variables on a tailcall)
@@ -796,9 +814,14 @@ genVarBinding :: Expr -> Asm (Doc, TName)
 genVarBinding expr
   = case expr of
       Var tn _ -> return $ (empty, tn)
-      _        -> do name <- newVarName "x"
-                     doc  <- genStat (ResultAssign name Nothing) expr
-                     return ( doc, TName name (typeOf expr) )
+      _        -> genVarBindingAlways expr
+
+-- | bind to a fresh variable, even if the expression is already a variable
+genVarBindingAlways :: Expr -> Asm (Doc, TName)
+genVarBindingAlways expr
+  = do name <- newVarName "x"
+       doc  <- genStat (ResultAssign name Nothing) expr
+       return ( doc, TName name (typeOf expr) )
 
 ---------------------------------------------------------------------------------
 -- Pure expressions
