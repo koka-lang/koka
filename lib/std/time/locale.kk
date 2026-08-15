@@ -31,7 +31,7 @@ pub struct time-locale
 
 
 // English time locale (`en`)
-pub val time-locale-en : time-locale = Time-locale( "en",
+pub val time-locale-en : time-locale = TimeLocale( "en",
   ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
   ["January","February","March","April","May","June","July","August","September","October","November","December"],
   format-t    = "h:mmaa",
@@ -42,7 +42,7 @@ pub val time-locale-en : time-locale = Time-locale( "en",
 
 // ISO English time locale (`en-iso`). Uses English names for
 // months and days but displays numeric dates and times using unambigious ISO format.
-pub val time-locale-en-iso : time-locale = Time-locale( "en-iso",
+pub val time-locale-en-iso : time-locale = TimeLocale( "en-iso",
   day-names   = time-locale-en.day-names,
   month-names = time-locale-en.month-names,
   format-lll  = "D MMMM YYYY, tt",
@@ -50,7 +50,7 @@ pub val time-locale-en-iso : time-locale = Time-locale( "en-iso",
 )
 
 // French time locale (`fr`)
-pub val time-locale-fr : time-locale = Time-locale( "fr",
+pub val time-locale-fr : time-locale = TimeLocale( "fr",
   ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"],
   ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],
   ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."],
@@ -60,7 +60,7 @@ pub val time-locale-fr : time-locale = Time-locale( "fr",
 )
 
 // German time locale (`de`)
-pub val time-locale-de : time-locale = Time-locale( "de",
+pub val time-locale-de : time-locale = TimeLocale( "de",
   ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"],
   ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
   ["Jan.","Febr.","Mrz.","Apr.","Mai","Jun.","Jul.","Aug.","Sept.","Okt.","Nov.","Dez."],
@@ -73,7 +73,7 @@ pub val time-locale-de : time-locale = Time-locale( "de",
 )
 
 // Spanish time locale (`es`)
-pub val time-locale-es : time-locale = Time-locale( "es",
+pub val time-locale-es : time-locale = TimeLocale( "es",
   ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"],
   ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
   format-t    = "H:mm",
@@ -85,7 +85,7 @@ pub val time-locale-es : time-locale = Time-locale( "es",
 )
 
 // Dutch time locale (`nl`)
-pub val time-locale-nl : time-locale = Time-locale( "nl",
+pub val time-locale-nl : time-locale = TimeLocale( "nl",
   ["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"],
   ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"],
   ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],

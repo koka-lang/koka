@@ -595,7 +595,7 @@ noinline fun under1x( ev : ev<h>, op : a -> e b, x : a ) : e b
   y
 
 pub fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r>
-  Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ op(x,Resume-context(k)) } ) } )
+  Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ op(x,ResumeContext(k)) } ) } )
 
 fun get( ref: ref<h,a>) : <read<h>,div> a
   !ref
@@ -677,7 +677,7 @@ inline fun under0( ev : ev<i>, op : () -> e b) : e b
   y
 
 pub fun clause-control-raw0( op : resume-context<b,e,e0,r> -> e r ) : clause0<b,h,e,r>
-  Clause0(fn(m,_ev){ yield-to(m, fn(k){ op(Resume-context(k)) } ) })
+  Clause0(fn(m,_ev){ yield-to(m, fn(k){ op(ResumeContext(k)) } ) })
 
 /*
 pub fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,e,r>
@@ -727,7 +727,7 @@ pub fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2
 
 
 pub fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r>
-  Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ op(x1,x2,Resume-context(k)) } ) })
+  Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ op(x1,x2,ResumeContext(k)) } ) })
 
 pub fun clause-tail2<e,r,h,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r>
   Clause2(fn(m,ev,x1,x2){ under2(ev,op,x1,x2) })
