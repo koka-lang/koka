@@ -13,7 +13,7 @@ module Core.Parse( parseCore ) where
 import Data.Maybe(catMaybes)
 
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum)
-import Text.Parsec.Prim( getInput, setInput )
+import Text.Parsec.Prim( getInput, setInput, getState, setState )
 
 import Common.Failure( failure, assertion, HasCallStack )
 import Common.Id
@@ -68,15 +68,16 @@ pInlines env
 
 program :: Int -> FilePath -> Source -> LexParser (Core,ParseInlines)
 program unique0 srcName source
-  = do many semiColon
+  = do setUniqueBase unique0
+       many semiColon
        tpl <- getTargetPlatform
-       (prog,env,inlines) <- pmodule unique0 srcName
+       (prog,env,inlines) <- pmodule srcName
        eof
        return (prog, parseInlines prog tpl source env inlines)
 
 
-pmodule :: Int -> FilePath -> LexParser (Core,Env,[Lexeme])
-pmodule unique0 srcName
+pmodule :: FilePath -> LexParser (Core,Env,[Lexeme])
+pmodule srcName
   = do (rng,doc) <- dockeyword "module"
        keyword "interface"
        (name,_)<- modulepath
@@ -86,14 +87,14 @@ pmodule unique0 srcName
 
                   externImports <- semis externImportDecl
                   fixs <- semis fixDecl
-                  (impsyns,env1) <- semisEnv (envInitial name srcName impMap unique0) localAlias
+                  (_,env1)       <- semisEnv (envInitial name srcName impMap) localAlias
+                  -- env2 is the env THREADED through the local aliases and type
+                  -- declarations by semisEnv, so it already carries every synonym
+                  -- they declare -- there is nothing left to rebuild here. (It used
+                  -- to be rebuilt from env1, which has not seen the type
+                  -- declarations and so is missing theirs.) Type parameters are
+                  -- scoped to their own declaration and do not leak into it.
                   (tdefs,env2)   <- semisEnv env1 typeDecl
-                  -- add synonyms
-                  let syns = concatMap (\td -> case td of
-                                                 Synonym info  -> [info]
-                                                 _             -> []) tdefs
-                      env2 = env1{ syns = synonymsNew (impsyns ++ syns) }
-
                   defs      <- semis (defDecl env2)
                   externals <- semis (externDecl env2)
                   inlines   <- do special "//.inline-section" <?> ""
@@ -112,12 +113,13 @@ localAlias env
        (qname,_) <- qtypeid  -- can be qualified
        range    <- prange env
        let name = envQualify env qname
-       (env,params) <- typeParams env
+       (envP,params) <- typeParams env
        kind     <- kindAnnotFull
        keyword "="
-       tp       <- ptype env
+       tp       <- ptype envP
        (rank,_)  <- do{ keyword "="; integer } <|> return (0::Integer,rangeNull)
        let synInfo = SynInfo name kind params tp (fromInteger rank) range Private ""
+       -- extend the OUTER env: the alias's own type parameters are scoped to it
        return (synInfo, envExtendSynonym env synInfo)
 
 semisEnv :: Env -> (Env -> LexParser (a,Env)) -> LexParser ([a],Env)
@@ -200,13 +202,15 @@ typeDecl env
                          return (qualify (modName env) name)
        range    <- prange env
        -- trace ("core type: " ++ show tname) $ return ()
-       (env,params) <- typeParams env
+       (envP,params) <- typeParams env
        kind       <- kindAnnotFull
-       cons       <- semiBraces (conDecl tname params sort env) <|> return []
+       cons       <- semiBraces (conDecl tname params sort envP) <|> return []
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
            dataInfo = DataInfo sort tname kind params cons1 range ddef dataEff isRec vis doc
+       -- return the OUTER env: a declaration's type parameters are scoped to it and
+       -- must not leak into the definitions parsed later
        return (Data dataInfo, env)
   <|>
     do (vis,doc) <- try $ do vis <- vispub
@@ -215,10 +219,10 @@ typeDecl env
        (name,_) <- tbinderId
        range    <- prange env
        --trace ("core alias: " ++ show name) $ return ()
-       (env,params) <- typeParams env
+       (envP,params) <- typeParams env
        kind     <- kindAnnotFull
        keyword "="
-       tp       <- ptype env
+       tp       <- ptype envP
        (rank,_)  <- do{ keyword "="; integer } <|> return (0::Integer,rangeNull)
        let qname   = qualify (modName env) name
        let synInfo = SynInfo qname kind params tp (fromInteger rank) range vis doc
@@ -744,10 +748,17 @@ typeParams env
 typeParams1 env
   = angles (tbinders env)
 
+-- Type-variable ids come from the parser state, not from Env. Aggregate
+-- combinators re-use the SAME env for each item (`many (inlineDef env)`,
+-- `semis (defDecl env2)`), so ids drawn from Env made every definition in a
+-- module bind the same ones. Overlapping ids leak a raw id into a specialized
+-- definition's result type, and the backend then boxes a parameter that callers
+-- pass unboxed. See test/cgen/specbox-lib.kk.
 tbinders :: Env -> LexParser (Env,[TypeVar])
 tbinders env
-  = do bs <- tbinder `sepBy` comma
-       let env1 = foldl envExtend env bs
+  = do bs   <- tbinder `sepBy` comma
+       base <- freshIds (length bs)
+       let env1 = foldl (\e (b,i) -> envExtendWithId e b i) env (zip bs [base..])
            tvs  = [tv | TVar tv <- [envType env1 name kind | (name,kind) <- bs]]
        return (env1,tvs)
 
@@ -977,7 +988,6 @@ data Env = Env{ bound :: !(M.NameMap TypeVar)
               , modName :: !Name
               , srcPath :: !FilePath
               , imports :: !ImportMap
-              , unique  :: !Int
               , gamma  ::  !Gamma            -- only used for inline definitions
               , locals :: !(M.NameMap Type) -- only used for inline definitions
               }
@@ -986,18 +996,30 @@ envRange :: Env -> Int -> Int -> Int -> Int -> Range
 envRange env l1 c1 l2 c2
   = makeSourceRange (srcPath env) l1 c1 l2 c2
 
-envInitial :: Name -> FilePath -> ImportMap -> Int -> Env
-envInitial modName srcPath imports unique
-  = Env M.empty synonymsEmpty modName srcPath imports unique gammaEmpty M.empty
+envInitial :: Name -> FilePath -> ImportMap -> Env
+envInitial modName srcPath imports
+  = Env M.empty synonymsEmpty modName srcPath imports gammaEmpty M.empty
 
-envExtend :: Env -> (Name,Kind) -> Env
-envExtend (Env env syns mname srcpath imports unique gamma locals) (name,kind)
-  = let id = newId unique
-        tv = TypeVar id kind Bound
-    in Env (M.insert name tv env) syns mname srcpath imports (unique+1) gamma locals
+-- | Reserve `n` fresh type-variable ids, returning the first.
+freshIds :: Int -> LexParser Int
+freshIds n
+  = do st <- getState
+       let base = puniqueId st
+       setState st{ puniqueId = base + n }
+       return base
+
+setUniqueBase :: Int -> LexParser ()
+setUniqueBase u
+  = do st <- getState
+       setState st{ puniqueId = u }
+
+envExtendWithId :: Env -> (Name,Kind) -> Int -> Env
+envExtendWithId (Env env syns mname srcpath imports gamma locals) (name,kind) i
+  = let tv = TypeVar (newId i) kind Bound
+    in Env (M.insert name tv env) syns mname srcpath imports gamma locals
 
 envType :: Env -> Name -> Kind -> Type
-envType env@(Env bound syns mname _ _ _ _ _) name kind
+envType env@(Env bound syns mname _ _ _ _) name kind
   = case M.lookup name bound of
       Nothing -> let qname = envQualify env name
                  in case synonymsLookup qname syns of
@@ -1011,7 +1033,7 @@ envType env@(Env bound syns mname _ _ _ _ _) name kind
       Just tv -> TVar tv
 
 envQualify :: Env -> Name -> Name
-envQualify (Env _ _ mname _ imports _ _ _) name
+envQualify (Env _ _ mname _ imports _ _) name
   = if isQualified name
      then case (importsExpand name imports) of
             Right (qname,_) -> qname
@@ -1039,8 +1061,8 @@ envTypeApp env tp tps
 
 
 envExtendLocal :: Env -> (Name,Type) -> Env
-envExtendLocal (Env env syns mname srcpath imports unique gamma locals) (name,tp)
-  = Env env syns mname srcpath imports (unique+1) gamma (M.insert name tp locals)
+envExtendLocal (Env env syns mname srcpath imports gamma locals) (name,tp)
+  = Env env syns mname srcpath imports gamma (M.insert name tp locals)
 
 
 envLookupLocal :: Env -> Name -> LexParser Type

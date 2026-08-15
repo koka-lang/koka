@@ -20,6 +20,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
 
                    -- used by the core parser
                    , lexParse, parseLex, LexParser, parseLexemes, parseInline, ignoreSyntaxWarnings
+                   , PState(..)
                    , targetGuard, getTargetPlatform, firstof
 
                    , visibility, modulepath, importAlias, {- parseFip, -} parseTailFip
@@ -78,7 +79,9 @@ import qualified Control.Monad.State as Mon
 -----------------------------------------------------------
 
 type PWarnings = [(String, Range)]
-data PState = PState{ pwarnings :: PWarnings, ptargetPlatform :: TargetPlatform }
+data PState = PState{ pwarnings :: PWarnings, ptargetPlatform :: TargetPlatform
+                    , puniqueId :: !Int  -- ^ type-variable id supply for core interfaces
+                    }
 
 type LexParser a  = Parsec [Lexeme] PState a
 
@@ -147,7 +150,7 @@ lexParseS semiInsert p tpl sourceName line str
 
 runStateParser :: LexParser a -> TargetPlatform -> SourceName -> [Lexeme] -> Either ParseError (a, PWarnings)
 runStateParser p tpl sourceName lex =
-  runParser (pp p) (PState [] tpl) sourceName lex
+  runParser (pp p) (PState [] tpl 0) sourceName lex
   where
     pp :: LexParser a -> LexParser (a,PWarnings)
     pp p =
