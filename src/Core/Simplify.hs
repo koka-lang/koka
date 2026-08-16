@@ -245,7 +245,25 @@ topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate
 
     doesNotDuplicate
       = hasSingleBranch branches0 ||
-        length (filter (simplifiesOn branches1) branches0) + 1 >= length branches0
+        (length (filter (simplifiesOn branches1) branches0) + 1 >= length branches0
+          -- Each inner branch that does not collapse keeps a full copy of the
+          -- outer branches (branches1). When branches1 is itself large -- e.g.
+          -- the tail of an `if/elif` chain whose conditions use `&&` (each `&&`
+          -- becomes a nested case in the scrutinee) -- this duplication is
+          -- applied at every level of the chain and compounds to 2^n, blowing
+          -- up the core size. Only take this slack when branches1 is small, so
+          -- the transform cannot duplicate a large continuation.
+          && sizeOfBranches branches1 <= maxCaseOfCaseDup)
+
+    -- maximum size of the outer branches that we are willing to copy into a
+    -- non-collapsing inner branch during case-of-case
+    maxCaseOfCaseDup :: Int
+    maxCaseOfCaseDup = 25
+
+    sizeOfBranches :: [Branch] -> Int
+    sizeOfBranches bs
+      = sum [ sizeOfExpr test + sizeOfExpr expr
+            | Branch _ guards <- bs, Guard test expr <- guards ]
 
     hasSingleBranch :: [Branch] -> Bool
     hasSingleBranch branches
