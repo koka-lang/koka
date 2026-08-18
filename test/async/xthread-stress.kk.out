@@ -1,0 +1,6 @@
+async/xthread-stress/model/result: (model : model) -> maybe<int>
+async/xthread-stress/model/ticks: (model : model) -> int
+async/xthread-stress/Model: (ticks : int, result : maybe<int>) -> model
+async/xthread-stress/churn: (n : int, acc : int) -> ioc int
+async/xthread-stress/main: () -> <ioc,std/async/async/async> ()
+async/xthread-stress/sender-loop: (out : std/async/api/uv/thread/xsender<model>, n : int) -> <io,std/async/async/async> ()
