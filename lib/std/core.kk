@@ -231,12 +231,20 @@ pub extern host() : ndet string
   js inline "$std_core_console._host"
 
 
-// The default exception handler
+// Exit with a failure status
+extern @exit-failure() : ()
+  c  "kk_exit_failure"
+  cs inline "System.Environment.Exit(1)"
+  js inline "((typeof process !== 'undefined' && process.exit) ? process.exit(1) : undefined)"
+
+// The default exception handler; exits with a failure status so an uncaught
+// exception is not reported as success
 pub fun @default-exn(action : () -> <exn,console|e> () ) : <console|e> ()
   handle( action )
     final ctl throw-exn( exn : exception )
       "uncaught exception: ".print
       exn.println
+      @exit-failure()
 
 
 // ----------------------------------------------------------------------------
