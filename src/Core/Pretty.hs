@@ -373,7 +373,13 @@ prettyExpr env (TypeApp expr tps)
 -- Literals and constants
 prettyExpr env (Con tname repr)
   = -- prettyTName env tname
-    prettyVar env tname
+    -- serialize the constructor-context path: it is stamped on this
+    -- occurrence's repr (not the constructor's global info), so without
+    -- this marker an interface round-trip would lose it
+    case (if coreIface env then conReprCtxPath repr else Nothing) of
+      Just (CtxField fld)
+        -> keyword env "@cpath" <.> parens (prettyLit env (LitString (showTupled (getName fld)))) <+> prettyVar env tname
+      _ -> prettyVar env tname
 
 prettyExpr env (Lit lit)
   = prettyLit env lit
