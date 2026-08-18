@@ -2008,7 +2008,7 @@ inferImplicitParam par
      then  do -- let pname = plainImplicitParamName (binderName par)
               unpack <- case binderExpr par of
                 Just (Parens (Var qname _ rng) _ _ _) -- encoded in the parser as a default expression
-                           -> inferImplicitUnpack (rangeHide (binderRange par)) (rangeHide rng) (binderName par) qname (binderType par)
+                           -> inferImplicitUnpack [] (rangeHide (binderRange par)) (rangeHide rng) (binderName par) qname (binderType par)
                 Nothing    -> return id
                 Just expr  -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
                                  return id
@@ -2019,8 +2019,11 @@ inferImplicitParam par
 qualifyUnpacked :: Name -> Name -> Name
 qualifyUnpacked pname fname = (qualifyLocally (nameAsModuleName $ fromImplicitParamName pname) fname)
 
-inferImplicitUnpack :: Range -> Range -> Name -> Name -> Maybe Type -> Inf (Expr Type -> Expr Type)
-inferImplicitUnpack rng nrng pname qname mbParTp
+-- | Unpack a dot-implicit parameter, as in @.?p : mystruct@, into its fields.
+-- `visited` holds the struct types already being unpacked along this path so
+-- that a `base` field referring back to one of them terminates.
+inferImplicitUnpack :: [Name] -> Range -> Range -> Name -> Name -> Maybe Type -> Inf (Expr Type -> Expr Type)
+inferImplicitUnpack visited rng nrng pname qname mbParTp
   = do nt <- getNewtypes
        let -- the type annotation (`.?key : child`) takes precedence over the
            -- parameter name: it is the declared type of the parameter
@@ -2037,9 +2040,7 @@ inferImplicitUnpack rng nrng pname qname mbParTp
                                 TForall _ t   -> typeConNameOf t
                                 _             -> Nothing
        case mbInfo of
-        Just (DataInfo{dataInfoSort=Inductive,
-                        dataInfoConstrs=[conInfo],
-                        dataInfoDef=ddef})  | not (dataDefIsOpen ddef)
+        Just info@DataInfo{dataInfoConstrs=[conInfo]} | dataInfoIsStruct info
         -- struct: unpack the fields
            -> let pats = [PatVar (ValueBinder (qualifyUnpacked pname fname) Nothing (PatWild nrng) nrng rng)
                             | (fname,ftp) <- conInfoParams conInfo, not (nameIsNil fname)]
@@ -2060,7 +2061,20 @@ inferImplicitUnpack rng nrng pname qname mbParTp
                         TCon tcon              -> [typeConName tcon]
                         _                      -> []
 
-              in do unpackBases <- mapM (\(fname,fqname) -> inferImplicitUnpack rng nrng (qualifyUnpacked pname fname) fqname Nothing) bases  -- todo: stop recursion!
+              in do -- unpacking a base field is implicit, so one that cannot be
+                    -- unpacked is skipped instead of reported (the error would
+                    -- name a parameter the user never wrote); a field whose type
+                    -- is already on this path is skipped to stop the recursion
+                    let unpackable fqname = case newtypesLookupAny fqname nt of
+                                              Just di -> dataInfoIsStruct di
+                                              Nothing -> False
+                        here     = maybe qname id (mbParTp >>= typeConNameOf)
+                        visited' = here : qname : visited
+                        bases'   = [b | b@(_,fqname) <- bases,
+                                        fqname `notElem` visited', unpackable fqname]
+                    unpackBases <- mapM (\(fname,fqname) ->
+                                     inferImplicitUnpack visited' rng nrng
+                                       (qualifyUnpacked pname fname) fqname Nothing) bases'
                     return (compose (unpack:unpackBases))
 
         _  -> do penv <- getPrettyEnv
