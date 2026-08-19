@@ -358,14 +358,22 @@ pub inline extern ref/(!)<h,a,e>( ref : ref<h,a>, ?hdiv : hdiv<h,a,e>) : <read<h
   cs inline "#1.Value"
   js inline "#1.value"
 
-// Modify the value of a reference.
-// This is especially useful when the reference contains a vector, because
+// Access the value of a reference, by evaluating a function with the reference as a local-var.
+// Assigning to this var within the block using `:=` will modify the underlying reference.
+//
+// e.g. `counter.access(fn(i) { i := i + 1 })`
+//
+// This function is especially useful when the reference contains a vector, because
 // getting the vector into a local variable and then setting it back into the reference later
 // would mean that we hold on to a copy (and we can't update the vector in place then!).
 // In contrast, this function passes the ownership to the given function.
-pub inline extern modify<h,a,b,e>( ref : ref<h,a>, f : forall<s> local-var<s,a> -> <local<s>|e> b, ?hdiv : hdiv<h,a,e>) : <read<h>,write<h>|e> b
-  c  inline "kk_ref_modify(#1,#2,kk_context())"
+pub inline extern access<h,a,b,e>( ref : ref<h,a>, f : forall<s> local-var<s,a> -> <local<s>|e> b, ?hdiv : hdiv<h,a,e>) : <read<h>,write<h>|e> b
+  c inline "kk_ref_access(#1,#2,kk_context())"
   js inline "((#2)(#1))"
+
+// Deprecated: alias for `access`
+pub inline extern modify<h,a,b,e>( ref : ref<h,a>, f : forall<s> local-var<s,a> -> <local<s>|e> b, ?hdiv : hdiv<h,a,e>) : <read<h>,write<h>|e> b
+  c  "kk_ref_access"
 
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
