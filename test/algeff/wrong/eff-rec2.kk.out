@@ -7,3 +7,4 @@ test/algeff/wrong/eff-rec2@kk(39,32): type error: effects do not match
  }
  inferred effect: <console,div,exn|_e>
  expected effect: <exn,console>
+ unexpected : div
