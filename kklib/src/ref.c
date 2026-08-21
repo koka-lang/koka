@@ -46,4 +46,26 @@ kk_decl_export kk_box_t kk_ref_swap_thread_shared_borrow(struct kk_ref_s* r, kk_
   return b;
 }
 
-
+// `update` is owned (typically a closure); the reference itself is borrowed.
+kk_decl_export kk_unit_t kk_ref_update_borrow(kk_ref_t _r, kk_function_t update, kk_context_t* ctx) {
+  struct kk_ref_s* r = kk_datatype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
+  if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
+    // fast path
+    kk_box_t b; 
+    b.box = kk_atomic_load_relaxed(&r->value);    
+    // kk_assert_internal(kk_datatype_is_unique(v,ctx)); The returned value should be unique (in place update), but `update` is not constrained to do that
+    kk_box_t newb = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), update, (update, b, ctx), ctx);
+    // Reference types should not change the box (in place updates)
+    // However, `update` could be used for other purposes (allocating a new value, extending a current one, etc.)
+    kk_atomic_store_relaxed(&r->value, newb.box);
+    return kk_Unit;
+  }
+  else {
+    // Update is dropped in the other branch (since ownership is passed to the called function) but we need to drop it here as well.
+    kk_function_drop(update, ctx);
+    // It doesn't matter anyways, because we don't support updates to a thread-shared reference.
+    // thread shared
+    kk_unsupported_external("kk_ref_update_borrow with a thread-shared reference");
+  }
+  return kk_Unit;
+}

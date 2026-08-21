@@ -22,6 +22,7 @@ typedef kk_datatype_ptr_t kk_ref_t;
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(struct kk_ref_s* r, kk_context_t* ctx);
 kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(struct kk_ref_s* r, kk_box_t value);
 kk_decl_export kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx);
+kk_decl_export kk_unit_t kk_ref_update_borrow(kk_ref_t _r, kk_function_t update, kk_context_t* ctx);
 
 static inline kk_decl_const kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   kk_unused(ctx);
