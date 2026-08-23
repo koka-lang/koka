@@ -870,7 +870,78 @@ type person
 
 ### Matching
 
-Todo
+The `match` expression inspects the shape of a value and selects the
+first branch whose pattern matches. Each branch consists of a pattern,
+an arrow `->`, and an expression. For example, we can match on the
+`:number` type from the previous section:
+
+```
+type number
+  Infinity
+  Integer( i : int )
+
+fun show( n : number ) : string
+  match n
+    Integer(i) -> "integer " ++ i.show
+    Infinity   -> "infinity"
+```
+
+A constructor pattern like `Integer(i)` matches any value built with the
+`Integer` constructor and binds its argument to a fresh variable `i`.
+Patterns can also be literals (like `0` or `"hello"`), or the wildcard
+`_` which matches any value without binding it. A branch can be further
+refined with a _guard_: a boolean condition after a `|` that must hold
+for the branch to be taken:
+
+```
+fun signof( i : int ) : string
+  match i
+    _ | i < 0 -> "negative"
+    0         -> "zero"
+    _         -> "positive"
+```
+
+To match on multiple values at once, match on a tuple:
+
+```
+type color
+  Red
+  Green
+  Blue
+
+fun mix( c1 : color, c2 : color ) : color
+  match (c1,c2)
+    (Red, Blue) -> Green
+    (Blue, Red) -> Green
+    _           -> c1
+```
+
+Patterns nest arbitrarily deep, which is especially convenient when
+traversing recursive data types. Here we match a list and its tail in a
+single pattern:
+
+```
+fun last0( xs : list<int> ) : int
+  match xs
+    Cons(x,Nil) -> x           // a single-element list
+    Cons(_,xx)  -> last0(xx)   // at least two elements
+    Nil         -> 0           // empty list
+```
+
+Instead of binding constructor arguments positionally, we can also bind
+them by their field names:
+
+```
+fun sum0( xs : list<int> ) : int
+  match xs
+    Cons(head=x, tail=xx) -> x + sum0(xx)
+    Nil                   -> 0
+```
+
+Note that the compiler does not require a `match` to be exhaustive. If
+no branch matches at runtime, a pattern match failure exception is
+thrown, so it is good practice to either cover all constructors or end
+with a wildcard branch.
 
 ### Extensible Data Types
 
