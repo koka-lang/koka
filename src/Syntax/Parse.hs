@@ -1641,7 +1641,9 @@ withstat
                                            (keyword "=" <|> keyword "<-")
                                            return x
            e <- basicexpr <|> handlerExprStat krng HandlerInstance
-           pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
+           -- the transform from `parameter` wraps the continuation lambda's
+           -- body in a match, so it applies to that lambda and not to `e`
+           pure $ applyToContinuationWith krng [promoteValueBinder par] transform e
         <|>
         do e <- basicexpr <|> handlerExprStat krng HandlerNormal
            return (applyToContinuation krng [] e)
@@ -1653,7 +1655,12 @@ withstat
            _ -> binder
 
 applyToContinuation wrng params expr body
-  = let lam = Lam params body False (combineRanged wrng body)
+  = applyToContinuationWith wrng params id expr body
+
+-- as applyToContinuation but applies `xform` to the continuation lambda;
+-- this is how a pattern parameter, as in `with (a,b) <- e`, gets its match
+applyToContinuationWith wrng params xform expr body
+  = let lam = xform (Lam params body False (combineRanged wrng body))
         fun = Parens lam (newName "with") "expr" wrng -- Parens makes it last in type inference so types can better propagate (ambients/heap1) (todo: no longer the case right?)
         funarg = [(Nothing,fun)]
         fullrange = combineRanged wrng fun
