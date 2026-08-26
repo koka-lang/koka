@@ -101,6 +101,12 @@ pub value type float32
 // See `module std/core/vector` for vector operations.
 pub type vector<a>
 
+// The type of an external (i.e. C) value where the memory is owned and managed by koka's refcounting
+pub ref type extern-owned<t>
+
+// The type of an external (i.e. C) value where the memory is borrowed and managed by external code
+pub ref type extern-borrowed<t>
+
 // An any type. Used for external calls.
 pub type any
 

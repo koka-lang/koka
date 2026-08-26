@@ -133,6 +133,7 @@ module Common.NamePrim
           , makeTpHandled
           , nameTpHandled, nameTpHandled1, nameTpNHandled, nameTpNHandled1
           , nameTpMarker
+          , nameTpExternOwned, nameTpExternBorrowed, nameTpCPointer, nameTpCArray
           {-
           , nameTpOperation, nameYieldOp
           , nameTpCps, nameTpYld, nameTpCont
@@ -409,6 +410,11 @@ nameTypeHeapDiv = coreTypesName "hdiv"
 nameEvHeapDiv   = coreTypesName "@Hdiv"
 nameEvHeapNoDiv   = coreTypesName "@Hnodiv"
 nameHeapDiv     = newName "hdiv"
+
+nameTpCPointer    = qualify (newModuleName "std/core/cextern") (newName "c-pointer")
+nameTpCArray    = qualify (newModuleName "std/core/cextern") (newName "c-array")
+nameTpExternOwned    = coreTypesName "extern-owned"
+nameTpExternBorrowed = coreTypesName "extern-borrowed"
 
 nameTpRef       = coreTypesName "ref"
 nameTpLocalVar  = coreTypesName "local-var"

@@ -1350,6 +1350,10 @@ cTypeCon c
          then CPrim "kk_integer_t"
         else if (name == nameTpString)
          then CPrim "kk_string_t"
+        else if (name == nameTpExternOwned)
+         then CPrim "kk_box_t"
+        else if (name == nameTpExternBorrowed)
+         then CPrim "kk_box_t"
         else if (name == nameTpVector)
          then CPrim "kk_vector_t"
         else if (name ==  nameTpEvv)
@@ -1359,6 +1363,10 @@ cTypeCon c
         else if (name == nameTpSSizeT)
          then CPrim "kk_ssize_t"
         else if (name == nameTpIntPtrT)
+         then CPrim "intptr_t"
+        else if (name == nameTpCPointer)
+         then CPrim "intptr_t"
+        else if (name == nameTpCArray)
          then CPrim "intptr_t"
         else if (name == nameTpFloat)
          then CPrim "double"

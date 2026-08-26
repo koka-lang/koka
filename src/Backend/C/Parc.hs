@@ -1063,7 +1063,7 @@ extractDataDefType tp
 
 
 isBoxType :: Type -> Bool
-isBoxType (TCon (TypeCon name _))  = name == nameTpBox
+isBoxType (TCon (TypeCon name _))  = name == nameTpBox || name == nameTpExternBorrowed || name == nameTpExternOwned
 isBoxType (TVar _)                 = True
 isBoxType (TSyn _ _ tp)            = isBoxType tp
 isBoxType (TApp tp _)              = isBoxType tp

@@ -378,6 +378,7 @@ cType tp
         -> CFun (map (cType . snd) pars) (cType res)
       TApp t ts
         -> cType t
+      TCon (TypeCon nm _) | nm == nameTpExternOwned || nm == nameTpExternBorrowed -> CBox
       TCon c
         -> CData
       TVar v
