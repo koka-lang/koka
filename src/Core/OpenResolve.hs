@@ -177,12 +177,10 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
              in case lsFrom of
                  []  -> -- no handled effect, use cast
                         case lsTo of
-                          [] -> trace ("  no handled effect, in no handled effect context: use cast")
+                          [] | matchType tlFrom tlTo -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
-                          _  -> trace ("  no handled effect; use none: " ++ show expr) $
-                                if (isHandlerFree expr)
-                                 then trace ("***  remove open-none") $  -- fully total with using any operations that need evidence; just leave it as is
-                                      expr
+                          _  -> trace ("  no handled effect but different tails; use none: " ++ show expr) $
+                                if isHandlerFree expr then expr
                                 else if (n <= 4)
                                  then wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
                                       -- expr  -- fails in nim as it evidence is not cleared
@@ -236,9 +234,10 @@ isHandlerFree expr
                   -> case handlerFreeFunType (typeOf vname) of
                        Nothing  -> True
                        Just ok  -> ok
-      Var vname _ -> case handlerFreeFunType (typeOf vname) of
-                       Nothing   -> True
-                       Just ok   -> ok && (isSystemCoreName (getName vname))
+      Var vname _ -> case handlerFreeFunType (typeOf vname) of 
+          Nothing -> True -- Simple vars are handler free
+          -- We cannot assume function types are handler free (since they can use handlers internally without an effect type)
+          _ -> False 
       Con{} -> True
       Lit{} -> True
       _     -> False
