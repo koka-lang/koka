@@ -1007,13 +1007,21 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                                         _        -> 3 --multi/wild
            -- create handler expression
            actionName = newHiddenName "action"
-           handleName = toHandleName effectName
-           handleRet  = case ret of -- todo: optimize return by using maybe<a->b> value in case no clause was given?
-                          Nothing -> let argName = (newHiddenName "res")
-                                     in Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) False hrng -- don't pass `id` as it needs to be opened
-                          Just expr -> expr
-           handleExpr action = App (Var handleName False rng)
-                                [{-(Nothing,handlerCfc),-}(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
+           handleName = case ret of 
+             Nothing | isInstance -> toHandleReturnName effectName
+             Nothing -> toHandleNoReturnName effectName
+             Just _  -> toHandleReturnName effectName
+           
+           handleExpr action = 
+            case ret of 
+              Nothing | isInstance -> 
+                let argName = (newHiddenName "res")
+                    ret = Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) False hrng -- don't pass `id` as it needs to be opened
+                in App (Var handleName False rng)
+                                [{-(Nothing,handlerCfc),-}(Nothing,handlerCon),(Nothing,ret),(Nothing,action)] hrng
+              Nothing -> App (Var handleName False rng) [{-(Nothing,handlerCfc),-}(Nothing,handlerCon),(Nothing,action)] hrng
+              Just ret -> App (Var handleName False rng)
+                                [{-(Nothing,handlerCfc),-}(Nothing,handlerCon),(Nothing,ret),(Nothing,action)] hrng
 
 
 
@@ -1025,6 +1033,8 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        (handleRho,_,_) <- instantiateEx rng handleTp
        actionTp <- case splitFunType handleRho of
                         Just ([_,_,actionTp],_,_)
+                          -> subst (snd actionTp)
+                        Just ([_,actionTp],_,_)
                           -> subst (snd actionTp)
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
        -- traceDoc $ \penv -> text " the handler action type: " <+> ppType penv actionTp <.> text ", prop: " <+> ppProp penv propagated
