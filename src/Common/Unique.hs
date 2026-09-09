@@ -13,7 +13,7 @@ module Common.Unique( -- * Unique
                      HasUnique(updateUnique,setUnique,unique,uniques,uniqueId,uniqueIds,uniqueName,uniqueNameFrom)
                    -- ** Instances
                    , Unique, runUnique, runUniqueWith, liftUnique, withUnique
-                   , UniqueT, runUniqueT
+                   , UniqueT, runUniqueT, hoistUniqueT
                    ) where
 
 import Common.Id   ( Id, genId, idNumber )
@@ -114,6 +114,11 @@ newtype UniqueT m a = UniqueT
 
 runUniqueT :: Int -> UniqueT m a -> m (a, Int)
 runUniqueT = flip unUniqueT
+
+-- | Apply a transformation to the underlying monadic action (e.g. `local`
+-- for a reader base monad) without exposing the constructor.
+hoistUniqueT :: (m (a, Int) -> m (a, Int)) -> UniqueT m a -> UniqueT m a
+hoistUniqueT f m = UniqueT (f . unUniqueT m)
 
 instance Monad m => HasUnique (UniqueT m) where
   updateUnique f = UniqueT $ \i -> pure (i, f i)
