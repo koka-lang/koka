@@ -37,7 +37,7 @@ pre.koka, code.koka, .koka.doc .header {
   }
 }
 
-@media screen and (max-device-width: 1022px) {
+@media screen and (width <= 1022px) {
   body.madoko,body.koka {
     max-width: 100%;
     padding: 0em 0.5em 40em 0.5em;
@@ -45,7 +45,7 @@ pre.koka, code.koka, .koka.doc .header {
   }
 }
 
-@media screen and (min-device-width: 2048px) {
+@media screen and (width >= 2048px) {
   html {
     font-size:120%;
   }
@@ -58,13 +58,15 @@ pre.koka, code.koka, .koka.doc .header {
     margin: 0pt;
   }
   h2,h3,h4 {
-    page-break-after: avoid;
+    break-after: avoid;
   }
   p {
     text-align: justify;
   }
-  @page:left  { margin: 8% 5% 8% 5%; }
-  @page:right { margin: 8% 5% 8% 5%; }
+
+  @page :left  { margin: 8% 5%; }
+
+  @page :right { margin: 8% 5%; }
 }
 /* p,li,div.koka.doc.comment { text-align: justify;} */
 
@@ -134,7 +136,8 @@ pre code code, .madoko pre code code {
 }
 
 .koka .dash {
-  margin-left: -0.05ex; margin-right: -0.05ex
+  margin-left: -0.05ex;
+  margin-right: -0.05ex;
 }
 
 .koka .minus {
@@ -149,7 +152,7 @@ pre code code, .madoko pre code code {
 }
 
 .koka .postfix {
-  color: gray
+  color: gray;
 }
 
 
@@ -168,7 +171,8 @@ pre.koka.source {
 }
 
 .madoko pre.koka.source {
-  overflow: visible; /* so tooltips .pc always show */
+  overflow-x: auto;
+  overflow-y: visible; /* so tooltips .pc always show */
 }
 
 .koka.doc .comment p {
@@ -183,7 +187,7 @@ pre.koka.source {
 }
 
 .koka.source a:hover,
-.koka.code a:hover, code.koka a:hover
+.koka.code a:hover, code.koka a:hover,
 .koka.pre a:hover, pre.koka a:hover {
   text-decoration: none
 }

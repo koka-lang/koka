@@ -75,9 +75,9 @@ types, fully qualified names, and implicit arguments.
 ~ end flexrow
 
 
-[vscode-caesar]: images/vscode-caesar.png "VS Code caesar examples" { width:60%; min-width:400px; }
-[vscode-inlay-off]: images/vscode-inlay-off.png "VS Code example without inlay hints" { height:4em; min-width:200px; }
-[vscode-inlay-on]:  images/vscode-inlay-on.png "VS Code example with inlay hints on" { height:4em; min-width:200px; }
+[vscode-caesar]: images/vscode-caesar.png "VS Code caesar examples" { width:60%; max-width:100%; }
+[vscode-inlay-off]: images/vscode-inlay-off.png "VS Code example without inlay hints" { max-height:4em; min-width:200px; max-width:100%; }
+[vscode-inlay-on]:  images/vscode-inlay-on.png "VS Code example with inlay hints on" { max-height:4em; min-width:200px; max-width:100%; }
 
 
 ### Manual Installation
