@@ -332,6 +332,19 @@ pub extern (++)(x : string, y : string) : string
 pub noinline extern @open<e1::E,e2::E,a,b>( x : a ) : e2 b
   inline "#1"
 
+// _Internal_. Type-equality evidence.
+pub type @type-eq<a,b>
+  con @TypeEq
+
+// _Internal_. Coerce a value along type-equality evidence; the identity at runtime.
+pub inline fip extern @coerce( x : a, ev : @type-eq<a,b> ) : b
+  inline "#1"
+
+pub inline fun refl/type-eq<a>() : @type-eq<a,a>
+  @TypeEq
+
+pub inline fun compose/type-eq<a,b,c>(?ev1 : @type-eq<a,b>, ?ev2 : @type-eq<b,c>) : @type-eq<a,c>
+  @TypeEq
 
 // ----------------------------------------------------------------------------
 // References

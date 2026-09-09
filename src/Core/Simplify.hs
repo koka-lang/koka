@@ -23,6 +23,7 @@ import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone
                        --, isValidK , nameLift
                        , nameBind, nameEvvIndex, nameClauseTailNoOp, isClauseTailName
                        , nameBox, nameUnbox, nameAssert
+                       , nameCoerce, nameRefl, nameConTypeEq, nameTpTypeEq
                        , nameAnd, nameOr, isNameTuple
                        , nameCCtxCompose, nameCCtxComposeExtend, nameCCtxEmpty )
 
@@ -203,6 +204,34 @@ topDown expr@(App app@(TypeApp (Var _ (InfoExternal "#1")) _) [arg])
         then return arg
         else do return (App app [arg])
 
+-- Simplify @coerce, the runtime-identity cast along a type-equality witness
+-- (see std/core/types and Core/Fusion): distribute it through let/match to
+-- the tail leaves, and fuse it with an application of an index-polymorphic
+-- function over a reflexive witness by retagging the index and moving the
+-- evidence inside:
+--
+--   @coerce( f<..,T>( C<..,T,..>(args, refl) ), ev )
+--     ~>  f<..,r>( C<..,r,..>(args, ev) )
+--
+-- Sound by type erasure: the index occurs only in the witness field and every
+-- witness erases to the unit @TypeEq, so both sides erase to identical code.
+-- This is what recovers a bare (tail) self-call from an inlined mutual-recursion
+-- wrapper under a coerce, so the C backend, ctail, and the monadic transform
+-- can treat it as a tail call again.
+topDown expr@(App capp@(TypeApp (Var cname _) [tFrom,tTo]) [body, ev])
+  | getName cname == nameCoerce && isTotal ev
+  = case body of
+      Let dgs e
+        -> topDown (Let dgs (mkCoerce e))
+      Case scruts branches
+        -> topDown (Case scruts [ Branch pats [ Guard g (mkCoerce e) | Guard g e <- guards ]
+                                | Branch pats guards <- branches ])
+      _ | Just fused <- fuseCoerce tFrom tTo body ev
+        -> topDown fused
+      _ -> return expr
+  where
+    mkCoerce e = App capp [e, ev]
+
 -- Direct function applications
 topDown expr@(App (Lam pars eff body) args) | length pars == length args
   = do newNames <- mapM uniqueTName pars
@@ -317,6 +346,68 @@ bindExprs exprs
                       let tname = TName name (typeOf expr)
                       return ([DefNonRec (makeTDef tname expr)], Var tname InfoNone)
 
+
+{--------------------------------------------------------------------------
+  Coerce fusion (see the @coerce topDown rule)
+--------------------------------------------------------------------------}
+
+-- | Fuse `@coerce<T,r>( f<..,T>(C<..,T,..>(args, refl)), ev )` into
+--   `f<..,r>( C<..,r,..>(args, ev) )`, guarded purely by types:
+--   `f : forall<..,a>. (C<..,a,..>) -> e a` returns exactly its last type
+--   parameter (which may not occur in its effect), the constructor's last field
+--   is a `@type-eq<t, a>` witness whose value is *reflexive*, and the index
+--   occurs in no other field. The rewritten application is checked to still be
+--   well-typed before committing.
+--
+--   With a reflexive witness `refl : @type-eq<T,T>` the outer evidence
+--   `ev : @type-eq<T,r>` is exactly the constructor's retagged witness type, so
+--   it is moved inside as-is. (A non-reflexive witness would need
+--   `compose/type-eq(w, ev)`; no compiler-generated code produces one, so the
+--   rule simply does not fire then and the -- erased, harmless -- coerce
+--   remains.)
+fuseCoerce :: Type -> Type -> Expr -> Expr -> Maybe Expr
+fuseCoerce tFrom tTo body ev
+  = do (fexpr@(Var (TName _ ftp) _), ftargs, conApp) <- case body of
+         App (TypeApp f@(Var _ _) targs) [carg] -> Just (f, targs, carg)
+         _ -> Nothing
+       (ftvs, [(_,fargTp)], feff, fres) <- splitFunScheme ftp
+       flast <- if null ftvs then Nothing else Just (last ftvs)
+       guard (case fres of { TVar tv -> tv == flast; _ -> False })
+       guard (not (flast `elem` tvsList (ftv feff)))
+       guard (length ftargs == length ftvs)
+       let tIdx = last ftargs
+       guard (matchType tFrom tIdx)
+       -- the argument must be a constructor application with a reflexive
+       -- witness in its last field
+       (con@(Con (TName _ ctp) _), ctargs, cargs) <- case conApp of
+         App (TypeApp c@(Con _ _) cts) cas -> Just (c, cts, cas)
+         _ -> Nothing
+       (ctvs, cfields, _, _) <- splitFunScheme ctp
+       guard (length ctargs == length ctvs && length cargs == length cfields && not (null cfields))
+       guard (isReflWitness (last cargs))
+       (tauG, idxTv) <- case expandSyn (snd (last cfields)) of
+                          TApp (TCon tc) [tau, TVar idx] | typeconName tc == nameTpTypeEq -> Just (tau, idx)
+                          _ -> Nothing
+       i <- elemIndex idxTv ctvs
+       guard (matchType (ctargs !! i) tIdx)
+       -- the index may occur only in the witness field's second position
+       guard (not (idxTv `elem` tvsList (ftv (tauG : map snd (init cfields)))))
+       let ctargs'   = [ if j == i then tTo else t | (j,t) <- zip [(0::Int)..] ctargs ]
+           ftargs'   = init ftargs ++ [tTo]
+           conApp'   = App (TypeApp con ctargs') (init cargs ++ [ev])
+           fused     = App (TypeApp fexpr ftargs') [conApp']
+       -- final well-typedness check of the retagged application
+       guard (matchType (subNew (zip ftvs ftargs') |-> fargTp) (typeOf conApp'))
+       return fused
+
+-- | Is a witness reflexive: a `refl/type-eq` call, or a `@TypeEq` at equal indices?
+isReflWitness :: Expr -> Bool
+isReflWitness w
+  = case w of
+      App (TypeApp (Var rv _) [_]) []       -> getName rv == nameRefl
+      App (TypeApp (Con cn _) [t1,t2]) []   -> getName cn == nameConTypeEq && matchType t1 t2
+      TypeApp (Con cn _) [t1,t2]            -> getName cn == nameConTypeEq && matchType t1 t2
+      _ -> False
 
 {--------------------------------------------------------------------------
   Bottom-up optimizations

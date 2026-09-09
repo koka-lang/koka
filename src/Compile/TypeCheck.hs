@@ -33,15 +33,18 @@ import Core.CheckFBIP( checkFBIP )
 import Core.Simplify( simplifyDefs )
 import Core.FunLift( liftFunctions )
 import Core.UnReturn( unreturn )
+import Core.Fusion( fuseMutRec )
+import Core.Inline( inlineDefs )
+import Core.Inlines( inlinesEmpty )
 import Core.Borrowed ( borrowedExtendICore )
 import Core.Uniquefy( uniquefy )
 
 import Kind.Assumption( extractKGamma )
-import Kind.Newtypes( Newtypes )
+import Kind.Newtypes( Newtypes, newtypesCompose, extractNewtypes )
 import Kind.ImportMap
 import Kind.Infer( inferKinds )
 import Type.Pretty
-import Type.Assumption( Gamma, extractGamma, extractGammaImports, gammaUnions, showHidden )
+import Type.Assumption( Gamma, extractGamma, extractGammaImports, gammaUnions, gammaUnion, showHidden )
 import Type.Infer( inferTypes )
 import qualified Core.Core as Core
 import Compile.Options
@@ -108,6 +111,7 @@ typeCheck flags defs coreImports program0
 
         -- check generated core
         let checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
+
         when (showInitialCore flags) $
           traceDefGroups "initial"
 
@@ -133,12 +137,40 @@ typeCheck flags defs coreImports program0
         checkCoreDefs "lifted"
         -- traceDefGroups "lifted"
 
+        -- Re-express mutually recursive groups as self-recursive GADT drivers
+        -- right after type checking (once the initial simplify has removed the
+        -- effect `@open`s and normalized calls, which the tail analysis needs),
+        -- so the whole optimize pipeline runs on the fused @run drivers rather
+        -- than on mutual recursion (which most passes bail on). The synthesized
+        -- private mutrec types are appended to the module core; extend
+        -- newtypes/gamma with them so later lookups (and checkCore) see them.
+        newFusionTypeDefs <- if optFusion flags && not (isPrimitiveModule progName)
+                                   then do tdefs <- fuseMutRec penv newtypes (platformFromFlags flags)
+                                           -- Inline the freshly emitted forceinline wrappers into the
+                                           -- driver right away: this both collapses the @run <-> wrapper
+                                           -- cycle into a directly self-recursive @run, and (as a side
+                                           -- effect of inlineDefs' own inline-simplify-inline shape) fires
+                                           -- Core.Simplify's @coerce fusion rule, recovering the bare tail
+                                           -- form for ordinary tail calls -- see "Tail calls vs. inlining"
+                                           -- in Core.Fusion's module header. Done here, right after the
+                                           -- pass, rather than left to wait for the general optimizer
+                                           -- (Compile.Optimize), so the fused driver's constant-stack
+                                           -- guarantee does not depend on optimization flags.
+                                           when (not (null tdefs)) $ inlineDefs penv (2*optInlineMax flags) inlinesEmpty
+                                           return tdefs
+                                   else return []
+        let coreProgramT = coreProgram{ Core.coreProgTypeDefs = Core.coreProgTypeDefs coreProgram ++ newFusionTypeDefs }
+            fusionCore = (Core.coreNull progName){ Core.coreProgTypeDefs = newFusionTypeDefs }
+            newtypes'    = newtypesCompose (extractNewtypes fusionCore) newtypes
+            gamma'       = gammaUnion (extractGamma Core.dataInfoIsValue False fusionCore) gamma
+        when (coreCheck flags) $ Core.Check.checkCore False False penv gamma'
+
         coreDefsFinal <- Core.getCoreDefs
         uniqueFinal   <- unique
         -- traceM ("final: " ++ show uniqueFinal)
 
         let mbRangeMap       = fmap rangeMapSort mbRangeMap1
-            coreUnique       = uniquefy $ coreProgram {
+            coreUnique       = uniquefy $ coreProgramT {
                                  Core.coreProgImports = coreImports,
                                  Core.coreProgDefs    = coreDefsFinal,
                                  Core.coreProgFixDefs = coreFixities
