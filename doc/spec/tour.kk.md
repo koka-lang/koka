@@ -650,6 +650,47 @@ that are not possible for general mutable reference cells.
 [Read more about state and multiple resumptions &adown;][#sec-multi-resume]
 {.learn}
 
+### Local Mutable Vectors {#sec-vectors;}
+
+Koka provides a built-in `vector` type that is backed by a constant sized C array of boxed values.
+
+Vectors still provide an immutable interface, but are faster than lists for random access.
+
+When using vectors locally you can 'mutate' them similarly to local variables:
+
+```
+fun vectors()
+  var myvec := vector-init(10, fn(i) i)
+  myvec[5] := 42
+  myvec.map(show).join(", ").println
+```
+
+If there is another reference to the vector, the vector will be copied on assignment to form the new vector. The elements that were not updated are shared between the old and the new vector. In the following example, the `vec-copy` will be a vector that shares the same values as `myvec` except at location `5`.
+
+```
+fun vectors()
+  var myvec := vector-init(10, fn(i) i)
+  val vec-copy = myvec
+  myvec[5] := 42
+```
+Koka can even [reuse][#sec-fbip] the memory of the elements of the vector if there is only one reference to the element. However, when using the assignment syntax above, Koka does not release the element from the vector in time for the in-place reuse to occur. If you want to update an element with the opportunity for in-place reuse, you can use the update function:
+```
+fun reuse()
+  var myvec := vector-init(10, fn(i) [i - 1, i, i + 1])
+  std/core/types/@byref(myvec).update(0, fn(l) l.map(fn(x) x + 1))
+```
+
+Because the `myvec` is unique and the value at that position is also unique, the memory of both the old vector and the old value can be used in place thanks to Perceus reference counting.
+
+Vectors can also be used outside of local variables, but setting / updating the vector will return a new vector (reusing the old memory in place if the vector was unique).
+```
+fun reuse()
+  val myvec = vector-init(10, fn(i) [i - 1, i, i + 1])
+  val newvec = myvec.update(0, fn(l) l.map(fn(x) x + 1))
+  val newvec1 = newvec.set(1, [-1])
+  newvec1[0].println
+  newvec1[1].println
+```
 
 ### Reference Cells and Isolated state {#sec-runst}
 
