@@ -49,6 +49,7 @@ pub import std/async
 pub import std/async/async
 pub import std/async/channel
 pub import std/async/interleave
+pub import std/async/os/file
 
 pub fun main()
   println("toc")
