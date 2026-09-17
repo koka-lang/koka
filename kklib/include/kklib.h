@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          186    // modify on changes to trigger recompilation..
+#define KKLIB_BUILD          187    // modify on changes to trigger recompilation..
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -507,45 +507,13 @@ kk_decl_export kk_datatype_ptr_t kk_evv_empty_singleton(kk_context_t* ctx);
 --------------------------------------------------------------------------------------*/
 
 #ifdef KK_MIMALLOC
-#if MI_MALLOC_VERSION < 3000
-#ifdef KK_MIMALLOC_INLINE
-  static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
-    return kk_mi_heap_malloc_small_inline(ctx->heap, (size_t)sz);
-  }
-#else
-  static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
-    return mi_heap_malloc_small(ctx->heap, (size_t)sz);
-  }
-#endif
-
-static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
-  return mi_heap_malloc(ctx->heap, (size_t)sz);
-}
-
-static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
-  return mi_heap_zalloc(ctx->heap, (size_t)sz);
-}
-
-static inline void* kk_zalloc_small(kk_ssize_t sz, kk_context_t* ctx) {
-  return mi_heap_zalloc_small(ctx->heap, (size_t)sz);
-}
-
-static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
-  return mi_heap_realloc(ctx->heap, p, (size_t)sz);
-}
-
-static inline void kk_free_small(const void* p, kk_context_t* ctx) {
-  kk_free(p,ctx);
-}
-
-#else
 // mimalloc v3
 static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
-  return mi_theap_malloc_small(ctx->heap, (size_t)sz);
+  return mi_theap_wmalloc_small(ctx->heap, mi_wsize_from_size((size_t)sz));
 }
 
 static inline void* kk_zalloc_small(kk_ssize_t sz, kk_context_t* ctx) {
-  return mi_theap_zalloc_small(ctx->heap, (size_t)sz);
+  return mi_theap_wzalloc_small(ctx->heap, mi_wsize_from_size((size_t)sz));
 }
 
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
@@ -562,13 +530,11 @@ static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
 
 static inline void kk_free_small(const void* p, kk_context_t* ctx) {
   kk_unused(ctx);
-  mi_free_small((void*)p);
+  mi_free_small_nonnull((void*)p);
 }
 
-#if MI_PAGE_META_ALIGNED_FREE_SMALL
+#if MI_PAGE_META_ALIGNED_FREE_SMALL || MI_PAGE_META_SMALL_IS_ALIGNED
 #define KK_HAS_FAST_FREE_SMALL  1
-#endif
-
 #endif
 
 static inline void kk_free(const void* p, kk_context_t* ctx) {
