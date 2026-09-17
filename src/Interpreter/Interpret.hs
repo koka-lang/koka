@@ -227,6 +227,10 @@ command st buildc cmd
                                                      nextClear st buildc
                                   ModeCompiler files     -> setFlags files
                                   ModeInteractive files  -> setFlags files
+                                  -- `:set --language-server` can reach here; starting a
+                                  -- language server from the interpreter is not meaningful
+                                  ModeLanguageServer _   -> do messageError st "cannot switch to language server mode"
+                                                               next st buildc
                                   -- ModeDoc files          -> setFlags files
                               }
                     }
@@ -646,7 +650,7 @@ messageHeader st
 semiRandom min max
   = do t <- getCurrentTime
        let i = fileTimeToPicoseconds t `div` 100000000000
-       return (fromInteger (min + (i `mod` (max - min))))
+       return (fromInteger (min + (i `mod` (max - min + 1))))
 
 putQuote ::  State -> IO ()
 putQuote st
