@@ -13,7 +13,7 @@ module async/interleave
 
 import std/time/duration
 import std/core/unsafe
-import std/core/undiv 
+import std/core/undiv
 
 import async/async
 import async/channel
@@ -73,7 +73,7 @@ pub fun list/firstof-any( x : () -> <async,ndet|e> a, xs : list<() -> <async,nde
   match Cons(x,xs).interleave-list(False)
     Cons(y,_) -> y
     Nil       -> impossible("empty result list")
-  
+
 // Interleave two actions
 pub fun two/interleaved( action1 : () -> <async|e> a, action2 : () -> <async|e> b ) : <async|e> (a,b)
   fun actionL() Left(action1())
@@ -89,10 +89,10 @@ pub fun list/interleaved(xs : list<() -> <async|e> a> ) : <async|e> list<a>
   xs.interleave-list(True)
 
 
-// Interleave a list of actions 
+// Interleave a list of actions
 fun list/interleave-list(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet|e> list<a>
   with strand-list(needall)
-  interleave-strand-list(xs,needall)  
+  interleave-strand-list(xs,needall)
 
 // Interleave ordered over a producer where the next producer result is interleaved with the current result.
 fun interleave-lockstep( f : () -> <async|e> a, g : a -> <async|e> () ) : <async,ndet,div|e> ()
@@ -103,10 +103,10 @@ fun interleave-lockstep( f : () -> <async|e> a, g : a -> <async|e> () ) : <async
 // Strands
 // -------------------------------------------------------
 
-// A strand result is either `Canceled` (by `discontinue`),  
-// `Finalized` (by an exception etc) with a yield context (so we can reyield), 
+// A strand result is either `Canceled` (by `discontinue`),
+// `Finalized` (by an exception etc) with a yield context (so we can reyield),
 // or a `Completed` result value.
-type strand-result<a>  
+type strand-result<a>
   Canceled
   Finalized(yld : yield-context)     // exception etc.
   Completed(result : a)
@@ -117,7 +117,7 @@ fun strand-result/show(self : strand-result<a> ) : e string
     Finalized -> "Finalized(...)"
     Completed -> "Completed(...)"
 
-// Continue from a strand result by either returning the 
+// Continue from a strand result by either returning the
 // completed value or reyielding the finalized effect (or `discontinue`).
 fun strand-continue( res : strand-result<a> ) : async a
   match res
@@ -160,13 +160,13 @@ fun strand-actions( needall : bool, action : () -> <async,strands<a>|e> () )  : 
   with handler<strands>
     return(_)                 -> result.strand-continue
     fun strands-are-active()  -> outstanding > 0
-    fun strand-init()         -> outstanding := outstanding + 1      
-    fun strand-done(res)    
-      trace("strand done: " ++ res.show)
+    fun strand-init()         -> outstanding := outstanding + 1
+    fun strand-done(res)
+      // trace("strand done: " ++ res.show)
       result := result.strand-merge(res,needall,fn(_,_) (),())
-      outstanding := outstanding - 1      
+      outstanding := outstanding - 1
   with mask<local>
-  action()  
+  action()
 
 // Run an indexed async operation and return the results (in the same order)
 fun strand-list( needall : bool, action : () -> <async,strands<(int,a)>|e> () )  : <async|e> list<a>
@@ -175,11 +175,11 @@ fun strand-list( needall : bool, action : () -> <async,strands<(int,a)>|e> () ) 
   with handler<strands>
     return(_)                 result.strand-continue.map(snd)
     fun strands-are-active()  outstanding > 0
-    fun strand-init()         outstanding := outstanding + 1      
-    fun strand-done(res)    
-      trace("strand done: " ++ res.show)
-      result := result.strand-merge(res,needall,ordered-insert,[])      
-      outstanding := outstanding - 1      
+    fun strand-init()         outstanding := outstanding + 1
+    fun strand-done(res)
+      // trace("strand done: " ++ res.show)
+      result := result.strand-merge(res,needall,ordered-insert,[])
+      outstanding := outstanding - 1
   with mask<local>
   action()
 
@@ -188,8 +188,8 @@ tail fun ordered-insert( xs : list<(int,a)>, y : (int,a)  ) : list<(int,a)>
   match xs
     Cons(x,xx) | x.fst < y.fst -> Cons(x, ordered-insert(xx,y))
     _          -> Cons(y,xs)
-  
-  
+
+
 
 // -------------------------------------------------------
 // Interleaving primitives
@@ -198,9 +198,9 @@ tail fun ordered-insert( xs : list<(int,a)>, y : (int,a)  ) : list<(int,a)>
 // Interleave a fixed number of asychronous actions
 fun interleave-strand-list(xs : list<() -> <async|e> a>, needall : bool ) : <async,ndet,strands<(int,a)> |e> ()
   // we issed a fixed number of interleave's and thus always terminate (for the outer `:div`)
-  with pretend-no-div                                
+  with pretend-no-div
   interleave-strands(needall) fn(interleave)
-    xs.list/foreach-indexed fn(i,action) 
+    xs.list/foreach-indexed fn(i,action)
       interleave
         (i,action())
 
@@ -210,8 +210,8 @@ fun interleave-strand-channel(needall : bool, max-interleave : int = 1000, ch : 
   with collapse-ndet
   interleave-strand-compose(needall, { ch.receive() }, fn(x) with mask<ndet> in f(x), max-interleave )
 
-// TODO: make an `interleave-strand-channels` (or compose) that receives from one channel but then 
-// emits on another channel _in order_ while still being somewhat concurrent (up to some N) by starting 
+// TODO: make an `interleave-strand-channels` (or compose) that receives from one channel but then
+// emits on another channel _in order_ while still being somewhat concurrent (up to some N) by starting
 // processing on other elements but such that  they won't emit out of order.
 
 // Interleave _dynamically_ over an asynchronous producer function `f` with an asynchronous consumer function `g`.
@@ -219,21 +219,21 @@ fun interleave-strand-channel(needall : bool, max-interleave : int = 1000, ch : 
 fun interleave-strand-compose(needall : bool, f : () -> <async|e> a, g : a -> <async|e> b, max-interleave : int = 1000 ) : <async,ndet,div,strands<(int,b)>|e> ()
   var interleave-count := 0
   var index := 0
-  interleave-strands-ex(needall) fn(interleave)    
+  interleave-strands-ex(needall) fn(interleave)
     interleave
       fun loop()
         val i = index
         index := i + 1
-        val x = with mask<strands,ndet,div> in f()          
+        val x = with mask<strands,ndet,div> in f()
         if interleave-count < max-interleave then
           // interleave the call to g
-          interleave-count := interleave-count + 1          
-          interleave 
+          interleave-count := interleave-count + 1
+          interleave
             with finally
               interleave-count := interleave-count - 1
             with mask<strands,ndet,div> in (i,g(x))
           loop()
-        else          
+        else
           // stop interleaving if too many interleavings
           with mask<strands,ndet,div> in (i,g(x))
           loop()
@@ -244,20 +244,20 @@ fun interleave-strand-compose(needall : bool, f : () -> <async|e> a, g : a -> <a
 fun interleave-strand-lockstep(needall : bool, f : () -> <async|e> a, g : a -> <async|e> b, max-interleave : int = 1000 ) : <async,ndet,div,strands<(int,b)>|e> ()
   var interleave-count := 0
   var index := 0
-  interleave-strands-ex(needall) fn(interleave)    
+  interleave-strands-ex(needall) fn(interleave)
     interleave
       fun loop(x)
         val i = index
         index := i + 1
-        interleave 
+        interleave
           with finally
             interleave-count := interleave-count - 1
           with mask<strands,ndet,div> in (i,g(x))
         val y = with mask<strands,ndet,div> in f()
         loop(y)
       val x = with mask<strands,ndet,div> in f()
-      loop(x)      
-      
+      loop(x)
+
 
 // -------------------------------------------------------
 // Primitive interleave strands
@@ -268,32 +268,32 @@ alias async-ex<a> = <async,div,ndet,strands<a>>
 // Interleave strands but hide the internal effects from `action`.
 fun interleave-strands( needall : bool, setup : (ileave : (action : () -> <async|e> a ) -> <async-ex<a>|e> ()) -> <async-ex<a>|e> () )  : <async-ex<a>|e> ()
   interleave-strands-ex(needall) fn(interleave)
-    setup fn(action) 
-      interleave 
+    setup fn(action)
+      interleave
         with mask<strands,ndet,div> in action()
 
 // Call a `setup` function with an `interleave` function that will interleave a given `action`
 // by emitting any async resumption on a channel. We then receive these resumptions
-// on the channel and resume them as long as the strands are active. 
+// on the channel and resume them as long as the strands are active.
 // This is more complex than using multi-shot resumptions directly, but now we can
 // implement interleaving using only single-shot resumptions (which we need for example when targeting native WASM stacks).
 fun interleave-strands-ex( needall : bool, setup : (interleave : (action : () -> <async-ex<a>|e> a ) -> <async-ex<a>|e> ()) -> <async-ex<a>|e> () )  : <async-ex<a>|e> ()
   val ch : channel<() -> <async|_> ()> = channel()   // channel of resumptions
   val () =
-    with cancelation-scope                    // limit cancelation to our interleaving            
+    with cancelation-scope                    // limit cancelation to our interleaving
     setup fn(action)                          // setup interleaved operations
       interleave-strand(needall,ch,action)    // interleave on our channel
-  while{ strands-are-active() }           
+  while{ strands-are-active() }
     ch.receive().()                           // receive and resume (note: this receive must be outside the cancelation scope)
 
 // Interleave an action such that all async operations are captured and emit a resumption on the given channel.
 fun interleave-strand(needall : bool, ch : channel<() -> <async,strands<a>|e> ()>, action : () -> <async,strands<a>|e> a ) : <async,strands<a>|e> ()
   strand-init()                   // always initialize to keep outstanding count
-  if is-canceled() then 
+  if is-canceled() then
     strand-done(Canceled)         // don't start any new interleavings once the scope is canceled
-  else            
-    with emit-on-await(ch)        // redirect async calls to emit resumptions on the channel (and return () instead of waiting)            
-    val res = 
+  else
+    with emit-on-await(ch)        // redirect async calls to emit resumptions on the channel (and return () instead of waiting)
+    val res =
       with unsafe-unfinalize      // catches any final ctl (exceptions)
       with unsafe-uncancel        // catches any discontinue() (so we can prefer exceptions over cancelations)
       action()
@@ -301,4 +301,4 @@ fun interleave-strand(needall : bool, ch : channel<() -> <async,strands<a>|e> ()
       Right(Just(x)) -> { strand-done(Completed(x)); if !needall then cancel-outstanding() }
       Right(Nothing) -> { strand-done(Canceled) }
       Left(yld)      -> { strand-done(Finalized(yld)); if needall then cancel-outstanding() }
-    
+

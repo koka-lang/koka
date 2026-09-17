@@ -12,9 +12,9 @@ This module is based closely on [@Leijen:async] and aims to have robust and comp
 primitives. In particular, any outstanding asynchronous operation can be canceled (through `cancel-outstanding`)
 within a certain cancelation scope which allows for composable primitives like `timeout` and `interleave`.
 
-# Cancelation 
+# Cancelation
 
-When calling `cancel-outstanding`, it cancels any outstanding async operations 
+When calling `cancel-outstanding`, it cancels any outstanding async operations
 in the current cancelation scope and any of its child scopes.
 Some reasons for cancelation:
  - returning normally, cancelation prevents dangling callbacks
@@ -26,9 +26,9 @@ After `cancel-outstanding` is called, the caller continues as normal -
 calling `cancel-oustanding` simply returns `()`.
 
 The way that cancelation is observed is that all outstanding async operaions in
-the cancelation scope receive a `Cancel` result instead of a `Result` (or `Exception`). 
+the cancelation scope receive a `Cancel` result instead of a `Result` (or `Exception`).
 Aside from low-level code, a user won't observe this as the abstractions
-awaiting a result automatically use `discontinue()` when `Cancel` a result 
+awaiting a result automatically use `discontinue()` when `Cancel` a result
 is given.
 
 We use a separate effect `:discontinue` instead of an exception since it
@@ -36,7 +36,7 @@ is intended that a `discontinue` is never handled and always discontinues
 a stsrand. Of course, `finally` blocks still execute so external resources
 can be released properly.
 
-# References 
+# References
 
 ~ Bibliography { caption:"0" }
 ~~ BibItem { #Leijen:async; bibitem-label:"[1]"; searchterm:"Leijen+Daan+Structured+Asynchrony+with+Algebraic+Effects" }
@@ -63,7 +63,7 @@ import async/api/evloop
   // todo: wasm standalone using wasi
 
 
-pub effect discontinue  
+pub effect discontinue
   // Internal: The current strand of execution is canceled
   final ctl discontinue() : a
 
@@ -109,7 +109,7 @@ pub fun float/wait( secs : float64 ) : async ()
 pub fun duration/wait( secs : duration = zero ) : async ()
   val msecs = max(zero:int64,secs.milli-seconds.int64)
   await-error("wait " ++ secs.show) fn(evloop,resume)                   // ignore errors; we assume timeouts always work
-    timer-setup(evloop,msecs,fn() resume(()))     
+    timer-setup(evloop,msecs,fn() resume(()))
   ()
 
 // Yield to other asynchronous operations. Same as `wait(0)`.
@@ -123,16 +123,16 @@ pub fun yield() : async ()
 
 // Convenience function for awaiting a zero argument callback that never fails
 fun await0-noexn( label : string = "", setup : (resume : () -> ioc () ) -> ioc () ) : async ()
-  await1-noexn(label) fn(resume) setup(fn() resume(())) 
+  await1-noexn(label) fn(resume) setup(fn() resume(()))
 
 // Convenience function for awaiting a single argument callback that never fails
 pub fun await1-noexn( label : string = "", setup : (resume : (a) -> ioc () ) -> ioc () ) : async a
   await-noexn(label) fn(_evloop,resume){ setup(resume); (fn() {}) }
-  
+
 // Convenience function for async functions where the setup cannot fail. In that case
 // the result will never be an error.
-fun await-noexn( label : string = "", setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc dispose-fn ) : async a  
-  val res = setup/await-error( label, fn(evloop,resume) setup(evloop,resume).Ok )   
+fun await-noexn( label : string = "", setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc dispose-fn ) : async a
+  val res = setup/await-error( label, fn(evloop,resume) setup(evloop,resume).Ok )
   match res
     Ok(x)      -> x
     Error(exn) -> impossible("unexpected exception returned from async await: " ++ show(exn))
@@ -140,20 +140,20 @@ fun await-noexn( label : string = "", setup : (evloop : event-loop, resume : (a)
 
 // Await a zero argument callback.
 pub fun await0( label : string = "", setup : (resume : () -> ioc () ) -> ioc error<dispose-fn> ) : <async,exn> ()
-  await1(label) fn(resume) setup(fn() resume(())) 
+  await1(label) fn(resume) setup(fn() resume(()))
 
 // Await a single argument callback.
 pub fun await1( label : string = "", setup : (resume : (a) -> ioc () ) -> ioc error<dispose-fn> ) : <async,exn> a
   setup/await(label) fn(_evloop,resume) setup(fn(x) resume(Ok(x)))
 
 // Await with the exception effect
-pub fun setup/await( label : string = "", setup : (evloop : event-loop, resume : error<a> -> ioc ()) -> ioc error<dispose-fn> ) : <async,exn> a  
+pub fun setup/await( label : string = "", setup : (evloop : event-loop, resume : error<a> -> ioc ()) -> ioc error<dispose-fn> ) : <async,exn> a
   await-error1(label,setup).untry
 
-// Primitive await: call `setup` to set up an asynchronous callback with the host platform. 
+// Primitive await: call `setup` to set up an asynchronous callback with the host platform.
 // The setup is passed the eventloop of the async handler, and a `resume` function
 // that takes an `:await-result`: a cancelation, exception, or regular result.
-// The `setup` function returns either an error, or a `dispose` funcion that is invoked on cancellation 
+// The `setup` function returns either an error, or a `dispose` funcion that is invoked on cancellation
 // to dispose of any resources (see the implementation of `wait`).
 // The `resume` is invoked exactly once (either on the async completion callback, or on cancelation)
 pub fun setup/await-error( label : string, setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc error<dispose-fn> ) : async error<a>
@@ -174,24 +174,24 @@ fun await-result/error( res : await-result<a>, ?label : string ) : discontinue e
   match res
     Result(value)  -> Ok(value)
     Exception(exn) -> Error(exn)
-    Cancel -> 
-      trace("discontinue from await: " ++ label)
+    Cancel ->
+      // trace("discontinue from await: " ++ label)
       discontinue()
 
 extend type exception-info
   ExnSync
 
 pub fun do-sync( action : (evloop : event-loop) -> ioc error<()>, label : string = "" ) : <exn,async> ()
-  val res = do-await(fn(evloop,resume) { 
+  val res = do-await(fn(evloop,resume) {
                         match action(evloop)
-                          Error(err) -> Error(err) 
-                          Ok(_)      -> Error(Exception("do-sync",ExnSync)) 
+                          Error(err) -> Error(err)
+                          Ok(_)      -> Error(Exception("do-sync",ExnSync))
                     }, async-scope, label)
   match res
     Exception(Exception(_,ExnSync)) -> ()
     _ -> res.error.untry
 
-  
+
 
 
 // ----------------------------------------------------------------------------
@@ -225,7 +225,7 @@ fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
 
   // Has the root async-scope been canceled?
   val canceled : ref<global,bool> = ref(False)
-  
+
   // Setup a new async await request with a given callback `resume`
   fun setup-await( setup : await-setup<a>, scope : async-scope, label : string, resume : (await-result<a>) -> ioc ()) : ioc ()
     // Each callback gets its own async-scope so we can tell when a given
@@ -236,9 +236,9 @@ fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
     val disposer : ref<global,dispose-fn> = ref(noop)
 
     // The resumption callback that is invoked when the async request completes (or on cancelation)
-    fun resume-cb( res : await-result<_>, is-done : bool ): ioc () 
+    fun resume-cb( res : await-result<_>, is-done : bool ): ioc ()
       if is-done then
-        outstanding := (!outstanding).remove(cscope)                  
+        outstanding := (!outstanding).remove(cscope)
         val dispose = disposer.swap(noop)  // unreference early
         if res.is-cancel then dispose()
       resume(res)
@@ -250,52 +250,52 @@ fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
 
   // Cancel all outstanding async requests that are in `scope`
   fun cancel-outstanding-in-scope( scope : async-scope ) : ioc ()
-    (!outstanding).foreach fn(AwaitResumption(await-scope,label,resume-cb))
-      if await-scope <= scope then 
-        trace("cancel: " ++ label ++ " at " ++ scope.show)
+    (!outstanding).foreach fn(AwaitResumption(await-scope,_label,resume-cb))
+      if await-scope <= scope then
+        // trace("cancel: " ++ label ++ " at " ++ scope.show)
         resume-cb(Cancel,True)
-      else 
-        trace("no cancel: " ++ label ++ " at " ++ scope.show)
-  
+      // else
+      // trace("no cancel: " ++ label ++ " at " ++ scope.show)
+
   // Schedule an async call for the next evloop iteration (uv_check_t / setImmediate)
-  fun schedule( f : () -> ioc () ) : ioc ()    
-    match immediate-setup(evloop,f)  
+  fun schedule( f : () -> ioc () ) : ioc ()
+    match immediate-setup(evloop,f)
       Ok    -> ()   // scheduled f to be called
       Error -> f()  // if setup fails we call it immediately
 
   with handler<async-await>
-    raw ctl do-await(setup,scope,lab)   setup-await(setup, scope, lab, fn(x) rcontext.resume(x) )    
-    fun no-await(setup,scope,lab,cb)    setup-await(setup, scope, lab, cb )    
+    raw ctl do-await(setup,scope,lab)   setup-await(setup, scope, lab, fn(x) rcontext.resume(x) )
+    fun no-await(setup,scope,lab,cb)    setup-await(setup, scope, lab, cb )
 
   with handler<async-ioc>
     fun async-ioc(f)                    f()
-    fun async-schedule-ioc(f)           schedule(f)    
+    fun async-schedule-ioc(f)           schedule(f)
 
   with handler<async-cancel>
-    val async-scope = root-scope    
+    val async-scope = root-scope
     fun is-scope-canceled(scope)        (scope==root-scope && !canceled)
-    fun cancel-scope(scope)             
-      trace("cancel-scope: " ++ scope.show)
+    fun cancel-scope(scope)
+      // trace("cancel-scope: " ++ scope.show)
       if scope == root-scope then canceled := True
       cancel-outstanding-in-scope(scope)
-  
+
   with handler<discontinue>
-    final ctl discontinue()             
+    final ctl discontinue()
       cancel-outstanding-in-scope(root-scope)
-      trace("discontinue occurred at the toplevel async-scope")      
+      // trace("discontinue occurred at the toplevel async-scope")
 
   action()
-    
+
 // The main `:async` handler. Uses "libuv" for the C backend,
 // (with a libuv emscripten wrapper for the Wasm Web backend).
 // Uses the standard async calls for Javascript (web or Node).
-pub fun async( action : () -> <async,ioc> () ) : ioc () 
+pub fun async( action : () -> <async,ioc> () ) : ioc ()
   val evloop = event-loop-init()
   async-evloop(evloop,action)
   event-loop-run(evloop)
-  
-// The default async handler called from `main`.  
-pub fun @default-async( action : () -> <async,ioc> () ) : ioc () 
+
+// The default async handler called from `main`.
+pub fun @default-async( action : () -> <async,ioc> () ) : ioc ()
   async(action)
 
 
@@ -306,29 +306,29 @@ pub fun @default-async( action : () -> <async,ioc> () ) : ioc ()
 // Set up a new cancelation scope
 pub fun cancelation-scope( action : () -> <async|e> a) : <async|e> a
   val cscope = new-child-scope(async-scope)
-  var canceled := False 
+  var canceled := False
   override handle<async-cancel>(action)
     val async-scope = cscope
-    fun is-scope-canceled(scope)  
+    fun is-scope-canceled(scope)
       (scope<=cscope && canceled) || is-scope-canceled(scope)
-    fun cancel-scope(scope)       
+    fun cancel-scope(scope)
       if scope==cscope then canceled := True
       cancel-scope(scope)
 
-// Run an `action` as if it is part of the parent scope 
+// Run an `action` as if it is part of the parent scope
 // (so it will be canceled only if the parent scope is canceled)
 pub fun in-parent-scope( action : () -> <async|e> a ) : <async|e> a
   override handle<async-cancel>(action)
-    val async-scope = async-scope.parent 
+    val async-scope = async-scope.parent
     fun is-scope-canceled(scope)  is-scope-canceled(scope)
-    fun cancel-scope(scope)       cancel-scope(scope)    
-  
+    fun cancel-scope(scope)       cancel-scope(scope)
+
 // Catch a discontinue as a `:maybe`.
 // Use with care as cancelation should not be ignored.
 pub fun unsafe-uncancel( action : () -> <async|e> a): <async|e> maybe<a>
   override handle(action)
     return(x)               Just(x)
     final ctl discontinue() Nothing
-    
+
 
 
