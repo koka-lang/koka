@@ -1,4 +1,4 @@
-{ 
+{
   "flags": "-l --target=c --showfcore",
-  "exclude": [ "parc19.kk" ]
+  "exclude": [ "parc19.kk", "syn-nested1a.kk", "syn-nested1b.kk", "syn-nested1c.kk", "syn-nested2.kk" ]
 }

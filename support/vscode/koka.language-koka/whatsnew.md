@@ -11,11 +11,23 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 
-### v3.2.7, 2026-04-20
+### v3.2.8, 2026-09-17
+
+- Many bug fixes; thank you Tim Whiting, @omegametabrocollo, Ben Siraphob, and others. 
+
+- Initial work on `std/async`; currently only basic operations are supported.
+
+- Improved standard library `std/core/bytes` etc.
+
+- Conditional imports based on the build configuration, see `std/async/async.kk` for an example.
+
+- Use _relative_ imports: if a module has a name that includes a parent directory
+  (like `module async/os/file`) then the imports are relative to that parent directory so 
+  we can relatively refer to modules in parent directories (like `import async/channel`).
+
+- Upgrade to mimalloc v3.5.3; improved C runtime performance.
 
 - Fix executable permissions on macOS when using `-o <target>`.
-
-- Upgrade to mimalloc v3.3.1; slightly improved C runtime performance.
 
 ### v3.2.3, 2026-03-17
 
