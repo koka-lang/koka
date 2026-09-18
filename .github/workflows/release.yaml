@@ -2,8 +2,8 @@ on:
   workflow_dispatch:   # so we can run the workflow manually as well
     inputs:
       release:
-        description: "Release name (e.g. v3.2.8)"
-        default: "v3"
+        description: "Release name"
+        default: "v3.2.8"
         type: string
         required: true
 

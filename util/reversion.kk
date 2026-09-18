@@ -47,6 +47,7 @@ fun re-version( version : string ) : _ ()
               , ("util/install.sh",  ["^VERSION=\"v"] )
               , ("util/minbuild.sh", ["^KOKA_VERSION="] )
               , ("util/release.md",  ["/download/v"])
+              , (".github/workflows/release.yaml", ["default:\\s*\"v"])
               // no longer needed as the extension automatically downloads new releases:
               // , ("support/vscode/koka.language-koka/package.json", ["\"compilerVersion\"\\s*:\\s*\""] )
               ]
