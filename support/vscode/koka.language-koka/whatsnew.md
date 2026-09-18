@@ -11,7 +11,7 @@ generating direct C code without needing a runtime system. To learn more:
 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 
-### v3.2.8, 2026-09-17
+### v3.2.9, 2026-09-17
 
 - Many bug fixes; thank you Tim Whiting, @omegametabrocollo, Ben Siraphob, and others. 
 

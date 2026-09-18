@@ -1,7 +1,7 @@
 ~ begin news
 News:
 
-- 2026-09-17: Koka v3.2.8 released. Initial `std/async` module,
+- 2026-09-17: Koka v3.2.9 released. Initial `std/async` module,
   performance improvements with mimalloc v3.5.3, conditional and relative imports,
   and many bug fixes (thank you Tim Whiting, @omegametabrocollo, Ben Siraphob, and others).
 

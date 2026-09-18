@@ -3,7 +3,7 @@ on:
     inputs:
       release:
         description: "Release name"
-        default: "v3.2.8"
+        default: "v3.2.9"
         type: string
         required: true
 

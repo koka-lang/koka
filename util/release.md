@@ -8,13 +8,13 @@ It is recommended to install the binary compiler via the VS Code Koka extension.
 
 Tested on macOS, Ubuntu, Debian, and should run on most unix systems. From a command prompt, run:
 ```sh
-curl -sSL https://github.com/koka-lang/koka/releases/download/v3.2.8/install.sh | sh
+curl -sSL https://github.com/koka-lang/koka/releases/download/v3.2.9/install.sh | sh
 ```
 ### Windows (x64, arm64)
 
 Open a `cmd` prompt and download and run the installer:
 ```sh
-curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/download/v3.2.8/install.bat && %tmp%\install-koka.bat
+curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/download/v3.2.9/install.bat && %tmp%\install-koka.bat
 ```
 This will also prompt to install the [Clang][llvm] compiler, the [Windows SDK][winSDK] if needed, and syntax highlighting for the [VS Code][vscode] editor.
 On Windows arm64, we use the x64 Koka compiler (which runs emulated), but the generated code is native arm64.
