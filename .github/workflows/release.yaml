@@ -22,7 +22,7 @@ env:
 name: Release
 jobs:
   build:
-    name: Bundle
+    name: Bundle ${{ inputs.release }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
