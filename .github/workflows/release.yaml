@@ -1,5 +1,11 @@
 on:
   workflow_dispatch:   # so we can run the workflow manually as well
+    inputs:
+      release:
+        description: "Release name (e.g. v3.2.8)"
+        default: "v3"
+        type: string
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -9,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  RELEASE: Release v3.2.8
+  RELEASE: ${{ inputs.release }}
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
