@@ -15,19 +15,23 @@ import std/os/path
 extern import
   c file "dir-inline.c"
 
-// Recursively list all the entries under a directory.
+// Recursively list all the entries under a directory (excluding `.` and `..`).
 pub fun list-directory-recursive( dir : path, max-depth : int = 1000 ) : <fsys,pure> list<path>
   if max-depth < 0 return []
   val all  = list-directory(dir)
   val dirs = all.filter(is-directory)
   all ++ dirs.flatmap(fn(sub){ list-directory-recursive(sub,(max-depth - 1)) })
 
-pub fun copy-directory( dir : path, to : path ) : <fsys,pure> ()
+pub fun copy-directory-except( dir : path, to : path, exclude : path -> bool ) : <fsys,pure> ()
   ensure-dir(to)
   val all = list-directory(dir)
   val (dirs,files) = all.partition(is-directory)
-  files.foreach( fn(f){ copy-file( f, to / f.nodir ) } )
-  dirs.foreach( fn(d){ copy-directory( d, to / d.nodir ) } )
+  files.filter(fn(p) !exclude(p)).foreach( fn(f){ copy-file( f, to / f.nodir ) } )
+  dirs.filter(fn(p) !exclude(p)).foreach( fn(d){ copy-directory-except( d, to / d.nodir, exclude ) } )
+
+pub fun copy-directory( dir : path, to : path ) : <fsys,pure> ()
+  copy-directory-except(dir, to, fn(_) False)
+
 
 // Ensure a directory path exists
 pub fun ensure-dir( dir : path ) : <fsys,exn> ()

@@ -1,13 +1,5 @@
 on:
   workflow_dispatch:   # so we can run the workflow manually as well
-  push:
-    branches:
-      - dev
-    tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - dev
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,15 +9,18 @@ permissions:
   contents: write
 
 env:
+  RELEASE: Release v3.2.8
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
-name: bundle
+name: Release
 jobs:
   build:
-    name: Bundle Koka
+    name: Bundle
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        branch: dev  # v3.2.8
         # macOS 15 is latest for x64, default now is arm64
         # we build on the oldest ubuntu version for better binary compatibility.
         os: [windows-latest, macOS-latest, macos-15-intel, ubuntu-22.04, ubuntu-22.04-arm]
@@ -33,14 +28,16 @@ jobs:
     steps:
       # Checkout: https://github.com/actions/checkout
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
+          fetch-tags: true
+          fetch-depth: 0
 
       # Cache setup for vcpkg (https://learn.microsoft.com/en-us/vcpkg/consume/binary-caching-github-actions-cache)
       # https://github.com/actions/github-script
       - name: Setup vcpkg cache
-        uses: actions/github-script@v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0
         with:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
@@ -48,14 +45,20 @@ jobs:
 
       # Use a VS shell on Windows (so `cl` is on the PATH): https://github.com/egor-tensin/vs-shell (MIT license)
       - name: Set up Visual Studio shell (Windows x64)
-        uses: egor-tensin/vs-shell@v2
+        uses: egor-tensin/vs-shell@54e4148eac794e4580591c2e0b7750f14b7891fc # v2.2
         if: runner.os == 'Windows' && runner.arch == 'X64'
         with:
           arch: x64
 
+      # Set VCPKG_ROOT on Windows (otherwise it points to the wrong one in the VS install)
+      - name: Set VCPKG_ROOT (Windows)
+        if: runner.os == 'Windows'
+        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
+
       # Set up stack and cache dependencies: https://github.com/freckle/stack-action (MIT license)
       - name: Build compiler
-        uses: freckle/stack-action@v5
+        uses: freckle/stack-action@c5b62aa4c722658775d1c53d501a21bca1d28c5a #v5.7.29
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
@@ -63,33 +66,14 @@ jobs:
           stack-build-arguments: ""
           cache-save-always: true
 
-      # Set VCPKG_ROOT on Windows (otherwise it points to the wrong one in the VS install)
-      - name: Set VCPKG_ROOT (Windows)
-        if: runner.os == 'Windows'
-        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
-
-      # Run tests
-      - name: Run test suite
-        if: runner.os != 'macOS'
-        run: |
-          stack test
-
-      - name: Run test suite (macOS)
-        if: runner.os == 'macOS'
-        env:
-          LC_ALL: C
-        run: |
-          stack test
-
       # Bundle
       - name: Build libraries
-        if: startsWith(github.ref, 'refs/tags/') # only bundle if tagged with a version
         run: |
           stack exec koka -- -e -O2 util/bundle
 
       # VS code extension
       - name: Package VS code extension (Windows x64)
-        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Windows' && runner.arch == 'X64' # only build extension if tagged with a version
+        if: runner.os == 'Windows' && runner.arch == 'X64' # only build extension if tagged with a version
         working-directory: support/vscode/koka.language-koka
         run: |
           npm install
@@ -97,9 +81,10 @@ jobs:
 
       # Create a release: https://github.com/softprops/action-gh-release (MIT license)
       - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')  # only release if tagged with a version
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        if: ${{ env.RELEASE != '' && env.RELEASE != 'no' }}
         with:
+          name: ${{ env.RELEASE }}
           files: |
             bundle/**/*.tar.gz
             support/vscode/koka.language-koka/*.vsix
@@ -108,9 +93,10 @@ jobs:
           body_path: util/release.md
 
       - name: Release install scripts
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux' && runner.arch == 'X64'  # only release if tagged with a version
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        if: ${{ env.RELEASE != '' && env.RELEASE != 'no' }} && runner.os == 'Linux' && runner.arch == 'X64'  # only release if tagged with a version
         with:
+          name: ${{ env.RELEASE }}
           files: | # Only add install file on Linux to avoid line ending issues: https://github.com/koka-lang/koka/issues/742
             util/install.sh
           draft: true

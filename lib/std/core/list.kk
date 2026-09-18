@@ -118,16 +118,16 @@ pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> e order ) : e order
 
 // Order2 on lists
 pub fun order2(xs : list<a>, ys: list<a>, ^?order2: (a, a) -> e order2<a>): e order2<list<a>>
-  match xs 
-    Nil -> match ys 
+  match xs
+    Nil -> match ys
       Nil -> Eq2(Nil)
       ys' -> Lt2(Nil, ys')
     Cons(x,xx) ->
       match ys
         Nil -> Gt2(Nil, Cons(x,xx))
-        Cons(y,yy) -> 
+        Cons(y,yy) ->
           match order2(x,y)
-            Eq2(z) -> 
+            Eq2(z) ->
               match order2(xx,yy)
                 Eq2(zz) -> Eq2(Cons(z,zz))
                 Lt2(xx', yy') -> Lt2(Cons(z,xx'), Cons(z,yy'))
@@ -355,7 +355,7 @@ fun partition-map-acc(xs : list<a>, ^pred : a -> e either<b,c>, acc1 : ctx<list<
     Nil -> (acc1 ++. Nil, acc2 ++. Nil)
     Cons(x,xx) -> match pred(x)
       Left(y)  -> partition-map-acc(xx,pred,acc1 ++ ctx Cons(y,hole),acc2)
-      Right(z) -> partition-map-acc(xx,pred,acc1,acc2 ++ ctx Cons(z,hole))      
+      Right(z) -> partition-map-acc(xx,pred,acc1,acc2 ++ ctx Cons(z,hole))
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
 // For example: `filterMap([1,2,3],fn(i) { if i.odd? then Nothing else Just(i*i) }) == [4]`
@@ -380,6 +380,11 @@ pub fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
   xs.foreach-while fn(kv)
     if pred(kv.fst) then Just(kv.snd) else Nothing
 
+// Check if the list has a particular element `y`
+pub fun contains( xs : list<a>, y : a, ?(==) : (a,a) -> bool) : bool
+  match xs
+    Cons(x,xx) -> if x==y then True else xx.contains(y)
+    Nil        -> False
 
 // Convert a `:maybe` type to a list type.
 pub fun maybe/list( m : maybe<a> ) : list<a>
@@ -527,7 +532,7 @@ pub fun split-last( xs : list<a>, acc : ctx<list<a>> = ctx hole ) : maybe2<list<
   match xs
     Cons(x, xx as Cons) -> split-last(xx, acc ++ ctx Cons(x,hole) )
     Cons(x,Nil) -> Just2(acc ++. Nil, x)
-    Nil         -> Nothing2    
+    Nil         -> Nothing2
 
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
 pub fun @index( xs : list<a>, n : int ) : maybe<a>

@@ -91,7 +91,7 @@ pub fun string( p : path ) : string
 
 // Show a path as a string.
 pub fun show( p : path ) : string
-  p.string.show
+  p.string
 
 
 // Is a path empty?

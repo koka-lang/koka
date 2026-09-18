@@ -94,7 +94,6 @@ fun main()
         then bundle-source( version )
         else bundle( predir, extrametadir, solibsdir, cc, usecl, version, flags.install, post, flags.minimal, koka-exe, koka-run )
 
-
 fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : string, usecl : bool,
             version : string, install : bool,
             post : string, minimal : bool, koka-exe : path, koka-run : string )
@@ -143,7 +142,6 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
   val stdlibdir = sharedir / "lib"
   println("copy standard libraries...")
   copy-directory("lib/std".path, stdlibdir / "std")
-  copy-directory("lib/uv".path, stdlibdir / "uv")
   copy-file-to-dir("lib/toc.kk".path, stdlibdir)
   copy-file-to-dir("lib/package.std.json".path, stdlibdir)
 
@@ -157,16 +155,8 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
   copy-directory("kklib/src".path, kklibdir / "src")
   copy-directory("kklib/include".path, kklibdir / "include")
   copy-directory("kklib/mimalloc".path, kklibdir / "mimalloc")
-  copy-file-to-dir("kklib/CMakeLists.txt".path, kklibdir)
+  // copy-file-to-dir("kklib/CMakeLists.txt".path, kklibdir)
   // copy-file-to-dir("kklib/kkmain.cmake".path, kklibdir)
-
-  // Copy contrib
-  val contribdir = sharedir / "contrib"
-  println("copy contrib...")
-  ensure-dir(contribdir)
-  copy-directory("support/atom".path, contribdir / "atom")
-  copy-directory("support/vscode".path, contribdir / "vscode")
-  copy-directory("support/emacs".path, contribdir / "emacs")
 
   // Copy kklib binaries
   [Debug,DRelease,Release].foreach fn(v)
@@ -183,6 +173,15 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
     ensure-dir(solibs_target)
     copy-directory(solibsdir.path, solibs_target)
 
+  // Copy contrib
+  val contribdir = sharedir / "contrib"
+  println("copy contrib...")
+  ensure-dir(contribdir)
+  copy-directory-except("support/vscode".path, contribdir / "vscode",  fn(p) ["node_modules","dist","out","package-lock.json"].contains(p.basename) )
+  copy-directory("support/emacs".path, contribdir / "emacs")
+  copy-directory("support/vim".path, contribdir / "vim")
+
+  // Bundle
   if !install then
     // Insert metadata
     val metadatadir = prefixdir / "meta"
