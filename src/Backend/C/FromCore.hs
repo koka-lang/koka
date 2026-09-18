@@ -402,6 +402,26 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 emitToH (text "#define" <+> ppName name <+> parens (text "(double)" <.> parens flt))
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit (block doc)  -- must be scoped to avoid name clashes
+                                -- Mark the heap-allocated part of a toplevel constant as STATIC (stuck
+                                -- refcounts, like a compile-time static): these live in C statics and are
+                                -- dup/dropped by ANY thread that runs this module's code, so plain
+                                -- (non-atomic) refcounts race across threads (lost increment -> premature
+                                -- free -> heap corruption). String literals are made stuck at init already;
+                                -- computed constants are ordinary heap blocks and need this. (Same issue
+                                -- class as the shared kk_evv_empty_singleton.) `dup;box;mark;drop-box`
+                                -- covers both reference types (box is a reinterpret; the trailing drop is a
+                                -- no-op once stuck) and value structs (box allocates a wrapper owning the
+                                -- dup'd fields; the stuck wrapper is a small one-time leak at init).
+                                let needsMark = case cType tp of
+                                                  CFun _ _  -> True
+                                                  CBox      -> True
+                                                  CData _   -> True
+                                                  CPrim val -> val `elem` ["kk_integer_t","kk_bytes_t","kk_string_t","kk_vector_t","kk_evv_t","kk_ref_t","kk_box_t"]
+                                when needsMark $
+                                  emitToInit $ case cType tp of
+                                    CBox -> text "kk_box_mark_static" <.> arguments [ppName name] <.> semi
+                                    _    -> text "{ kk_box_t _kk_c = " <.> genBoxCall tp (genDupCall tp (ppName name))
+                                            <.> text "; kk_box_mark_static(_kk_c, kk_context()); kk_box_drop(_kk_c, kk_context()); }"
                                 case genDupDropCall False {-drop-} tp (ppName name) of
                                   []   -> return ()
                                   docs -> emitToDone (hcat docs <.> semi)

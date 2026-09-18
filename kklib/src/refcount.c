@@ -165,12 +165,32 @@ static inline kk_refcount_t kk_atomic_acquire(kk_block_t* b) {
   return kk_atomic_load_acquire(&b->header.refcount);
 }
 
-static void kk_block_make_shared(kk_block_t* b) {
+// Make a block's refcount "stuck": it is never modified (dup/drop become no-ops) and
+// the block is never freed. For process-lifetime globals (string literals, constants)
+// that are stored in C statics and used from ANY thread: a stuck refcount is what a
+// compile-time static gets (KK_HEADER_STATIC) and avoids cross-thread refcount races.
+kk_decl_export void kk_block_make_stuck(kk_block_t* b) {
+  kk_block_refcount_set(b, RC_STUCK);
+}
+
+static void kk_block_make_shared(kk_block_t* b, bool stuck) {
   kk_refcount_t rc = kk_block_refcount(b);
   kk_assert_internal(!kk_refcount_is_thread_shared(rc));  // not thread shared already
   if (!kk_refcount_is_thread_shared(rc)) {
-    rc = -rc;                                     // cannot overflow as rc is positive
-    if (rc <= RC_STICKY_DROP) { rc = RC_STICKY; } // for high reference counts default to sticky
+    if (stuck) {
+      // process-lifetime global (toplevel constant): refcount becomes permanently
+      // inert (dup/drop no-ops, never freed) -- same as a compile-time static.
+      rc = RC_STUCK;
+    }
+    else {
+      // positive rc N encodes N+1 references (0 == unique); thread-shared -N encodes
+      // N references (freed when an atomic drop sees -1 == RC_SHARED_UNIQUE). So the
+      // count-preserving map is N+1 refs -> -(N+1), i.e. `~rc` -- NOT `-rc`, which
+      // loses one reference for every rc >= 1 (a marked block with 2 references was
+      // encoded as having 1, so the next drop freed it while still referenced).
+      rc = ~rc;                                     // -(rc+1); cannot overflow as rc is positive
+      if (rc <= RC_STICKY_DROP) { rc = RC_STICKY; } // for high reference counts default to sticky
+    }
     kk_block_refcount_set(b, rc);
   }
 }
@@ -559,12 +579,12 @@ static kk_decl_noinline void kk_block_drop_free_rec_old(kk_block_t* b, kk_contex
 #define MAX_RECURSE_DEPTH (100)
 
 // Stackless marking is more expensive so we switch to this only after recursing first.
-static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context_t* ctx);
+static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, bool stuck, kk_context_t* ctx);
 
 
 // Check if a field `i` in a block `b` should be marked, i.e. it is heap allocated and not yet thread shared.
 // Optimizes by already marking leaf blocks that have no scan fields.
-static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx)
+static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t field, bool stuck, kk_context_t* ctx)
 {
   kk_unused(ctx);
   kk_box_t v = kk_block_field(b, field);
@@ -573,7 +593,7 @@ static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t f
     if (!kk_block_is_thread_shared(child)) {
       if (child->header.scan_fsize == 0) {
         // mark leaf objects directly as shared
-        kk_block_make_shared(child);
+        kk_block_make_shared(child, stuck);
       }
       else {
         return child;
@@ -584,7 +604,7 @@ static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t f
 }
 
 // Recurse up to `depth` while marking objects
-static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ssize_t depth, kk_context_t* ctx)
+static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ssize_t depth, bool stuck, kk_context_t* ctx)
 {
   while(true) {
     if (kk_block_is_thread_shared(b)) {
@@ -595,8 +615,8 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
     kk_assert_internal(scan_fsize > 0);
     if (scan_fsize == 1) {
       // if just one field, we can recursively scan without using stack space
-      kk_block_make_shared(b);
-      kk_block_t* child = kk_block_field_should_mark(b, 0, ctx);
+      kk_block_make_shared(b, stuck);
+      kk_block_t* child = kk_block_field_should_mark(b, 0, stuck, ctx);
       if (child != NULL) {
         // try to mark the child now
         b = child;
@@ -606,8 +626,8 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
     }
     else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b, 0))) {
       // optimized code for lists/nodes with boxed first element
-      kk_block_make_shared(b);
-      kk_block_t* child = kk_block_field_should_mark(b, 1, ctx);
+      kk_block_make_shared(b, stuck);
+      kk_block_t* child = kk_block_field_should_mark(b, 1, stuck, ctx);
       if (child != NULL) {
         b = child;
         continue; // tailcall
@@ -617,7 +637,7 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
     else {
       // more than 1 field
       if (depth < MAX_RECURSE_DEPTH) {
-        kk_block_make_shared(b);
+        kk_block_make_shared(b, stuck);
         kk_ssize_t i = 0;
         if kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX) {
           scan_fsize = (kk_ssize_t)kk_intf_unbox(kk_block_field(b, 0));
@@ -625,13 +645,13 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
         }
         // mark fields up to the last one
         for (; i < (scan_fsize-1); i++) {
-          kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
+          kk_block_t* child = kk_block_field_should_mark(b, i, stuck, ctx);
           if (child != NULL) {
-            kk_block_mark_shared_rec(child, depth+1, ctx); // recurse with increased depth
+            kk_block_mark_shared_rec(child, depth+1, stuck, ctx); // recurse with increased depth
           }
         }
         // and recurse into the last one
-        kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
+        kk_block_t* child = kk_block_field_should_mark(b, i, stuck, ctx);
         if (child != NULL) {
           b = child;
           scan_fsize = b->header.scan_fsize;
@@ -641,7 +661,7 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
       }
       else {
         // max recursion depth reached: switch to stackless marking
-        kk_block_mark_shared_recx(b, ctx);
+        kk_block_mark_shared_recx(b, stuck, ctx);
         return;
       }
     }
@@ -651,15 +671,15 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
 
 
 // mark a large vector
-static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, kk_context_t* ctx) {
+static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, bool stuck, kk_context_t* ctx) {
   kk_assert_internal(b->header.scan_fsize == KK_SCAN_FSIZE_MAX);
   kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
   for (kk_ssize_t i = 1; i < scan_fsize; i++) {  // start at 1 to skip the large scan field itself
-    if (kk_block_field_should_mark(b, i, ctx)) {
-      kk_block_mark_shared_recx(b, ctx);
+    if (kk_block_field_should_mark(b, i, stuck, ctx)) {
+      kk_block_mark_shared_recx(b, stuck, ctx);
     }
   }
-  kk_block_make_shared(b);
+  kk_block_make_shared(b, stuck);
 }
 
 // Unfortunately, we cannot use the _field_idx as the index for marking
@@ -703,9 +723,8 @@ static uint8_t kk_block_mark_idx(kk_block_t* b) {
 }
 
 // Stackless marking by using pointer reversal
-static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context_t* ctx)
+static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, bool stuck, kk_context_t* ctx)
 {
-  fprintf(stderr, "mark shared recx\n");
   kk_block_t* parent = NULL;
   if (kk_block_is_thread_shared(b)) return;
   if (b->header.scan_fsize == 0) return;
@@ -717,7 +736,7 @@ recurse:
   scan_fsize = b->header.scan_fsize;
   if (scan_fsize == KK_SCAN_FSIZE_MAX) {
     // stack recurse over the stack for large objects (vectors)
-    kk_block_mark_shared_recx_large(b, ctx);
+    kk_block_mark_shared_recx_large(b, stuck, ctx);
   }
   else {
     i = 0;
@@ -728,7 +747,7 @@ markfields:
     kk_assert_internal(scan_fsize > 0);
     kk_assert_internal(i <= scan_fsize);
     while (i < scan_fsize) {
-      kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
+      kk_block_t* child = kk_block_field_should_mark(b, i, stuck, ctx);
       i++;
       if (child != NULL) {
         // visit the child, but remember our state and link back to the parent
@@ -741,7 +760,7 @@ markfields:
       }
     }
     kk_block_mark_idx_done(b);
-    kk_block_make_shared(b);
+    kk_block_make_shared(b, stuck);
   }
 
   //--- moving back up along the parent chain ------------------
@@ -763,15 +782,27 @@ markfields:
 }
 
 
-kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx ) {
+static void kk_block_mark_sharedx( kk_block_t* b, bool stuck, kk_context_t* ctx ) {
   if (!kk_block_is_thread_shared(b)) {
     if (b->header.scan_fsize == 0) {
-      kk_block_make_shared(b); // no scan fields
+      kk_block_make_shared(b, stuck); // no scan fields
     }
     else {
-      kk_block_mark_shared_rec(b, 0, ctx);
+      kk_block_mark_shared_rec(b, 0, stuck, ctx);
     }
   }
+}
+
+kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx ) {
+  kk_block_mark_sharedx(b, false, ctx);
+}
+
+// Mark a reachable graph as STATIC: every not-yet-shared block becomes stuck
+// (dup/drop no-ops, never freed) -- for process-lifetime globals such as computed
+// toplevel constants stored in C statics and used from any thread. Blocks that are
+// already thread-shared are left as-is (they stay atomically counted).
+kk_decl_export void kk_block_mark_static( kk_block_t* b, kk_context_t* ctx ) {
+  kk_block_mark_sharedx(b, true, ctx);
 }
 
 kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx ) {
@@ -780,10 +811,15 @@ kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx ) {
   }
 }
 
+kk_decl_export void kk_box_mark_static( kk_box_t b, kk_context_t* ctx ) {
+  if (kk_box_is_non_null_ptr(b)) {
+    kk_block_mark_static( kk_ptr_unbox(b,ctx), ctx );
+  }
+}
 
 kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx) {
   if (kk_box_is_non_null_ptr(b)) {
-    kk_block_mark_shared_recx(kk_ptr_unbox(b, ctx), ctx);
+    kk_block_mark_shared_recx(kk_ptr_unbox(b, ctx), false, ctx);
   }
 }
 

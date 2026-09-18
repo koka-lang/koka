@@ -131,8 +131,11 @@ static inline kk_string_t kk_string_empty() {
   static const char* _static_##name = chars; \
   decl kk_string_t name = { { kk_datatype_null_init } };
 
+// One-time thread-safe initialization (function-local literals can be first used by
+// two threads concurrently); the literal's refcount is made STUCK so cross-thread
+// dup/drop of the shared static is a no-op (see `kk_string_literal_init`).
 #define kk_init_string_literal(name,ctx) \
-  if (kk_datatype_is_null(name.bytes)) { name = kk_string_alloc_from_utf8n(_static_len_##name, _static_##name, ctx); }
+  if (kk_datatype_is_null(name.bytes)) { kk_string_literal_init(&name, _static_len_##name, _static_##name, ctx); }
 
 #define kk_define_string_literal(decl,name,len,chars,ctx) \
   kk_declare_string_literal(decl,name,len,chars); \
@@ -464,6 +467,7 @@ static inline bool   kk_string_contains(kk_string_t str, kk_string_t sub, kk_con
   Utilities that are string specific
 --------------------------------------------------------------------------------------------------*/
 
+kk_decl_export void kk_string_literal_init(kk_string_t* p, kk_ssize_t len, const char* chars, kk_context_t* ctx);  // one-time thread-safe literal init (stuck refcount)
 kk_decl_export kk_ssize_t kk_decl_pure kk_string_count_borrow(kk_string_t str, kk_context_t* ctx);  // number of code points
 kk_decl_export kk_ssize_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx);  // number of code points
 kk_decl_export kk_ssize_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern, kk_context_t* ctx);
