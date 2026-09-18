@@ -16,7 +16,7 @@
 
 <body class="koka doc body madoko">
 <h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_core_undiv-source.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>undiv</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
-<div class="toc code"><ul class="toc"><li><a class="link" href="#pretend_decreasing"><span class="kw">fun</span>&nbsp;pretend<span class="dash">-</span>decreasing</a></li><li><a class="link" href="#pretend_no_div"><span class="kw">fun</span>&nbsp;pretend<span class="dash">-</span>no<span class="dash">-</span>div</a></li></ul></div>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#collapse_div"><span class="kw">fun</span>&nbsp;collapse<span class="dash">-</span>div</a></li><li><a class="link" href="#pretend_decreasing"><span class="kw">fun</span>&nbsp;pretend<span class="dash">-</span>decreasing</a></li><li><a class="link" href="#pretend_no_div"><span class="kw">fun</span>&nbsp;pretend<span class="dash">-</span>no<span class="dash">-</span>div</a></li></ul></div>
 <div class="doc koka comment">
 <h1 class="synopsis">Unsafe primitives to dismiss divergence.
 </h1>
@@ -25,6 +25,10 @@
 
 <p class="p noindent">.
 </p></div>
+<div class="decl" id="collapse_div"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_undiv-source.html#collapse_div">collapse<span class="dash">-</span>div</a></span>( <span class="tp tpp">action</span> <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_div"><span class="tp">div</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>div: <span class="co">X</span></span></a><span class="tp sp">,</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_div"><span class="tp">div</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>div: <span class="co">X</span></span></a><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_div"><span class="tp">div</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>div: <span class="co">X</span></span></a><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp tv">a</span></div><div class="doc koka comment">
+
+<p class="p noindent">Collapse multiple div effects into one (this is safe).
+</p></div></div>
 <div class="decl" id="pretend_decreasing"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_undiv-source.html#pretend_decreasing">pretend<span class="dash">-</span>decreasing</a></span>( <span class="tp tpp">x</span> <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<span class="tp tv">a</span></div><div class="doc koka comment">
 
 <p class="p noindent"><em class="em-low1">Unsafe</em>. Mark a function parameter as decreasing to suppress the non-termination effect (<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_div"><span class="tp">div</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>div: <span class="co">X</span></span></a></code>).
