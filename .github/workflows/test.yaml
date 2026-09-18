@@ -81,4 +81,7 @@ jobs:
         run: |
           stack test --fast
 
-
+      # Bundle
+      - name: Build libraries
+        run: |
+          stack exec koka -- -e -O2 util/bundle
