@@ -26,9 +26,7 @@ On Windows arm64, we use the x64 Koka compiler (which runs emulated), but the ge
 The default install location is `/usr/local/bin`
 (or `%APPDATA%\local` on Windows). For more control, you can pass a different prefix. For example:
 
-`curl ... | sh -s -- --prefix=~/.local`
-(or 
-`curl ... && %tmp%\install-koka.bat --prefix=c:\programs\local`)
+`curl ... | sh -s -- --prefix=~/.local` (or `curl ... && %tmp%\install-koka.bat --prefix=c:\programs\local`)
 
 Similarly, you can uninstall Koka by passing `--uninstall`.
 
