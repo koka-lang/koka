@@ -72,12 +72,13 @@ jobs:
       - name: Run test suite
         if: runner.os != 'macOS'
         run: |
-          stack test
+          stack test --fast
 
       - name: Run test suite (macOS)
         if: runner.os == 'macOS'
         env:
           LC_ALL: C
         run: |
-          stack test
+          stack test --fast
+
 
