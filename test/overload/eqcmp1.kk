@@ -12,9 +12,9 @@ fun list/eq<a>( xs : list<a>, ys : list<a>, ?eq : (a,a) -> bool ) : bool
       _ -> False
     Nil -> ys.is-nil
 
-fun contains( xs : list<a>, y : a, ?eq : (a,a) -> bool ) : bool
+fun eqcontains( xs : list<a>, y : a, ?eq : (a,a) -> bool ) : bool
   match xs
-    Cons(x,xx) -> if eq(x,y) then True else contains(xx,y)
+    Cons(x,xx) -> if eq(x,y) then True else eqcontains(xx,y)
     Nil        -> False
 
 fun equal( x : a, y : a, ?eq : (a,a) -> bool ) : bool
@@ -24,7 +24,7 @@ fun test1()
   equal([1,2],[1,3]).println
 
 fun test2()
-  contains(['a','b'],'c').println
+  eqcontains(['a','b'],'c').println
 
 
 fun int/cmpx(x : int, y : int ) : order
@@ -112,7 +112,7 @@ fun cmpx-and-eq(xs : list<a>, y : a, ?cmpx : (a,a) -> order) : bool
 
   cmpx(xs,xs) == Eq &&
   eq(y,y) &&                    // this can be resolved automatically without the local `eq` since we have `cmpx/eq(cmpx)`
-  contains(xs,y) &&
+  eqcontains(xs,y) &&
   int/cmpx(1,2) == Eq  &&
   cmpx(1,2) == Eq  &&         // we cannot resolve this to `int/cmpx` unless we allow a bypass
   xcompare(1,2) == Eq  &&        // we can resolve ?cmpx=int/cmpx as we allow bypass for implicits.. (as long as a local cmpx does not type check)

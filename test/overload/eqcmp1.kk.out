@@ -12,7 +12,7 @@ overload/eqcmp1/int/eq: (x : int, y : int) -> bool
 overload/eqcmp1/cmpx: forall<a> (xs : list<a>, ys : list<a>, ?cmpx : (a, a) -> order) -> order
 overload/eqcmp1/eq: forall<a> (xs : list<a>, ys : list<a>, ?eq : (a, a) -> bool) -> bool
 overload/eqcmp1/cmpx-and-eq: forall<a> (xs : list<a>, y : a, ?cmpx : (a, a) -> order) -> bool
-overload/eqcmp1/contains: forall<a> (xs : list<a>, y : a, ?eq : (a, a) -> bool) -> bool
+overload/eqcmp1/eqcontains: forall<a> (xs : list<a>, y : a, ?eq : (a, a) -> bool) -> bool
 overload/eqcmp1/equal: forall<a> (x : a, y : a, ?eq : (a, a) -> bool) -> bool
 overload/eqcmp1/main: () -> console string
 overload/eqcmp1/show: (ord : order) -> string
