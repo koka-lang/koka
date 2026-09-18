@@ -7,22 +7,24 @@ module binarytrees
 import std/os/env
 import std/os/task
 import std/num/int32
+import std/core/undiv
 
-type tree  
+
+type tree
   Node( left : tree, right : tree )
   Tip
 
 
 // make a perfectly balanced binary tree of `depth` using FBIP
 // to use no extra stack space.
-type builder  
+type builder
   Top
   BuildRight( depth : int, up : builder )
   BuildNode( left : tree, up : builder )
 
 // using mutual recursion
 fun make-down( depth : int, builder : builder ) : div tree
-  if depth > 0 
+  if depth > 0
     then make-down( depth - 1, BuildRight(depth - 1, builder))
     else make-up( Node(Tip,Tip), builder)
 
@@ -33,13 +35,13 @@ fun make-up( t : tree, builder : builder ) : div tree
     Top -> t
 
 // using a single tail recursive definition
-type direction  
+type direction
   Down( depth : int )
   Up( t : tree )
 
 fun make-fbip( dir : direction, builder : builder) : div tree
   match dir
-    Down(depth) -> if depth > 0 
+    Down(depth) -> if depth > 0
       then make-fbip(Down(depth - 1), BuildRight(depth - 1, builder))
       else make-fbip(Up(Node(Tip,Tip)), builder)
     Up(t) -> match builder
@@ -50,10 +52,10 @@ fun make-fbip( dir : direction, builder : builder) : div tree
 // make a perfectly balanced binary tree of `depth`
 fun make-rec( depth : int ) : div tree
   if depth > 0
-    then Node( make-rec(depth - 1), make-rec(depth - 1) ) 
+    then Node( make-rec(depth - 1), make-rec(depth - 1) )
     else Node( Tip, Tip )
 
-type build  
+type build
   Root
   GoRight( depth : int, up : build )
 
@@ -76,7 +78,7 @@ fun make-trmc-fbip( dir : direction, b : build ) : div tree
       if depth > 0
         then make-trmc-fbip( Down(depth - 1), GoRight(depth - 1, b))
         else make-trmc-fbip( Up(Node(Tip,Tip)), b)
-    Up(t) -> 
+    Up(t) ->
       match b
         GoRight(depth, Root) ->
           Node(t, make-trmc-fbip( Down(depth), Root ))
@@ -94,7 +96,7 @@ fun make( depth : int ) : div tree
 
 
 // FBIP in action: use a visitor to run the checksum tail-recursively
-type visit  
+type visit
   Done
   NodeR( right : tree, v : visit )
 
@@ -106,7 +108,7 @@ fun checkv( t : tree, v : visit, acc : int ) : div int
       NodeR(r,v') -> checkv( r, v', acc)
       Done        -> acc
 
-// normal checksum  
+// normal checksum
 fun checkr( t : tree ) : div int
   match t
     Node(l,r) -> l.checkr + r.checkr + 1
@@ -116,33 +118,33 @@ fun checkr( t : tree ) : div int
 fun check( t : tree ) : div int
   checkv(t, Done, 0)
   //t.checkr
-  
+
 
 
 // generate `count` trees of `depth` and return the total checksum
 fun sum-count( count : int, depth : int ) : div int
-  fold-int(count+1,0) fn(i,csum)
+  fold(count+1,0) fn(i,csum)
     // csum + make(depth).check
     csum + make(depth).check
-  
+
 
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
-fun psum-count( count : int, depth : int ) : pure int
+fun psum-count( count : int, depth : int ) : div int
   val n = 8
   val partc = count / n
   val rest  = count % n
-  val parts = list(1,n, fn(i) task{ sum-count( partc, depth ) })
+  val parts = list(1,n, fn(i) task{ pretend-no-div{ sum-count( partc, depth ) } })
   sum-count(rest, depth) + parts.await.sum
 
 
-// for depth to max-depth with stride 2, process 
+// for depth to max-depth with stride 2, process
 // many trees of size depth in parallel and compute the total checksum
 fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)>
   list(min-depth, max-depth, 2) fn(d)
     val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
-    (count, d, task{ psum-count(count, d) })
-    //(count, d, task{ sum-count(count, d) } )   // one task per depth    
-   
+    (count, d, task{ pretend-no-div{ psum-count(count, d) } })
+    //(count, d, task{ sum-count(count, d) } )   // one task per depth
+
 
 // show results
 fun show( msg : string, depth : int, check : int ) : console ()
@@ -160,7 +162,7 @@ pub fun main()
   val stretch-depth = max-depth.inc
   show( "stretch tree", stretch-depth, make(stretch-depth).check )
 
-  
+
   // allocate long lived tree
   // val long = make(max-depth)
   val long = make(max-depth)

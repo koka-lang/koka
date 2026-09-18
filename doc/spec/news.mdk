@@ -1,9 +1,14 @@
 ~ begin news
 News:
 
+- 2026-09-17: Koka v3.2.8 released. Initial inclusion `module std/async`; still only basic functions are
+  supported but works with libuv, emscripten, wasm, and jsnode/jsweb. Performance improvements with
+  mimalloc v3.5.3, many bug fixes (thank you Tim Whiting, @omegametabrocollo, Ben Siraphob, and others),
+  conditional and relative imports.
+
 - 2026-03-17: Koka v3.2.3 released. Improved implicits and overloading support corresponding
   to the technical report "_Syntactic Implicits with Static Overloading_", Daan Leijen and Tim Whiting
-  ([pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2025/11/implicits-tr-v5.pdf), conditionally accepted at PLDI'26).
+  ([pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2025/11/implicits-tr-v5.pdf), accepted at PLDI'26).
 
 - 2025-07-22: Koka v3.2.2 released. Bug fix release.
 
