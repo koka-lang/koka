@@ -1,0 +1,54 @@
+1
+ 
+cgen/specialize/recursive-arg/mark-viol/@select: forall<e,a> (hnd : viol-flag<e,a>) -> clause1<string,(),viol-flag,e,a>
+cgen/specialize/recursive-arg/viol-flag/@cfc: forall<e,a> (viol-flag<e,a>) -> int
+cgen/specialize/recursive-arg/viol-flag/@fun-mark-viol: forall<e,a> (viol-flag<e,a>) -> clause1<string,(),viol-flag,e,a>
+cgen/specialize/recursive-arg/viol-flag/@handle: forall<a,e,b> (hnd : viol-flag<e,b>, ret : (res : a) -> e b, action : () -> <viol-flag|e> a) -> e b
+cgen/specialize/recursive-arg/viol-flag/@tag: htag<viol-flag>
+cgen/specialize/recursive-arg/@Hnd-viol-flag: forall<e,a> (int, clause1<string,(),viol-flag,e,a>) -> viol-flag<e,a>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (e : fenv, list<fexpr>) -> <div,exn,viol-flag> list<rv>
+cgen/specialize/recursive-arg/@lift-xxx: (e : fenv, list<fexpr>) -> <div,exn,viol-flag> list<rv>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key@xxx : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key@xxx : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key@xxx : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key@xxx : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@lift-xxx: (key : string, list<(string, rv)>) -> list<(string, rv)>
+cgen/specialize/recursive-arg/@mlift-xxx: (n : int, ()) -> rv
+cgen/specialize/recursive-arg/@mlift-xxx: (list<rv>) -> <div,exn,viol-flag> rv
+cgen/specialize/recursive-arg/@mlift-xxx: (body : fexpr, c : string, e : fenv, int) -> <exn,div,viol-flag> rv
+cgen/specialize/recursive-arg/@mlift-xxx: (body : fexpr, c : string, e : fenv, int) -> <exn,div,viol-flag> rv
+cgen/specialize/recursive-arg/@mlift-xxx: (rv, list<rv>) -> <div,exn,viol-flag> list<rv>
+cgen/specialize/recursive-arg/@mlift-xxx: (list<fexpr>, e : fenv, rv) -> <pure,viol-flag> list<rv>
+cgen/specialize/recursive-arg/@mlift-xxx: (int) -> ()
+cgen/specialize/recursive-arg/@mlift-xxx: (rv) -> pure ()
+cgen/specialize/recursive-arg/@mlift-xxx: forall<h> (first : local-var<h,string>, knd : string, string) -> <local<h>,div,exn> ()
+cgen/specialize/recursive-arg/FArr: (elems : list<fexpr>) -> fexpr
+cgen/specialize/recursive-arg/FLit: (n : int) -> fexpr
+cgen/specialize/recursive-arg/FVar: (name : string) -> fexpr
+cgen/specialize/recursive-arg/RArr: (elems : list<rv>) -> rv
+cgen/specialize/recursive-arg/RInt: (n : int) -> rv
+cgen/specialize/recursive-arg/as-int: (v : rv) -> exn int
+cgen/specialize/recursive-arg/feval: (e : fenv, ex : fexpr) -> <pure,viol-flag> rv
+cgen/specialize/recursive-arg/fexec: (e : fenv, c : string, b : int, body : fexpr) -> <pure,viol-flag> rv
+cgen/specialize/recursive-arg/fexec-loop: (e : fenv, c : string, body : fexpr) -> <pure,viol-flag> rv
+cgen/specialize/recursive-arg/fget: (e : fenv, key : string) -> rv
+cgen/specialize/recursive-arg/fset: (e : fenv, key : string, v : rv) -> fenv
+cgen/specialize/recursive-arg/is-farr: (fexpr : fexpr) -> bool
+cgen/specialize/recursive-arg/is-flit: (fexpr : fexpr) -> bool
+cgen/specialize/recursive-arg/is-fvar: (fexpr : fexpr) -> bool
+cgen/specialize/recursive-arg/is-rarr: (rv : rv) -> bool
+cgen/specialize/recursive-arg/is-rint: (rv : rv) -> bool
+cgen/specialize/recursive-arg/main: () -> <pure,console> ()
+cgen/specialize/recursive-arg/mark-viol: (knd : string) -> viol-flag ()
+cgen/specialize/recursive-arg/run-program: (body : fexpr) -> pure rv
