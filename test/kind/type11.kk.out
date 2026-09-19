@@ -1,0 +1,12 @@
+int-shadow : V -> V
+multi-apply : (V -> V, V) -> V
+multi-box : V -> V
+multi-cell : (V, E, V) -> V
+multi-id : V -> V
+multi-pair : (V, V) -> V
+multi-rank2 : V
+ 
+pub alias int-shadow<a> :: V -> V = a = 1
+pub alias multi-apply<a,b> :: (V -> V, V) -> V = a<b> = 1
+pub alias multi-id<a> :: V -> V = a = 1
+pub alias multi-rank2 = forall<a> (a) -> a = 1
