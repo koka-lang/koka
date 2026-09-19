@@ -25,6 +25,7 @@ import Data.Char( isSpace )
 import qualified Data.Map as M
 import Platform.Config( programName )
 import Data.List( partition )
+import Data.Maybe( isNothing )
 import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTpTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
@@ -458,7 +459,8 @@ ppNamePlain env name
      else if (context env == qualifier name) -- || alwaysUnqualify env)
        then pp (unqualify name)
        else if (coreIface env) -- emit .kki file?
-         then pp name
+         -- a wildcard type variable is never a valid qualified name in a .kki file
+         then (if isWildcard (unqualify name) then pp (unqualify name) else pp name)
          else if (isSystemCoreName name)
            then pp (shortenSystemCoreName name)
            else let name' = removeCommonPrefix (context env) name
@@ -469,14 +471,18 @@ ppNamePlain env name
 
 
 ppSynonym :: Env -> TypeSyn -> [Tau] -> Doc -> Doc
-ppSynonym env (TypeSyn name kind rank _) args tpdoc
-  = (if (expandSynonyms env)
+ppSynonym env (TypeSyn name kind rank mbInfo) args tpdoc
+  -- In an interface, a synonym without a `SynInfo` (such as `std/core/types/ctx`)
+  -- is declared nowhere, so it is printed with its expansion.
+  = (if expand
       then parens
       else if (null args)
        then id
        else pparens (prec env) precApp) $
     ppType env{prec=precTop} (TApp (TCon (TypeCon name kind)) args) <.>
-    if (expandSynonyms env) then text " == " <.> pretty rank <+> tpdoc else empty
+    if expand then text " == " <.> pretty rank <+> tpdoc else empty
+  where
+    expand = expandSynonyms env || (coreIface env && isNothing mbInfo)
 
 ppTypeVar :: Env -> TypeVar -> Doc
 ppTypeVar env (TypeVar id kind flavour)

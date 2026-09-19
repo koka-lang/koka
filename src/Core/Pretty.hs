@@ -109,7 +109,7 @@ prettyCore env0 eguard inlineDefs core@(Core modName imports fixDefs typeDefGrou
     -- binder there (never in the def's own signature) needs mirroring too
     signatures   = extractSignatures core ++ concatMap (fts . inlineExpr) inlineDefs
     importedSyns = extractImportedSynonyms (coreProgName core) signatures
-    extraImports1 = map extractImportsFromSynInfo importedSyns
+    extraImports1 = map extractImportsFromSynInfo (filter (not . nameIsNil . qualifier . synInfoName) importedSyns)
     extraImports2 = extractImportFromSignatures signatures
     usedImports = extendImportMap (extraImports1 ++ extraImports2) (importsMap env0)
 
@@ -212,8 +212,10 @@ prettyTypeDefGroup env (TypeDefGroup defs)
     vcat (map (prettyTypeDef env) defs)
 
 prettyTypeDef :: Env -> TypeDef -> Doc
+-- Interfaces declare private synonyms too: signatures and inline bodies are
+-- printed unexpanded, so an importer must be able to expand every synonym in them.
 prettyTypeDef env (Synonym synInfo  )
-  = ppSynInfo env False True True synInfo <.> semi
+  = ppSynInfo env False (not (coreIface env)) True synInfo <.> semi
 
 prettyTypeDef env (Data dataInfo)
   = -- keyword env "type" <+> prettyVis env vis <.> ppDataInfo env True dataInfo
@@ -375,7 +377,11 @@ prettyExpr env (TypeApp expr tps)
 -- Literals and constants
 prettyExpr env (Con tname repr)
   = -- prettyTName env tname
-    prettyVar env tname
+    -- the context path is part of this occurrence's repr, so interfaces must carry it
+    case (if coreIface env then conReprCtxPath repr else Nothing) of
+      Just (CtxField fld)
+        -> keyword env "@cpath" <.> parens (prettyLit env (LitString (showTupled (getName fld)))) <+> prettyVar env tname
+      _ -> prettyVar env tname
 
 prettyExpr env (Lit lit)
   = prettyLit env lit
@@ -434,7 +440,8 @@ prettyGuard env (Guard test expr)
 
 prettyPatterns :: Env -> [Pattern] -> (Env,[Doc])
 prettyPatterns env pats
-  = foldl f (env,[]) pats
+  = let (env',docs) = foldl f (env,[]) pats
+    in (env', reverse docs)  -- foldl builds the list in reverse
   where
     f (env,docs) pat = let (env',doc) = prettyPattern env{expandSynonyms=True} pat
                        in (env',doc:docs)
@@ -554,7 +561,7 @@ extractImportFromSignatures sigs
 extractDepsFromSignatures :: Signatures -> [ModuleName]
 extractDepsFromSignatures sigs
   = let sigmods = S.map (qualifier . typeconName) (ftc sigs)
-    in S.toList sigmods
+    in filter (not . nameIsNil) (S.toList sigmods)  -- unqualified type constructors (skolems) need no import
 
 extractImportsFromSynInfo :: SynInfo -> Import
 extractImportsFromSynInfo syn

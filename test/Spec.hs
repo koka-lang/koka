@@ -286,6 +286,9 @@ main = do
   runKoka stdcfg{flags = "-e" : flags stdcfg} "" "util/link-test.kk"
   -- precompile bench by compiling a dependent file (ensures correct module name resolution)
   runKoka stdcfg "" "test/lazy/queue/bankers.kk"
+  -- precompile mpat-lib and synpriv-lib so their tests load them from the .kki
+  runKoka stdcfg "" "test/cgen/mpat-lib.kk"
+  runKoka stdcfg "" "test/cgen/synpriv-lib.kk"
   -- precompile specbox-lib so test/cgen/specbox.kk loads it from the .kki
   -- (both carry a -O2 .flags file so they share one build directory)
   runKoka stdcfg "" "test/cgen/specbox-lib.kk"

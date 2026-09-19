@@ -508,9 +508,23 @@ parseMatch env
 
 parseCon :: Env -> LexParser Expr
 parseCon env
-  = do name <- qualifiedConId
+  = do cpath <- parseCPath
+       name <- qualifiedConId
        con  <- envLookupCon env name
-       return $ Con (TName name (infoType con)) (infoRepr con)
+       let repr = case cpath of
+                    CtxField _ | conReprHasCtxPath (infoRepr con)
+                      -> (infoRepr con){ conCtxPath = cpath }
+                    _ -> infoRepr con
+       return $ Con (TName name (infoType con)) repr
+
+-- `@cpath("<field>")` before a constructor: the field on the path to the hole
+-- of a constructor context (`conCtxPath`).
+parseCPath :: LexParser CtxPath
+parseCPath
+  = do specialId "@cpath"
+       (s,_) <- parens stringLit
+       return (CtxField (TName (readQualified s) typeAny))
+  <|> return CtxNone
 
 parseVar :: Env -> LexParser Expr
 parseVar env
