@@ -10,7 +10,7 @@ overload/unpack/int/num: num<int>
 overload/unpack/num/(+): forall<a> (num : num<a>) -> ((a, a) -> a)
 overload/unpack/num/(-): forall<a> (num : num<a>) -> ((a, a) -> a)
 overload/unpack/num/base: forall<a> (num : num<a>) -> basic-num<a>
-overload/unpack/Basic-num: forall<a> (zero : a) -> basic-num<a>
+overload/unpack/BasicNum: forall<a> (zero : a) -> basic-num<a>
 overload/unpack/Num: forall<a> (base : basic-num<a>, (+) : (a, a) -> a, (-) : (a, a) -> a) -> num<a>
 overload/unpack/add: forall<a,b> (a1 : a, a2 : a, b1 : b, b2 : b, ?a/num : num<a>, ?b/num : num<b>, ?a/show : (a) -> string, ?b/show : (b) -> string) -> console ()
 overload/unpack/main: () -> console ()

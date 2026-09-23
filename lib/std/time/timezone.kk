@@ -91,10 +91,10 @@ pub struct timezone-period(
 )
 
 // Zero time period
-val timezone-period0 = Timezone-period( Nothing, "UTC", zero )
+val timezone-period0 = TimezonePeriod( Nothing, "UTC", zero )
 
 // The time zone info for the UTC time zone.
-val tzi-utc : timezone-info = Timezone-info( "UTC", 0, fn(){ [] } )
+val tzi-utc : timezone-info = TimezoneInfo( "UTC", 0, fn(){ [] } )
 
 // Find the DST offset for a particular instant `i` given a list of time zone periods
 fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-period
@@ -187,7 +187,7 @@ fun parse-packed-zone( s : string ) : exn timezone-info
   val population= parts[5].default("0").parse-base60
   // delay parsing the periods until needed
   val periods   = once{ parse-packed-periods(name, abbrs,offsets,indices,xdiffs) }
-  Timezone-info( name, population, periods, False )
+  TimezoneInfo( name, population, periods, False )
 
 fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sindices : string, sxdiffs :string ) : list<timezone-period>
 
@@ -211,7 +211,7 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
                   ).snd
     val ofsabrs  = indices.reverse.map( fn(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
     val periods  = zipwith( endings ++ [Nothing], ofsabrs, fn(start,ofsabbr)
-                     Timezone-period(start,ofsabbr.snd, duration(ofsabbr.fst * ~60.0))
+                     TimezonePeriod(start,ofsabbr.snd, duration(ofsabbr.fst * ~60.0))
                    )
     periods
 

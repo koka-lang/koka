@@ -227,7 +227,7 @@ fun parse-iersA( s : string ) : maybe<dut-table>
   //trace("finals2000A expire: " ++ expire.time.show)
   //trace("entries: " ++ entries.list.map(fn(d){ show(d) }).join("\n"))
   //trace("finals: " ++ entries.length.show ++ ", start: " ++ start.show ++ ", end: " ++ end.show )
-  Just(Dut-table(expire,start,end,entries))
+  Just(DutTable(expire,start,end,entries))
 
 val rx-finals-dut = regex(r"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
 val rx-finals-start = regex(r"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)
@@ -421,7 +421,7 @@ struct deltat-table(
   entries: vector<float64>
 )
 
-val deltat-table-empty = Deltat-table(0.0,0.0,vector(0,0.0))
+val deltat-table-empty = DeltatTable(0.0,0.0,vector(0,0.0))
 
 // Given a `deltat-table` and a fractional year, return the delta-t by
 // linear interpolation between two known delta-t instants. If the
@@ -456,7 +456,7 @@ fun parse-predicted( s : string ) : deltat-table
   if caps.is-nil return deltat-table-empty
   val start = caps.head.map(fn(cap){ cap.groups[1] }).default("").parse-float64.maybe(2000.0)
   val entries = caps.map(fn(cap){ cap.groups[2].parse-float64.maybe(0.0) }).vector
-  Deltat-table(start,4.0,entries)
+  DeltatTable(start,4.0,entries)
 
 val rx-predict = regex(r"^\s*\d+\.\d+\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
 
@@ -466,14 +466,14 @@ fun parse-determined( s : string ) : deltat-table
   val (y,m) = caps.head.map(fn(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
   val start = y.parse-float64.maybe(2000.0) + ((m.parse-float64.maybe(1.0) - 1.0)/12.0)
   val entries = caps.map(fn(cap){ cap.groups[4].parse-float64.maybe(0.0) }).vector
-  Deltat-table(start,12.0,entries)
+  DeltatTable(start,12.0,entries)
 
 val rx-determined = regex(r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
 
 fun parse-historic( start: float64, s : string ) : deltat-table
   val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
   val entries = caps.map(fn(cap){ cap.matched.parse-float64.maybe(0.0) }).vector
-  Deltat-table(start,2.0,entries)
+  DeltatTable(start,2.0,entries)
 
 val rxdouble = regex(r"-?\d+(?:\.\d+)?")
 val rxcomment = regex(r"//.*")
