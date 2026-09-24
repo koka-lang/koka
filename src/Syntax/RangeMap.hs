@@ -250,7 +250,7 @@ rangeMapLookup r (RM rm)
 rangeMapFindIn :: Bool -> Range -> RangeMap -> [(Range, RangeInfo)]
 rangeMapFindIn forInlay rng (RM rm)
   = mergeImplicits forInlay {-for inlay -} $
-    filter (\(rngx, info) -> rangeStart rngx >= start || rangeEnd rngx <= end) rm
+    filter (\(rngx, info) -> rangeStart rngx >= start && rangeEnd rngx <= end) rm
     where start = rangeStart rng
           end = rangeEnd rng
 
