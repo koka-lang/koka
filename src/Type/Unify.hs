@@ -430,7 +430,7 @@ unifyLabels ls1 ls2 closed1 closed2
            in case {-compareLabel l1 l2-} labelNameCompare name1 name2 of
             LT ->do (ds1,ds2) <- unifyLabels ll1 ls2 closed1 closed2
                     return (ds1,l1:ds2)
-            GT ->do (ds1,ds2) <- unifyLabels ls1 ll2 closed2 closed2
+            GT ->do (ds1,ds2) <- unifyLabels ls1 ll2 closed1 closed2
                     return (l2:ds1,ds2)
             EQ -> -- labels are equal
                   case (args1,args2) of
