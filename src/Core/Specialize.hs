@@ -340,7 +340,12 @@ replaceCall name expr0 sort bools args mybeTypeArgs
       sspecBody <- uniqueSimplify defaultEnv False False 1 10 specBody
       -- trace ("\n// ----start--------\n// specializing " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs) <> "\n// specTName: " <> show (getName specTName) <> ", specBody0: \n" <> show specBody <> "\n\n, sspecBody: \n" <> show sspecBody <> "\n// ---- start recurse---") $ return ()
 
-      let specDef = Def specName specType sspecBody Private sort InlineAuto rangeNull
+      -- the specialized parameters are gone, so their parameter infos must go too:
+      -- reusing `sort` shifts a borrow onto whichever parameter takes that position
+      let specSort = case sort of
+                       DefFun pinfos fip -> DefFun (fst (partitionBools bools pinfos)) fip
+                       _                 -> sort
+          specDef = Def specName specType sspecBody Private specSort InlineAuto rangeNull
                      $ "// specialized: " <> show name <> ", on parameters " <> concat (intersperse ", " (map show speccedParams)) <> ", using:\n" <>
                        comment (unlines [show param <> " = " <> show arg | (param,arg) <- zip speccedParams speccedArgs])
 
