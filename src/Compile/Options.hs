@@ -33,6 +33,7 @@ module Compile.Options( -- * Command line options
                        , parseOptions
                        , flagsNull
                        , targetPlatformFromFlags, targetFromFlags, platformFromFlags
+                       , optFusion
                        ) where
 
 import Debug.Trace
@@ -140,6 +141,9 @@ data Option
 showTypeSigs :: Flags -> Bool
 showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
 
+optFusion :: Flags -> Bool
+optFusion flags = optFusionEnabled flags
+
 data Flags
   = Flags{ warnShadow       :: !Bool
          , showKinds        :: !Bool
@@ -222,6 +226,7 @@ data Flags
          , optInlineMax     :: !Int
          , optctail         :: !Bool
          , optctailCtxPath  :: !Bool
+         , optFusionEnabled :: !Bool
          , optUnroll        :: !Int
          , optEagerPatBind  :: !Bool      -- bind pattern fields as early as possible?
          , parcReuse        :: !Bool
@@ -273,6 +278,7 @@ instance Hashable Flags where
           show $ optInlineMax flags,
           show $ optctail flags,
           show $ optctailCtxPath flags,
+          show $ optFusionEnabled flags,
           show $ optUnroll flags,
           show $ optEagerPatBind flags,
           show $ parcReuse flags,
@@ -373,6 +379,7 @@ flagsNull
           12   -- inlineMax
           True -- optctail
           True -- optctailCtxPath
+          True -- optFusionEnabled
           (-1) -- optUnroll
           False -- optEagerPatBind (read fields as late as possible)
           True -- parc reuse
@@ -512,6 +519,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["reusespec"]   (\b f -> f{parcReuseSpec=b})    "enable reuse specialization"
  , hide $ fflag       ["trmc"]        (\b f -> f{optctail=b})         "enable tail-recursion-modulo-cons optimization"
  , hide $ fflag       ["trmcctx"]     (\b f -> f{optctailCtxPath=b})  "enable trmc context paths"
+ , hide $ fflag       ["fusion"]  (\b f -> f{optFusionEnabled=b}) "enable fusion of mutual recursion into single recursive functions"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})    "enable inline specialization"
  , hide $ fflag       ["unroll"]      (\b f -> f{optUnroll=(if b then 1 else 0)}) "enable recursive definition unrolling"
  , hide $ fflag       ["eagerpatbind"] (\b f -> f{optEagerPatBind=b}) "load pattern fields as early as possible"

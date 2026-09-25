@@ -16,7 +16,7 @@ module Type.Type (-- * Types
                   , dataInfoIsOpen, dataInfoIsExtend, dataInfoIsLiteral
                   , conInfoSize, conInfoScanCount
                   , conInfoIsLazy, dataInfoIsLazy, conInfoLazyFip, lazyName
-                  , eqType, eqTypes, elemType
+                  , eqType, eqTypes, elemType, matchEffect
                   -- Predicates
                   , splitTypeScheme, shallowSplitVars
                   -- ** Type atoms
@@ -1009,4 +1009,4 @@ matchEffect eff1 eff2
 
 eqTypes :: HasCallStack => [Type] -> [Type] -> Bool
 eqTypes ts1 ts2
-  = and (zipWith eqType ts1 ts2)
+  = length ts1 == length ts2 && and (zipWith eqType ts1 ts2)

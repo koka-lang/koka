@@ -59,6 +59,7 @@ module Core.Core ( -- Data structures
                    , tnamesMember, tnamesDisjoint, tnamesIsEmpty
                    -- , getTypeArityExpr -- ,getParamArityExpr
                    , getEffExpr
+                   , splitFunExpr
                    , TNames
                    , splitFun
                    , splitTForall
@@ -923,6 +924,14 @@ getEffExpr :: Expr -> Effect
 getEffExpr (Lam _ eff _) = eff
 getEffExpr (TypeLam _ (Lam _ eff _)) = eff
 getEffExpr _ = effectEmpty
+
+-- | Strip TypeLam/Lam wrappers, returning (typeVars, params, effect, body).
+--   Only recognizes the single-binder shapes produced by Koka's type checker
+--   for top-level functions; nested TypeLams are rejected (Nothing).
+splitFunExpr :: Expr -> Maybe ([TypeVar], [TName], Effect, Expr)
+splitFunExpr (TypeLam tvs (Lam args eff body)) = Just (tvs, args, eff, body)
+splitFunExpr (Lam args eff body)               = Just ([], args, eff, body)
+splitFunExpr _                                 = Nothing
 
 
 ---------------------------------------------------------------------------

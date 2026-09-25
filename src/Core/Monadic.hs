@@ -27,7 +27,7 @@ import Common.Unique
 import Common.NamePrim( nameEffectOpen,
                         nameReturn, nameDeref, nameByref,
                         nameTrue, nameFalse, nameTpBool, nameUnsafeTotal,
-                        nameBind
+                        nameBind, nameCoerce
                       )
 import Common.Error
 import Common.Syntax
@@ -112,6 +112,13 @@ monExpr' topLevel expr
         | getName open == nameEffectOpen
         -> do f' <- monExpr f
               return $ \k -> f' (\ff -> k (App eopen [ff]))
+
+      -- @coerce(e,ev) never affects control flow (see Core.CTail.coerceArg); fold it
+      -- into the continuation without eliding it or assuming anything about `ev`
+      App ccoerce@(TypeApp (Var cn _) _) [arg, ev]
+        | getName cn == nameCoerce
+        -> do arg' <- monExpr arg
+              return $ \k -> arg' (\a -> k (App ccoerce [a, ev]))
 
       -- regular cases
       Lam args eff body

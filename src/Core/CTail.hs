@@ -191,6 +191,17 @@ makeIfIsAffine onTrue onFalse
 -- Does there exist a tail call definition?
 --------------------------------------------------------------------------
 
+-- | Mutual-recursion fusion (Core/Fusion) wraps member results in `@coerce(e, ev)`
+--   (`App (TypeApp @coerce [a,b]) [e,ev]`), compiled as `inline "#1"` -- it never
+--   branches or has an effect, whatever `ev` is. That's all this relies on: we
+--   look through it for tail-call detection without assuming `ev` is reflexive,
+--   and never strip or rewrite the coercion itself (only `Core.Simplify`'s
+--   `@coerce` rules do that, after checking the witness is provably reflexive).
+coerceArg :: Expr -> Maybe Expr
+coerceArg (App (TypeApp (Var cn _) _) [arg,_]) | getName cn == nameCoerce = Just arg
+coerceArg (App (Var cn _) [arg,_])             | getName cn == nameCoerce = Just arg
+coerceArg _ = Nothing
+
 hasCTailCall :: TName -> Bool -> Expr -> Bool
 hasCTailCall defName top expr
   = case expr of
@@ -202,7 +213,9 @@ hasCTailCall defName top expr
 
       App (TypeApp (Con{}) _) args  -> hasCTailCallArg defName (reverse args)
       App (Con{}) args              -> hasCTailCallArg defName (reverse args)
-      _                   -> False
+      -- @coerce(e,ev) never affects control flow (see coerceArg above) -- look through it
+      _ | Just arg <- coerceArg expr -> hasCTailCall defName top arg
+        | otherwise                  -> False
 
 hasCTailCallBranch defName (Branch pat guards)
   = any (hasCTailCallGuard defName) guards
@@ -264,6 +277,14 @@ ctailExpr top expr
 
           App f@(Var name _) fargs | name == dname
             -> handleTailCall (\v slot -> App v (fargs ++ [slot]))
+
+          -- see through @coerce(e,ev), left unchanged (see coerceArg above)
+          App cv@(TypeApp (Var cn _) _) [arg, ev] | getName cn == nameCoerce
+            -> do arg' <- ctailExpr top arg
+                  return (App cv [arg', ev])
+          App cv@(Var cn _) [arg, ev] | getName cn == nameCoerce
+            -> do arg' <- ctailExpr top arg
+                  return (App cv [arg', ev])
 
           _ -> tailResult expr
   where

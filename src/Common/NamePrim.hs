@@ -91,6 +91,9 @@ module Common.NamePrim
           , nameCCtxSetCtxPath
           , nameTpFieldAddr, nameFieldAddrOf
 
+          -- * Mutual recursion fusion (type-equality witness)
+          , nameTpTypeEq, nameConTypeEq, nameCoerce, nameRefl, nameComposeTypeEq
+
           {-
           , nameTpCField,
           , nameTpCTailAcc
@@ -339,6 +342,13 @@ nameCCtxCompose   = newLocallyQualified "std/core/types" "cctx" "++"
 
 nameTpFieldAddr   = cfieldName "@field-addr"
 nameFieldAddrOf   = cfieldName "@field-addr-of"
+
+-- Mutual recursion fusion: type-equality witness (see Core/Fusion)
+nameTpTypeEq      = coreTypesName "@type-eq"
+nameConTypeEq     = coreTypesName "@TypeEq"
+nameCoerce        = coreTypesName "@coerce"
+nameRefl          = newLocallyQualified "std/core/types" "refl" "type-eq"
+nameComposeTypeEq = newLocallyQualified "std/core/types" "compose" "type-eq"
 
 {--------------------------------------------------------------------------
   std/core/hnd

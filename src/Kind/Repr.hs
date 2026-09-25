@@ -9,7 +9,7 @@
 
 -}
 -----------------------------------------------------------------------------
-module Kind.Repr( orderConFields, createDataDef ) where
+module Kind.Repr( orderConFields, createDataDef, createDataDefMin ) where
 
 import Control.Monad( when )
 import Lib.PPrint
@@ -32,6 +32,19 @@ createDataDef :: Monad m => (Doc-> m ()) -> (Doc-> m ()) -> (Name -> m (Maybe Da
 createDataDef emitError emitWarning lookupDataInfo
                platform name resultHasKindStar isRec sort
                 extraFields defaultDef conInfos0
+  = createDataDefMin emitError emitWarning lookupDataInfo platform name resultHasKindStar isRec sort extraFields 0 defaultDef conInfos0
+
+-- | Like 'createDataDef' but also accepts a minimum scan-field count per constructor.
+-- When a constructor's computed scan count is below @minScanCount@, extra @\@padding-*@
+-- scan fields are appended to its 'conInfoOrderedParams' (but not to 'conInfoParams') so
+-- that all constructors reach the same scan-slot floor. This is used by the mutual-recursion fusion
+-- pass to equalize heterogeneous scan counts without touching user-visible fields.
+createDataDefMin :: Monad m => (Doc-> m ()) -> (Doc-> m ()) -> (Name -> m (Maybe DataInfo))
+                               -> Platform -> Name -> Bool -> Bool -> DataKind
+                                 -> Int -> Int -> DataDef -> [ConInfo] -> m (DataDef,[ConInfo])
+createDataDefMin emitError emitWarning lookupDataInfo
+               platform name resultHasKindStar isRec sort
+                extraFields minScanCount defaultDef conInfos0
   = do --calculate the value repr of each constructor
        conInfos <- mapM createConInfoRepr conInfos0
 
@@ -104,7 +117,7 @@ createDataDef emitError emitWarning lookupDataInfo
     -- createConInfoRepr :: ConInfo -> m ConInfo
     createConInfoRepr conInfo
       = do (orderedFields,vrepr) <- orderConFields emitError (text "constructor" <+> pretty (conInfoName conInfo))
-                                                   lookupDataInfo platform extraFields (conInfoParams conInfo)
+                                                   lookupDataInfo platform extraFields minScanCount (conInfoParams conInfo)
            return (conInfo{ conInfoOrderedParams = orderedFields, conInfoValueRepr = vrepr } )
 
     -- createMaxDataDef :: [ConInfo] -> m DataDef
@@ -174,10 +187,12 @@ createDataDef emitError emitWarning lookupDataInfo
 
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
 -- return the ordered fields, and a ValueRepr (raw size part, the scan count (including tags), align, and full size)
--- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes
+-- The size is used for reuse and should include all needed fields including the tag field for "open" datatypes.
+-- When minScanCount > 0, @padding-* scan fields are appended to the ordered output (not to the input fields)
+-- until the total scan count reaches minScanCount. Only conInfoOrderedParams is affected; conInfoParams stays clean.
 orderConFields :: Monad m => (Doc -> m ()) -> Doc -> (Name -> m (Maybe DataInfo)) -> Platform
-                               -> Int -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
-orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
+                               -> Int -> Int -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
+orderConFields emitError nameDoc getDataInfo platform extraPreScan minScanCount fields
   = do visit ([], [], [], extraPreScan, 0) fields
   where
     -- visit :: ([((Name,Type),ValueRepr)],[((Name,Type),ValueRepr)],[(Name,Type)],Int,Int) -> [(Name,Type)] -> m ([(Name,Type)],ValueRepr)
@@ -208,9 +223,15 @@ orderConFields emitError nameDoc getDataInfo platform extraPreScan fields
                 restFields= [field | (field,_vr) <- rest]
                 size      = alignedSum preSize restSizes
                 rawSize   = size - (sizeHeader platform) - (scanCount * sizeField platform)
-                vrepr     = valueReprNew rawSize scanCount alignment
+                vrepr0    = valueReprNew rawSize scanCount alignment
+                -- pad scan count up to minScanCount if needed; padding goes into the ordered
+                -- field list only (conInfoOrderedParams), not into conInfoParams
+                scanPadCount = max 0 (minScanCount - scanCount)
+                scanPad      = [(newPaddingName (scanCount + i), typeAny) | i <- [1..scanPadCount]]
+                vrepr        = if scanPadCount == 0 then vrepr0
+                               else valueReprNew rawSize (scanCount + scanPadCount) alignment
            -- (if null padding then id else trace ("constructor: " ++ show cname ++ ": " ++ show vrepr) $
-           return (reverse rscan ++ restFields, vrepr)
+           return (reverse rscan ++ restFields ++ scanPad, vrepr)
 
     visit (rraw,rmixed,rscan,scanCount,alignment0) (field@(name,tp) : fs)
       = do mDataDef <- getDataDef getDataInfo tp

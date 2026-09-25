@@ -35,6 +35,7 @@ import Core.Monadic( monTransform )
 import Core.MonadicLift( monadicLift )
 import Core.Specialize( specialize, extractSpecializeDefs )
 import Core.CTail( ctailOptimize )
+import Core.BindingGroups( regroup )
 import Core.OpenResolve( openResolve )
 import Core.Unroll( unrollDefs )
 
@@ -104,7 +105,12 @@ coreOptimize flags newtypes gamma inlines coreProgram
         ------------------------------
         -- backend optimizations
 
-        -- tail-call-modulo-cons optimization
+        -- restore minimal binding groups so ctail sees a self-recursive @run as
+        -- a singleton DefRec (earlier passes can leave it in a DefNonRec)
+        do dgs <- Core.getCoreDefs
+           Core.setCoreDefs (regroup (Core.flattenDefGroups dgs))
+
+        -- tail-call-modulo-cons optimization (fires on the self-recursive @run)
         when (optctail flags) $
           ctailOptimize penv (targetPlatformFromFlags flags) newtypes gamma (optctailCtxPath flags)
 
