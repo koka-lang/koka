@@ -1,0 +1,10 @@
+nested: a,fast,timed out
+outer: canceled
+cleanup: flushed
+finalizer: canceled
+done, canceled: False
+ 
+async/interleave-scope/finalizer-timeout: () -> <std/async/async/async,console,ndet> ()
+async/interleave-scope/main: () -> <std/async/async/async,console,ndet> ()
+async/interleave-scope/nested-timeout: () -> <std/async/async/async,console,ndet> ()
+async/interleave-scope/outer-timeout: () -> <std/async/async/async,console,ndet> ()

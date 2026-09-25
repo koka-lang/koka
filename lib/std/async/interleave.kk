@@ -279,12 +279,13 @@ fun interleave-strands( needall : bool, setup : (ileave : (action : () -> <async
 // implement interleaving using only single-shot resumptions (which we need for example when targeting native WASM stacks).
 fun interleave-strands-ex( needall : bool, setup : (interleave : (action : () -> <async-ex<a>|e> a ) -> <async-ex<a>|e> ()) -> <async-ex<a>|e> () )  : <async-ex<a>|e> ()
   val ch : channel<() -> <async|_> ()> = channel()   // channel of resumptions
-  val () =
-    with cancelation-scope                    // limit cancelation to our interleaving
-    setup fn(action)                          // setup interleaved operations
-      interleave-strand(needall,ch,action)    // interleave on our channel
+  with cancelation-scope                      // limit cancelation to our interleaving
+  setup fn(action)                            // setup interleaved operations
+    interleave-strand(needall,ch,action)      // interleave on our channel
   while{ strands-are-active() }
-    ch.receive().()                           // receive and resume (note: this receive must be outside the cancelation scope)
+    val r = in-parent-scope{ ch.receive() }   // receive (note: this receive must be outside the cancelation scope)
+    if is-canceled() then in-parent-scope(r)  // once canceled, finalize strands outside it as before (so finalizers can still use `timeout` etc.)
+    else r()                                  // otherwise resume within it (as the scope is not captured by the resumption)
 
 // Interleave an action such that all async operations are captured and emit a resumption on the given channel.
 fun interleave-strand(needall : bool, ch : channel<() -> <async,strands<a>|e> ()>, action : () -> <async,strands<a>|e> a ) : <async,strands<a>|e> ()
