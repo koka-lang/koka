@@ -130,7 +130,8 @@ fun strand-merge( result : strand-result<a>, res : strand-result<b>, needall : b
   match res
     Completed(x) -> match result
       Completed(y) -> Completed(merge(y,x))
-      _            -> if !needall then Completed(merge(unit,x)) else result
+      Canceled | !needall -> Completed(merge(unit,x))
+      _            -> result
     Finalized(yld) -> match result
       Completed | needall -> Finalized(yld)
       Canceled  -> Finalized(yld)  // prefer exceptions over canceled
@@ -170,7 +171,8 @@ fun strand-actions( needall : bool, action : () -> <async,strands<a>|e> () )  : 
 
 // Run an indexed async operation and return the results (in the same order)
 fun strand-list( needall : bool, action : () -> <async,strands<(int,a)>|e> () )  : <async|e> list<a>
-  var result : some<a> strand-result<list<(int,a)>> := Completed([])
+  // if not `needall`, start as `Canceled` so the first strand to complete or finalize sets the result
+  var result : some<a> strand-result<list<(int,a)>> := if needall then Completed([]) else Canceled
   var outstanding := 0
   with handler<strands>
     return(_)                 result.strand-continue.map(snd)
@@ -300,5 +302,5 @@ fun interleave-strand(needall : bool, ch : channel<() -> <async,strands<a>|e> ()
     match res
       Right(Just(x)) -> { strand-done(Completed(x)); if !needall then cancel-outstanding() }
       Right(Nothing) -> { strand-done(Canceled) }
-      Left(yld)      -> { strand-done(Finalized(yld)); if needall then cancel-outstanding() }
+      Left(yld)      -> { strand-done(Finalized(yld)); cancel-outstanding() }
 
