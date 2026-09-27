@@ -304,7 +304,7 @@ isUserImport imp  = (importProvenance imp == ImportUser)
 
 makeImport :: HasCallStack => Name -> String -> ImportProvenance -> Visibility -> String -> Range -> Import
 makeImport name pkg provenance vis doc range
-  = assertion "invalid import" (show name /= "") $
+  = assertion ("invalid import: module=" ++ nameModule name ++ ",qual=" ++ nameLocalQual name ++ ",stem=" ++ nameStem name ++ " (pkg=" ++ pkg ++ ")") (show name /= "") $
     Import name pkg provenance vis doc range
 
 {--------------------------------------------------------------------------
