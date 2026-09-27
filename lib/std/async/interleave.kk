@@ -164,9 +164,8 @@ fun strand-actions( needall : bool, action : () -> <async,strands<a>|e> () )  : 
     fun strand-done(res)
       // trace("strand done: " ++ res.show)
       result := result.strand-merge(res,needall,fn(_,_) (),())
-      outstanding := outstanding - 1
-  with mask<local>
-  action()
+      outstanding := outstanding - 1      
+  action()  
 
 // Run an indexed async operation and return the results (in the same order)
 fun strand-list( needall : bool, action : () -> <async,strands<(int,a)>|e> () )  : <async|e> list<a>
@@ -175,12 +174,11 @@ fun strand-list( needall : bool, action : () -> <async,strands<(int,a)>|e> () ) 
   with handler<strands>
     return(_)                 result.strand-continue.map(snd)
     fun strands-are-active()  outstanding > 0
-    fun strand-init()         outstanding := outstanding + 1
-    fun strand-done(res)
+    fun strand-init()         outstanding := outstanding + 1      
+    fun strand-done(res)    
       // trace("strand done: " ++ res.show)
-      result := result.strand-merge(res,needall,ordered-insert,[])
-      outstanding := outstanding - 1
-  with mask<local>
+      result := result.strand-merge(res,needall,ordered-insert,[])      
+      outstanding := outstanding - 1      
   action()
 
 // Insert in order

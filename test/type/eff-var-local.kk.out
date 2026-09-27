@@ -1,0 +1,3 @@
+type/eff-var-local/op1: () -> eff1 ()
+type/eff-var-local/withval: (f : (int) -> eff1 int) -> eff1 int
+type/eff-var-local/withvar: (f : (int) -> eff1 int) -> eff1 int

@@ -1,2 +1,2 @@
-type/masklocal4/hand: forall<a,b,e,e1> (f : (int) -> e a, action : () -> <ping|e1> b) -> e1 b
+type/masklocal4/hand: forall<a,b,e> (f : (int) -> e a, action : () -> <ping|e> b) -> e b
 type/masklocal4/ping: () -> ping ()

@@ -259,16 +259,33 @@ isolate rng close free ics eff
                do (polyIcs,ics1) <- splitHDiv h ics
                   let isLocal = (labelName lab == nameTpLocal)
                   -- determineds <- mapM (\ic -> (icCanSolve ic) free ic) polyIcs
-                  if not (tvsMember h free) -- || and determineds --  not (.. || tvsMember h (ftv ics1))
+                  -- Whether the heap effect `lab` can be isolated out of `eff`.
+                  --
+                  -- Two invariants govern this, and both must hold before we take the
+                  -- isolating branch:
+                  --
+                  --  1. The heap variable must not escape (`not (tvsMember h free)`), so no
+                  --     reference to it survives beyond this computation.
+                  --  2. A `local` effect may only be isolated at the scope that owns the `var`
+                  --     (depth 0). Deeper down the `var` is still live, so its effect must
+                  --     remain visible in the type.
+                  --
+                  -- Whenever isolation is declined the *whole* of `eff` must be handed back
+                  -- unchanged. The isolating branch below works by unifying `eff` with
+                  -- `<lab|tv>`, which both removes `lab` and defines `tv` as the remainder;
+                  -- entering that branch without performing the unification would return a
+                  -- fresh, unconstrained `tv` in place of `eff`, silently discarding every
+                  -- label and any skolem tail it carried (a skolem cannot be unified away, but
+                  -- it can be dropped this way). See test/type/eff-var-local.kk.
+                  varScope <- getScopeDepth
+                  let canIsolate = not (tvsMember h free) && (not isLocal || varScope == 0)
+                  if canIsolate -- || and determineds --  not (.. || tvsMember h (ftv ics1))
                     then do -- we can isolate, and discharge the polyIcs hdiv predicates
                             -- traceDefDoc $ \penv -> text "can isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs)
                             tv <- freshEffect
                             if isLocal
                              then do -- trace ("isolate local") $ return ()
-                                varScope <- getScopeDepth
-                                if varScope == 0 then
                                      nofailUnify $ unify (effectExtend lab tv) eff
-                                else return ()
                              else do mbSyn <- lookupSynonym nameTpST
                                      let (Just syn) = mbSyn
                                          [bvar] = synInfoParams syn
@@ -2278,8 +2295,13 @@ lookupInfName name
        case infgammaLookup (unqualify name) (infgamma env) of
          Right (name,info)  -> return (Just (name,infoType info))
          Left []            -> return Nothing
-         Left infos -> do def <- currentDefName
-                          failure ("InferMonad.lookupInfName: ambigous local? " ++ show def ++ ": " ++ show name ++ ":\n" ++ unlines (map show infos))
+         Left infos -> -- multiple locals share the fully unqualified name (e.g. mutually recursive
+                       -- locally-qualified definitions like `expr/unreturn` and `let/unreturn`);
+                       -- prefer the match with the same locally qualified name (only module stripped)
+                       case filter (\(qname,_) -> unqualify qname == unqualify name) infos of
+                         [(qname,info)] -> return (Just (qname,infoType info))
+                         _ -> do def <- currentDefName
+                                 failure ("InferMonad.lookupInfName: ambigous local? " ++ show def ++ ": " ++ show name ++ ":\n" ++ unlines (map show infos))
 
 
 findDataInfo :: Name -> Inf DataInfo
