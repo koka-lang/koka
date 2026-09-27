@@ -62,7 +62,10 @@ createDataDef emitError emitWarning lookupDataInfo
                           case dd of
                             DataDefValue vr | isEnum
                               -> return dd
-                            DataDefValue vr | isIso   -- iso types are preferred as value types
+                            DataDefValue vr | isIso && not isRec
+                              -- iso types are preferred as value types; but a recursive type is never
+                              -- a value type (as for an explicit `value` below): its representation is
+                              -- a heap block, and boxing it as a value would disagree with that (#775)
                               -> return dd
                             DataDefValue vr
                               -> do -- let wouldGetTagField = (conCount > 1 && not isEnum)
