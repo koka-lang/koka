@@ -32,7 +32,7 @@ abstract value struct bslice
 pub val empty = Bslice(empty,0,0)
 
 // Is a slice empty?
-pub fun is-empty( slice : bslice ) : bool
+pub fun is-empty( ^slice : bslice ) : bool
   slice.len <= 0
 
 // Create a byte slice from bytes
@@ -54,6 +54,15 @@ pub fun last( b : bytes, n : int = 1 ) : bslice
 pub fun bytes( Bslice(b,start,len) : bslice ) : bytes
   b.subbytes( start, len )
 
+// The number of bytes in the slice.
+pub fun length( ^slice : bslice ) : int
+  slice.len
+
+// The byte at `i` bytes from the start of the slice, or `-1` when out of range.
+pub fun byte-at( ^slice : bslice, i : int ) : int
+  val Bslice(b, start, len) = slice
+  if i < 0 || i >= len then -1 else b.unsafe-index((start + i).ssize_t).int
+
 // If the slice is not empty,
 // return the first byte, and a new slice that is advanced by 1.
 pub fun next( Bslice(b,start,len) : bslice ) : maybe2<int, bslice>
@@ -67,7 +76,7 @@ pub fun next( Bslice(b,start,len) : bslice ) : maybe2<int, bslice>
 pub fun advance( Bslice(b,start,len) : bslice, count : int) : bslice
   val total    = b.length
   val newstart = clamp(start + count, 0, total)
-  val newlen   = max(len, total - newstart)
+  val newlen   = min(len, total - newstart)
   Bslice(b,newstart,newlen)
 
 // O(1). Extend a byte slice range by `count` bytes up to the end of the byte slice.
@@ -131,6 +140,7 @@ pub fun assign( b : bytes, i : int, new-value : bslice ) : exn bytes
   else
     assign(b, i.ssize_t, new-value)
 
+// Assign immutably (returns a copy if not unique), guaranteed to be in range
 extern slice/assign(b : bytes, i : ssize_t, new-value : bslice ): bytes
   c "kk_bslice_assign"
-*/  
+*/
