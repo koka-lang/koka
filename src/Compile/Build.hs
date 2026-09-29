@@ -1036,10 +1036,7 @@ instance Show VFS where
 
 vfsCompose :: VFS -> VFS -> VFS
 vfsCompose (VFS find1) (VFS find2)
-  = VFS (M.union find2 find2)  -- left biased
-    -- \fpath -> case find2 fpath of
-    --                  Just res -> Just res
-    --                  Nothing  -> find1 fpath)
+  = VFS (M.union find2 find1)  -- left biased: find2 takes precedence
 
 
 data Build a = Build (Env -> IO a)
@@ -1298,8 +1295,7 @@ withEnv modify (Build action)
 
 withVFS :: VFS -> Build a -> Build a
 withVFS vfs build
-  = trace ("vfs: " ++ show vfs) $
-    withEnv (\env -> env{ envVFS = vfsCompose (envVFS env) vfs }) build
+  = withEnv (\env -> env{ envVFS = vfsCompose (envVFS env) vfs }) build
 
 lookupVFS :: FilePath -> Build (Maybe (BString,FileTime))
 lookupVFS fpath

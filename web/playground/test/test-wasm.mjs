@@ -154,6 +154,7 @@ async function testWasmCompiler() {
     console.log(`PASS: Compilation succeeded, generated ${mjsCount} .mjs files`);
   } else {
     console.error(`FAIL: success=${success}, mjs files=${mjsCount}`);
+    if (jsonLine) console.error('Result: ' + jsonLine);
     if (stderrLines.length > 0) {
       console.error('Stderr (last 10 lines):');
       stderrLines.slice(-10).forEach(l => console.error('  ' + l));
