@@ -13,6 +13,7 @@ module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs
 
 import Lib.Trace
 import Data.Char( isAlphaNum )
+import Data.List( mapAccumL )
 import qualified Data.Set as S
 import Common.Name
 import Common.ColorScheme
@@ -434,10 +435,7 @@ prettyGuard env (Guard test expr)
 
 prettyPatterns :: Env -> [Pattern] -> (Env,[Doc])
 prettyPatterns env pats
-  = foldl f (env,[]) pats
-  where
-    f (env,docs) pat = let (env',doc) = prettyPattern env{expandSynonyms=True} pat
-                       in (env',doc:docs)
+  = mapAccumL (\env pat -> prettyPattern env{expandSynonyms=True} pat) env pats
 
 prettyPatternType (pat,tp) (env,docs)
   = let (env',doc) = prettyPattern (decPrec env) pat
