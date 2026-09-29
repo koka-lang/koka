@@ -579,8 +579,8 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
     for (; s[i] != 0; i++) {
       char c = s[i];
       if (kk_ascii_is_digit(c)) {
+        if (exp >= 100000000) return false; // exponents must be < 10^9 (checked before multiplying to avoid overflow)
         exp = 10*exp + ((kk_ssize_t)c - '0');
-        if (exp > BASE) return false; // exponents must be < 10^9
       }
       else return false;
     }
