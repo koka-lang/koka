@@ -1,0 +1,62 @@
+module parc/parc-closure-reuse
+import std/core/types = std/core/types pub = "";
+import std/core/hnd = std/core/hnd pub = "";
+import std/core/exn = std/core/exn pub = "";
+import std/core/bool = std/core/bool pub = "";
+import std/core/order = std/core/order pub = "";
+import std/core/char = std/core/char pub = "";
+import std/core/int = std/core/int pub = "";
+import std/core/vector = std/core/vector pub = "";
+import std/core/bytes = std/core/bytes pub = "";
+import std/core/bslice = std/core/bslice pub = "";
+import std/core/string = std/core/string pub = "";
+import std/core/sslice = std/core/sslice pub = "";
+import std/core/list = std/core/list pub = "";
+import std/core/maybe = std/core/maybe pub = "";
+import std/core/maybe2 = std/core/maybe2 pub = "";
+import std/core/either = std/core/either pub = "";
+import std/core/result = std/core/result pub = "";
+import std/core/tuple = std/core/tuple pub = "";
+import std/core/lazy = std/core/lazy pub = "";
+import std/core/show = std/core/show pub = "";
+import std/core/debug = std/core/debug pub = "";
+import std/core/delayed = std/core/delayed pub = "";
+import std/core/console = std/core/console pub = "";
+import std/core = std/core = "";
+// A closure parameter is not a reuse donor: its size depends on what it
+// captures, not on its result type, so `f` is dropped rather than reused for `Pt`@
+pub type parc/parc-closure-reuse/shape[3,1,5,22] {
+ pub con parc/parc-closure-reuse/Pt[4,3,4,4](x: int, y: int){0,2,8} : (x : int, y : int) -> parc/parc-closure-reuse/shape = 1;
+ pub con parc/parc-closure-reuse/Sz[5,3,5,4](w: int, h: int){0,2,8} : (w : int, h : int) -> parc/parc-closure-reuse/shape = 2;
+};
+// Automatically generated@ Tests for the `Pt` constructor of the `:shape` type@
+pub fip fun is-pt : (^ shape : parc/parc-closure-reuse/shape) -> bool
+ = fn(shape: parc/parc-closure-reuse/shape){
+ match (shape) {
+ (parc/parc-closure-reuse/Pt((@pat@xxx: int), (@pat@xxx: int)) : parc/parc-closure-reuse/shape )
+ -> std/core/types/True;
+ (@skip parc/parc-closure-reuse/Sz((@pat@xxx: int), (@pat@xxx: int)) : parc/parc-closure-reuse/shape )
+ -> std/core/types/False;
+ };
+ };
+// Automatically generated@ Tests for the `Sz` constructor of the `:shape` type@
+pub fip fun is-sz : (^ shape : parc/parc-closure-reuse/shape) -> bool
+ = fn(shape: parc/parc-closure-reuse/shape){
+ match (shape) {
+ (parc/parc-closure-reuse/Sz((@pat@xxx: int), (@pat@xxx: int)) : parc/parc-closure-reuse/shape )
+ -> std/core/types/True;
+ (@skip parc/parc-closure-reuse/Pt((@pat@xxx: int), (@pat@xxx: int)) : parc/parc-closure-reuse/shape )
+ -> std/core/types/False;
+ };
+ };
+pub fun pick : (f : () -> parc/parc-closure-reuse/shape, b : bool) -> parc/parc-closure-reuse/shape
+ = fn(f: () -> parc/parc-closure-reuse/shape, b: bool){
+ match (b) {
+ (std/core/types/True() : bool )
+ -> val _ : ()
+ = std/core/types/@drop(f);
+ parc/parc-closure-reuse/Pt(1, 2);
+ (@skip std/core/types/False() : bool )
+ -> f();
+ };
+ };

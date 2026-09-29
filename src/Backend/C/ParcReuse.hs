@@ -18,7 +18,7 @@ import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
-import Data.Maybe (catMaybes, maybeToList)
+import Data.Maybe (catMaybes, maybeToList, isJust)
 import Data.List (isSuffixOf)
 import qualified Data.Set as S
 import qualified Data.Map as Map
@@ -880,8 +880,13 @@ getRuFixedDataAllocSize dataType
        platform <- getPlatform
        pure $ getFixedDataAllocSize platform newtypes dataType
 
+-- | The allocation size of a value of this type, when every constructor has the same one.
+-- A function value has none: its size depends on what the closure captures, and
+-- `getDataInfo` would otherwise answer with the size of its result type.
 getFixedDataAllocSize :: Platform -> Newtypes -> Type -> Maybe (Int, Int)
 getFixedDataAllocSize platform newtypes dataType
+  | isJust (splitFunScheme dataType) = Nothing
+  | otherwise
   = case getDataInfo newtypes dataType of
       Nothing -> Nothing
       Just (dataName,dataInfo)
