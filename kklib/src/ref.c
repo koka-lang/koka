@@ -35,7 +35,10 @@ again: ;
   return b;
 }
 
-kk_decl_export kk_box_t kk_ref_swap_thread_shared_borrow(struct kk_ref_s* r, kk_box_t value) {
+kk_decl_export kk_box_t kk_ref_swap_thread_shared_borrow(struct kk_ref_s* r, kk_box_t value, kk_context_t* ctx) {
+  // once stored, `value` is reachable from other threads, so it must be marked
+  // thread-shared before the swap publishes it: a reader can dup it right after
+  kk_box_mark_shared(value, ctx);
   // atomically swap, but not if guarded with 0 (to not interfere with a `ref_get`)
   kk_box_t b; 
   b.box = kk_atomic_load_relaxed(&r->value);
