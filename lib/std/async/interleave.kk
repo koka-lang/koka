@@ -105,14 +105,16 @@ fun interleave-lockstep( f : () -> <async|e> a, g : a -> <async|e> () ) : <async
 
 // A strand result is either `Canceled` (by `discontinue`),
 // `Finalized` (by an exception etc) with a yield context (so we can reyield),
-// or a `Completed` result value.
+// or a `Completed` result value; a `firstof` is `Pending` until a strand finishes.
 type strand-result<a>
+  Pending
   Canceled
   Finalized(yld : yield-context)     // exception etc.
   Completed(result : a)
 
 fun strand-result/show(self : strand-result<a> ) : e string
   match self
+    Pending   -> "Pending"
     Canceled  -> "Canceled"
     Finalized -> "Finalized(...)"
     Completed -> "Completed(...)"
@@ -124,20 +126,37 @@ fun strand-continue( res : strand-result<a> ) : async a
     Completed(x)    -> x
     Finalized(yld)  -> unsafe-reyield(yld)
     Canceled        -> discontinue()
+    Pending         -> impossible("strand-continue: no strand finished")
+
+// The result of a `firstof` whose first finished strand ended with `res`.
+fun first-outcome( res : strand-result<b>, merge : (a,b) -> a, unit : a ) : strand-result<a>
+  match res
+    Completed(x)   -> Completed(merge(unit,x))
+    Finalized(yld) -> Finalized(yld)
+    Pending        -> Pending
+    Canceled       -> Canceled
 
 // Merge a strand result. Used to collect all strand results.
 fun strand-merge( result : strand-result<a>, res : strand-result<b>, needall : bool, merge : (a,b) -> a, unit : a ) : strand-result<a>
-  match res
-    Completed(x) -> match result
-      Completed(y) -> Completed(merge(y,x))
-      _            -> if !needall then Completed(merge(unit,x)) else result
-    Finalized(yld) -> match result
-      Completed | needall -> Finalized(yld)
-      Canceled  -> Finalized(yld)  // prefer exceptions over canceled
-      _         -> result
-    Canceled -> match result
-      Completed | needall -> Canceled
-      _         -> result
+  if !needall then
+    // firstof: the first strand to finish decides; a canceled strand only if no other finishes
+    match result
+      Pending  -> res.first-outcome(merge,unit)
+      Canceled -> res.first-outcome(merge,unit)
+      _        -> result
+  else
+    // interleaved: every strand must complete; the first exception wins, and is preferred over a cancelation
+    match res
+      Completed(x) -> match result
+        Completed(y) -> Completed(merge(y,x))
+        _            -> result
+      Finalized(yld) -> match result
+        Finalized -> result
+        _         -> Finalized(yld)
+      Canceled -> match result
+        Completed -> Canceled
+        _         -> result
+      Pending -> result
 
 
 // Private effect to keep track of when a strand in an interleaving is done.
@@ -169,7 +188,7 @@ fun strand-actions( needall : bool, action : () -> <async,strands<a>|e> () )  : 
 
 // Run an indexed async operation and return the results (in the same order)
 fun strand-list( needall : bool, action : () -> <async,strands<(int,a)>|e> () )  : <async|e> list<a>
-  var result : some<a> strand-result<list<(int,a)>> := Completed([])
+  var result : some<a> strand-result<list<(int,a)>> := if needall then Completed([]) else Pending
   var outstanding := 0
   with handler<strands>
     return(_)                 result.strand-continue.map(snd)
@@ -298,5 +317,5 @@ fun interleave-strand(needall : bool, ch : channel<() -> <async,strands<a>|e> ()
     match res
       Right(Just(x)) -> { strand-done(Completed(x)); if !needall then cancel-outstanding() }
       Right(Nothing) -> { strand-done(Canceled) }
-      Left(yld)      -> { strand-done(Finalized(yld)); if needall then cancel-outstanding() }
+      Left(yld)      -> { strand-done(Finalized(yld)); cancel-outstanding() }
 
