@@ -213,8 +213,10 @@ prettyTypeDefGroup env (TypeDefGroup defs)
     vcat (map (prettyTypeDef env) defs)
 
 prettyTypeDef :: Env -> TypeDef -> Doc
+-- Interfaces declare private synonyms too: signatures and inline bodies are
+-- printed unexpanded, so an importer must be able to expand every synonym in them.
 prettyTypeDef env (Synonym synInfo  )
-  = ppSynInfo env False True True synInfo <.> semi
+  = ppSynInfo env False (not (coreIface env)) True synInfo <.> semi
 
 prettyTypeDef env (Data dataInfo)
   = -- keyword env "type" <+> prettyVis env vis <.> ppDataInfo env True dataInfo

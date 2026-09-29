@@ -336,6 +336,8 @@ main = do
   precompile stdcfg "test/lazy/queue/bankers.kk"
   -- precompile mpat-lib so test/cgen/mpat.kk loads it from the .kki
   precompile stdcfg "test/cgen/mpat-lib.kk"
+  -- precompile synpriv-lib so test/cgen/synpriv.kk loads it from the .kki
+  precompile stdcfg "test/cgen/synpriv-lib.kk"
   -- precompile specbox-lib so test/cgen/specbox.kk loads it from the .kki
   -- (both carry a -O2 .flags file so they share one build directory)
   precompile stdcfg "test/cgen/specbox-lib.kk"
