@@ -169,7 +169,10 @@ static void kk_block_make_shared(kk_block_t* b) {
   kk_refcount_t rc = kk_block_refcount(b);
   kk_assert_internal(!kk_refcount_is_thread_shared(rc));  // not thread shared already
   if (!kk_refcount_is_thread_shared(rc)) {
-    rc = -rc;                                     // cannot overflow as rc is positive
+    // positive rc N encodes N+1 references (0 == unique); thread-shared -N encodes
+    // N references (freed when an atomic drop sees -1 == RC_SHARED_UNIQUE). So the
+    // count-preserving map is N+1 refs -> -(N+1), i.e. `~rc`
+    rc = ~rc;                                     // -(rc+1); cannot overflow as rc is positive
     if (rc <= RC_STICKY_DROP) { rc = RC_STICKY; } // for high reference counts default to sticky
     kk_block_refcount_set(b, rc);
   }
