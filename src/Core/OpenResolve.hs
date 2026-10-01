@@ -176,10 +176,12 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
 
              in case lsFrom of
                  []  -> -- no handled effect, use cast
+                        -- effFrom is closed here (see `isEffectFixed` above): a cast is only valid
+                        -- into a closed row too, not into an open one
                         case lsTo of
-                          [] -> trace ("  no handled effect, in no handled effect context: use cast")
+                          [] | isEffectEmpty tlTo -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
-                          _  -> trace ("  no handled effect; use none: " ++ show expr) $
+                          _  -> trace ("  target has handled effects or an open row; use none: " ++ show expr) $
                                 if (isHandlerFree expr)
                                  then trace ("***  remove open-none") $  -- fully total with using any operations that need evidence; just leave it as is
                                       expr
