@@ -114,7 +114,7 @@ detect_osarch() {
 
   if [ "$OSNAME" = "linux" ]; then
     distrocfg=`cat $(find /etc/*-release -type f)`
-    if contains "$distrocfg" "rhel"; then
+    if contains "$distrocfg" "rhel|centos|rocky|alma|fedora"; then
       OSDISTRO="rhel"
     elif contains "$distrocfg" "opensuse"; then
       OSDISTRO="opensuse"
@@ -287,9 +287,15 @@ dnf_install() {
 }
 
 dnf_groupinstall() {
-  if ! sudocmd dnf group install -y ${QUIET:+-q} "$@"; then
-    stop "installing dnf package group failed ($@).  Please run 'dnf check-update' and try again."
-  fi
+  # Best-effort: the specific packages are installed separately via dnf_install,
+  # and group names differ across distros (Fedora: "c-development",
+  # RHEL/CentOS/Rocky/Alma: "Development Tools"). Try each, never abort.
+  for grp in "$@"; do
+    if sudocmd dnf group install -y ${QUIET:+-q} "$grp"; then
+      return 0
+    fi
+  done
+  info "  (no matching dnf package group for '$*'; continuing with individual packages..)"
 }
 
 pacman_install() {
@@ -322,7 +328,7 @@ install_dependencies() {
   if has_cmd apt-get ; then
     apt_get_install build-essential $deps
   elif has_cmd dnf ; then
-    dnf_groupinstall "c-development" # for newer versions of Fedora
+    dnf_groupinstall "c-development" "Development Tools" # Fedora / RHEL-family
     dnf_install $deps
   elif has_cmd yum ; then
     yum_install build-essential $deps
