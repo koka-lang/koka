@@ -11,11 +11,12 @@
 -}
 
 module Core.AnalysisCCtx( analyzeCCtx,
-
-                          -- makeCCtxEmpty,
+                          makeCCtxPrim,
+                          makeCCtxEmpty,
+                          makeCCtxHole,
                           -- makeCCtxCreate,
                           -- makeCCtxSetContextPath,
-                          -- makeFieldAddrOf
+                          makeFieldAddrOf
                           -- getFieldName
                         ) where
 
@@ -38,18 +39,19 @@ import Kind.Kind
 import Type.Type
 import Type.Pretty as Pretty
 import Type.TypeVar
+import Type.Assumption( Gamma, gammaLookupQ, infoType )
 import Core.Core
 import Core.Pretty
 
 -- take a context and check if it is well-formed and return a well-typed context expression
-analyzeCCtx :: TargetPlatform -> Range -> Newtypes -> Expr -> (Int -> ((Expr,[(Range,Doc)]),Int))
-analyzeCCtx tpl rng newtypes expr uniq
-  = let (res,uniq') = runCCtx tpl rng newtypes uniq (cctxCreate expr)
+analyzeCCtx :: TargetPlatform -> Range -> Newtypes -> Gamma -> Expr -> (Int -> ((Expr,[(Range,Doc)]),Int))
+analyzeCCtx tpl rng newtypes gamma expr uniq
+  = let (res,uniq') = runCCtx tpl rng newtypes gamma uniq (cctxCreate expr)
     in case res of
          Right e   -> ((e,[]),uniq')
          Left errs -> let errs' = if null errs then [(rng,text "ill-formed context")]
                                                else errs
-                      in ((makeCCtxEmpty tpl (typeOf expr),errs'),uniq)
+                      in ((makeCCtxEmpty gamma tpl (typeOf expr),errs'),uniq)
 
 
 data Hole = Hole{ holeAddr :: Expr, holeType :: Type }
@@ -59,14 +61,16 @@ cctxCreate :: Expr -> CCtx Expr
 -- empty context?
 cctxCreate expr | isHole expr
   = do tpl <- getTargetPlatform
-       return (makeCCtxEmpty tpl (typeOf expr))
+       gamma <- getGamma
+       return (makeCCtxEmpty gamma tpl (typeOf expr))
 -- non-empty context
 cctxCreate expr
   = do -- mtrace ("expr: " ++ show expr)
        (Ctx defs top (Hole addr holetp)) <- cctxExpr expr
        tpl <- getTargetPlatform
+       gamma <- getGamma
        let tp = typeOf top
-       let cctx = makeCCtxCreate tpl tp holetp top addr
+       let cctx = makeCCtxCreate gamma tpl tp holetp top addr
        return (Let (map DefNonRec defs) cctx)
 
 
@@ -122,8 +126,9 @@ cctxConFinal conName conRepr targs pre hole post
         let holetp = typeOf hole
             ctxrepr = conRepr{ conCtxPath = CtxField fname }
         ensureValidHoleType holetp
+        gamma <- getGamma
         (d1,var1) <- makeUniqueDef (App (makeTypeApp (Con conName ctxrepr) targs) (pre ++ [hole] ++ post))
-        (d2,addr) <- makeUniqueDef (makeFieldAddrOf var1 conName (getName fname)   holetp)
+        (d2,addr) <- makeUniqueDef (makeFieldAddrOf gamma var1 conName (getName fname) holetp)
         -- (d3,var3) <- makeUniqueDef (makeCCtxSetContextPath var1 conName fname) -- should be last as it consumes var1
         return (Ctx [d1,d2] var1 (Hole addr holetp))
 
@@ -159,28 +164,41 @@ isHole (App (App (TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [TypeApp (Va
   = (getName open == nameEffectOpen) && (getName hname == nameCCtxHoleCreate)
 isHole _ = False
 
--- Initial empty context (ctx hole)
-makeCCtxEmpty :: TargetPlatform -> Type -> Expr
-makeCCtxEmpty tpl tp
-  = App (TypeApp (Var (TName nameCCtxEmpty funType) (InfoExternal external)) [tp]) []
+-- A primitive of `std/core/types` applied to type and value arguments. The type scheme is
+-- taken from its declaration (so `--checkcore` checks the use against the declaration).
+makeCCtxPrim :: Gamma -> Name -> String -> [Type] -> [Expr] -> Expr
+makeCCtxPrim gamma name external targs args
+  = assertion ("Core.AnalysisCCtx.makeCCtxPrim: wrong number of arguments for " ++ show name ++ ": " ++ show (pretty scheme)) arityOk $
+    App (makeTypeApp (Var (TName name scheme) (InfoExternal external)) targs) args
   where
-    funType = TForall [a] (TFun [] typeTotal (typeCCtx (TVar a)))
-    a = TypeVar 0 kindStar Bound
+    scheme = case gammaLookupQ name gamma of
+               [info] -> infoType info
+               infos  -> failure ("Core.AnalysisCCtx.makeCCtxPrim: cannot find " ++ show name)
+    arityOk
+      = case splitFunScheme scheme of
+          Just (tvars,pars,_,_) -> length tvars == length targs && length pars == length args
+          Nothing -> False
+
+-- Polymorphic hole
+makeCCtxHole :: Gamma -> Type -> Expr
+makeCCtxHole gamma tp
+  = makeCCtxPrim gamma nameCCtxHoleCreate "" [tp] []
+
+-- Initial empty context (ctx hole)
+makeCCtxEmpty :: Gamma -> TargetPlatform -> Type -> Expr
+makeCCtxEmpty gamma tpl tp
+  = makeCCtxPrim gamma nameCCtxEmpty external [tp] []
+  where
     external = case tplTarget tpl of
                  C _  -> "kk_cctx_empty(kk_context())"
                  JS _ -> "$std_core_types._cctx_empty()"
                  _    -> unsupportedExternal "kk_cctx_empty"
 
 -- Create a context (ctx Cons(e,Cons(2,hole)))
-makeCCtxCreate :: TargetPlatform -> Type -> Type -> Expr -> Expr -> Expr
-makeCCtxCreate tpl tp holetp top holeaddr
-  = App (TypeApp (Var (TName nameCCtxCreate funType) (InfoExternal external)) [tp,holetp]) [top,holeaddr]
+makeCCtxCreate :: Gamma -> TargetPlatform -> Type -> Type -> Expr -> Expr -> Expr
+makeCCtxCreate gamma tpl tp holetp top holeaddr
+  = makeCCtxPrim gamma nameCCtxCreate external [tp,holetp] [top,holeaddr]
   where
-    funType = TForall [a,b] (TFun [(nameNil,TVar a),
-                                      (nameNil,TApp typeFieldAddr [TVar a])]
-                                      typeTotal (TApp typeCCtxx [TVar a,TVar b]))
-    a = TypeVar 0 kindStar Bound
-    b = TypeVar 1 kindStar Bound
     external = case tplTarget tpl of
                  C _  -> "kk_cctx_create(#1,#2,kk_context())"
                  JS _ -> "$std_core_types._cctx_create(#1,#2)"
@@ -188,14 +206,10 @@ makeCCtxCreate tpl tp holetp top holeaddr
 
 
 -- The adress of a field in a constructor (for context holes)
-makeFieldAddrOf :: Expr -> TName -> Name -> Type -> Expr
-makeFieldAddrOf obj conName fieldName fieldTp
-  = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [fieldTp])
+makeFieldAddrOf :: Gamma -> Expr -> TName -> Name -> Type -> Expr
+makeFieldAddrOf gamma obj conName fieldName fieldTp
+  = makeCCtxPrim gamma nameFieldAddrOf "" [fieldTp]
         [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
-  where
-    funType = TForall [a] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
-                                   typeTotal (TApp typeFieldAddr [TVar a]))
-    a = TypeVar 0 kindStar Bound
 
 -- Set the index of the field in a constructor to follow the path to the hole at runtime.
 makeCCtxSetContextPath :: Expr -> TName -> Name -> Expr
@@ -213,15 +227,15 @@ makeCCtxSetContextPath obj conName fieldName
 
 newtype CCtx a = CCtx (Int -> CCtxEnv -> Result a)
 
-runCCtx :: TargetPlatform -> Range -> Newtypes -> Int -> CCtx a -> (Either [(Range,Doc)] a,Int)
-runCCtx tpl rng nt uniq (CCtx c)
-  = case (c uniq (CCtxEnv rng nt tpl)) of
+runCCtx :: TargetPlatform -> Range -> Newtypes -> Gamma -> Int -> CCtx a -> (Either [(Range,Doc)] a,Int)
+runCCtx tpl rng nt gamma uniq (CCtx c)
+  = case (c uniq (CCtxEnv rng nt gamma tpl)) of
       Ok x u'  -> (Right x,u')
       Err errs -> (Left errs,uniq)
 
 
 
-data CCtxEnv = CCtxEnv{ rng :: !Range, newtypes :: !Newtypes, tplatform :: !TargetPlatform }
+data CCtxEnv = CCtxEnv{ rng :: !Range, newtypes :: !Newtypes, gamma :: !Gamma, tplatform :: !TargetPlatform }
 
 data Result a = Err [(Range,Doc)]
               | Ok a Int
@@ -271,6 +285,10 @@ emitErrors errs
 getTargetPlatform :: CCtx TargetPlatform
 getTargetPlatform
   = tplatform <$> getEnv
+
+getGamma :: CCtx Gamma
+getGamma
+  = gamma <$> getEnv
       
 try :: CCtx a -> CCtx (Either [(Range,Doc)] a)
 try (CCtx c)

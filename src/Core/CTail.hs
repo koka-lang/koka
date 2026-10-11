@@ -39,6 +39,7 @@ import Common.Syntax
 import Core.Core
 import Core.CoreVar
 import Core.Pretty
+import Core.AnalysisCCtx( makeCCtxPrim, makeCCtxEmpty, makeCCtxHole, makeFieldAddrOf )
 
 --------------------------------------------------------------------------
 -- Reference count transformation
@@ -168,8 +169,9 @@ ctailWrapperBody :: Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail
 ctailWrapperBody resTp slot mbMulti targs args
   = do tailVar <- getCTailFun
        tpl <- getTargetPlatform
+       gamma <- getGamma
        let  ctailCall  = App (makeTypeApp tailVar [TVar tv | tv <- targs])
-                           ([Var name InfoNone | name <- args] ++ [makeCCtxEmpty tpl resTp])
+                           ([Var name InfoNone | name <- args] ++ [makeCCtxEmpty gamma tpl resTp])
        case mbMulti of
          Nothing -> return ctailCall
          Just ctailMultiVar
@@ -274,7 +276,8 @@ ctailExpr top expr
               Just slot -> do isMulti <- getIsMulti
                               alwaysAffine <- getIsAlwaysAffine
                               tpl <- getTargetPlatform
-                              return (makeCCtxApply tpl isMulti alwaysAffine slot body)
+                              gamma <- getGamma
+                              return (makeCCtxApply gamma tpl isMulti alwaysAffine slot body)
 
     handleConApp dname cname fcon fargs
       = do let mkCons cpath args = bindArgs args $ \xs -> return ([],mkConApp cpath fcon xs)
@@ -425,13 +428,14 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                            case fieldInfo of
                              Left msg -> failure msg -- todo: allow this? see test/cgen/ctail7
                              Right (_,fieldName) ->
-                               do let -- tp    = typeOf (App f fargs)
-                                      hole  = makeHole resTp
+                               do gamma <- getGamma
+                                  let -- tp    = typeOf (App f fargs)
+                                      hole  = makeCCtxHole gamma resTp
                                   (defs,cons) <- mkConsApp [hole]
                                   consName    <- uniqueTName (typeOf cons)
                                   alwaysAffine <- getIsAlwaysAffine
                                   tpl <- getTargetPlatform
-                                  let comp = makeCCtxExtend tpl slot consName (maybe consName id mbC) cname (getName fieldName) resTp alwaysAffine
+                                  let comp = makeCCtxExtend gamma tpl slot consName (maybe consName id mbC) cname (getName fieldName) resTp alwaysAffine
                                       ctailCall   = mkTailApp ctailVar comp
                                   return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                                             ,ctailCall)
@@ -441,56 +445,12 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
 -- Primitives
 --------------------------------------------------------------------------
 
--- Polymorphic hole
-makeHole :: Type -> Expr
-makeHole tp
-  = App (TypeApp (Var (TName nameCCtxHoleCreate funType) (InfoExternal [])) [tp]) []
-  where
-    funType = TForall [a] (TFun [] typeTotal (TVar a))
-    a = TypeVar 0 kindStar Bound
-
-
--- Initial empty context (@ctx hole)
-makeCCtxEmpty :: TargetPlatform -> Type -> Expr
-makeCCtxEmpty tpl tp
-  = App (TypeApp (Var (TName nameCCtxEmpty funType)
-                        -- (InfoArity 1 0)
-                        (InfoExternal external)
-                      ) [tp]) []
-  where
-    funType = TForall [a] (TFun [] typeTotal (typeCCtx (TVar a)))
-    a = TypeVar 0 kindStar Bound
-    external = case tplTarget tpl of
-                 C _  -> "kk_cctx_empty(kk_context())"
-                 JS _ -> "$std_core_types._cctx_empty()"
-                 _    -> unsupportedExternal "kk_cctx_empty"
-
-
--- The adress of a field in a constructor (for context holes)
-makeFieldAddrOf :: TName -> TName -> Name -> Type -> Expr
-makeFieldAddrOf objName conName fieldName tp
-  = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [tp])
-        [Var objName InfoNone, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
-  where
-    funType = TForall [a] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
-                                   typeTotal (TApp typeFieldAddr [TVar a]))
-    a = TypeVar 0 kindStar Bound
-
-
 -- Extend a context with a non-empty context
-makeCCtxExtend :: TargetPlatform -> TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
-makeCCtxExtend tpl slot resName objName conName fieldName tp alwaysAffine
-  = let fieldOf = makeFieldAddrOf objName conName fieldName tp
-    in  App (TypeApp (Var (TName nameCCtxExtend funType)
-                -- (InfoArity 1 3)
-                (InfoExternal external)
-            ) [tp])
-            [Var slot InfoNone, Var resName InfoNone, fieldOf]
+makeCCtxExtend :: Gamma -> TargetPlatform -> TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
+makeCCtxExtend gamma tpl slot resName objName conName fieldName tp alwaysAffine
+  = let fieldOf = makeFieldAddrOf gamma (Var objName InfoNone) conName fieldName tp
+    in  makeCCtxPrim gamma nameCCtxExtend external [tp,tp,tp] [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
-    funType = TForall [a] (TFun [(nameNil,typeCCtx (TVar a)),
-                                    (nameNil,TVar a),
-                                    (nameNil,TApp typeFieldAddr [TVar a])] typeTotal (typeCCtx (TVar a)))
-    a = TypeVar 0 kindStar Bound
     external = case tplTarget tpl of
                  C _  -> "kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "") ++ "(#1,#2,#3,kk_context())"
                  JS _ -> "$std_core_types._cctx_extend(#1,#2,#3)"
@@ -499,21 +459,15 @@ makeCCtxExtend tpl slot resName objName conName fieldName tp alwaysAffine
 
 
 -- Apply a context to its final value.
-makeCCtxApply :: TargetPlatform -> Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr -> Expr
-makeCCtxApply tpl True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
+makeCCtxApply :: Gamma -> TargetPlatform -> Bool {-isMulti-} -> Bool {-isAlwaysAffine-} -> TName -> Expr -> Expr
+makeCCtxApply gamma tpl True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
-makeCCtxApply tpl False alwaysAffine slot expr  -- slot is a `ctail<a>`
-  = App (TypeApp (Var (TName nameCCtxApply funType)
-                        -- (InfoArity 1 2)
-                        (InfoExternal external)
-                      ) [tp])
-        [Var slot InfoNone, expr]
+makeCCtxApply gamma tpl False alwaysAffine slot expr  -- slot is a `ctail<a>`
+  = makeCCtxPrim gamma nameCCtxApply external [tp,tp] [Var slot InfoNone, expr]
   where
     tp = case typeOf slot of
            TApp _ [t] -> t
            TSyn _ [t] _ -> t
-    funType = TForall [a] (TFun [(nameNil,typeCCtx (TVar a)),(nameNil,TVar a)] typeTotal (TVar a))
-    a = TypeVar (-1) kindStar Bound
     external = case tplTarget tpl of
                  C _  -> "kk_cctx_apply" ++ (if alwaysAffine then "_linear" else "") ++ "(#1,#2,kk_context())"
                  JS _ -> "$std_core_types._cctx_apply(#1,#2)"
@@ -622,6 +576,10 @@ getIsAlwaysAffine
 getTargetPlatform :: CTail TargetPlatform
 getTargetPlatform 
   = tplatform <$> getEnv
+
+getGamma :: CTail Gamma
+getGamma
+  = gamma <$> getEnv
 
 getFieldName :: TName -> Int -> CTail (Either String (Expr,TName))
 getFieldName cname field
