@@ -888,7 +888,10 @@ infTypeDefs isRec tdefs0
                    do let names = map tbinderName infgamma
                       tdefs1 <- -- trace ("recursive group: " ++ show infgamma) $
                                 mapM infTypeDef (zip (map fst xinfgamma) tdefs)
-                      mapM (resolveTypeDef isRec names) tdefs1
+                      let (syns,datas) = partition isSynonym tdefs1
+                      csyns  <- mapM (resolveTypeDef isRec names) syns
+                      cdatas <- mapM (resolveTypeDef isRec names) datas
+                      return (csyns ++ cdatas)
        checkRecursion tdefs -- check for recursive type synonym definitions rather late so we spot duplicate definitions first
        let (ctdefs,lazyExprss) = unzip ctdefs'
        return (Core.TypeDefGroup ctdefs, concat lazyExprss)
@@ -899,6 +902,9 @@ infTypeDefs isRec tdefs0
       getDataEffect (tbind, DataType{ typeDefEffect = deff })
           = [(tbinderName tbind, deff)]
       getDataEffect _ = []
+
+      isSynonym (Synonym{}) = True
+      isSynonym _           = False
 
 checkRecursion :: [TypeDef UserType UserType UserKind] -> KInfer ()
 checkRecursion tdefs
