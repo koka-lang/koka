@@ -190,12 +190,13 @@ makeCCtxCreate tpl tp holetp top holeaddr
 -- The adress of a field in a constructor (for context holes)
 makeFieldAddrOf :: Expr -> TName -> Name -> Type -> Expr
 makeFieldAddrOf obj conName fieldName fieldTp
-  = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [fieldTp])
+  = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [typeOf obj, fieldTp])
         [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
-    funType = TForall [a] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
-                                   typeTotal (TApp typeFieldAddr [TVar a]))
+    funType = TForall [a,b] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
+                                   typeTotal (TApp typeFieldAddr [TVar b]))
     a = TypeVar 0 kindStar Bound
+    b = TypeVar 1 kindStar Bound
 
 -- Set the index of the field in a constructor to follow the path to the hole at runtime.
 makeCCtxSetContextPath :: Expr -> TName -> Name -> Expr
