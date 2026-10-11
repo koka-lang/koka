@@ -503,7 +503,7 @@ extern import
 pub type @field-addr<a>
 
 // _Internal_. Internal function name for field addresses.
-pub fip extern @field-addr-of( x : a, conname : string, fieldname : string ) : @field-addr<a>
+pub fip extern @field-addr-of( x : a, conname : string, fieldname : string ) : @field-addr<b>
   c inline "kk_field_addr_null()"
   inline ""  // compiled specially
 

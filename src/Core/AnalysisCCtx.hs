@@ -208,7 +208,7 @@ makeCCtxCreate gamma tpl tp holetp top holeaddr
 -- The adress of a field in a constructor (for context holes)
 makeFieldAddrOf :: Gamma -> Expr -> TName -> Name -> Type -> Expr
 makeFieldAddrOf gamma obj conName fieldName fieldTp
-  = makeCCtxPrim gamma nameFieldAddrOf "" [fieldTp]
+  = makeCCtxPrim gamma nameFieldAddrOf "" [typeOf obj,fieldTp]
         [obj, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
 
 -- Set the index of the field in a constructor to follow the path to the hole at runtime.
