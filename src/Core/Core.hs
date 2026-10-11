@@ -46,7 +46,7 @@ module Core.Core ( -- Data structures
                    , openEffectExpr
                    , makeIfExpr
                    , makeInt32, makeSizeT
-                   , makeEvIndex
+                   , makeEvIndex, makeEvvIndex
                    , makeList, makeVector
                    , makeDef, makeTDef, makeStats, makeDefsLet, makeDefExpr
                    , makeDropSpecial
@@ -1174,6 +1174,15 @@ makeEvIndex i | i < 0 = failure $ ("Core.Core.makeEvIndex: index < 0: " ++ show 
 makeEvIndex i
   = let sizet = Var (TName nameInternalSSizeT (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
     in App sizet [Lit (LitInt i)]
+
+-- | The index of an effect label in the evidence vector: `@evv-index<eff,h<as>>(tag<as>)`,
+-- given the `@evv-index` function, the (uninstantiated) tag of the effect, the current effect,
+-- and the label (with type arguments `as`).
+makeEvvIndex :: Expr -> Expr -> Effect -> Tau -> Expr
+makeEvvIndex evvIndex htag eff label
+  = let (name,_,tpArgs) = labelNameEx label
+        hndCon = TCon (TypeCon name (kindFunN (map getKind tpArgs ++ [kindEffect,kindStar]) kindStar))
+    in App (makeTypeApp evvIndex [eff,typeApp hndCon tpArgs]) [makeTypeApp htag tpArgs]
 
 makeSizeT :: Integer -> Expr
 makeSizeT i | i < 0 = failure $ ("Core.Core.makeSizeT: size_t < 0: " ++ show i)

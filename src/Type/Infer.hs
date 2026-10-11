@@ -875,8 +875,7 @@ inferExpr propagated expect (Inject label expr behind rng)
                    -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskAt (CtxFunArgs False 3 [] Nothing) rng rng
                          (evvIndexQName,evvIndexTp,evvIndexInfo) <- resolveFunName nameEvvIndex (CtxFunArgs False 1 [] Nothing) rng rng
                          let coreMask = coreExprFromNameInfo maskQName maskInfo
-                             coreIndex= Core.App (Core.TypeApp (coreExprFromNameInfo evvIndexQName evvIndexInfo) [effTo])
-                                                 [coreHTag]
+                             coreIndex= Core.makeEvvIndex (coreExprFromNameInfo evvIndexQName evvIndexInfo) coreHTag effTo label
                              core     = Core.App (Core.TypeApp coreMask [resTp,eff,effTo]) [coreIndex,coreLevel,exprCore]
                          return core
                  Nothing
