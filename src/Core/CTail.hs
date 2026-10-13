@@ -469,12 +469,13 @@ makeCCtxEmpty tpl tp
 -- The adress of a field in a constructor (for context holes)
 makeFieldAddrOf :: TName -> TName -> Name -> Type -> Expr
 makeFieldAddrOf objName conName fieldName tp
-  = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [tp])
+  = App (TypeApp (Var (TName nameFieldAddrOf funType) (InfoExternal [])) [typeOf objName, tp])
         [Var objName InfoNone, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
-    funType = TForall [a] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
-                                   typeTotal (TApp typeFieldAddr [TVar a]))
+    funType = TForall [a,b] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
+                                   typeTotal (TApp typeFieldAddr [TVar b]))
     a = TypeVar 0 kindStar Bound
+    b = TypeVar 1 kindStar Bound
 
 
 -- Extend a context with a non-empty context
