@@ -1539,12 +1539,13 @@ genMatch result0 exprDocs branches
   = do -- mbTagDocs <- mapM genTag (zip exprDocs (transpose (map branchPatterns branches)))
        (result,genLabel)
           <- case result0 of
-               ResultAssign name Nothing | length branches > 1 && not (isSingleTestBranch)
+               ResultAssign name Nothing | (length branches > 1 && not (isSingleTestBranch)) ||
+                                           length (branchGuards (last branches)) > 1
                  -> do label <- newVarName "match"
                        return (ResultAssign name (Just label),[ppName label <.> colon <+> semi])
                _ -> return (result0,[])
-       docsInit <- mapM (genBranch result exprDocs True) (init branches)
-       docLast0  <- genBranch result0 exprDocs False (last branches)
+       docsInit <- mapM (genBranch result result exprDocs True) (init branches)
+       docLast0  <- genBranch result result0 exprDocs False (last branches)
        let docLast = if (isSingleTestBranch && not (isJumpResult result))
                       then (text "else" <+> block docLast0) else docLast0
            doc = vcat (docsInit ++ [docLast] ++ genLabel)
@@ -1585,17 +1586,20 @@ genMatch result0 exprDocs branches
           PatCon{patConPatterns = ps, patConSkip = skip} -> skip && all isZeroTestPat ps
           _          -> False
 
-genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
-genBranch result exprDocs doTest branch@(Branch patterns guards)
+-- | The last guard uses `resultLast`; the other guards use `result`, which must jump past the
+-- remaining guards (all guards of a branch are generated after each other).
+genBranch :: Result -> Result -> [Doc] -> Bool -> Branch -> Asm Doc
+genBranch result resultLast exprDocs doTest branch@(Branch patterns guards)
   = do eagerPatBind <- getEagerPatBind
-       doc <- genPattern doTest eagerPatBind [] (zip exprDocs patterns) (genGuards result guards)
+       doc <- genPattern doTest eagerPatBind [] (zip exprDocs patterns) (genGuards result resultLast guards)
        if (doc `dstartsWith` "if")
          then return doc
          else return (block doc)  -- for C++ we need to scope the locals or goto's can skip initialization
 
-genGuards :: Result -> [Guard] -> Bindings -> Asm Doc
-genGuards result guards bindings
-  = do (docs, _) <- foldM (genGuard result) ([], bindings) guards
+genGuards :: Result -> Result -> [Guard] -> Bindings -> Asm Doc
+genGuards result resultLast guards bindings
+  = do let results = replicate (length guards - 1) result ++ [resultLast]
+       (docs, _) <- foldM (\acc (res,guard) -> genGuard res acc guard) ([], bindings) (zip results guards)
        return (vcat docs)
 
 genGuard :: Result -> ([Doc], Bindings) -> Guard -> Asm ([Doc], Bindings)
