@@ -719,7 +719,8 @@ inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxn
        newtypes <- getNewtypes
        score <- subst core
        tpl <- getTargetPlatform
-       (ccore,errs) <- withUnique (analyzeCCtx tpl rng newtypes score)
+       gamma <- getGamma
+       (ccore,errs) <- withUnique (analyzeCCtx tpl rng newtypes gamma score)
        mapM_ (\(rng,err) -> infError rng err) errs
        let ctp = Core.typeOf ccore
        addRangeInfo nameRng (RM.Id (newName "ctx") (RM.NIValue "expr" ctp "" False) [] False)
