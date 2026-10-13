@@ -541,7 +541,7 @@ instance HasTypeVar Type where
          in seqList args' $ TFun args' (sub `substitute` effect) (sub `substitute` result)
       TCon tcon -> TCon tcon
       TVar tvar -> subFind tvar sub
-      TApp tp arg -> TApp (sub `substitute` tp) (sub `substitute` arg)
+      TApp tp arg -> typeApp (sub `substitute` tp) (sub `substitute` arg)
       TSyn syn xs tp -> let xs' = sub `substitute` xs in seqList xs' $ TSyn syn xs' (sub `substitute` tp)
 
   ftv tp =
