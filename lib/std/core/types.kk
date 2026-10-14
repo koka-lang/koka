@@ -381,6 +381,17 @@ pub inline extern modify<h,a,b,e>( ref : ref<h,a>, f : forall<s> local-var<s,a> 
   c  inline "kk_ref_modify(#1,#2,kk_context())"
   js inline "((#2)(#1))"
 
+// Replace the value of a reference with `update(value)`. The value is passed with
+// its ownership, so a unique value can be updated in place.
+pub inline extern ref/update<h,a>( ^ref : ref<h,a>, update : a -> a): <read<h>,write<h>> ()
+  c  "kk_ref_update_borrow"
+  js inline "((#1).value = (#2)((#1).value))"
+
+// Replace the value of a local variable with `update(value)`, as `ref/update`.
+pub inline extern local-var/update<h,a>( ^ref : local-var<h,a>, update : a -> a): <local<h>> ()
+  c  "kk_ref_update_borrow"
+  js inline "((#1).value = (#2)((#1).value))"
+
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 pub extern run<e,a>( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) : e a
