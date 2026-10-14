@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          190    // modify on changes to trigger recompilation..
+#define KKLIB_BUILD          191    // modify on changes to trigger recompilation..
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -928,6 +928,8 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 kk_decl_export void        kk_block_mark_shared(kk_block_t* b, kk_context_t* ctx);
 kk_decl_export void        kk_box_mark_shared(kk_box_t b, kk_context_t* ctx);
 kk_decl_export void        kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
+kk_decl_export void        kk_block_mark_static(kk_block_t* b, kk_context_t* ctx);  // mark a reachable graph stuck: dup/drop are no-ops and it is never freed
+kk_decl_export void        kk_box_mark_static(kk_box_t b, kk_context_t* ctx);
 
 
 /*--------------------------------------------------------------------------------------
