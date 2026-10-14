@@ -19,7 +19,8 @@ import Lib.Trace (trace)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, isJust, maybeToList)
+import Data.Monoid (Any(..))
 import qualified Data.Set as S
 import qualified Data.IntMap as M
 
@@ -92,30 +93,42 @@ ctailDef topLevel def
          Nothing -> return [DefRec [def]]
          Just (tforall,targs,teff,tres)
            -> do -- ctailTrace "- has reference type result"
-                 let ctailSlotType = typeCCtx tres
+                 -- With polymorphic recursion a recursive call can be at another type than the
+                 -- definition itself, so the type of the hole changes but the root of the context
+                 -- stays the same. In that case the trmc function is polymorphic in the root type.
+                 mbRoot <- if hasPolymorphicRecursion (defTName def) (defExpr def)
+                             then do id <- uniqueId "root"
+                                     return (Just (TypeVar id kindStar Bound))
+                             else return Nothing
+                 let rootTp    = maybe tres TVar mbRoot
+                     rootArgs  = map TVar (maybeToList mbRoot)
+                     tforallC  = tforall ++ maybeToList mbRoot
+                     ctailSlotType = case mbRoot of
+                                       Nothing   -> typeCCtx tres
+                                       Just root -> TApp typeCCtxx [TVar root, tres]
                      ctailName = makeHiddenName "trmc" (defName def)
                      ctailSlot = newHiddenName "acc"
-                     ctailType = tForall tforall (TFun (targs ++ [(ctailSlot,ctailSlotType)]) teff tres)
+                     ctailType = tForall tforallC (TFun (targs ++ [(ctailSlot,ctailSlotType)]) teff rootTp)
                      ctailTName= TName ctailName ctailType
                      ctailTSlot= TName ctailSlot ctailSlotType
 
                  let alwaysAffine = effectIsAffine teff
-                 cdefExpr <- withContext ctailTName False {-isMulti-} alwaysAffine (Just ctailTSlot) $
-                             ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
+                 cdefExpr <- withContext ctailTName rootArgs False {-isMulti-} alwaysAffine (Just ctailTSlot) $
+                             ctailExpr True (makeCDefExpr mbRoot ctailTSlot (defExpr def))
 
                  useContextPath <- getUseContextPath
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
                      needsMulti = not (useContextPath || alwaysAffine)
-                     ctailMultiSlotType = TFun [(nameNil,tres)] typeTotal tres
+                     ctailMultiSlotType = TFun [(nameNil,tres)] typeTotal rootTp
                      ctailMultiName  = makeHiddenName "trmcm" (defName def)
                      ctailMultiSlot  = newHiddenName "accm"
-                     ctailMultiType  = tForall tforall (TFun (targs ++ [(ctailMultiSlot,ctailMultiSlotType)]) teff tres)
+                     ctailMultiType  = tForall tforallC (TFun (targs ++ [(ctailMultiSlot,ctailMultiSlotType)]) teff rootTp)
                      ctailMultiTName = TName ctailMultiName ctailMultiType
                      ctailMultiTSlot = TName ctailMultiSlot ctailMultiSlotType
-                     ctailMultiVar   = Var ctailMultiTName (InfoArity (length tforall) (length targs + 1))
+                     ctailMultiVar   = Var ctailMultiTName (InfoArity (length tforallC) (length targs + 1))
 
-                 wrapExpr <- withContext ctailTName False alwaysAffine Nothing $
-                             do ctailWrapper ctailTSlot
+                 wrapExpr <- withContext ctailTName [] False alwaysAffine Nothing $
+                             do ctailWrapper (isJust mbRoot) ctailTSlot
                                   (if needsMulti then Just ctailMultiVar else Nothing)
                                   (defExpr def)
 
@@ -124,16 +137,27 @@ ctailDef topLevel def
                    then -- for sure, each op resumes at most once
                         return [ DefRec [cdef, def{defExpr = wrapExpr }] ]
                    else -- some ops may resume more than once; specialize for those
-                        do cdefMultiExpr <- withContext ctailMultiTName True {-isMulti-} alwaysAffine  (Just ctailMultiTSlot) $
-                                             ctailExpr True (makeCDefExpr ctailMultiTSlot (defExpr def))
+                        do cdefMultiExpr <- withContext ctailMultiTName rootArgs True {-isMulti-} alwaysAffine  (Just ctailMultiTSlot) $
+                                             ctailExpr True (makeCDefExpr mbRoot ctailMultiTSlot (defExpr def))
                            let cdefMulti = def{ defName = ctailMultiName, defType = ctailMultiType, defExpr = cdefMultiExpr }
                            return $ [ DefRec [cdef, cdefMulti, def{defExpr = wrapExpr} ] ]
 
 
-makeCDefExpr :: TName -> Expr -> Expr
-makeCDefExpr slot (TypeLam targs body)  = TypeLam targs (makeCDefExpr slot body)
-makeCDefExpr slot (Lam args eff body)   = Lam (args ++ [slot]) eff body
-makeCDefExpr slot body                  = failure $ "Core.CTail: illegal ctail function shape: " ++ show body
+makeCDefExpr :: Maybe TypeVar -> TName -> Expr -> Expr
+makeCDefExpr mbRoot slot (TypeLam targs body)  = TypeLam (targs ++ maybeToList mbRoot) (makeCDefExpr Nothing slot body)
+makeCDefExpr mbRoot slot (Lam args eff body)   = Lam (args ++ [slot]) eff body
+makeCDefExpr mbRoot slot body                  = failure $ "Core.CTail: illegal ctail function shape: " ++ show body
+
+-- Is there a recursive call at other type arguments than the type parameters of the definition?
+hasPolymorphicRecursion :: TName -> Expr -> Bool
+hasPolymorphicRecursion defName (TypeLam tpars body)
+  = getAny (foldMapExpr isOtherInstance body)
+  where
+    isOtherInstance (TypeApp (Var name _) targs)
+      = Any (name == defName && not (length targs == length tpars && eqTypes targs (map TVar tpars)))
+    isOtherInstance _ = Any False
+hasPolymorphicRecursion defName _
+  = False
 
 
 hasResultRefType :: Type -> CTail (Maybe ([TypeVar],[(Name,Type)],Effect,Type))
@@ -155,22 +179,24 @@ hasRefType tp
 -- Create a wrapper: this costs one allocation but prevents code duplication
 ----------------------------------------------------------------------------
 
-ctailWrapper :: TName -> Maybe Expr -> Expr -> CTail Expr
-ctailWrapper slot mbMulti (TypeLam targs (Lam args eff body))
-  = do body' <- ctailWrapperBody (typeOf body) slot mbMulti targs args
+ctailWrapper :: Bool -> TName -> Maybe Expr -> Expr -> CTail Expr
+ctailWrapper hasRoot slot mbMulti (TypeLam targs (Lam args eff body))
+  = do body' <- ctailWrapperBody hasRoot (typeOf body) slot mbMulti targs args
        return (TypeLam targs (Lam args eff body'))
-ctailWrapper slot mbMulti (Lam args eff body)
-  = do body' <- ctailWrapperBody (typeOf body) slot mbMulti [] args
+ctailWrapper hasRoot slot mbMulti (Lam args eff body)
+  = do body' <- ctailWrapperBody hasRoot (typeOf body) slot mbMulti [] args
        return (Lam args eff body')
-ctailWrapper slot mbMulti body
+ctailWrapper hasRoot slot mbMulti body
   = failure $ "Core.CTail.ctailWrapper: illegal ctail function shape: " ++ show body
 
-ctailWrapperBody :: Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail Expr
-ctailWrapperBody resTp slot mbMulti targs args
+-- if the trmc function is polymorphic in the root of the context, the root is the result type
+ctailWrapperBody :: Bool -> Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail Expr
+ctailWrapperBody hasRoot resTp slot mbMulti targs0 args
   = do tailVar <- getCTailFun
        tpl <- getTargetPlatform
        gamma <- getGamma
-       let  ctailCall  = App (makeTypeApp tailVar [TVar tv | tv <- targs])
+       let  targs      = [TVar tv | tv <- targs0] ++ (if hasRoot then [resTp] else [])
+            ctailCall  = App (makeTypeApp tailVar targs)
                            ([Var name InfoNone | name <- args] ++ [makeCCtxEmpty gamma tpl resTp])
        case mbMulti of
          Nothing -> return ctailCall
@@ -178,7 +204,7 @@ ctailWrapperBody resTp slot mbMulti targs args
            -> -- call either ctail or the regular code
               do x <- uniqueTName resTp
                  let -- ctailMultiVar  = Var ctailMultiTName (InfoArity (length targs) (length args))
-                     ctailMultiCall = App (makeTypeApp ctailMultiVar [TVar tv | tv <- targs])
+                     ctailMultiCall = App (makeTypeApp ctailMultiVar targs)
                                           ([Var name InfoNone | name <- args] ++ [Lam [x] typeTotal (Var x InfoNone)])
                  return (makeIfIsAffine ctailCall ctailMultiCall)
 
@@ -262,10 +288,10 @@ ctailExpr top expr
             -> handleConApp dname cname f fargs
 
           App f@(TypeApp (Var name _) targs) fargs | name == dname
-            -> handleTailCall (\v slot -> App (TypeApp v targs) (fargs ++ [slot]))
+            -> handleTailCall (\ctailAt slot -> App (ctailAt targs) (fargs ++ [slot]))
 
           App f@(Var name _) fargs | name == dname
-            -> handleTailCall (\v slot -> App v (fargs ++ [slot]))
+            -> handleTailCall (\ctailAt slot -> App (ctailAt []) (fargs ++ [slot]))
 
           _ -> tailResult expr
   where
@@ -294,8 +320,8 @@ ctailExpr top expr
       = do mbSlot <- getCTailSlot
            case mbSlot of
              Nothing   -> return expr -- not in ctail variant
-             Just slot -> do ctailVar <- getCTailFun   -- do a tail call with the current slot
-                             return (mkCall ctailVar (Var slot InfoNone))
+             Just slot -> do ctailAt <- getCTailFunAt   -- do a tail call with the current slot
+                             return (mkCall ctailAt (Var slot InfoNone))
 
 mkConApp :: CtxPath -> Expr -> [Expr] -> Expr
 mkConApp cpath fcon xs
@@ -341,11 +367,11 @@ ctailTryArg useCtxPath dname cname mbC mkApp field (rarg:rargs)
   = case rarg of
       App f@(TypeApp (Var name info) targs) fargs
        | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
-                                         (\v acc -> App (TypeApp v targs) (fargs ++ [acc])) (typeOf rarg) --f farg
+                                         (\ctailAt acc -> App (ctailAt targs) (fargs ++ [acc])) (typeOf rarg) --f farg
                                return (Just expr)
       App f@(Var name info) fargs
        | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
-                                         (\v acc -> App (v) (fargs ++ [acc])) (typeOf rarg) --f fargs
+                                         (\ctailAt acc -> App (ctailAt []) (fargs ++ [acc])) (typeOf rarg) --f fargs
                                return (Just expr)
 
       -- recurse into other con
@@ -408,7 +434,7 @@ getCtxPath useContextPath cname fieldIdx
 --------------------------------------------------------------------------
 
 ctailFoundArg :: TName -> Maybe TName -> ([Expr] -> CTail ([DefGroup],Expr)) -> Int ->
-                  (Expr -> Expr -> Expr) -> Type {- Expr -> [Expr] -} -> CTail ([DefGroup],Expr)
+                  (([Type] -> Expr) -> Expr -> Expr) -> Type {- Expr -> [Expr] -} -> CTail ([DefGroup],Expr)
 ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
   = -- ctailTrace $ "found arg: " ++ show cname ++ ", " ++ show mbC ++ ", " ++ show field
     do mbSlot <- getCTailSlot
@@ -417,7 +443,7 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
            -> failure "Core.CTail.ctailFoundArg: inlined trmc is not supported"
          Just slot
            -> do isMulti <- getIsMulti
-                 ctailVar  <- getCTailFun
+                 ctailVar  <- getCTailFunAt
                  if isMulti
                    then do x <- uniqueTName resTp
                            (defs,cons) <- mkConsApp [Var x InfoNone]
@@ -449,7 +475,8 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
 makeCCtxExtend :: Gamma -> TargetPlatform -> TName -> TName -> TName -> TName -> Name -> Type -> Bool -> Expr
 makeCCtxExtend gamma tpl slot resName objName conName fieldName tp alwaysAffine
   = let fieldOf = makeFieldAddrOf gamma (Var objName InfoNone) conName fieldName tp
-    in  makeCCtxPrim gamma nameCCtxExtend external [tp,tp,tp] [Var slot InfoNone, Var resName InfoNone, fieldOf]
+        (rootTp,holeTp) = cctxTypeArgs (typeOf slot)
+    in  makeCCtxPrim gamma nameCCtxExtend external [rootTp,holeTp,tp] [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
     external = case tplTarget tpl of
                  C _  -> "kk_cctx_extend" ++ (if alwaysAffine then "_linear" else "") ++ "(#1,#2,#3,kk_context())"
@@ -463,17 +490,22 @@ makeCCtxApply :: Gamma -> TargetPlatform -> Bool {-isMulti-} -> Bool {-isAlwaysA
 makeCCtxApply gamma tpl True _ slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
 makeCCtxApply gamma tpl False alwaysAffine slot expr  -- slot is a `ctail<a>`
-  = makeCCtxPrim gamma nameCCtxApply external [tp,tp] [Var slot InfoNone, expr]
+  = makeCCtxPrim gamma nameCCtxApply external [rootTp,holeTp] [Var slot InfoNone, expr]
   where
-    tp = case typeOf slot of
-           TApp _ [t] -> t
-           TSyn _ [t] _ -> t
+    (rootTp,holeTp) = cctxTypeArgs (typeOf slot)
     external = case tplTarget tpl of
                  C _  -> "kk_cctx_apply" ++ (if alwaysAffine then "_linear" else "") ++ "(#1,#2,kk_context())"
                  JS _ -> "$std_core_types._cctx_apply(#1,#2)"
                  _    -> unsupportedExternal "kk_cctx_apply"
 
 
+
+-- The root and hole type of a context type `cctx<a,b>` (or `ctx<a>`)
+cctxTypeArgs :: Type -> (Type,Type)
+cctxTypeArgs tp
+  = case expandSyn tp of
+      TApp _ [root,hole] -> (root,hole)
+      _ -> failure ("Core.CTail.cctxTypeArgs: not a context type: " ++ show tp)
 
 --------------------------------------------------------------------------
 -- Utilities for readability
@@ -506,6 +538,7 @@ data Env = Env { currentDef :: [Def],
                  newtypes :: Newtypes,
                  gamma :: Gamma,
                  ctailName :: TName,
+                 ctailRootArgs :: [Type],
                  ctailSlot :: Maybe TName,
                  isMulti :: Bool,
                  useContextPath :: Bool,
@@ -539,15 +572,15 @@ getSt = get
 ctailRun :: Pretty.Env -> TargetPlatform -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
 ctailRun penv tpl newtypes gamma useContextPath (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv newtypes gamma (TName nameNil typeUnit) Nothing True useContextPath False tpl
+      let env = Env [] penv newtypes gamma (TName nameNil typeUnit) [] Nothing True useContextPath False tpl
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
 
 
-withContext :: TName -> Bool -> Bool -> Maybe TName -> CTail a -> CTail a
-withContext name isMulti alwaysAffine mbSlot action
-  = withEnv (\env -> env{ ctailName = name, ctailSlot = mbSlot, isMulti = isMulti, alwaysAffine = alwaysAffine }) action
+withContext :: TName -> [Type] -> Bool -> Bool -> Maybe TName -> CTail a -> CTail a
+withContext name rootArgs isMulti alwaysAffine mbSlot action
+  = withEnv (\env -> env{ ctailName = name, ctailRootArgs = rootArgs, ctailSlot = mbSlot, isMulti = isMulti, alwaysAffine = alwaysAffine }) action
 
 getCTailFun :: CTail Expr
 getCTailFun
@@ -556,6 +589,14 @@ getCTailFun
                     Just (foralls,targs,_,_) -> InfoArity (length foralls) (length targs)
                     _ -> InfoNone
        return (Var ctail info)
+
+-- The ctail function applied to the type arguments of a recursive call (followed by the
+-- root of the context if the ctail function is polymorphic in it)
+getCTailFunAt :: CTail ([Type] -> Expr)
+getCTailFunAt
+  = do ctailVar <- getCTailFun
+       rootArgs <- ctailRootArgs <$> getEnv
+       return (\targs -> makeTypeApp ctailVar (targs ++ rootArgs))
 
 getCTailSlot :: CTail (Maybe TName)
 getCTailSlot
