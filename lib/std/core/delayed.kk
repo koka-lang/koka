@@ -43,12 +43,22 @@ pub fun force/go( delayed : delayed<e,a> ) : <div,read<global>,write<global>,all
   val r = delayed.dref
   match !r
     XDone(x) -> x
-    XBlocking -> delayed.go()
-    XComputation(action) ->
-      r := XBlocking // ensure that action can be unique
-      val x = mask-st{ mask<div>(action) }()
-      r := XDone(x)
-      x
+    _ ->
+      // `swap` is atomic on a thread-shared or static reference, so
+      // exactly one forcer can observe `XComputation` and take the work. 
+      // Reading and then writing would let two forcers both see it.
+      match r.swap(XBlocking) // XBlocking ensures the action can be unique
+        XComputation(action) ->
+          val x = mask-st{ mask<div>(action) }()
+          r := XDone(x)
+          x
+        XDone(x) ->
+          // `swap` changed `r` to `XBlocking` right when the computation finished, restore the done value.
+          r := XDone(x)
+          x
+        XBlocking -> 
+          // another forcer holds the claim; wait for it
+          delayed.go() 
 
 fun unsafe-no-state-div(f : () -> <st<global>,div|e> a): e a
   unsafe-no-state-div-cast(f)()
@@ -66,13 +76,8 @@ pub fun force( delayed : delayed<e,a> ) : e a
 // a total function that only calculates the value once and then
 // returns the cached result.
 pub fun once( calc : () -> a ) : (() -> a)
-  unsafe-total
-    val r = ref(Nothing)
-    return fn()
-      unsafe-total
-        match !r
-          Just(x) -> x
-          Nothing ->
-            val x = calc()
-            r := Just(x)
-            x
+  // Delegate to `delay`/`force` so that `calc` runs at most once even when the
+  // returned function is called from several threads: claiming the computation
+  // needs the atomic swap in `force/go`.
+  val d = delay(calc)
+  fn() d.force
