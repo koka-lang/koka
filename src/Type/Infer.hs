@@ -167,35 +167,36 @@ inferDefGroup topLevel (DefRec defs0) cont
        else id) $
     do sd <- getScopeDepth
        (gamma,infgamma,defs) <- createGammas sd [] [] defs0 []
-       --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
-       (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGammaEx topLevel [] infgamma $
-                                 do assumed <- mapM (\def -> lookupInfName (getName def)) defs
-                                    coreDefs0 <- mapM (\def -> inferDef topLevel Instantiated def) defs
-                                    coreDefs1 <- mapM (fixCanonicalName True) coreDefs0
-                                    return (coreDefs1,assumed)
+       -- polymorphic signatures are checked after the other members are generalized, so their skolems cannot leak into them
+       let sigInfgamma = filter (not . isRho . infoType . snd) infgamma
+           (monoDefs,sigDefs) = partition (\def -> case binderExpr (defBinder def) of
+                                                     Ann _ tp _ -> isRho tp
+                                                     _          -> True) defs
+       (monoCoreDefs,sigCoreDefs) <- extendGamma False gamma $
+                   do monoCoreDefs0 <- extendInfGammaEx topLevel [] infgamma $
+                                       mapM (\def -> inferDef topLevel Instantiated def >>= fixCanonicalName True) monoDefs
+                      monoCoreDefs1 <- subst monoCoreDefs0
+                      let monoGroups = regroup monoCoreDefs1
+                      when topLevel (mapM_ checkRecVal monoGroups)
+                      mapM_ addDivergentEffect [cdefs | Core.DefRec cdefs <- monoGroups, analyzeDivergence cdefs]
+                      monoCoreDefs <- generalizeRecDefs monoCoreDefs1
+                      sigCoreDefs0 <- extendInfGammaEx topLevel [] sigInfgamma $ extendInfGammaCore topLevel [Core.DefRec monoCoreDefs] $
+                                      mapM (\def -> inferDef topLevel Instantiated def >>= fixCanonicalName True) sigDefs
+                      -- signatures in a divergent group must include `div` (the other members already have it if needed)
+                      let groups   = regroup (monoCoreDefs ++ sigCoreDefs0)
+                          sigNames = map Core.defName sigCoreDefs0
+                      when topLevel (mapM_ checkRecVal groups)
+                      mapM_ addDivergentEffect [filter ((`elem` sigNames) . Core.defName) cdefs | Core.DefRec cdefs <- groups, analyzeDivergence cdefs]
+                      sigCoreDefs  <- generalizeRecDefs sigCoreDefs0
+                      return (monoCoreDefs,sigCoreDefs)
        -- re-analyze the mutual recursive groups
-       scoreDefsX <- subst coreDefsX
-       let coreGroups0 = regroup scoreDefsX
-       when topLevel (mapM_ checkRecVal coreGroups0)
-       -- traceCoreDefGroups coreGroups0
-       -- now analyze divergence
-       (coreGroups1,divTNames)
-            <- fmap unzip $
-               mapM (\cgroup -> case cgroup of
-                                   Core.DefRec cdefs | analyzeDivergence cdefs -> do cdefs' <- addDivergentEffect cdefs
-                                                                                     return (Core.DefRec cdefs',map Core.defTName cdefs')
-                                   _ -> return (cgroup,[])) $
-               coreGroups0
-       -- traceCoreDefGroups coreGroups1
-       -- build a mapping from core name to original definition and assumed type
-       -- hack: we map from the name range since there may be overloaded names, and the types are not fully determined yet..
-       let coreMap = M.fromList (map (\(def,tp) -> (binderName (defBinder def), (def,tp))) (zip defs assumed))
-       -- check assumed types agains inferred types
-       coreGroups2 <- mapMDefs (\cdef -> inferRecDef2 topLevel cdef ((Core.defTName cdef) `elem` concat divTNames) (M.find (unqualify $ Core.defName cdef) coreMap)) coreGroups1
-       -- traceCoreDefGroups coreGroups2
+       coreGroups0 <- subst (regroup (monoCoreDefs ++ sigCoreDefs))
+       coreGroups2 <- mapMDefs (\cdef -> return cdef{ Core.defSort = if topLevel || CoreVar.isTopLevel cdef then Core.defSort cdef else DefVal }) coreGroups0
        -- add range info (for documentation)
+       -- hack: we map from the name range since there may be overloaded names, and the types are not fully determined yet..
+       let defMap = M.fromList [(binderName (defBinder def), def) | def <- defs]
        mod <- getModuleName
-       mapMDefs_ (\cdef -> addRangeInfoCoreDef topLevel mod (fst (M.find (unqualify $ Core.defName cdef) coreMap)) cdef) coreGroups2
+       mapMDefs_ (\cdef -> addRangeInfoCoreDef topLevel mod (M.find (unqualify $ Core.defName cdef) defMap) cdef) coreGroups2
        -- TODO: fix local info in the core; test/algeff/nim.kk with no types for bobTurn and aliceTurn triggers this
        let sub = map (\cdef -> let tname    = Core.defTName cdef
                                    nameInfo = -- trace ("fix local info: " ++ show (Core.defName cdef)) $
@@ -203,22 +204,10 @@ inferDefGroup topLevel (DefRec defs0) cont
                                    varInfo  = coreVarInfoFromNameInfo nameInfo
                                    var      = Core.Var tname varInfo
                                in (tname, var)) (Core.flattenDefGroups coreGroups2)
-           coreGroups3 = (CoreVar.|~>) sub coreGroups2
+       coreGroups3 <- mapMDefs (\cdef -> return cdef{ Core.defExpr = (CoreVar.|~>) sub (Core.defExpr cdef) }) coreGroups2  -- including recursive uses
        -- extend gamma
        x <- (if topLevel then extendGammaCore True {- already canonical -} else extendInfGammaCore False {-toplevel -}) coreGroups3 cont
        return (seqqList coreGroups3,x)
-
-       {-
-       coreDefsY <- if analyzeDivergence coreDefsX
-                     then addDivergentEffect coreDefsX
-                     else return coreDefsX
-       coreDefs1 <- mapM inferRecDef2 (zip (zip defs coreDefsY) assumed)
-       mod <- getModuleName
-       mapM_ (\(def,coreDef) -> addRangeInfoCoreDef topLevel mod def coreDef) (zip defs coreDefs1 )
-       let cgroup  = fixLocalInfo topLevel mod $ Core.DefRec coreDefs1
-       x <- (if topLevel then extendGammaCore else extendInfGammaCore) cgroup cont
-       return (cgroup,x)
-       -}
   where
     -- we use a bit of trickery here:
     -- * things on toplevel with full types get added to the gamma since only the gamma can distinguish
@@ -327,138 +316,45 @@ addRangeInfoCoreDef topLevel mod def coreDef
           addRangeInfo (defRange def) (RM.Decl sort qname (RM.mangle qname (Core.defType coreDef)) (Just (Core.defType coreDef)))
 
 
--- | Add divergent effect to the type of the core definitions
--- Should really fully instantiate and eta-expand to insert evidence
--- but for now, we just fix up the types as necessary without evidence insertion
-addDivergentEffect :: [Core.Def] -> Inf [Core.Def]
-addDivergentEffect coreDefs0
-  = mapM addDiv coreDefs0
+-- | Add the divergent effect to the monomorphic types of a recursive group, or check that it is
+-- already part of their signature.
+addDivergentEffect :: [Core.Def] -> Inf ()
+addDivergentEffect coreDefs
+  = mapM_ addDiv coreDefs
   where
     addDiv def
       = do let rng = Core.defNameRange def
-           (tp0,_,coref) <- instantiateNoEx rng (Core.defType def) -- no effect extension or otherwise div can be added even if the user specified total for example.
-           case splitFunType tp0 of
-             Nothing
-              -> -- failure ( "Type.Infer.addDivergentEffect: unexpected non-function type:\n " ++ show coreDefs0) -- ?? should never happen?
-                 -- can happen if a value contains a data structure containing recursive functions that refer to the value
-                 return def
-             Just (targs,teff,tres)
-              -> do -- trace ("addDivergent: " ++ show (Core.defName def) ++ ": " ++ show (Core.defType def, tp0)) $ return ()
-                    -- seff <- subst teff
-                    -- let snewEff = effectExtendNoDup typeDivergent seff
-                    tv <- Op.freshEffect
-                    let newEff = effectExtend typeDivergent tv
-                    inferUnify (checkEffectSubsume rng) rng newEff teff
-                    snewEff <- subst newEff
-                    let tp1 = TFun targs snewEff tres
-                    (resTp,_,resCore) <- generalize rng rng True $
-                                         return (TFun targs snewEff tres, typeTotal, coref (Core.defExpr def))
-                    inferSubsume (checkEffectSubsume rng) rng (Core.defType def) resTp
-                    -- fix up the core since the recursive tname still refers to the old type without the 'div' effect
-                    -- let name = unqualify (Core.defName def)
-                    --    resCore1 = (CoreVar.|~>) [(name, Core.Var (Core.TName name resTp) Core.InfoNone)] resCore
-                    return (def{ Core.defType = resTp, Core.defExpr = resCore })
-
+           (_,tp,_) <- Op.skolemizeEx rng (Core.defType def)
+           case splitFunType tp of
+             Nothing  -- can happen if a value contains a data structure containing recursive functions that refer to the value
+              -> return ()
+             Just (_,teff,_)
+              -> do tv <- Op.freshEffect
+                    inferUnify (checkEffectSubsume rng) rng (effectExtend typeDivergent tv) teff
 
 
 {--------------------------------------------------------------------------
   Definition
 --------------------------------------------------------------------------}
 
-unskolemize :: Type -> Inf Type
-unskolemize tp
-  = do let svs = tvsList (fsv tp)
-       uvs <- mapM (\tv -> Op.freshTVar (typevarKind tv) Meta) svs
-       let sub = subNew (zip svs uvs)
-           tpu = sub |-> tp
-       -- substImplicitConstraints sub
-       return tpu
-
--- TODO: for multiple recursive definitions, the "typeapp" substitution fails; we should
--- collect all substitions and apply them all definitions afterwards; similarly for the
--- VarInfo's that are now done separately
-inferRecDef2 :: Bool -> Core.Def -> Bool -> (Def Type,Maybe (Name,Type)) -> Inf (Core.Def)
-inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
-   = do -- traceDoc $ \penv -> text (" infer rec def: " ++ (if divergent then "div " else "")) <+> ppName penv (defName def) <.> colon <+> ppType penv (Core.defType coreDef)
-        let rng = defRange def
-            nameRng = binderNameRange (defBinder def)
-        (resTp0,assumedTp,coref0)
-                        <- case mbAssumed of
-                            Nothing
-                              -> do -- traceDefDoc $ \penv -> text "no assumed type:" <+> ppName penv (Core.defName coreDef)
-                                    return (Core.defType coreDef, Core.defType coreDef, id)
-                            Just (qname,assumed)
-                              -> do assumedTp     <- subst assumed
-                                    -- traceDefDoc $ \penv -> text "check assumed type:" <+> ppParam penv (qname,assumedTp) <+> text ", against:" <+> ppParam penv (Core.defName coreDef, Core.defType coreDef)
-                                    (resTp,coref) <- inferSubsume (checkRec rng) nameRng assumedTp (Core.defType coreDef)
-                                    -- traceDoc $ \penv -> text " infer subsume:" <+> ppName penv (Core.defName coreDef) <.> colon <+> ppType penv assumedTp <+> text "~" <+> ppType penv  (Core.defType coreDef)
-                                    sassumedTp    <- subst assumedTp  -- needed for `type/wrong/scheduler2`
-                                    sresTp <- subst resTp
-                                    return (sresTp,sassumedTp,coref)
-        resTpX <- if topLevel then unskolemize resTp0 else return resTp0
-        (resTp1,_,resCore1) <- generalize rng nameRng True $
-                                return (resTpX, typeTotal, (coref0 (Core.defExpr coreDef))) -- typeTotal is ok since only functions are recursive (?)
-        sassumedTp <- subst assumedTp
-        -- traceDefDoc $ \penv -> text "recursive group: inferred:" <+> ppParam penv (Core.defName coreDef,resTp1) <+> text ", assumed:" <+> ppType penv sassumedTp
-        sd <- getScopeDepth
-        let name = Core.defName coreDef
-            csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
-            info = coreVarInfoFromNameInfo (createNameInfoX Public name sd csort (defRange def) resTp1 (defDoc def))
-        penv <- getPrettyEnv
-        (resTp2,coreExpr)
-              <- case (resCore1) of
-                  Core.TypeLam tvars expr | isRho sassumedTp  -- we assumed a monomorphic type, but generalized eventually
-                    -> -- fix it up by adding the polymorphic type application
-                       do assumedTpX <- normalize True sassumedTp -- resTp0
-                          -- resTpX <- subst resTp0 >>= normalize
-                          simexpr <- return expr -- liftUnique $ uniqueSimplify penv False False 1 {-runs-} 0 expr
-                          coreX <- subst simexpr
-                          -- traceDoc $ \penv -> prettyExpr penv coreX
-                          (mvars,msub) <- Op.freshSub Bound tvars
-                          let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
-                              -- mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
-                              -- msub  = subNew (zip tvars (map TVar mvars))
-
-
-                              resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX,
-                                                        Core.TypeApp (Core.Var (Core.TName ({- unqualify -} name) (resTp1)) info)
-                                                                      (map TVar mvars))] -- TODO: check: was `tvars` TODO: wrong for unannotated polymorphic recursion: see codegen/wrong/rec2
-                                          (msub |-> coreX)
-
-                              resCoreY = Core.addTypeLambdas mvars resCoreX
-                              -- TODO: check: this was:
-                              -- bsub  = subNew (zip mvars (map TVar tvars))
-                              -- resCoreY = Core.TypeLam tvars (bsub |-> resCoreX)
-                          -- generalize rng nameRng typeTotal resTp0 resCoreX
-                          return (resTp1,resCoreY)
-                        {-
-                          let resCore2 = Core.TypeLam tvars ((CoreVar.|~>) [(Core.TName (unqualify name) resTp1, Core.TypeApp (Core.Var (Core.TName (unqualify name) (resTp1)) Core.InfoNone) (map TVar tvars))] expr)
-                          trace ("\n ~> \n" ++ show resCore2) $
-                            return resCore2
-                        -}
-                  _ | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
-                    -> -- trace "  divergent" $
-                       do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
-                          simResCore1 <- return resCore1 -- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
-                          coreX <- subst simResCore1
-                          let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
-                          return (resTp1, resCoreX)
-                  _  -- ensure we insert the right info  (test: static/div2-ack)
-                    -> -- trace "  rec normal" $
-                       do assumedTpX <- normalize True assumedTp >>= subst
-                          simResCore1 <- return resCore1 -- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
-                          coreX <- subst simResCore1
-                          let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
-                          return (resTp1, resCoreX)
-                  --(Nothing,_)
-                  --   ->    return (resTp1,resCore1) -- (CoreVar.|~>) [(unqualify name, Core.Var (Core.TName (unqualify name) resTp1) Core.InfoNone)] resCore1
-
-
-        -- coref2      <- checkEmptyPredicates rng
-        -- resTp2      <- subst resTp1
-        coreDef2    <- subst (Core.Def (Core.defName coreDef) resTp2 coreExpr (Core.defVis coreDef) csort (Core.defInline coreDef) (Core.defNameRange coreDef) (Core.defDoc coreDef))
-        return (coreDef2)
-
+-- | Generalize recursive definitions over their inference variables (in front of their own quantifiers).
+-- They use each other at exactly those variables, so each use becomes a type application to them.
+generalizeRecDefs :: [Core.Def] -> Inf [Core.Def]
+generalizeRecDefs coreDefs
+  = do nrhos <- mapM (\cdef -> subst (snd (splitTypeScheme (Core.defType cdef))) >>= normalize True) coreDefs
+       rhos  <- subst nrhos  -- closing the effect of one member can change the types of others
+       free  <- freeInGamma
+       let tvarss = [[tv | tv <- ofuv rho, not (tvsMember tv free)] | rho <- rhos]
+           uses   = [(Core.defTName cdef, Core.makeTypeApp (Core.Var (Core.defTName cdef) Core.InfoNone) (map TVar tvars))
+                    | (cdef,tvars) <- zip coreDefs tvarss]
+       mapM (generalizeDef uses) (zip3 coreDefs rhos tvarss)
+  where
+    generalizeDef uses (cdef,rho,tvars)
+      = do (bvars,bsub) <- Op.freshSub Bound tvars
+           body <- subst ((CoreVar.|~>) uses (Core.defExpr cdef))
+           let sigVars = fst (splitTypeScheme (Core.defType cdef))
+           return cdef{ Core.defType = quantifyType bvars (bsub |-> quantifyType sigVars rho),
+                        Core.defExpr = Core.addTypeLambdas bvars (bsub |-> body) }
 
 
 inferDef :: Bool -> Expect -> Def Type -> Inf Core.Def
