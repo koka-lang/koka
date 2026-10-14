@@ -162,12 +162,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
 
 
                  evIndexOf l
-                   = let (htagTp,hndTp)
-                             = let (name,_,tpArgs) = labelNameEx l
-                                   hndCon = TCon (TypeCon name -- (toHandlerName name)
-                                                          (kindFunN (map getKind tpArgs ++ [kindEffect,kindStar]) kindStar))
-                               in (makeTypeApp (resolve (toEffectTagName name)) tpArgs, typeApp hndCon tpArgs)
-                     in App (makeTypeApp (resolve nameEvvIndex) [effTo,hndTp]) [htagTp]
+                   = makeEvvIndex (resolve nameEvvIndex) (resolve (toEffectTagName (labelName l))) effTo l
 
                  -- get the index of an effect type but at mask-level (used for duplicate labels)
                  evIndexOfMask (l,0)     = evIndexOf l
