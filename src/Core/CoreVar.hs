@@ -6,7 +6,7 @@
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
-module Core.CoreVar ( HasExprVar, (|~>)
+module Core.CoreVar ( HasExprVar, (|~>), substOccurrences
                     , HasExpVar, fv, bv
                     , isTopLevel
                     , freeLocals
@@ -159,60 +159,97 @@ instance HasExpVar Pattern where
   Term-substitutions
 --------------------------------------------------------------------------}
 
+-- | A substitution that rewrites each occurrence of a variable: the replacement
+-- for `x` gets the occurrence, `Var x`, or `TypeApp (Var x) targs` as a whole.
+type OccSubst = [(TName, Expr -> Expr)]
+
 class HasExprVar a where
+  -- | Substitute variables; an occurrence keeps the type arguments it is applied to.
   (|~>) :: [(TName, Expr)] -> a -> a
+  sub |~> x = substOccurrences [(name, keepTypeArgs e) | (name,e) <- sub] x
+
+  -- | The substitution behind `|~>`. It stops at a binder that rebinds a name:
+  -- names are not always unique (a fresh name can coincide with a binder minted
+  -- by another counter), and substituting past a rebinding captures its
+  -- occurrences.
+  substOccurrences :: OccSubst -> a -> a
+
+keepTypeArgs :: Expr -> Expr -> Expr
+keepTypeArgs e occurrence
+  = case occurrence of
+      TypeApp _ targs -> TypeApp e targs
+      _               -> e
+
+-- | The substitution without the names a binder rebinds.
+unbindNames :: [Name] -> OccSubst -> OccSubst
+unbindNames names sub
+  = [(name,e) | (name,e) <- sub, all (getName name /=) names]
 
 instance HasExprVar a => HasExprVar [a] where
-  sub |~> xs
-    = map (sub |~>) xs
+  substOccurrences sub xs
+    = map (substOccurrences sub) xs
 
 instance (HasExprVar a, HasExprVar b, HasExprVar c) => HasExprVar (a,b,c) where
-  sub |~> (x,y,z)
-    = (sub |~> x, sub |~> y, sub |~> z)
+  substOccurrences sub (x,y,z)
+    = (substOccurrences sub x, substOccurrences sub y, substOccurrences sub z)
 
 instance HasExprVar DefGroup where
-  sub |~> defGroup
+  substOccurrences sub defGroup
     = case defGroup of
-        DefRec    defs -> DefRec (sub |~> defs)
-        DefNonRec def  -> DefNonRec (sub |~> def)
+        DefRec    defs -> DefRec (substOccurrences sub defs)
+        DefNonRec def  -> DefNonRec (substOccurrences sub def)
 
 
 instance HasExprVar Def where
-  sub |~> (Def dname scheme expr vis isVal inl nameRng doc)
+  substOccurrences sub (Def dname scheme expr vis isVal inl nameRng doc)
     = -- assertion "Core.HasExprVar.Def.|~>" (TName name scheme `notIn` sub) $
-      let sub' = [(name,e) | (name,e) <- sub, getName name /= dname]
-      in Def dname scheme (sub' |~> expr) vis isVal inl nameRng doc
+      Def dname scheme (substOccurrences (unbindNames [dname] sub) expr) vis isVal inl nameRng doc
 
 instance HasExprVar Expr where
-  sub |~> expr =
+  substOccurrences sub expr =
     case expr of
       Lam tnames eff expr  -> -- assertion "Core.HasExprVar.Expr.|~>" (all (\tname -> tname `notIn` sub) tnames) $
                               let sub' = [(name,e) | (name,e) <- sub, all (name /=) tnames]
-                              in Lam tnames eff (sub' |~> expr)
-      Var tname info       -> fromMaybe expr (lookup tname sub)
-      App e1 e2            -> App (sub |~> e1) (sub |~> e2)
+                              in Lam tnames eff (substOccurrences sub' expr)
+      Var tname info       -> case lookup tname sub of
+                                Just replace -> replace expr
+                                Nothing      -> expr
+      TypeApp (Var tname _) _ | Just replace <- lookup tname sub
+                           -> replace expr
+      App e1 e2            -> App (substOccurrences sub e1) (substOccurrences sub e2)
       TypeLam typeVars exp -> {- assertion ("CoreVar.HasExprVar.Expr.|~>.TypeLam: typevars: " ++ show typeVars ++ ",\n sub: " ++ show sub ++ "\n expr:" ++ show expr)
                                         (all (\tv -> not (tvsMember tv (ftv (map snd sub)))) typeVars
                                           || all (\name -> not (S.member name (fv exp) )) (map fst sub)) $ -}
-                              TypeLam typeVars (sub |~> exp)
-      TypeApp expr tp      -> TypeApp (sub |~> expr) tp
+                              TypeLam typeVars (substOccurrences sub exp)
+      TypeApp expr tp      -> TypeApp (substOccurrences sub expr) tp
       Con tname repr       -> expr
       Lit lit              -> expr
-      Let defGroups expr   -> let defnames = map defName (flattenDefGroups defGroups)
-                                  sub' = [(name,e) | (name,e) <- sub, all (getName name /=) defnames]
-                              in Let (sub |~> defGroups) (sub' |~> expr)
-      Case expr branches   -> Case (sub |~> expr) (sub |~> branches)
+      Let defGroups expr   -> let (defGroups',sub') = substDefGroups sub defGroups
+                              in Let defGroups' (substOccurrences sub' expr)
+      Case expr branches   -> Case (substOccurrences sub expr) (substOccurrences sub branches)
 
+
+-- Substitute into a let's definition groups in order: a group that binds a
+-- name shadows it for the groups after it and for the body, so the substitution
+-- stops there. Returns the substitution left for the body.
+substDefGroups :: OccSubst -> DefGroups -> (DefGroups,OccSubst)
+substDefGroups sub []
+  = ([],sub)
+substDefGroups sub (dg:dgs)
+  = let dg'   = substOccurrences sub dg
+        sub1  = unbindNames (map defName (flattenDefGroups [dg])) sub
+        (dgs',sub2) = substDefGroups sub1 dgs
+    in (dg':dgs', sub2)
 
 instance HasExprVar Branch where
-  sub |~> (Branch patterns guards)
+  substOccurrences sub (Branch patterns guards)
     = let bvpat = bv patterns
           sub' = [(name,expr) | (name,expr) <- sub, not (S.member (name ) bvpat)]
-      in Branch patterns (map (sub' |~>) guards)
+      in Branch patterns (map (substOccurrences sub') guards)
 
 instance HasExprVar Guard where
-  sub |~> (Guard test expr)
-    = Guard (sub |~> test) (sub |~> expr)
+  substOccurrences sub (Guard test expr)
+    = Guard (substOccurrences sub test) (substOccurrences sub expr)
 
 
 notIn :: TName -> [(TName, Expr)] -> Bool
