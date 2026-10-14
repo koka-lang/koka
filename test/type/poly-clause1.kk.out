@@ -1,0 +1,7 @@
+ 
+type/poly-clause1/auto: forall<e> (f : forall<a> (a) -> e a) -> e (forall<a> (a) -> e a)
+type/poly-clause1/choose: forall<a> (x : a, y : a) -> choice a
+type/poly-clause1/h: forall<e> (() -> <raise|e> int) -> e int
+type/poly-clause1/handle-choice: () -> int
+type/poly-clause1/handle-raise: () -> int
+type/poly-clause1/raise: forall<a> (msg : string) -> raise a

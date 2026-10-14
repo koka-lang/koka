@@ -202,9 +202,10 @@ generalizeX contextRange range close (rho0,eff0,bodycore0)
         else do -- create fresh type variables for the bounds
                 -- important to avoid duplicate names (`test/algeff/exn3`)
                 (bvars,bsub) <- freshSub Bound tvars
+                -- substitute first so metas unified with a generalized variable are bound as well
+                score <- subst bodycore1
                 let (TForall [] rho5) = bsub |-> (TForall [] nrho)
-                    -- core
-                    corePre = bsub |-> bodycore1
+                    corePre = bsub |-> score
                     core1 = Core.addTypeLambdas bvars corePre
                     resTp = quantifyType bvars rho5
 

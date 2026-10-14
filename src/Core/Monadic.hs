@@ -177,8 +177,14 @@ monExpr' topLevel expr
       -- type application and abstraction
       TypeLam tvars body
         -> do body' <- monExpr' topLevel body
-              return $ \k -> body' (\xx -> k (TypeLam tvars xx))
-              -- return $ \k -> k (TypeLam tvars (body' id))
+              if (isNeverMon body || not (isMonExpr body))
+               then return $ \k -> k (TypeLam tvars (body' id))
+               else -- the type variables scope over the whole computation, so bind its generalized result
+                    do nameY <- uniqueName "y"
+                       return $ \k ->
+                         let resTp    = typeOf expr
+                             contBody = k (Var (TName nameY resTp) InfoNone)
+                         in applyBind resTp typeTotal (typeOf contBody) (TypeLam tvars (body' id)) (Lam [TName nameY resTp] typeTotal contBody)
 
       TypeApp body tps
         -> do body' <- monExpr' topLevel body

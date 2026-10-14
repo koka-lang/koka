@@ -1,0 +1,7 @@
+tick
+2
+ 
+algeff/tlam-yield1/lists: forall<e> (f : forall<a> (a) -> e a) -> e (forall<a> (list<a>) -> e list<a>)
+algeff/tlam-yield1/main: () -> console ()
+algeff/tlam-yield1/step: forall<a> (x : a) -> tick a
+algeff/tlam-yield1/tick: () -> tick ()
