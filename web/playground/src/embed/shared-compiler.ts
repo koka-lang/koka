@@ -23,6 +23,18 @@ export interface CompileResult {
 let sharedInstance: SharedCompiler | null = null;
 let loading: Promise<SharedCompiler | null> | null = null;
 
+// At most one compile or run is in flight across all editors on the page:
+// the worker's replies carry no request id, so overlapping compiles resolve
+// with whichever result arrives first, and a run captures its output through
+// page-global state (console.log and #koka-console-out).
+let busy: Promise<unknown> = Promise.resolve();
+
+function exclusive<T>(job: () => Promise<T>): Promise<T> {
+  const result = busy.then(job);
+  busy = result.catch(() => {});
+  return result;
+}
+
 /**
  * Get or create the shared WASM compiler.
  * All <koka-editor> elements on the page share this instance.
@@ -63,7 +75,7 @@ async function initCompiler(): Promise<SharedCompiler | null> {
     });
 
     return {
-      compile: async (moduleName, sourceText, extraArgs?) => {
+      compile: (moduleName, sourceText, extraArgs?) => exclusive(async () => {
         // Add user source to VFS temporarily
         const userPath = '/' + moduleName.replace(/\./g, '/') + '.kk';
         vfsFiles.set(userPath, sourceText);
@@ -79,9 +91,9 @@ async function initCompiler(): Promise<SharedCompiler | null> {
           stderr: result.stderr,
           generatedFiles: result.generatedFiles,
         };
-      },
+      }),
       run: (moduleName, generatedFiles, entryFunction?) =>
-        runModules(moduleName, generatedFiles, precompiled, entryFunction),
+        exclusive(() => runModules(moduleName, generatedFiles, precompiled, entryFunction)),
     };
   } catch (err) {
     console.error('[koka-editor] Failed to initialize compiler:', err);
