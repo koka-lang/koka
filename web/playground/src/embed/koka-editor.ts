@@ -24,8 +24,8 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view';
 import { defaultKeymap, indentWithTab } from '@codemirror/commands';
-import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
-import { kokaLanguage, kokaHighlightStyle } from './koka-highlight';
+import { kokaHighlighting } from './koka-highlight';
+import { EDITOR_COLORS } from '../editor/koka-theme';
 import { getSharedCompiler, type SharedCompiler } from './shared-compiler';
 import { ENTRY_FUNCTION_RE, MODULE_NAME_RE } from '../editor/koka-lang';
 
@@ -231,11 +231,9 @@ export class KokaEditorElement extends HTMLElement {
     this.shadow.appendChild(wrapper);
 
     // Create CodeMirror editor
-    const highlight = HighlightStyle.define(kokaHighlightStyle);
-
     const darkTheme = EditorView.theme({
-      '&': { backgroundColor: '#1e1e1e', color: '#d4d4d4' },
-      '.cm-gutters': { backgroundColor: '#1e1e1e', color: '#858585', border: 'none' },
+      '&': { backgroundColor: EDITOR_COLORS.dark.background, color: EDITOR_COLORS.dark.foreground },
+      '.cm-gutters': { backgroundColor: EDITOR_COLORS.dark.background, color: '#858585', border: 'none' },
       '.cm-activeLineGutter': { backgroundColor: '#2a2a2a' },
       '.cm-activeLine': { backgroundColor: '#2a2d2e' },
       '&.cm-focused .cm-cursor': { borderLeftColor: '#aeafad' },
@@ -243,15 +241,14 @@ export class KokaEditorElement extends HTMLElement {
     }, { dark: true });
 
     const lightTheme = EditorView.theme({
-      '&': { backgroundColor: '#ffffff', color: '#1e1e1e' },
+      '&': { backgroundColor: EDITOR_COLORS.light.background, color: EDITOR_COLORS.light.foreground },
       '.cm-gutters': { backgroundColor: '#f5f5f5', color: '#999', border: 'none' },
       '.cm-activeLineGutter': { backgroundColor: '#e8e8e8' },
       '.cm-activeLine': { backgroundColor: '#f0f0f0' },
     });
 
     const extensions = [
-      kokaLanguage,
-      syntaxHighlighting(highlight),
+      kokaHighlighting(isDark ? 'dark' : 'light'),
       isDark ? darkTheme : lightTheme,
       lineNumbers(),
       highlightActiveLine(),

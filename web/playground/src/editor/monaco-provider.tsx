@@ -34,7 +34,11 @@ export function MonacoProvider({ children }: { children: ReactNode }) {
         const { useWorkerFactory } = await import('monaco-languageclient/workerFactory');
         const { initServices } = await import('monaco-languageclient/vscode/services');
         useWorkerFactory({});
-        await initServices({});
+        // Editor options are read from the user configuration, which takes
+        // precedence over the options an editor is created with.
+        await initServices({
+          userConfiguration: { json: JSON.stringify({ 'editor.bracketPairColorization.enabled': false }) },
+        });
 
         // Now safe to import monaco
         const m = await import('@codingame/monaco-vscode-editor-api');
@@ -43,7 +47,9 @@ export function MonacoProvider({ children }: { children: ReactNode }) {
         const { registerKokaLanguage } = await import('./koka-lang');
         await registerKokaLanguage(m);
 
-        m.editor.setTheme('vs-dark');
+        const { defineKokaTheme } = await import('./koka-theme');
+        const { currentColorTheme } = await import('./color-theme');
+        m.editor.setTheme(defineKokaTheme(m, currentColorTheme()));
 
         if (!cancelled) setMonaco(m);
       } catch (e) {

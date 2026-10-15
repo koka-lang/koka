@@ -12,14 +12,10 @@
  */
 
 import type * as Monaco from '@codingame/monaco-vscode-editor-api';
-import { Registry, parseRawGrammar, type IGrammar } from 'vscode-textmate';
-import { createOnigScanner, createOnigString, loadWASM } from 'vscode-oniguruma';
-// The grammar JSON is copied from support/vscode/koka.language-koka/syntaxes/koka.json
-import kokaGrammarJson from './koka.tmLanguage.json';
+import { loadKokaGrammar } from './koka-textmate';
+import { themedScope } from './koka-theme';
 
 export const KOKA_LANGUAGE_ID = 'koka';
-
-let tmGrammar: IGrammar | null = null;
 
 export async function registerKokaLanguage(monacoInstance: typeof Monaco): Promise<void> {
   if (monacoInstance.languages.getLanguages().find((l) => l.id === KOKA_LANGUAGE_ID)) return;
@@ -73,31 +69,7 @@ export async function registerKokaLanguage(monacoInstance: typeof Monaco): Promi
 // ── TextMate grammar setup ───────────────────────────────────────────────────
 
 async function setupTextMateTokenizer(monacoInstance: typeof Monaco): Promise<void> {
-  // Load oniguruma WASM
-  const onigWasmUrl = new URL(
-    'vscode-oniguruma/release/onig.wasm',
-    import.meta.url,
-  );
-  const response = await fetch(onigWasmUrl.href);
-  const wasmBuf = await response.arrayBuffer();
-  await loadWASM(wasmBuf);
-
-  // Create the TextMate registry
-  const registry = new Registry({
-    onigLib: Promise.resolve({
-      createOnigScanner,
-      createOnigString,
-    }),
-    async loadGrammar(scopeName: string) {
-      if (scopeName === 'source.koka') {
-        return parseRawGrammar(JSON.stringify(kokaGrammarJson), 'koka.json');
-      }
-      return null;
-    },
-  });
-
-  tmGrammar = await registry.loadGrammar('source.koka');
-  if (!tmGrammar) throw new Error('Failed to load Koka grammar');
+  const tmGrammar = await loadKokaGrammar();
 
   // Wire up Monaco to use TextMate tokenization
   monacoInstance.languages.setTokensProvider(KOKA_LANGUAGE_ID, {
@@ -106,10 +78,10 @@ async function setupTextMateTokenizer(monacoInstance: typeof Monaco): Promise<vo
     },
     tokenize(line: string, state: Monaco.languages.IState): Monaco.languages.ILineTokens {
       const tmState = state as TMState;
-      const result = tmGrammar!.tokenizeLine(line, tmState.ruleStack);
+      const result = tmGrammar.tokenizeLine(line, tmState.ruleStack);
       const tokens: Monaco.languages.IToken[] = result.tokens.map((t) => ({
         startIndex: t.startIndex,
-        scopes: tmScopesToMonacoScope(t.scopes),
+        scopes: themedScope(t.scopes),
       }));
       return {
         tokens,
@@ -117,41 +89,6 @@ async function setupTextMateTokenizer(monacoInstance: typeof Monaco): Promise<vo
       };
     },
   });
-}
-
-/** Map TextMate scope names to Monaco token types */
-function tmScopesToMonacoScope(scopes: string[]): string {
-  // TextMate scopes can have multiple space-separated names per scope level.
-  // Check ALL scope names, preferring semantic scopes over punctuation.
-  // First pass: look for semantic tokens across all scopes
-  for (let i = scopes.length - 1; i >= 0; i--) {
-    const parts = scopes[i].split(/\s+/);
-    for (const scope of parts) {
-      if (scope.startsWith('comment')) return 'comment';
-      if (scope.startsWith('string')) return 'string';
-      if (scope.startsWith('constant.numeric')) return 'number';
-      if (scope.startsWith('constant.character')) return 'string.char';
-      if (scope.startsWith('keyword.control')) return 'keyword.control';
-      if (scope.startsWith('keyword.declaration') || scope.startsWith('keyword.other'))
-        return 'keyword.declaration';
-      if (scope.startsWith('keyword')) return 'keyword';
-      if (scope.startsWith('storage.type')) return 'type';
-      if (scope.startsWith('entity.name.function')) return 'entity.name.function';
-      if (scope.startsWith('entity.name.type')) return 'type.identifier';
-      if (scope.startsWith('entity.name.tag')) return 'type.identifier';
-      if (scope.startsWith('entity.name')) return 'identifier';
-      if (scope.startsWith('variable.parameter')) return 'variable.parameter';
-      if (scope.startsWith('variable')) return 'variable';
-      if (scope.startsWith('support.type')) return 'type.identifier';
-      if (scope.startsWith('markup.italic')) return 'comment';
-      if (scope.startsWith('meta.type')) return 'type';
-    }
-  }
-  // Second pass: punctuation (lowest priority)
-  for (let i = scopes.length - 1; i >= 0; i--) {
-    if (scopes[i].includes('punctuation')) return 'delimiter';
-  }
-  return '';
 }
 
 /** Wrapper for TextMate rule stack as Monaco IState */

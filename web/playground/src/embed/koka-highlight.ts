@@ -1,124 +1,73 @@
 /**
  * koka-highlight.ts
  *
- * Lightweight Koka syntax highlighting for CodeMirror 6.
- * Uses StreamLanguage for simple regex-based tokenization.
+ * Koka syntax highlighting for CodeMirror 6 with the same TextMate grammar and
+ * token colors as the playground, so an embedded example is colored as in
+ * VS Code. The code shows uncolored until the grammar has loaded.
  */
 
-import { StreamLanguage, type StreamParser } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
+import { RangeSetBuilder, StateEffect } from '@codemirror/state';
+import { Decoration, ViewPlugin, type DecorationSet, type EditorView, type ViewUpdate } from '@codemirror/view';
+import { INITIAL, type IGrammar, type StateStack } from 'vscode-textmate';
+import { loadKokaGrammar } from '../editor/koka-textmate';
+import { themedScope, tokenStyle, type ThemeKind } from '../editor/koka-theme';
 
-const kokaParser: StreamParser<{ inString: boolean; inBlockComment: number }> = {
-  startState() {
-    return { inString: false, inBlockComment: 0 };
-  },
+const grammarLoaded = StateEffect.define<null>();
 
-  token(stream, state) {
-    // Block comment
-    if (state.inBlockComment > 0) {
-      if (stream.match('/*')) {
-        state.inBlockComment++;
-        return 'blockComment';
+export function kokaHighlighting(kind: ThemeKind) {
+  const marks = new Map<string, Decoration | null>();
+  const markFor = (scope: string): Decoration | null => {
+    if (!marks.has(scope)) {
+      const st = tokenStyle(scope, kind);
+      const css = (st?.foreground ? `color: ${st.foreground};` : '') +
+                  (st?.fontStyle ? `font-style: ${st.fontStyle};` : '');
+      marks.set(scope, css ? Decoration.mark({ attributes: { style: css } }) : null);
+    }
+    return marks.get(scope)!;
+  };
+
+  return ViewPlugin.fromClass(class {
+    decorations: DecorationSet = Decoration.none;
+    grammar: IGrammar | null = null;
+    destroyed = false;
+
+    constructor(view: EditorView) {
+      loadKokaGrammar().then((g) => {
+        if (this.destroyed) return;
+        this.grammar = g;
+        view.dispatch({ effects: grammarLoaded.of(null) });
+      }).catch((err) => console.warn('[koka-editor] highlighting unavailable:', err));
+    }
+
+    update(u: ViewUpdate) {
+      if (u.docChanged || u.transactions.some(tr => tr.effects.some(e => e.is(grammarLoaded)))) {
+        this.decorations = this.build(u.view);
       }
-      if (stream.match('*/')) {
-        state.inBlockComment--;
-        return 'blockComment';
+    }
+
+    destroy() {
+      this.destroyed = true;
+    }
+
+    // Retokenizes the whole document: embedded examples are a few dozen lines,
+    // and a line's tokens depend on the state at the end of the line before.
+    build(view: EditorView): DecorationSet {
+      if (!this.grammar) return Decoration.none;
+      const builder = new RangeSetBuilder<Decoration>();
+      const doc = view.state.doc;
+      let state: StateStack = INITIAL;
+      for (let i = 1; i <= doc.lines; i++) {
+        const line = doc.line(i);
+        const result = this.grammar.tokenizeLine(line.text, state);
+        state = result.ruleStack;
+        for (const t of result.tokens) {
+          const end = Math.min(t.endIndex, line.length);
+          if (end <= t.startIndex) continue;
+          const mark = markFor(themedScope(t.scopes));
+          if (mark) builder.add(line.from + t.startIndex, line.from + end, mark);
+        }
       }
-      stream.next();
-      return 'blockComment';
+      return builder.finish();
     }
-
-    // Start of block comment
-    if (stream.match('/*')) {
-      state.inBlockComment = 1;
-      return 'blockComment';
-    }
-
-    // Line comment
-    if (stream.match('//')) {
-      stream.skipToEnd();
-      return 'lineComment';
-    }
-
-    // String
-    if (stream.match('"')) {
-      while (!stream.eol()) {
-        const ch = stream.next();
-        if (ch === '\\') stream.next(); // skip escaped char
-        else if (ch === '"') break;
-      }
-      return 'string';
-    }
-
-    // Character literal
-    if (stream.match("'")) {
-      while (!stream.eol()) {
-        const ch = stream.next();
-        if (ch === '\\') stream.next();
-        else if (ch === "'") break;
-      }
-      return 'string';
-    }
-
-    // Numbers
-    if (stream.match(/^0[xX][0-9a-fA-F][0-9a-fA-F_]*/)) return 'number';
-    if (stream.match(/^[0-9][0-9_]*(\.[0-9][0-9_]*)?([eE][-+]?[0-9]+)?/)) return 'number';
-
-    // Keywords
-    if (stream.match(/^(fun|val|var|type|effect|struct|con|alias|module|import|pub|abstract|extern|inline|noinline|open|extend|co|rec|value|reference|linear|named|scoped|initially|finally|raw|ctl|final|return|match|with|handle|handler|mask|override|if|then|else|elif|fn|forall|some|exists|interface|instance|behind|in)\b/)) {
-      return 'keyword';
-    }
-
-    // Type keywords
-    if (stream.match(/^(int|string|bool|char|float64|float32|list|maybe|either|order|void|unit|io|div|exn|ndet|alloc|read|write|net|fsys|ui|console|total|pure|ssize_t)\b/)) {
-      return 'typeName';
-    }
-
-    // Boolean/special values
-    if (stream.match(/^(True|False|Nothing|Just|Left|Right|Ok|Error)\b/)) {
-      return 'atom';
-    }
-
-    // Operators
-    if (stream.match(/^[+\-*/%=<>!&|^~?:.$@#]+/)) {
-      return 'operator';
-    }
-
-    // Type names (capitalized)
-    if (stream.match(/^[A-Z][a-zA-Z0-9_]*/)) {
-      return 'typeName';
-    }
-
-    // Identifiers
-    if (stream.match(/^[a-z_][a-zA-Z0-9_-]*/)) {
-      return 'variableName';
-    }
-
-    // Brackets
-    if (stream.match(/^[{}()\[\]]/)) {
-      return 'bracket';
-    }
-
-    // Skip unknown
-    stream.next();
-    return null;
-  },
-};
-
-export const kokaLanguage = StreamLanguage.define(kokaParser);
-
-/**
- * CodeMirror highlighting style tags for Koka tokens.
- */
-export const kokaHighlightStyle = [
-  { tag: t.keyword, color: '#c586c0' },
-  { tag: t.typeName, color: '#4ec9b0' },
-  { tag: t.variableName, color: '#9cdcfe' },
-  { tag: t.string, color: '#ce9178' },
-  { tag: t.number, color: '#b5cea8' },
-  { tag: t.operator, color: '#d4d4d4' },
-  { tag: t.lineComment, color: '#6a9955' },
-  { tag: t.blockComment, color: '#6a9955' },
-  { tag: t.atom, color: '#569cd6' },
-  { tag: t.bracket, color: '#d4d4d4' },
-];
+  }, { decorations: v => v.decorations });
+}

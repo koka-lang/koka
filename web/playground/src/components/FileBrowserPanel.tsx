@@ -5,6 +5,12 @@ import { KOKA_LANGUAGE_ID } from '../editor/koka-lang';
 import { ALL_WEB_SAMPLE, type FileEntry } from '../editor/samples';
 import { preloadSamplesDirectory } from '../editor/actions';
 
+// The VS Code extension's file icons: #ccc on dark themes, #444 on light ones.
+function KokaFileIcon() {
+  const { state } = usePlayground();
+  return <img src={`koka-icon-${state.colorTheme}.svg`} alt="kk" className="fb-file-icon" />;
+}
+
 export function FileBrowserPanel() {
   const { state, dispatch } = usePlayground();
 
@@ -26,7 +32,7 @@ export function FileBrowserPanel() {
               onClick={() => dispatch({ type: 'SWITCH_TAB', id: tab.id })}
             >
               <span className="fb-item-icon">
-                <img src="koka-icon-dark.svg" alt="kk" className="fb-file-icon" />
+                <KokaFileIcon />
               </span>
               <span className="fb-item-name">{tab.name}</span>
             </div>
@@ -95,7 +101,7 @@ function FileTreeNode({ entry, depth }: { entry: FileEntry; depth: number }) {
 
   // File
   const icon = isKk
-    ? <img src="koka-icon-dark.svg" alt="kk" className="fb-file-icon" />
+    ? <KokaFileIcon />
     : isJs
     ? <span className="fb-file-icon fb-js-icon">JS</span>
     : <span className="fb-file-icon">•</span>;

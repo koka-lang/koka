@@ -15,8 +15,17 @@ import { buildFileTree } from './samples';
 import { kokaModuleToFilename } from './koka-lang';
 import { MODULE_NAME_RE } from './koka-lang';
 import AnsiToHtml from 'ansi-to-html';
+import type { ThemeKind } from './koka-theme';
+import { ExecuteCommandRequest } from 'vscode-languageclient/browser.js';
 
-const ansiConverter = new AnsiToHtml({ escapeXML: true });
+// The compiler's white text is colored through CSS variables, so log lines
+// follow the playground's theme, also those logged before it changed.
+const ansiConverter = new AnsiToHtml({
+  escapeXML: true,
+  fg: 'var(--log-text)',
+  bg: 'transparent',
+  colors: { 7: 'var(--ansi-white)', 15: 'var(--ansi-bright-white)' },
+});
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -328,6 +337,20 @@ export async function compileAndRun(
 }
 
 // ── LSP Configuration ───────────────────────────────────────────────────
+
+/** Colors hover markdown for `kind`; the LSP ignores this command if it does not support it. */
+export async function sendLspColors(
+  refs: MutableRefObject<PlaygroundRefs>,
+  kind: ThemeKind,
+): Promise<void> {
+  const client = refs.current.lspHandle?.client;
+  if (!client) return;
+  try {
+    await client.sendRequest(ExecuteCommandRequest.type, { command: 'koka/set-colors', arguments: [{ mode: kind }] });
+  } catch {
+    // koka/set-colors is optional
+  }
+}
 
 export async function sendLspConfig(
   refs: MutableRefObject<PlaygroundRefs>,

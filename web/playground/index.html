@@ -24,6 +24,40 @@
       --success:       #4caf50;
       --error:         #f44336;
       --warning:       #ff9800;
+      --hover:         rgba(255, 255, 255, 0.06);
+      --hover-strong:  rgba(255, 255, 255, 0.08);
+      --logo-accent:   #569cd6;
+      --log-text:      #a0a0c0;
+      --console-stderr: #f48771;
+      --console-info:  #9cdcfe;
+      --shadow:        rgba(0, 0, 0, 0.3);
+      --ansi-white:    #aaaaaa;
+      --ansi-bright-white: #ffffff;
+    }
+
+    /* Light palette, after VS Code's Light Modern. */
+    :root[data-theme="light"] {
+      --bg-primary:    #ffffff;
+      --bg-secondary:  #f8f8f8;
+      --bg-tertiary:   #f3f3f3;
+      --bg-toolbar:    #f8f8f8;
+      --border:        #e5e5e5;
+      --text-primary:  #3b3b3b;
+      --text-muted:    #6e6e6e;
+      --accent:        #005fb8;
+      --accent-hover:  #0258a8;
+      --success:       #388a34;
+      --error:         #cd3131;
+      --warning:       #bf8803;
+      --hover:         rgba(0, 0, 0, 0.05);
+      --hover-strong:  rgba(0, 0, 0, 0.08);
+      --logo-accent:   #005fb8;
+      --log-text:      #4a4a6a;
+      --console-stderr: #cd3131;
+      --console-info:  #0070c1;
+      --shadow:        rgba(0, 0, 0, 0.15);
+      --ansi-white:    #6e6e6e;
+      --ansi-bright-white: #202020;
     }
 
     html, body {
@@ -66,7 +100,7 @@
     }
 
     #toolbar .logo span {
-      color: #569cd6;
+      color: var(--logo-accent);
     }
 
     #btn-run {
@@ -172,7 +206,7 @@
       padding: 8px 0;
       min-width: 220px;
       z-index: 100;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 12px var(--shadow);
     }
 
     .settings-section {
@@ -360,7 +394,7 @@
     }
 
     .fb-item-clickable:hover {
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--hover);
     }
 
     .fb-item-dir {
@@ -368,11 +402,11 @@
     }
 
     .fb-item-dir:hover {
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--hover);
     }
 
     .fb-item-active {
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--hover-strong);
     }
 
     .fb-item-dimmed {
@@ -630,14 +664,14 @@
 
     #compiler-log-output {
       background: var(--bg-tertiary);
-      color: #a0a0c0;
+      color: var(--log-text);
       font-size: 11px;
     }
 
     .console-line { display: block; }
     .console-line.stdout { color: var(--text-primary); }
-    .console-line.stderr { color: #f48771; }
-    .console-line.info   { color: #9cdcfe; }
+    .console-line.stderr { color: var(--console-stderr); }
+    .console-line.info   { color: var(--console-info); }
     .console-line.separator {
       color: var(--border);
       border-top: 1px solid var(--border);
