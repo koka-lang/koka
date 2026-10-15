@@ -38,6 +38,8 @@ import Data.Either
 import Data.IORef
 import Control.Exception
 import Control.Applicative
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC
 import Control.Monad          ( ap, when, foldM )
 import qualified Control.Monad.Fail as F
 import Control.Concurrent.QSem
@@ -678,7 +680,10 @@ moduleLex mod
                                                   then modSourcePath mod
                                                   else ".../" ++ modSourceRelativePath mod)
        let allowAt = True -- isPrimitiveModule (modName mod) || modSourcePath mod `endsWith` "/@main.kk"
-       input <- getFileContents (modSourcePath mod)
+       rawinput <- getFileContents (modSourcePath mod)
+       input <- if isLiteralDoc (modSourcePath mod)
+                 then expandIncludes (modSourcePath mod) [] False rawinput
+                 else return rawinput
        let source  = Source (modSourcePath mod) input
            lexemes = lexSource allowAt (semiInsert flags) id 1 source
        case checkError (parseDependencies (targetPlatformFromFlags flags) source lexemes) of
@@ -1460,3 +1465,68 @@ withCheckedModule mod action
          Left errs          -> return mod{ modErrors = mergeErrors errs (modErrors mod) }
          Right (mod',warns) -> return mod'{ modErrors = mergeErrors warns (modErrors mod') }
 
+
+{---------------------------------------------------------------
+  Expand [INCLUDE=file:snippet] in the code blocks of literate documents.
+  Only inside a code block (between ``` lines): elsewhere the line is a
+  Madoko include, which Madoko expands after the compiler -- book.kk.md
+  assembles its chapters that way, and each chapter is compiled on its own.
+  An included file is code, so includes in it are expanded too.
+---------------------------------------------------------------}
+
+expandIncludes :: FilePath -> [FilePath] -> Bool -> BString -> Build BString
+expandIncludes currentPath stack inCode input
+  = do lines <- expandLines inCode (BC.lines input)
+       return (B.intercalate (BC.singleton '\n') lines)
+  where
+    expandLines _ [] = return []
+    expandLines code (line:rest)
+      = do let isFence = "```" `isPrefixOf` trim (BC.unpack line)
+           line' <- if code && not isFence then expandLine currentPath stack line else return line
+           rest' <- expandLines (if isFence then not code else code) rest
+           return (line' : rest')
+
+expandLine :: FilePath -> [FilePath] -> BString -> Build BString
+expandLine currentPath stack line
+  = let s = trim (BC.unpack line) in
+    if "[INCLUDE=" `isPrefixOf` s && "]" `isSuffixOf` s
+      then let content = take (length s - 10) (drop 9 s) -- remove [INCLUDE= and ]
+               (fname, snippet) = case break (==':') content of
+                                    (f, ':':snip) -> (f, snip)
+                                    (f, _)        -> (f, "")
+               dir = dirname currentPath
+               relPath = joinPath dir fname
+           in do mbPath <- searchInclude relPath fname
+                 case mbPath of
+                   Nothing -> do addWarningMessage (warningMessageKind ErrBuild rangeNull (text ("include not found: " ++ fname)))
+                                 return line
+                   Just includePath ->
+                     if includePath `elem` stack
+                       then throwError (\_ -> errorMessageKind ErrBuild rangeNull (text ("recursive include: " ++ includePath)))
+                       else do content <- getFileContents includePath
+                               rawSnippet <- extractSnippet snippet content
+                               expandIncludes includePath (includePath:stack) True rawSnippet
+      else return line
+
+searchInclude :: FilePath -> FilePath -> Build (Maybe FilePath)
+searchInclude relPath fname
+  = do exist <- buildDoesFileExist relPath
+       if exist then return (Just relPath)
+         else do mb <- searchSourceFile "" fname
+                 case mb of
+                   Just (root,stem) -> return (Just (joinPath root stem))
+                   _ -> return Nothing
+
+extractSnippet :: String -> BString -> Build BString
+extractSnippet "" content = return content
+extractSnippet name content
+  = do let ls = BC.lines content
+           startTag = "// begin " ++ name
+           endTag   = "// end " ++ name
+           isTag tag l = trim (BC.unpack l) == tag
+           (pre, post) = span (not . isTag startTag) ls
+       case post of
+         (_:rest) -> let (snippet, _) = span (not . isTag endTag) rest
+                     in return (B.intercalate (BC.singleton '\n') snippet)
+         [] -> do addWarningMessage (warningMessageKind ErrBuild rangeNull (text ("snippet not found: " ++ name)))
+                  return BC.empty

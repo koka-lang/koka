@@ -125,6 +125,73 @@ function enableCopyButtons() {
 }
 
 // ---------------------------------------------------
+// runnable examples
+// ---------------------------------------------------
+
+// Code blocks marked {.run} (written ```koka {.run}) get a Run button that
+// turns the block into an editable <koka-editor>, loaded from the playground
+// on first use. Every editor on a page shares one compiler worker. A browser
+// starts that worker only from a same-origin script, so the playground must be
+// on the same origin as the book: /koka/playground/ by default, or
+// <meta name="koka-playground">.
+var kokaPlayground = "/koka/playground/";
+var kokaEditorLoading = null;
+
+function loadKokaEditor() {
+  if (!kokaEditorLoading) {
+    const meta = document.querySelector("meta[name='koka-playground']");
+    const base = new URL(meta ? meta.content : kokaPlayground, window.location.href).href;
+    [["koka-wasm-url", base + "koka-playground.wasm"], ["koka-stdlib-url", base]].forEach( function(kv){
+      if (document.querySelector("meta[name='" + kv[0] + "']")) return;
+      const m = document.createElement("meta");
+      m.name = kv[0];
+      m.content = kv[1];
+      document.head.appendChild(m);
+    });
+    kokaEditorLoading = new Promise( function(resolve,reject){
+      const script = document.createElement("script");
+      script.type = "module";
+      script.src = base + "koka-editor.js";
+      script.onerror = reject;
+      document.head.appendChild(script);
+      customElements.whenDefined("koka-editor").then(resolve);
+    });
+  }
+  return kokaEditorLoading;
+}
+
+// The code of a block: the compiler's HTML holds the source twice, as
+// .plaincode and highlighted with type tooltips as .nicecode.
+function kokaSourceOf(pre) {
+  const plain = pre.querySelector(".plaincode");
+  return (plain ? plain.textContent : pre.textContent).replace(/\s+$/, "");
+}
+
+function enableRunButtons() {
+  const blocks = document.querySelectorAll("pre.run");
+  blocks.forEach( function(pre){
+    const button = document.createElement("button");
+    button.className = "run-button";
+    button.textContent = "▶ Run";
+    button.setAttribute("title", "Edit and run this example");
+    button.addEventListener("click", function() {
+      button.disabled = true;
+      button.textContent = "⌛ Loading...";
+      const editor = document.createElement("koka-editor");
+      editor.setAttribute("theme", "light");
+      editor.textContent = kokaSourceOf(pre);
+      loadKokaEditor().then( function(){
+        pre.replaceWith(editor);
+        editor.run();
+      }, function() {
+        button.textContent = "Playground unavailable";
+      });
+    });
+    pre.appendChild(button);
+  });
+}
+
+// ---------------------------------------------------
 // onload
 // ---------------------------------------------------
 
@@ -132,4 +199,5 @@ window.onload = function() {
   genFullGrammar();  
   addExternalLinkIcons();
   enableCopyButtons();
+  enableRunButtons();
 }
