@@ -103,14 +103,20 @@ async function initCompiler(): Promise<SharedCompiler | null> {
 
 // ── URL discovery ───────────────────────────────────────────────────────────
 
+// A configured URL is relative to the page. The worker fetches the compiler, and
+// it would resolve a relative URL against its own script instead.
+function pageUrl(url: string): string {
+  return new URL(url, window.location.href).href;
+}
+
 function findWasmUrl(): string {
   const meta = document.querySelector('meta[name="koka-wasm-url"]');
-  if (meta) return meta.getAttribute('content') || '';
+  if (meta) return pageUrl(meta.getAttribute('content') || '');
 
   const cfg = (globalThis as Record<string, unknown>).kokaConfig as Record<string, string> | undefined;
-  if (cfg?.wasmUrl) return cfg.wasmUrl;
+  if (cfg?.wasmUrl) return pageUrl(cfg.wasmUrl);
 
-  return new URL('koka-playground.wasm', window.location.href).href;
+  return pageUrl('koka-playground.wasm');
 }
 
 function findStdlibUrl(): string {

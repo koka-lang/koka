@@ -187,7 +187,7 @@ runKoka cfg kokaDir fp
 
 makeTest :: Cfg -> FilePath -> Spec
 makeTest cfg fp
-  | takeExtension fp == ".kk"
+  | takeExtension fp == ".kk" || ".kk.md" `isSuffixOf` fp
       = do let expectedFile = fp ++ ".out"
            isTest <- runIO $ doesFileExist expectedFile
            let shouldRun = not isTest && mode (options cfg) == New || isTest && mode (options cfg) /= New

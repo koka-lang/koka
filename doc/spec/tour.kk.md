@@ -25,7 +25,7 @@ _effective_
 ### Hello world
 
 As usual, we start with the familiar _Hello world_ program:<span id=`examplemain`></span>
-```
+```koka {.run}
 fun main()
   println("Hello world!") // println output
 ```
@@ -41,7 +41,7 @@ using explicit braces. Here is another short example program that encodes a stri
 _Caesar cipher_, where each lower-case letter in a string is replaced by the letter
 three places up in the alphabet:
 
-```
+```koka {.run}
 fun main() { println(caesar("koka is fun")) }
 ////
 fun encode( s : string, shift : int )
@@ -127,7 +127,7 @@ the function call instead -- this is also known as _trailing lambdas_.
 For example, here is how we can print the numbers
 ``1`` to ``10``:
 
-```
+```koka {.run}
 fun main() { print10() }
 ////
 fun print10()
@@ -143,7 +143,7 @@ Anonymous functions without any arguments can be shortened further by leaving
 out the `fn` keyword as well and just use braces directly. Here is an example using
 the `repeat` function:
 
-```
+```koka {.run}
 fun main() { printhi10() }
 ////
 fun printhi10()
@@ -156,7 +156,7 @@ desugars further to `repeat( 10, fn(){ println(``hi``)} )`. The is
 especially convenient for the `while` loop since this is not a built-in
 control flow construct but just a regular function:
 
-```
+```koka {.run}
 fun main() { print11() }
 ////
 fun print11()
@@ -181,7 +181,7 @@ the D language has a similar feature (called [UFCS](https://tour.dlang.org/tour/
 Another novel syntactical feature is the `with` statement.
 With the ease of passing a function block as a parameter, these
 often become nested. For example:
-```
+```koka {.run}
 fun twice(f)
   f()
   f()
@@ -195,7 +195,11 @@ where `"hi"` is printed four times (note: this desugars
 to `twice( fn(){ twice( fn(){ println("hi") }) })`).
 Using the `with` statement
 we can write this more concisely as:
-```
+```koka {.run}
+fun twice(f)
+  f()
+  f()
+////
 pub fun test-with1()
   with twice
   with twice
@@ -231,7 +235,7 @@ f(e1,...,eN, fn(x){ <body> })
 
 Here is an example using `foreach` to span over the rest of the function body:
 
-```
+```koka {.run}
 pub fun test-with2() {
   with x <- list(1,10).foreach
   println(x)
@@ -251,7 +255,7 @@ function that is run when exiting the scope -- either normally,
 or through an "exception" (&ie; when an effect operation does not resume).
 Again, `with` is a natural fit:
 
-```
+```koka {.run}
 fun test-finally()
   with finally{ println("exiting..") }
   println("entering..")
@@ -338,7 +342,7 @@ calls where it supports both optional and named parameters. For example, the
 function `replace-all` takes a string, a pattern (named ``pattern``), and
 a replacement string (named ``repl``):
 
-```
+```koka {.run}
 fun main() { println(world()) }
 ////
 fun world()
@@ -347,7 +351,7 @@ fun world()
 
 Using named parameters, we can also write the function call as:
 
-```
+```koka {.run}
 fun main() { println(world2()) }
 ////
 fun world2()
@@ -361,7 +365,7 @@ sublist.  We can make the ``len`` parameter optional and by default return all
 elements following the ``start`` position by picking the length of the input list by
 default:
 
-```
+```koka {.run}
 fun main() { println( ['a','b','c'].sublist(1).string ) }
 ////
 fun sublist( xs : list<a>, start : int, len : int = xs.length ) : list<a>
@@ -382,10 +386,9 @@ Here is a slightly larger program inspired by an
 example in Graham Hutton's most 
 excellent "[Programming in Haskell](http://www.cs.nott.ac.uk/~pszgmh/pih.html)" book:
 
-```unchecked
+```koka {.run}
 import std/num/float64
-```
-```
+////
 fun main()
   test-uncaesar()
 
@@ -598,7 +601,7 @@ The Fibonacci numbers are a sequence where each subsequent Fibonacci number is
 the sum of the previous two, where `fib(0) == 0` and `fib(1) == 1`. We can
 easily calculate Fibonacci numbers using a recursive function:
 
-```
+```koka {.run}
 fun main() { println(fib(10)) }
 ////
 fun fib(n : int) : div int
@@ -616,7 +619,7 @@ Here is another version of the Fibonacci function but this time
 implemented using local mutable variables.
 We use the `repeat` function to iterate `n` times:
 
-```
+```koka {.run}
 fun main() { println(fib2(10)) }
 ////
 fun fib2(n)
@@ -659,7 +662,7 @@ integer is allocated using `val r = ref(0)` (since the reference itself is
 actually a value!), and can be dereferenced using the bang operator, as ``!r``.
 We can write the Fibonacci function using reference cells as:
 
-```
+```koka {.run}
 fun main() { println(fib3(10)) }
 ////
 fun fib3(n)
@@ -740,7 +743,7 @@ directly mutating a field in a struct, we usually return a new struct where
 the fields are updated. For example, here is a `birthday` function that
 increments the `age` field:
 
-```
+```koka {.run}
 fun main()
   println( brian.birthday.age )
 
@@ -760,7 +763,7 @@ Here, `birthday` returns a fresh `:person` which is equal to `p` but with the
 a `:person`. This constructor is also automatically generated for each data
 type, and is internally generated as:
 
-```
+```koka {.run}
 fun main()
   println( brian.copy().age )
 
