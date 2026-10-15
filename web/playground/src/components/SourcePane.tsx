@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { updateUserConfiguration } from '@codingame/monaco-vscode-configuration-service-override';
 import { useMonaco } from '../editor/monaco-provider';
 import { useMonacoEditor } from '../editor/use-monaco-editor';
 import { usePlayground } from '../editor/context';
@@ -47,6 +48,10 @@ export function SourcePane() {
       });
     },
   });
+
+  useEffect(() => {
+    void updateUserConfiguration(JSON.stringify({ 'editor.bracketPairColorization.enabled': state.bracketPairColors }));
+  }, [state.bracketPairColors]);
 
   // Switch model when active tab changes
   useEffect(() => {

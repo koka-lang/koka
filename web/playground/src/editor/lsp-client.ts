@@ -25,6 +25,7 @@ import { MonacoLanguageClient } from 'monaco-languageclient';
 import { ExecuteCommandRequest } from 'vscode-languageclient/browser.js';
 import { Uri } from 'vscode';
 import type { KokaVFS } from './vfs';
+import { currentColorTheme } from './color-theme';
 
 // ── Message Reader (worker stdout → client) ─────────────────────────────────
 
@@ -320,13 +321,12 @@ export async function startLspClient(
 
   await client.start();
 
-  // Send dark/light theme to the LSP server for colored markdown
+  // Hover markdown is colored for the playground's theme, whatever the
+  // operating system's color scheme.
   try {
-    const isDark = document.body.classList.contains('vscode-dark') ||
-                   window.matchMedia('(prefers-color-scheme: dark)').matches;
     await client.sendRequest(ExecuteCommandRequest.type, {
       command: 'koka/set-colors',
-      arguments: [{ mode: isDark ? 'dark' : 'light' }],
+      arguments: [{ mode: currentColorTheme() }],
     });
   } catch {
     // koka/set-colors is optional — ignore errors

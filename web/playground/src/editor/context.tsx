@@ -15,6 +15,8 @@ import type { KokaVFS } from './vfs';
 import type { LspClientHandle } from './lsp-client';
 import type { WasmCompileResult } from './wasm-runner';
 import type { FileEntry } from './samples';
+import type { ThemeKind } from './koka-theme';
+import { currentColorTheme } from './color-theme';
 
 // ── State ──────────────────────────────────────────────────────────────────
 
@@ -58,6 +60,8 @@ export interface PlaygroundState {
   backend: BackendType;
   verbosity: number;
   inlayHints: InlayHintSettings;
+  bracketPairColors: boolean;
+  colorTheme: ThemeKind;
   tabs: TabEntry[];
   activeTabId: string | null;
   fileBrowserVisible: boolean;
@@ -74,6 +78,8 @@ const initialState: PlaygroundState = {
   backend: 'lsp',
   verbosity: 1,
   inlayHints: { showImplicitArguments: true, showInferredTypes: true, showFullQualifiers: false },
+  bracketPairColors: false,
+  colorTheme: 'dark',
   tabs: [],
   activeTabId: null,
   fileBrowserVisible: true,
@@ -95,6 +101,8 @@ export type PlaygroundAction =
   | { type: 'SET_BACKEND'; backend: BackendType }
   | { type: 'SET_VERBOSITY'; verbosity: number }
   | { type: 'SET_INLAY_HINTS'; inlayHints: Partial<InlayHintSettings> }
+  | { type: 'SET_BRACKET_PAIR_COLORS'; enabled: boolean }
+  | { type: 'SET_COLOR_THEME'; colorTheme: ThemeKind }
   | { type: 'OPEN_TAB'; tab: TabEntry }
   | { type: 'CLOSE_TAB'; id: string }
   | { type: 'SWITCH_TAB'; id: string }
@@ -121,6 +129,10 @@ function reducer(state: PlaygroundState, action: PlaygroundAction): PlaygroundSt
       return { ...state, verbosity: action.verbosity };
     case 'SET_INLAY_HINTS':
       return { ...state, inlayHints: { ...state.inlayHints, ...action.inlayHints } };
+    case 'SET_BRACKET_PAIR_COLORS':
+      return { ...state, bracketPairColors: action.enabled };
+    case 'SET_COLOR_THEME':
+      return { ...state, colorTheme: action.colorTheme };
     case 'OPEN_TAB': {
       // If already open by path, just switch to it
       const existing = state.tabs.find(t => t.path === action.tab.path);
@@ -214,7 +226,9 @@ export function PlaygroundProvider({
   vfs: KokaVFS;
   children: ReactNode;
 }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  // The theme is read at the first render, after main.tsx has applied it;
+  // initialState is built when this module is imported, before that.
+  const [state, dispatch] = useReducer(reducer, initialState, (s) => ({ ...s, colorTheme: currentColorTheme() }));
   const refs = useRef<PlaygroundRefs>({
     vfs,
     lspHandle: null,

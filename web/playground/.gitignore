@@ -2,3 +2,5 @@ node_modules/
 dist/
 .vite/
 public/
+# copied from support/vscode by `npm run grammar` (run before dev and build)
+src/editor/koka.tmLanguage.json

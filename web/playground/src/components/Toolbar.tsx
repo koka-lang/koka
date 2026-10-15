@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePlayground, type BackendType } from '../editor/context';
 import { compileAndRun, sendLspConfig } from '../editor/actions';
+import type { ThemeKind } from '../editor/koka-theme';
 
 export function Toolbar() {
   const { state, dispatch, refs } = usePlayground();
@@ -78,6 +79,24 @@ export function Toolbar() {
               <label className="settings-option">
                 <input type="checkbox" checked={state.inlayHints.showFullQualifiers} onChange={() => toggleInlayHint('showFullQualifiers')} />
                 Full qualifiers
+              </label>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-title">Editor</div>
+              <label className="settings-option">
+                Theme:
+                <select
+                  value={state.colorTheme}
+                  onChange={e => dispatch({ type: 'SET_COLOR_THEME', colorTheme: e.target.value as ThemeKind })}
+                >
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                </select>
+              </label>
+              <label className="settings-option">
+                <input type="checkbox" checked={state.bracketPairColors} onChange={() => dispatch({ type: 'SET_BRACKET_PAIR_COLORS', enabled: !state.bracketPairColors })} />
+                Bracket pair colors
               </label>
             </div>
 

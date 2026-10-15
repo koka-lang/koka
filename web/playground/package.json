@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "grammar": "node -e \"require('fs').copyFileSync('../../support/vscode/koka.language-koka/syntaxes/koka.json', 'src/editor/koka.tmLanguage.json')\"",
+    "predev": "npm run grammar",
     "dev": "vite",
+    "prebuild": "npm run grammar",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
