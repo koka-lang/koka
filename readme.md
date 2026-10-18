@@ -435,7 +435,7 @@ Koka supports profiling with both GCC and Clang via the `--fprofile` flag.
 
 ```sh
 $ koka --fprofile -e myprogram.kk
-$ gprof .koka/v*/gcc-profile-*/myprogram__main gmon.out
+$ gprof .koka/v*/gcc-profile-*/myprogram_at_main gmon.out
 ```
 
 Shows where the program spends time (percentage of total, call counts per function).
@@ -457,7 +457,7 @@ On Linux, `perf` provides hardware-accurate sampling on any compiled binary
 
 ```sh
 $ koka -O2 myprogram.kk
-$ perf record -g .koka/v*/gcc-drelease-*/myprogram__main
+$ perf record -g .koka/v*/gcc-drelease-*/myprogram_at_main
 $ perf report
 ```
 
