@@ -1,0 +1,7 @@
+test/type/wrong/effect4.kk(6, 3): type error: effects do not match
+  context        : io-action()
+  term           : io-action()
+  inferred effect: <local<_h>,alloc<global>,console,div,fsys,ndet,net,read<global>,ui,write<global>|$e>
+  expected effect: <alloc<global>,console,div,exn,fsys,ndet,net,read<global>,ui,write<global>,local<_h>|_e1>
+  missing : exn
+            Consider using mask or adding it to the function's effect type
