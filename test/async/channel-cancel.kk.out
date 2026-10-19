@@ -1,0 +1,9 @@
+after a timed out receive: Nothing, then Just(42)
+receivers: [1,-1,2,0]
+strand 1: ended
+strand 2: done, the channel holds Just(7)
+ 
+async/channel-cancel/fifo: () -> <std/async/async/async,console,ndet> ()
+async/channel-cancel/lost-value: () -> <std/async/async/async,console,ndet> ()
+async/channel-cancel/main: () -> <std/async/async/async,console,ndet> ()
+async/channel-cancel/no-second-resume: () -> <std/async/async/async,console,ndet> ()
