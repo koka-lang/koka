@@ -1,0 +1,10 @@
+timeout completes: Just(42)
+timeout expires: Nothing
+timeout raises: exception boom
+firstof raises: exception right
+firstof completes: left
+firstof all raise: exception left
+firstof raises before completion: exception right
+ 
+async/firstof-exception/main: () -> <std/async/async/async,console,ndet> ()
+async/firstof-exception/test: (name : string, action : () -> <std/async/async/async,exn,ndet> string) -> <std/async/async/async,console,ndet> ()
