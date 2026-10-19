@@ -1,0 +1,6 @@
+timed out: Nothing
+after timeout: Just(42)
+receivers: Just([1,-1,2,3,0])
+remaining: Nothing
+ 
+async/channel-cancel/main: () -> <std/async/async/async,console,ndet> ()
