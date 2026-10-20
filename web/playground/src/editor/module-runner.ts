@@ -55,7 +55,7 @@ export async function runKokaModules(
 
   // Use the @main wrapper module (which installs default exception handler)
   // rather than the raw user module.
-  const mainWrapperFilename = kokaModuleToFilename(mainModuleName) + '__main.mjs';
+  const mainWrapperFilename = kokaModuleToFilename(mainModuleName) + '_at_main.mjs';
   const mainFilename = allModules[mainWrapperFilename]
     ? mainWrapperFilename
     : (mainModuleName.endsWith('.mjs') ? mainModuleName : mainModuleName + '.mjs');
