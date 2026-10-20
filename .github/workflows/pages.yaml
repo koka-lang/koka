@@ -1,0 +1,359 @@
+# Builds the documentation (doc/spec and the standard library) and the web
+# playground, and deploys them to GitHub Pages with util/publish-pages.sh,
+# which describes the layout:
+#
+#   https://koka-lang.github.io/koka/doc/, /playground/   the newest stable release (the default)
+#   https://koka-lang.github.io/koka/stable/              the newest stable release
+#   https://koka-lang.github.io/koka/dev/                 the latest build of the dev branch
+#   https://koka-lang.github.io/koka/<tag>/               every release tag
+#   https://koka-lang.github.io/koka/versions.html
+#
+# dev/ always holds the latest successful build of the dev branch, which every
+# deploy publishes; earlier dev builds are not kept anywhere. Unlike the
+# releases, it is not stored on the gh-pages branch: a playground build is
+# ~55 MB, mostly wasm that changes with every commit, and git keeps every
+# version a branch ever had, so storing each dev build there -- even replacing
+# the previous one -- would grow the repository by that much per dev push. The
+# gh-pages branch is the archive of releases and changes only when a release
+# is published. Every deploy assembles the site from gh-pages plus the latest
+# dev build (this run's, or the last successful dev run's artifacts) and deploys
+# it with actions/deploy-pages, which needs Settings > Pages > Source: GitHub
+# Actions.
+#
+# A push to dev replaces dev/ with that build. A release tag is published to its own directory,
+# and also to stable/ and the root when it is the newest stable tag (vX.Y.Z,
+# highest version), so a fix release of an older version or a prerelease does
+# not replace the current release. A manual run with a `tag` input publishes
+# that release tag from its own sources and compiler, built and placed by this
+# commit's util/docs.kk and util/publish-pages.sh: that is how releases from
+# before this workflow get their directories. Releases without a playground
+# (all before v3.3) get documentation only.
+#
+# Pull requests build both and deploy nothing. A fork deploys to its own Pages
+# when its repository variable DEPLOY_DOCS is `true`.
+
+name: Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish, e.g. v3.2.9 (empty: the selected branch)'
+        required: false
+        default: ''
+  push:
+    branches: [dev]
+    tags: ['v*']
+  pull_request:
+    branches: [dev]
+
+concurrency:
+  # manual runs for several tags from one branch must not cancel each other
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  GHC_WASM_META_FLAVOUR: '9.12'
+
+jobs:
+  channel:
+    name: Select the channel
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.channel.outputs.ref }}
+      channel: ${{ steps.channel.outputs.channel }}
+      latest: ${{ steps.channel.outputs.latest }}
+      version: ${{ steps.channel.outputs.version }}
+      playground: ${{ steps.channel.outputs.playground }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+
+      - name: Select the channel
+        id: channel
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          latest=
+          tag=$INPUT_TAG
+          if [ -z "$tag" ] && [ "$GITHUB_REF_TYPE" = tag ]; then tag=$GITHUB_REF_NAME; fi
+          if [ -n "$tag" ]; then
+            case "$tag" in v*) ;; *) echo "not a release tag: $tag"; exit 1 ;; esac
+            newest=$(git ls-remote --tags --refs origin 'v*' | sed 's|.*refs/tags/||' \
+                     | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+            echo "newest stable tag: $newest"
+            channel=$tag
+            version=${tag#v}
+            if [ "$tag" = "$newest" ]; then latest=latest; fi
+          elif [ "$GITHUB_REF_NAME" = dev ] && [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            channel=dev
+            version="$(sed -n 's/^version: *//p' package.yaml)-dev+${GITHUB_SHA::9}"
+          else # a pull request, or a manual run on another branch: build only
+            channel=
+            version=
+          fi
+          if [ -f web/playground/package.json ]; then playground=true; else playground=false; fi
+          echo "channel: $channel, latest: $latest, version: $version, playground: $playground"
+          {
+            echo "ref=$(git rev-parse HEAD)"
+            echo "channel=$channel"
+            echo "latest=$latest"
+            echo "version=$version"
+            echo "playground=$playground"
+          } >> "$GITHUB_OUTPUT"
+
+  docs:
+    name: Documentation
+    needs: channel
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.channel.outputs.ref }}
+          submodules: true
+
+      # the documentation script of the commit that runs the workflow, also for
+      # a release tag from before it existed
+      - name: Checkout the docs script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: .docs-tools
+          sparse-checkout: util/docs.kk
+          sparse-checkout-cone-mode: false
+
+      - name: Build compiler
+        uses: freckle/stack-action@c5b62aa4c722658775d1c53d501a21bca1d28c5a #v5.7.29
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          test: false
+          stack-build-arguments: "--fast"
+          cache-save-always: true
+
+      # Madoko renders the math to SVG with latex and dvisvgm; without them it
+      # leaves the formulas as raw TeX and still succeeds.
+      - name: Install Madoko and LaTeX
+        run: |
+          npm install -g madoko
+          # madoko 1.2.3 (the latest) defines \dimeval, which newer LaTeX kernels also
+          # define, so every math snippet fails with "Command \dimeval already defined"
+          sed -i 's/\\dimeval\b/\\dimevalx/g' "$(npm root -g)/madoko/styles/madoko2.sty"
+          grep -q 'dimevalx' "$(npm root -g)/madoko/styles/madoko2.sty"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-science lmodern dvisvgm
+
+      # util/docs.kk runs `koka` itself, so the built compiler goes on the PATH.
+      - name: Build documentation
+        env:
+          VERSION: ${{ needs.channel.outputs.version }}
+        run: |
+          export PATH="$(stack path --local-install-root)/bin:$PATH"
+          # run from util/ as always: the compilers of v3.2.x cannot build an entry point
+          # in .docs-tools/ ("could not find module: docs")
+          cp .docs-tools/util/docs.kk util/docs.kk
+          stack exec koka -- -e util/docs.kk -- --publish ${VERSION:+--version=$VERSION} \
+            --relative --pubdir=_docs
+          test -f _docs/book.html && test -f _docs/std_core.html
+          # madoko still succeeds when it cannot render math, so check that the formulas became SVG
+          n=$(grep -o 'math-render-svg' _docs/book.html | wc -l)
+          echo "rendered formulas in book.html: $n"
+          [ "$n" -gt 0 ]
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs
+          path: _docs
+
+  playground:
+    name: Playground
+    needs: channel
+    if: needs.channel.outputs.playground == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.channel.outputs.ref }}
+          submodules: recursive
+
+      - name: Setup GHC + Cabal + Stack
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.12'
+          cabal-version: '3.16'
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache GHC WASM toolchain
+        id: cache-ghc-wasm
+        uses: actions/cache@v4
+        with:
+          path: ~/.ghc-wasm
+          key: ghc-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-v1
+
+      - name: Install GHC WASM backend
+        if: steps.cache-ghc-wasm.outputs.cache-hit != 'true'
+        run: |
+          curl -sL "https://gitlab.haskell.org/ghc/ghc-wasm-meta/-/raw/master/bootstrap.sh" | \
+            FLAVOUR=${{ env.GHC_WASM_META_FLAVOUR }} sh
+
+      - name: Verify GHC WASM
+        run: |
+          source ~/.ghc-wasm/env
+          wasm32-wasi-ghc --version
+
+      - name: Cache hpack + alex
+        id: cache-tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/bin
+          key: cabal-tools-${{ runner.os }}-ghc9.12-v3
+
+      - name: Install hpack + alex
+        run: |
+          mkdir -p "$HOME/.cabal/bin"
+          echo "$HOME/.cabal/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.cabal/bin:$PATH"
+          if ! which hpack &>/dev/null || ! which alex &>/dev/null; then
+            cabal update
+            cabal install hpack alex --overwrite-policy=always --installdir="$HOME/.cabal/bin"
+          fi
+          hpack --version && alex --version
+
+      - name: Cache cabal packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: cabal-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-${{ hashFiles('package.yaml', 'cabal.project') }}
+          restore-keys: cabal-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-
+
+      - name: Cache stack
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: stack-${{ hashFiles('package.yaml', 'stack.yaml', 'stack.yaml.lock') }}
+          restore-keys: stack-
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web dependencies
+        run: cd web/playground && npm install
+
+      - name: Build all (WASM, LSP, precompile, deploy)
+        run: |
+          unset GHC_PACKAGE_PATH
+          stack run koka -- -e util/playground.kk -- --backend=all
+
+      - name: Build web frontend
+        run: cd web/playground && npm run build
+
+      - name: Run tests
+        run: node web/playground/test/test-wasm.mjs
+
+      - name: Upload playground
+        uses: actions/upload-artifact@v4
+        with:
+          name: playground
+          path: web/playground/dist
+
+  deploy:
+    name: Deploy to Pages
+    needs: [channel, docs, playground]
+    if: >-
+      always() && github.event_name != 'pull_request' && needs.channel.outputs.channel != '' &&
+      needs.docs.result == 'success' && (needs.playground.result == 'success' || needs.playground.result == 'skipped') &&
+      (github.repository == 'koka-lang/koka' || vars.DEPLOY_DOCS == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # commit a release to gh-pages
+      actions: read     # download the last dev build
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # one deploy at a time: releases and dev both commit to gh-pages and deploy
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    env:
+      CHANNEL: ${{ needs.channel.outputs.channel }}
+      LATEST: ${{ needs.channel.outputs.latest }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout the publish script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tools
+          sparse-checkout: util/publish-pages.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: gh-pages
+          path: site
+
+      - name: Download this run's builds
+        uses: actions/download-artifact@v4
+        with:
+          path: _build
+
+      - name: Publish a release to gh-pages
+        if: env.CHANNEL != 'dev'
+        run: |
+          sh tools/util/publish-pages.sh place site "$CHANNEL" $LATEST --docs _build/docs \
+            $( [ -d _build/playground ] && echo --playground _build/playground )
+          cd site
+          git add -A
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "pages: $CHANNEL (${GITHUB_SHA::9})"
+          git push origin HEAD:gh-pages
+
+      # dev/ is the latest dev build, kept out of gh-pages: this run's, or the last successful one
+      - name: Add the dev build
+        run: |
+          if [ "$CHANNEL" = dev ]; then
+            dev=_build
+          else
+            dev=_dev
+            run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow pages.yaml --branch dev --event push \
+                  --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            if [ -z "$run" ]; then echo "no successful dev build to include"; exit 0; fi
+            echo "dev build from run $run"
+            gh run download "$run" -R "$GITHUB_REPOSITORY" -D "$dev"
+          fi
+          sh tools/util/publish-pages.sh place site dev --docs "$dev/docs" \
+            $( [ -d "$dev/playground" ] && echo --playground "$dev/playground" )
+
+      - name: Write the version index
+        run: |
+          sh tools/util/publish-pages.sh index site
+          rm -rf site/.git
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
