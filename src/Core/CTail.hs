@@ -88,7 +88,7 @@ ctailDef :: Bool -> Def -> CTail [DefGroup]
 ctailDef topLevel def
   = withCurrentDef def $
     do -- ctailTrace "ctail call definition"
-       resRefType <- hasResultRefType (defType def)
+       resRefType <- hasResultRefType (typeOf (defExpr def))
        case resRefType of
          Nothing -> return [DefRec [def]]
          Just (tforall,targs,teff,tres)
