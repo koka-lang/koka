@@ -702,7 +702,7 @@ genExpr expr
        -> return (empty, pretty i <.> text "n")
      
      -- special: .cctx-field-addr-of: create a tuple with the object and the field name as a string
-     App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
+     App (TypeApp (Var cfieldOf _) [_,_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameFieldAddrOf
        -> do conDoc <- genTName con
              return (empty,text "{obj:" <+> conDoc <.> text ", field_name: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
 
