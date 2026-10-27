@@ -20,7 +20,8 @@ env:
 jobs:
   build:
     name: Build Playground
-    runs-on: ubuntu-latest
+    # GHC 9.10.3 cannot link on ubuntu-26.04 ("collect2: fatal error: cannot find 'ld'")
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
 
     steps:

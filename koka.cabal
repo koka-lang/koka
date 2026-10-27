@@ -364,7 +364,7 @@ test-suite koka-test
     , mtl
     , parsec
     , process
-    , regex-compat >=0.95.2.1
+    , regex-tdfa >=1.3
     , text
     , time
   default-language: Haskell2010
