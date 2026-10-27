@@ -2,6 +2,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe
 import Data.Char
+import Data.Array ((!))
 import Data.List
 import Data.List.Extra (replace, trim)
 import System.Directory
@@ -10,7 +11,7 @@ import System.FilePath
 import System.IO
 import qualified System.Info as Sys
 import System.Process (readProcessWithExitCode)
-import Text.Regex
+import Text.Regex.TDFA
 import Text.JSON
 import Test.Hspec
 import Test.Hspec.Core.Runner
@@ -45,8 +46,8 @@ makeCfg flags options []
 makeCfg flags options exclude
   = Cfg flags options exclude fexclude
   where
-    matcher item | any (\c -> c `elem` "()[]+*?") item = let r = mkRegex item
-                                                         in (\s -> isJust (matchRegex r s))
+    matcher item | any (\c -> c `elem` "()[]+*?") item = let r = makeRegex item :: Regex
+                                                         in (\s -> matchTest r s)
                  | otherwise = (\s -> s == item || s == (item ++ ".kk"))
     matchers   = map matcher exclude
     fexclude s = any (\m -> m s) matchers
@@ -158,9 +159,25 @@ testSanitize kokaDir
                  (c:':':rest) -> [toLower c] ++ ":" ++ rest
                  path -> path
 
-    sub re = flip (subRegex (mkRegex re))
+    sub :: String -> String -> String -> String
+    sub re rep s = subRegex (makeRegex re) s rep
     -- limitTo n s | length s > n = take n s ++ "... (and more)"
     --             | otherwise    = s
+
+-- `subRegex re s rep` replaces each match of `re` in `s` by `rep`, in which `\n` stands for group n.
+-- The regexes are regex-tdfa's, not the C library's (Text.Regex): macOS's regcomp is not
+-- thread-safe, and the tests sanitize their output in parallel.
+subRegex :: Regex -> String -> String -> String
+subRegex re s rep = go 0 s (matchAllText re s)
+  where
+    go _ rest [] = rest
+    go pos rest (m:ms)
+      = let (off,len) = snd (m ! 0)
+            (pre,post) = splitAt (off - pos) rest
+        in pre ++ expand m rep ++ go (off + len) (drop len post) ms
+    expand m ('\\':d:cs) | isDigit d = fst (m ! digitToInt d) ++ expand m cs
+    expand m (c:cs) = c : expand m cs
+    expand _ []     = []
 
 expectedSanitize :: String -> String
 expectedSanitize input
