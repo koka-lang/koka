@@ -1,0 +1,6 @@
+overload/implicit-positional/order/sort: forall<a,e> (l : list<a>, ?cmp : (a, a) -> e order) -> e list<a>
+overload/implicit-positional/pre-order/sort: forall<a,e> (l : list<a>, ?(<=) : (a, a) -> e bool) -> e list<a>
+overload/implicit-positional/vector/cmp-lr: forall<e> (xs : vector<char>, ys : vector<char>, ?cmp : (char, char) -> e order) -> e order
+overload/implicit-positional/main: () -> ()
+test/overload/implicit-positional@kk(16, 3): type warning: expression has no effect and is unused
+ hint: did you forget an operator? or used "fun" instead of "fn"?
