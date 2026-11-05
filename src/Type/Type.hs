@@ -13,7 +13,7 @@ module Type.Type (-- * Types
                     Type(..), Scheme, Sigma, Rho, Tau, Effect, InferType
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
-                  , dataInfoIsOpen, dataInfoIsExtend, dataInfoIsLiteral
+                  , dataInfoIsOpen, dataInfoIsExtend, dataInfoIsStruct, dataInfoIsLiteral
                   , conInfoSize, conInfoScanCount
                   , conInfoIsLazy, dataInfoIsLazy, conInfoLazyFip, lazyName
                   , eqType, eqTypes, elemType
@@ -183,6 +183,16 @@ dataInfoIsExtend info
 
 dataInfoIsOpen info
   = dataDefIsOpen (dataInfoDef info)
+
+-- | A closed inductive type with exactly one constructor can be unpacked as a
+-- struct.
+dataInfoIsStruct :: DataInfo -> Bool
+dataInfoIsStruct info
+  = dataInfoSort info == Inductive &&
+    not (dataInfoIsOpen info) &&
+    case dataInfoConstrs info of
+      [_] -> True
+      _   -> False
 
 dataInfoIsLiteral info
   = let name = dataInfoName info
