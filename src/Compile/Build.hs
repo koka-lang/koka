@@ -874,7 +874,7 @@ searchSourceFile relativeDir fname
   = do flags <- getFlags
        -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (relativeDir:includePath flags))) $ return ()
        mb <- lookupVFS fname
-       case mb of  -- must match exactly; we may improve this later on and search relative files as well?
+       case mb of  -- an exact path; otherwise the search below looks in the VFS at each candidate path
          Just _ -> if fname `startsWith` (virtualMount ++ "///") -- just for wsl paths :-( TODO: fix this in general
                      then let (root,relpath) = getMaximalPrefixPath (virtualMount : includePath flags) fname
                           in return $! Just $! if root == virtualMount
@@ -882,7 +882,9 @@ searchSourceFile relativeDir fname
                                else (root,relpath)
                      else return $! Just $! getMaximalPrefixPath (virtualMount : includePath flags) fname
          _      -> -- trace ("searchSourceFile: relativeDir: " ++ relativeDir ++ ", fname: " ++ fname) $
-                   liftIO $ searchPathsCanonical relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
+                   do env <- getEnv
+                      let inVFS fpath = isJust (vfsFind (envVFS env) (normalize fpath))
+                      liftIO $ searchPathsCanonicalIn inVFS [virtualMount] relativeDir (includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
 
 virtualStrip path
   = if path `startsWith` (virtualMount ++ "/") then drop (length virtualMount + 1) path else path

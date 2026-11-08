@@ -12,7 +12,7 @@
 module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
-                  , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical
+                  , searchPaths, searchPathsSuffixes, searchPathsEx, searchPathsCanonical, searchPathsCanonicalIn
                   , getMaximalPrefixPath
                   , searchProgram
                   , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
@@ -422,23 +422,36 @@ searchPathsSuffixes paths exts suffixes name
 
 searchPathsCanonical :: FilePath -> [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
 searchPathsCanonical relativeDir paths exts suffixes name
-  = do searchPaths <- if isAbsolute name then return [""]
-                        else if (null relativeDir) then return paths
+  = searchPathsCanonicalIn (const False) [] relativeDir paths exts suffixes name
+
+-- | As `searchPathsCanonical`, with an overlay of files that are not on disk (a virtual file
+-- system): each candidate path is looked up in the overlay (`inOverlay`) before the file
+-- system, so an overlay file is found exactly where a file on disk would be. An overlay
+-- file is relative to the maximal prefix in `overlayRoots ++ paths`.
+searchPathsCanonicalIn :: (FilePath -> Bool) -> [FilePath] -> FilePath -> [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
+searchPathsCanonicalIn inOverlay overlayRoots relativeDir paths exts suffixes name
+  = do searchPaths <- if isAbsolute name then return [("","")]
+                        else if (null relativeDir) then return [(p,p) | p <- paths]
                         else do relDir <- realPath relativeDir
-                                return (relDir : paths)
-       search (concatMap (\dir -> map (\n -> (dir,n)) nameext) searchPaths)
+                                return ((relativeDir,relDir) : [(p,p) | p <- paths])
+       search (concatMap (\dirs -> map (\n -> (dirs,n)) nameext) searchPaths)
   where
+    -- an overlay is keyed by the paths as given, the file system is searched by real path
     search [] = return Nothing  -- notfound envname nameext path
-    search ((dir,fname):xs)
-      = do{ let fullName = joinPath dir fname
+    search (((odir,dir),fname):xs)
+      = do{ let overlayName = joinPath odir fname
+                fullName    = joinPath dir fname
           -- ; trace ("search: " ++ fullName) $ return ()
-          ; exist <- doesFileExist fullName
-          ; if exist
-             then do rpath <- realPath fullName
-                     let (root,stem) = getMaximalPrefixPath paths rpath   -- not to the relativeDir!
-                     -- trace ("search found: " ++ show (root,stem)) $
-                     return $ Just $! (root,stem)
-             else search xs
+          ; if inOverlay overlayName
+             then return $ Just $! getMaximalPrefixPath (overlayRoots ++ paths) overlayName
+             else do{ exist <- doesFileExist fullName
+                    ; if exist
+                       then do rpath <- realPath fullName
+                               let (root,stem) = getMaximalPrefixPath paths rpath   -- not to the relativeDir!
+                               -- trace ("search found: " ++ show (root,stem)) $
+                               return $ Just $! (root,stem)
+                       else search xs
+                    }
           }
 
     nameext

@@ -101,7 +101,7 @@ fun profile( pf : pflags ) : io ()
 
   // Step 3: Generate gprof report
   println("[3/3] Generating gprof report ...")
-  val gprof-cmd = "gprof $(ls -t .koka/v*/gcc-profile-*/*__main 2>/dev/null | head -1) gmon.out"
+  val gprof-cmd = "gprof $(ls -t .koka/v*/gcc-profile-*/*_at_main 2>/dev/null | head -1) gmon.out"
   if pf.verbose then println("  > " ++ gprof-cmd)
   val gret = run-system(gprof-cmd)
   if gret != 0 then

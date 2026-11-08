@@ -340,15 +340,16 @@ buildcCompileExpr :: Bool -> Bool -> [ModuleName] -> String -> BuildContext -> B
 buildcCompileExpr addShow typeCheckOnly importNames0 expr buildc
   = phaseTimed 2 "compile" (\penv -> empty) $
     do let importNames = if null importNames0 then buildcRoots buildc else importNames0
-           sourcePath = joinPaths [
-                          virtualMount,
-                          case [modSourceRelativePath mod | mname <- importNames,
-                                                            mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of
-                                                                      Just m  -> [m]
-                                                                      Nothing -> []] of
-                              (fpath:_) -> noexts fpath
-                              _         -> "",
-                          "@main" ++ sourceExtension]
+           -- The entry module sits next to the source of the module it calls (`dir/foo.kk` gets
+           -- `dir/foo@main.kk`), so its import of that module resolves relative to its own
+           -- directory, as any import does, whatever the include path is. The module name of
+           -- `foo` need not be findable on the include path (see `moduleFromSource`).
+           sourcePath = case [modSourcePath mod | mname <- importNames,
+                                                  mod <- case find (\mod -> modName mod == mname) (buildcModules buildc) of
+                                                            Just m  -> [m]
+                                                            Nothing -> []] of
+                          (fpath:_) | not (null fpath) -> noexts fpath ++ "@main" ++ sourceExtension
+                          _         -> joinPaths [virtualMount, "@main" ++ sourceExtension]
            importDecls = map (\mname -> "@open import " ++ show mname) importNames
            content     = bunlines $ importDecls ++ [
                            "pub fun @expr()",
