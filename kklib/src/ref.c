@@ -49,4 +49,22 @@ kk_decl_export kk_box_t kk_ref_swap_thread_shared_borrow(struct kk_ref_s* r, kk_
   return b;
 }
 
-
+// Replace the value of a reference with `update(value)`. The value is handed to
+// `update` with its ownership, so a unique value can be updated in place; the
+// cell holds the moved value until the store, which is safe because `update` is
+// total and cannot read the reference.
+kk_decl_export kk_unit_t kk_ref_update_borrow(kk_ref_t _r, kk_function_t update, kk_context_t* ctx) {
+  struct kk_ref_s* r = kk_datatype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
+  if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
+    kk_box_t b;
+    b.box = kk_atomic_load_relaxed(&r->value);
+    kk_box_t newb = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t*), update, (update, b, ctx), ctx);
+    kk_atomic_store_relaxed(&r->value, newb.box);
+  }
+  else {
+    // `update` cannot be applied atomically to a reference shared between threads
+    kk_function_drop(update, ctx);
+    kk_unsupported_external("kk_ref_update_borrow with a thread-shared reference");
+  }
+  return kk_Unit;
+}

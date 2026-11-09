@@ -34,7 +34,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameToAny, nameFalse, nameTrue
                       , nameCons, nameListNil, nameVector
                       , nameTpPartial
-                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar
+                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar, nameLocalUpdate
                       , nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag, nameTpEv
                       , nameInternalInt32, nameOr, nameAnd, nameEffectOpen
@@ -649,8 +649,25 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
                            else do r <- freshRefType
                                    inferUnify (checkAssign rng) lrng r tp
                                    return nameRefSet
-              inferExpr propagated expect
-                        (App (Var nameSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
+              let byrefLhs  = (Nothing,App (Var nameByref False (before lrng)) [lhs] lrng)
+                  assignSet = inferExpr propagated expect (App (Var nameSet False arng) [byrefLhs, rhs] rng)
+              -- `x := e` on a local variable `x` that occurs in `e` is first tried as
+              -- `local-var/update(x, fn(x) e)`: `update` passes the current value with its
+              -- ownership, so a unique value is updated in place instead of copied because
+              -- the variable still holds it. `update` takes only a total function, which
+              -- also guarantees `e` cannot read or write the variable while it holds the
+              -- moved value; when `e` is not total, `x := e` is a plain `local-set`.
+              -- The parameter is `x` itself, so the type checker resolves each occurrence
+              -- in `e`; it shadows the variable on purpose and gets no warning. The test
+              -- below is a syntactic over-approximation: both forms are correct.
+              if (isTypeLocalVar tp && usesLocals (S.singleton target) rexpr)
+                then do let updater = Lam [ValueBinder target Nothing Nothing lrng lrng] rexpr False (getRange rexpr)
+                        mbRes <- tryRun $ withShadowExempt target lrng $ inferExpr propagated expect
+                                            (App (Var nameLocalUpdate False arng) [byrefLhs, (Nothing,updater)] rng)
+                        case mbRes of
+                          Just res -> return res
+                          Nothing  -> assignSet
+                else assignSet
 
       _ -> errorAssignable
   where
