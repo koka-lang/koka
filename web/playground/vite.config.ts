@@ -12,6 +12,11 @@ export default defineConfig({
         main: 'index.html',
         embed: 'embed.html',
       },
+      output: {
+        // Pages that embed <koka-editor> load it by a fixed name:
+        // <script type="module" src=".../playground/koka-editor.js">.
+        entryFileNames: (chunk) => chunk.name === 'embed' ? 'koka-editor.js' : 'assets/[name]-[hash].js',
+      },
     },
   },
   worker: {

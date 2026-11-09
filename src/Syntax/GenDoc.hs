@@ -538,18 +538,19 @@ showKind env k
 
 
 showDeclType env kgamma gamma pinfos tp
-  = let (mbParams,pre,res) = ppDeclType (niceEnv (env{fullNames=True}) (tvsList (ftv tp))) pinfos tp
+  = let env' = niceEnv (env{fullNames=True}) (tvsList (ftv tp))
+        (mbParams,pre,res) = ppDeclType env' pinfos tp
     in case mbParams of
-         Nothing -> colon ++ hlType res
+         Nothing -> colon ++ hlType env' res
          Just params | null params
-          -> "()" ++ colon ++ hlType res
+          -> "()" ++ colon ++ hlType env' res
          Just params
-          ->  "( " ++ concat (intersperse ", " [hlBorrow pinfo ++ hlParam name ++ hlType tpdoc  | (name,pinfo,tpdoc) <- params]) ++ " )" ++ " " ++ colon ++ hlType res
+          ->  "( " ++ concat (intersperse ", " [hlBorrow env' pinfo ++ hlParam name ++ hlType env' tpdoc  | (name,pinfo,tpdoc) <- params]) ++ " )" ++ " " ++ colon ++ hlType env' res
   where
     colon     = cspan "type special" ":" ++ "&nbsp;"
-    hlBorrow Borrow = highlightType env kgamma gamma ("^")
-    hlBorrow _      = ""
-    hlType doc = highlightType env kgamma gamma (show doc)
+    hlBorrow envx Borrow = highlightType envx kgamma gamma ("^")
+    hlBorrow envx _      = ""
+    hlType envx doc = highlightType envx kgamma gamma (show doc)
     hlParam name = if (not (nameIsNil name || isFieldName name || isHiddenName name))
                      then cspan "type typeparam" (fmtName name) ++ " " ++ colon
                      else "" -- (cspan "type special" ":")

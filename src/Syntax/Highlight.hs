@@ -473,8 +473,9 @@ lexComment sourceName lineNo content
 
 
     -- code block
+    -- the lines before `////` are shown but not compiled; the block keeps its kind and class
     scanCodeBlock n com m lacc acc ('/':'/':'/':'/':rest) | (onLine acc rest)
-                                                = scanCodeBlock2 (n+1) (ComCodeLit "") (n+1) lacc (reverse (acc)) "" (dropLine rest)
+                                                = scanCodeBlock2 (n+1) com (n+1) lacc (reverse (acc)) "" (dropLine rest)
     scanCodeBlock n com m lacc acc ('`':'`':'`':rest)   | onLine acc rest
                                                 = endCodeBlock (n+1) com m lacc "" acc (dropLine rest)
     scanCodeBlock n com m lacc acc (c:rest)     = scanCodeBlock (if (c=='\n') then n+1 else n) com m lacc (c:acc) rest

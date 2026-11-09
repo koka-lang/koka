@@ -1,0 +1,2 @@
+syntax/literate-include/double: (x : int) -> int
+syntax/literate-include/main: () -> console ()

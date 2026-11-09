@@ -47,6 +47,7 @@ import Syntax.Highlight
 import Kind.Kind
 import Kind.Pretty
 import Type.Pretty
+import Type.TypeVar( tvsList, ftv )
 import Syntax.RangeMap
 
 import Platform.Config( programName, sourceExtension )
@@ -154,8 +155,7 @@ transform isLiterate rng rangeMap env lexeme content
                (ranges,
                 case info of
                  NIValue _ tp _ _ -> signature env toLit isLiterate "type" qname (mangle qname tp) (pdocs $ showType env tp) $
-                                      (case lexeme of (Lexeme _ (LexKeyword _ _)) -> cspan "keyword" pcontent  -- for 'return'
-                                                      _  -> pcontent)
+                                      content
                  NICon tp _     -> signature env toLit isLiterate "type" qname (mangleConName qname) (pdocs $ showType env tp) $ cspan "constructor" pcontent
                  NITypeVar kind -> signature env toLit isLiterate "kind" qname qname (pdocs $ showKind env kind) $ cspan "type typevar" $ spanEffect kind pcontent
                  NITypeCon kind _ -> signature env toLit isLiterate "kind" qname (mangleTypeName qname) (pdocs $ showKind env kind) $ cspan "type" $
@@ -186,7 +186,9 @@ transform isLiterate rng rangeMap env lexeme content
     plainText acc (c:cs)   = plainText (c:acc) cs
 
 showType env tp
-  = concat $ highlight fmtHtml id (CtxType [] ":") "" 1 (compress [] (show (ppType env tp)))
+  = concat $ highlight fmtHtml id (CtxType [] ":") "" 1 (compress [] (show (ppType env' tp)))
+  where
+    env' = niceEnv (env{ fullNames = True }) (tvsList (ftv tp))
 
 showKind env k
   = concat $ highlight fmtHtml id (CtxType [] "::") "" 1 (compress [] (show (prettyKind (colors env) k)))

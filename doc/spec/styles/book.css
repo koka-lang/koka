@@ -369,3 +369,25 @@ html {
   clear:both;
   margin:0em 0em 1em 2em;
 }
+/* Runnable examples ({.run} code blocks, see scripts/book.js); bottom right,
+   since the top right holds the "checked" label */
+pre.run {
+  position: relative;
+}
+
+.run-button {
+  position: absolute;
+  bottom: 0.5ex;
+  right: 0.5ex;
+  padding: 0.25ex 1ex;
+  border: 1px solid #AAA;
+  border-radius: 1ex;
+  background-color: #fffdf0;
+  font-size: 0.8em;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.run-button:hover {
+  background-color: #b9dae8;
+}
