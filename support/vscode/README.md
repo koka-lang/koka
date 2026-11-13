@@ -17,6 +17,20 @@ and select `install extension`, or run:
 $ code --install-extension language-koka-<version>.vsix
 ```
 
+## Testing
+
+The tests in `src/test` run in a VS Code instance (downloaded into `.vscode-test`) against
+the compiler in `KOKA_COMPILER`:
+
+```
+$ cd support/vscode/koka.language-koka
+$ npm install
+$ KOKA_COMPILER=$(stack path --local-install-root)/bin/koka npm test
+```
+
+The test workspace is opened through a symbolic link, as editor paths and the real paths the
+compiler uses must agree. CI runs the tests on every platform (`.github/workflows/test.yaml`).
+
 ## Publishing
 
 When publishing a new version of the extension to the markedplace, increase the version

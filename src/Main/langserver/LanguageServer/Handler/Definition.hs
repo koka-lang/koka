@@ -56,11 +56,12 @@ definitionHandler
             liftMaybe (return (rangeMapFindAt lexemes pos rmap)) $ \(rng,rngInfo) ->
               do defs <- lookupVisibleDefinitions [modname]
                  mods <- lookupModulePaths
-                 let defLinks = findDefLinks defs mods rngInfo
+                 editorUri <- getEditorUri
+                 let defLinks = findDefLinks editorUri defs mods rngInfo
                  responder $ Right $ J.InR $ J.InL defLinks
 
-findDefLinks :: Definitions -> [(ModuleName,FilePath)] -> RangeInfo -> [J.DefinitionLink]
-findDefLinks defs mods rngInfo
+findDefLinks :: (FilePath -> J.NormalizedUri) -> Definitions -> [(ModuleName,FilePath)] -> RangeInfo -> [J.DefinitionLink]
+findDefLinks editorUri defs mods rngInfo
   = case rngInfo of
       Id qname idInfo docs _
         -> -- trace ("find definition of id: " ++ show qname) $
@@ -74,6 +75,6 @@ findDefLinks defs mods rngInfo
                           NITypeVar _ -> []
                           NIModule    -> [R.makeSourceRange fpath 1 1 1 1 | (modname,fpath) <- mods, modname == qname]
                           NIKind      -> []
-          in map (J.DefinitionLink . toLspLocationLink rngInfo) ranges
+          in map (J.DefinitionLink . toLspLocationLink editorUri rngInfo) ranges
       _ -> []
 

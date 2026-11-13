@@ -6,6 +6,7 @@
 .vscode/
 support/vscode/koka.language-koka/whatsnew.md
 support/vscode/koka.language-koka/dist
+support/vscode/koka.language-koka/.vscode-test
 src/Syntax/Lexer.hs.gen
 node_modules/
 out/

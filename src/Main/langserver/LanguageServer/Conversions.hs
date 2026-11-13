@@ -14,12 +14,8 @@ module LanguageServer.Conversions
   ( -- * Conversions to LSP types
     toLspPos,
     toLspRange,
-    toLspLocation,
     toLspLocationLink,
-    toLspDiagnostics,
-    toLspErrorDiagnostics,
     toLspWarningDiagnostic,
-    -- toLspUri,
     makeDiagnostic,
     filePathToUri,
     errorMessageToDiagnostic,
@@ -59,29 +55,17 @@ toLspRange r =
     J.Position l1 c1 = toLspPos $ R.rangeStart r
     J.Position l2 c2 = toLspPos $ R.rangeEnd r
 
-toLspLocation :: R.Range -> J.Location
-toLspLocation r =
-  J.Location uri (toLspRange r)
-  where
-    uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
-
-toLspLocationLink :: RangeInfo -> R.Range -> J.LocationLink
-toLspLocationLink src r =
+-- `editorUri` maps the real path of a source to the URI the editor uses (`getEditorUri`)
+toLspLocationLink :: (FilePath -> J.NormalizedUri) -> RangeInfo -> R.Range -> J.LocationLink
+toLspLocationLink editorUri src r =
   J.LocationLink Nothing uri (toLspRange r) (toLspRange r)
   where
-    uri = J.filePathToUri $ R.sourceName $ R.rangeSource r
+    uri = J.fromNormalizedUri $ editorUri $ R.sourceName $ R.rangeSource r
 
-toLspDiagnostics :: J.NormalizedUri -> Maybe T.Text -> E.Error b a -> M.Map J.NormalizedUri [J.Diagnostic]
-toLspDiagnostics uri src err =
-  case E.checkError err of
-    Right (_, E.Errors ws) -> M.unions (map (toLspErrorDiagnostics uri src) ws)
-        -- M.fromList $ map (\(r, doc) -> (uriFromRange r uri, [toLspWarningDiagnostic src r doc])) ws
-    Left (E.Errors errs) -> M.unions (map (toLspErrorDiagnostics uri src) errs)
-
-
-errorMessageToDiagnostic :: Maybe T.Text -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
-errorMessageToDiagnostic errSource defaultUri e
-  = (uriFromRange (E.errRange e) defaultUri,
+-- `editorUri` maps the real path of a source to the URI the editor uses (`getEditorUri`)
+errorMessageToDiagnostic :: Maybe T.Text -> (FilePath -> J.NormalizedUri) -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
+errorMessageToDiagnostic errSource editorUri defaultUri e
+  = (let src = R.rangeSource (E.errRange e) in if src == sourceNull then defaultUri else editorUri (sourceName src),
      [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errRange e) (E.errMessage e)] )
   where
     toSeverity sev
@@ -89,21 +73,6 @@ errorMessageToDiagnostic errSource defaultUri e
               E.SevError   -> J.DiagnosticSeverity_Error
               E.SevWarning -> J.DiagnosticSeverity_Warning
               _            -> J.DiagnosticSeverity_Information
-
-toLspErrorDiagnostics :: J.NormalizedUri -> Maybe T.Text -> E.ErrorMessage -> M.Map J.NormalizedUri [J.Diagnostic]
-toLspErrorDiagnostics uri src e =
-  M.singleton (uriFromRange (E.errRange e) uri)
-    [makeDiagnostic (toSeverity (E.errSeverity e)) src (E.errRange e) (E.errMessage e)]
-  where
-    toSeverity sev
-      = case sev of
-          E.SevError   -> J.DiagnosticSeverity_Error
-          E.SevWarning -> J.DiagnosticSeverity_Warning
-          _            -> J.DiagnosticSeverity_Information
-
-uriFromRange :: R.Range -> J.NormalizedUri -> J.NormalizedUri
-uriFromRange r uri =
-  if R.rangeSource r == sourceNull then uri else J.toNormalizedUri $ J.filePathToUri $ sourceName (R.rangeSource r)
 
 toLspWarningDiagnostic :: Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
 toLspWarningDiagnostic diagsrc range doc
@@ -141,11 +110,6 @@ fromLspRange uri (J.Range s e) = do
 
 fromLspLocation :: J.Location -> IO R.Range
 fromLspLocation (J.Location uri rng) = fromLspRange (J.toNormalizedUri uri) rng
-
-{-
-toLspUri :: FilePath -> J.NormalizedUri
-toLspUri = J.toNormalizedUri . J.filePathToUri . normalize
--}
 
 fromLspUri :: J.NormalizedUri -> IO (Maybe FilePath)
 fromLspUri uri =
