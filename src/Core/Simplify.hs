@@ -115,31 +115,39 @@ topDown (Let dgs body)
                  in topDownLet sub acc (uniqDgs ++ [DefNonRec def{defExpr = uniqBody}] ++ dgs) body
 
     topDownLet sub acc (dg:dgs) body
-      = let sdg = subst sub dg
+      = let -- the names `dg` binds shadow the substitution for the rest of the
+            -- let (and a recursive group's own right-hand sides): names are not
+            -- always unique, as a fresh name can coincide with a binder minted
+            -- by another counter, and substituting through the rebinding would
+            -- capture its occurrences
+            sub1 = shadowSub (defGroupTNames dg) sub
+            sdg  = case dg of
+                     DefRec _ -> subst sub1 dg
+                     _        -> subst sub dg
         in case sdg of
           DefRec [def]
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                if (occursNot (defName def) (Let dgs body))
                 then -- trace ("simplify dead: " ++ show (defName def)) $
-                     topDownLet sub (acc) dgs body -- dead definition
+                     topDownLet sub1 (acc) dgs body -- dead definition
                 else -- trace ("no simplify rec def: " ++ show (defName def)) $
-                     topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+                     topDownLet sub1 (sdg:acc) dgs body -- don't inline recursive ones
           DefRec defs'
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
-               topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+               topDownLet sub1 (sdg:acc) dgs body -- don't inline recursive ones
 
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
             -> -- cannot inline effectful expressions
-               topDownLet sub (sdg:acc) dgs body
+               topDownLet sub1 (sdg:acc) dgs body
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
              -> -- trace ("simplify let: " ++ show x ++ " = " ++ show se) $
                 do maxSmallOccur <- getDuplicationMax  -- should be 10 or higher to inline partial bind applications
-                   let inlineExpr = topDownLet (extend (TName x tp, se) sub) acc dgs body
+                   let inlineExpr = topDownLet (extend (TName x tp, se) sub1) acc dgs body
                    case occurrencesOf x (Let dgs body) of
                      -- no occurrence, disregard
                      Occur 0 m n 0
                        -> -- trace "no occurrence" $
-                          topDownLet sub (acc) dgs body
+                          topDownLet sub1 (acc) dgs body
                      -- occurs once, always inline (TODO: maybe only if it is not very big?)
                      Occur acnt m n vcnt | vcnt + acnt == 1
                        -> -- trace "occurs once: inline" $
@@ -160,7 +168,7 @@ topDown (Let dgs body)
 
                      -- dont inline
                      oc -> -- trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
-                           topDownLet sub (sdg:acc) dgs body
+                           topDownLet sub1 (sdg:acc) dgs body
 
 
 -- Remove assertions if optimized
@@ -205,7 +213,7 @@ topDown expr@(App app@(TypeApp (Var _ (InfoExternal "#1")) _) [arg])
 
 -- Direct function applications
 topDown expr@(App (Lam pars eff body) args) | length pars == length args
-  = do newNames <- mapM uniqueTName pars
+  = do newNames <- mapM (uniqueTNameAvoiding (boundNames body)) pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
            expr' = makeLet (zipWith makeDef newNames args) (sub |~> body)
        return expr'
@@ -219,7 +227,7 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args)
   | length pars == length args && length tpars == length targs
   = do let tsub    = subNew (zip tpars targs)
        newNames <- -- trace ("topDown function app: " ++ show (zip tpars targs) ++ "\n expr:" ++ show expr) $
-                   mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
+                   mapM (uniqueTNameAvoiding (boundNames body)) [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
        let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
        let newexpr = (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))
        -- trace (" topDown: new expr: " ++ show newexpr) $
@@ -907,6 +915,39 @@ uniqueTName (TName name tp)
   = do i <- unique
        return (TName (toUniqueName i name) tp)
 
+-- Drop the substituted names that a binder rebinds (see `topDownLet`).
+shadowSub :: TNames -> [(TName,Expr)] -> [(TName,Expr)]
+shadowSub bound sub
+  = [(name,e) | (name,e) <- sub, not (S.member name bound)]
+
+-- A fresh name that is also not in `avoid`. `unique` is fresh only with respect
+-- to this module's counter, but an inlined body's binders were named by another
+-- module's counter, which starts from the same base, so a substituted name can
+-- be captured by one of them.
+uniqueTNameAvoiding :: TNames -> TName -> Simp TName
+uniqueTNameAvoiding avoid tname
+  = do tname' <- uniqueTName tname
+       if (tname' `S.member` avoid)
+         then uniqueTNameAvoiding avoid tname
+         else return tname'
+
+
+-- The names bound anywhere inside an expression (`bv` is not defined on `Expr`).
+boundNames :: Expr -> TNames
+boundNames expr
+  = case expr of
+      Lam pars _ body   -> S.fromList pars `S.union` boundNames body
+      App f as          -> S.unions (boundNames f : map boundNames as)
+      TypeLam _ body    -> boundNames body
+      TypeApp body _    -> boundNames body
+      Let dgs body      -> S.fromList (map defTName (flattenDefGroups dgs))
+                             `S.union` S.unions (map (boundNames . defExpr) (flattenDefGroups dgs))
+                             `S.union` boundNames body
+      Case scruts bs    -> S.unions (map boundNames scruts ++ map boundNamesBranch bs)
+      _                 -> S.empty
+  where
+    boundNamesBranch (Branch pats guards)
+      = bv pats `S.union` S.unions [boundNames t `S.union` boundNames e | Guard t e <- guards]
 
 {--------------------------------------------------------------------------
   Simplify Monad
