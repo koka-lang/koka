@@ -179,7 +179,7 @@ generalizeX contextRange range close (rho0,eff0,bodycore0)
        free0 <- freeInGamma
        let free1 = tvsUnion free0 (fuv seff0)
 
-       iccore <- tryResolveImplicitConstraints close free1
+       iccore <- mapImplicitConstraints (tryResolveImplicitConstraints close free1)
        let bodycore1 = iccore bodycore0
 
        -- normalize type
@@ -306,11 +306,11 @@ isolate rng close free ics eff
                                                  else cexpr  -- TODO: apply runST?
                             return (ics',eff',coreRun . coref' . coref)
                      else do -- traceDefDoc $ \penv -> text "cannot isolate:" <+> Pretty.ppType penv eff <+> text ", poly ics" <+> list (map (ppConstraint penv) polyIcs) <+> text ", free ics:" <+> list (map (ppConstraint penv) ics1)
-                             coref <- tryResolveImplicitConstraints close free
-                             return (ics,eff,coref)
+                             (coref,ics2) <- tryResolveImplicitConstraints close free ics
+                             return (ics2,eff,coref)
           (lab@(TApp labcon [TCon global]) : _) -> do
-            coref <- tryResolveImplicitConstraints close free
-            return (ics,eff,coref)
+            (coref,ics2) <- tryResolveImplicitConstraints close free ics
+            return (ics2,eff,coref)
           _ -> return (ics,eff,id)
 
   where
@@ -1639,9 +1639,11 @@ resolveImplicitConstraints free ics
            return $ Core.makeTDef (Core.TName (icEvidence ic) tp) evidence
 
 
-tryResolveImplicitConstraints :: Bool -> Tvs -> Inf (Core.Expr -> Core.Expr)
-tryResolveImplicitConstraints close free
-  = mapImplicitConstraints $ \ics -> tryResolve ([],[]) ics
+-- Work on the supplied constraints: isolate is called while mapImplicitConstraints
+-- has temporarily removed them from the pending store.
+tryResolveImplicitConstraints :: Bool -> Tvs -> [ImplicitConstraint] -> Inf (Core.Expr -> Core.Expr,[ImplicitConstraint])
+tryResolveImplicitConstraints close free ics
+  = tryResolve ([],[]) ics
   where
     tryResolve :: ([Core.Def],[ImplicitConstraint]) -> [ImplicitConstraint] -> Inf (Core.Expr -> Core.Expr,[ImplicitConstraint])
     tryResolve (defs,acc) []
