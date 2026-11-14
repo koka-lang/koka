@@ -40,9 +40,12 @@ static inline uint64_t kk_srandom_uint64(kk_context_t* ctx) {
     rnd = kk_srandom_round(ctx);
     kk_assert_internal(rnd != NULL && rnd->used >= 0 && rnd->used < 15);
   }
-  uint64_t* p = (uint64_t*)&rnd->output[rnd->used];
-  uint64_t x = *p;
-  *p = 0;
+  // A preceding uint32 read can leave `used` odd, so the buffer is not
+  // necessarily aligned for a uint64 read. Copy also avoids aliasing uint32s.
+  uint64_t x;
+  kk_memcpy(&x, &rnd->output[rnd->used], sizeof(x));
+  rnd->output[rnd->used] = 0;
+  rnd->output[rnd->used + 1] = 0;
   rnd->used += 2;
   return x;
 }
