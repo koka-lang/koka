@@ -75,6 +75,7 @@ prettyEnvFromFlags flags
                  , TP.verbose         = verbose flags
                  , TP.coreShowTypes   = showCoreTypes flags
                  , TP.showIds         = showTypeIds flags
+                 , TP.showFileLinks   = showFileLinks flags
                  }
 
 
@@ -142,6 +143,7 @@ showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
 
 data Flags
   = Flags{ warnShadow       :: !Bool
+         , showFileLinks    :: !Bool
          , showKinds        :: !Bool
          , showKindSigs     :: !Bool
          , showSynonyms     :: !Bool
@@ -295,6 +297,7 @@ flagsNull :: Flags
 flagsNull
   = Flags -- warnings
           True
+          False -- show file links
           -- show
           False False  -- kinds kindsigs
           False False False False -- synonyms core icore fcore
@@ -480,6 +483,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
  , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
+ , flag   []    ["showfilelinks"]  (\b f -> f{showFileLinks=b})     "show file links in error messages"
+
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
  , flag   []    ["showtypesigs"]   (\b f -> f{_showTypeSigs=b})      "show type signatures of definitions"
  , flag   []    ["showhiddentypesigs"]   (\b f -> f{showHiddenTypeSigs=b})"(implies --showtypesigs) show hidden type signatures of definitions"
@@ -838,7 +843,7 @@ processInitialOptions flags0 opts
               let flags2 = flags1{targetPlatform = (targetPlatform flags1){ tplArch = arch, tplOS = os } }
                   flags = case mode of
                             ModeInteractive _    -> flags2{evaluate = True}
-                            ModeLanguageServer _ -> flags2{genRangeMap = True}
+                            ModeLanguageServer _ -> flags2{genRangeMap = True, showFileLinks = True}
                             _                    -> flags2
               buildDir <- getKokaBuildDir (buildDir flags) (evaluate flags)
               buildTag <- if (null (buildTag flags)) then getDefaultBuildTag else return (buildTag flags)

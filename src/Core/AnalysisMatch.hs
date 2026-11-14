@@ -26,10 +26,11 @@ import Type.Type
 import Type.Pretty
 import Type.TypeVar
 import Type.Unify( runUnifyEx, unify )
+import Type.InferMonad(TypeInferErrorCode(..))
 import Core.Core
 import Core.Pretty
 
-analyzeBranches :: Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo] -> Bool -> (Bool,[(Range,Doc)],[Branch])
+analyzeBranches :: Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo] -> Bool -> (Bool,[(TypeInferErrorCode,Range,Doc)],[Branch])
 analyzeBranches newtypes defName range branches types infos isLazyMatch
   = let (exhaustive,branches',warnings)
           = matchBranches newtypes defName range branches types infos isLazyMatch
@@ -61,7 +62,7 @@ instance Pretty Match where
                         | (cinfo,ms) <- cmatches])
   pretty (MatchComplete _) = text "<complete>"
 
-type Warnings = [(Range,Doc)]
+type Warnings = [(TypeInferErrorCode,Range,Doc)]
 
 
 dataInfoGetConInfos :: Bool -> DataInfo -> [ConInfo]
@@ -101,16 +102,16 @@ matchBranch newtypes defName range matches patTps branch@(Branch patterns guards
 
 analyzeGuards :: Range -> [Guard] -> Warnings
 analyzeGuards range (Guard test expr : guards)  | isExprTrue test && not (null guards)
-  = [(range, text "Some guards in the branches will never be reached")]
+  = [(TypeInferGuardUnreachable, range, text "Some guards in the branches will never be reached")]
 analyzeGuards range (Guard test expr : guards)  | isExprFalse test
-  = [(range, text "Some guard condition in the branches is never true")] ++ analyzeGuards range guards
+  = [(TypeInferGuardAlwaysFalse, range, text "Some guard condition in the branches is never true")] ++ analyzeGuards range guards
 analyzeGuards range (g:gs) = analyzeGuards range gs
 analyzeGuards range []     = []
 
 matchPattern :: Newtypes -> Name -> Range -> Bool -> (Match,Type,Pattern) -> (Match,Pattern,Warnings)
 matchPattern newtypes defName range top (m@(MatchComplete _), tp, pat)
   = -- already full matched
-    let warnings = if top then [(range,text "Some branches in the match will never be reached:" <+> text (show pat))] else []
+    let warnings = if top then [(TypeInferBranchUnreachable, range,text "Some branches in the match will never be reached:" <+> text (show pat))] else []
     in (m, pat, warnings)
 matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat)
   = case pat of
