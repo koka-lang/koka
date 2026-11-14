@@ -92,7 +92,7 @@ fun read() {
 }
 
 fun reader(init,action) {
-  read-handle( Reader-hnd( clause-control0(fn(k){ k(init) } )), id, action)
+  read-handle( ReaderHnd( clause-control0(fn(k){ k(init) } )), id, action)
 }
 
 // State

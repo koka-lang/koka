@@ -47,7 +47,7 @@ pub fun sfc-step( sfc : sfc ) : sfc-result
   match sfc
     Sfc(x,y,z,cnt) ->
       val res = x + y + cnt
-      Sfc-result( res, Sfc( y ^ shr(y,9),
+      SfcResult( res, Sfc( y ^ shr(y,9),
                             z + shl(z,3),
                             rotl(z,21) + res,
                             cnt + 1.int32 ))
