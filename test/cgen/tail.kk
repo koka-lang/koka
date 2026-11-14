@@ -1,4 +1,4 @@
-// https://github.com/koka-lang/koka/issues/399
+// https://github.com/koka-lang/koka/issues/399: imported by tail2.kk, which loads it from the .kki
 import std/num/float64
 
 fun min-by(l : list<a>, ordering : a -> float64, default : a) : a

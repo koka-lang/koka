@@ -310,6 +310,8 @@ main = do
   runKoka stdcfg "" "test/cgen/specbox-lib.kk"
   -- precompile the syn-nested chain so syn-nested1 emits only its own core
   runKoka stdcfg "" "test/parc/syn-nested1c.kk"
+  -- precompile tail so test/cgen/tail2.kk loads it from the .kki (issue #399 was in that parse)
+  runKoka stdcfg "" "test/cgen/tail.kk"
   runKoka stdcfg{flags = "--target=js":(flags stdcfg)} "" "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
   let spec = if target options == "names"
