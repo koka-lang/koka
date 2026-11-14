@@ -98,14 +98,20 @@ async function checkCompilerUpdate(context: vscode.ExtensionContext, vsConfig: v
   if (semver.neq(prevCompilerVersion, kokaConfig.versionManager.compilerVersion)) {
     // first time activation after an update/install of the compiler
     await context.globalState.update('koka-compiler-version', kokaConfig.versionManager.compilerVersion)
-    onCompilerUpdate()
+    onCompilerUpdate(context, kokaConfig)
   }
 }
 
 // Called after initial install and later updates of the compiler
-async function onCompilerUpdate() {
+async function onCompilerUpdate(context: vscode.ExtensionContext, kokaConfig: KokaConfig) {
   console.log("Koka: compiler is updated")
-  await vscode.commands.executeCommand('koka.openSamples')
+  // the samples open in a new window, which is only wanted for an installed compiler:
+  // a development build's version changes all the time, and a test run starts with a
+  // fresh profile
+  const isDevelopmentBuild = kokaConfig.versionManager.compilerPath.includes(".stack-work")
+  if (context.extensionMode === vscode.ExtensionMode.Production && !isDevelopmentBuild) {
+    await vscode.commands.executeCommand('koka.openSamples')
+  }
   await vscode.commands.executeCommand('koka.whatsnew')
 }
 

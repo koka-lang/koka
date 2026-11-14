@@ -24,14 +24,14 @@ module LanguageServer.Monad
     updateConfig,
     getInlayHintOptions,
     runLSM,
-    getProgress, setProgress, maybeContents,
+    getProgress, setProgress,
 
     liftBuild, liftBuildWith,
     lookupModuleName, lookupRangeMap, lookupProgram, lookupLexemes,
     lookupDefinitions, lookupVisibleDefinitions, Definitions(..),
     lookupModulePaths,
     getPrettyEnv, getPrettyEnvFor, prettyMarkdown,
-    emitInfo, emitNotification, getVirtualFileVersion
+    emitInfo, emitNotification, getVirtualFileVersion, getEditorUri
 
   )
 where
@@ -53,7 +53,8 @@ import qualified Data.ByteString as D
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import Data.Maybe (fromMaybe, isJust, isNothing)
-import Data.List (find)
+import Data.List (find, isPrefixOf, maximumBy)
+import Data.Ord (comparing)
 import Data.Aeson.Types
 import Language.LSP.Server (LanguageContextEnv, LspT, runLspT, sendNotification, Handlers)
 import qualified Language.LSP.Protocol.Types as J
@@ -65,7 +66,7 @@ import qualified Lib.PPrint as PP
 import Lib.Printer
 import Common.ColorScheme ( colorSource, ColorScheme, darkColorScheme, lightColorScheme )
 import Common.Name (nameNil, Name, readQualifiedName, ModuleName)
-import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime )
+import Common.File ( realPath, normalize, getCwd, realPath, normalize, getCurrentTime, joinPath )
 import Common.Error
 
 import Syntax.Syntax( UserProgram )
@@ -76,7 +77,7 @@ import qualified Type.Pretty as TP
 import Compile.Options (Flags (..), flagsHash, prettyEnvFromFlags, verbose, Terminal(..))
 import Compile.Build(VFS,vfsFromList)
 import Compile.BuildContext
-import LanguageServer.Conversions ({-toLspUri,-} fromLspUri)
+import LanguageServer.Conversions (fromLspUri, filePathToUri)
 
 import Data.Map.Strict(Map)
 import Data.ByteString (ByteString)
@@ -98,6 +99,7 @@ data LSState = LSState {
   cancelledRequests :: !(TVar (Set.Set J.SomeLspId)),
   documentVersions  :: !(TVar (M.Map J.NormalizedUri J.Int32)),
   documentInfos     :: !(M.Map J.NormalizedUri (D.ByteString, FileTime, J.Int32)),
+  diagnosedUris     :: !(Set.Set J.NormalizedUri),  -- documents whose last published diagnostics are not empty
   signatureContext  :: !(Maybe SignatureContext),
   config            :: !Config
 }
@@ -178,7 +180,7 @@ defaultLSState flags = do
     buildContext = buildcEmpty flags,
     messages = msgChan, progress=progressChan, pendingRequests=pendingRequests, cancelledRequests=cancelledRequests,
     terminal = term, htmlPrinter = htmlTextColorPrinter, flags = flags,
-    documentInfos = M.empty, documentVersions = fileVersions,
+    documentInfos = M.empty, documentVersions = fileVersions, diagnosedUris = Set.empty,
     signatureContext = Nothing, progressReport = Nothing,
     config = Config{
       langServerOpts = LanguageServerOptions{
@@ -315,34 +317,54 @@ getColorScheme = colorScheme <$> getFlags
 
 
 
--- Retreives a file from the virtual file system, returning the contents and the last modified time
-maybeContents :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> FilePath -> Maybe (ByteString, FileTime)
-maybeContents vfs path = do
-  -- trace ("Maybe contents " ++ show uri ++ " " ++ show (M.keys vfs)) $ return ()
-  -- Try file:// URI first (native LSP), then inmemory:// (browser playground)
-  let fileUri = J.toNormalizedUri $ J.filePathToUri path
-  case M.lookup fileUri vfs of
-    Just (text, ftime, _vers) -> Just (text, ftime)
-    Nothing ->
-      -- For browser playground: path like "/main.kk" should match "inmemory://playground/main.kk"
-      -- Try matching by suffix across all inmemory:// entries
-      let isMatch (_uri, _) = T.pack path `T.isSuffixOf` J.getUri (J.fromNormalizedUri _uri)
-      in case filter isMatch (M.toList vfs) of
-           ((_, (text, ftime, _)):_) -> Just (text, ftime)
-           _                         -> Nothing
+-- | The URI the editor uses for a source file named by its real path, as the build names
+-- its sources (see `mapToVFS`): the open document with that real path; otherwise the
+-- file under the workspace folder (or root path) whose real path is the longest prefix,
+-- as a workspace folder may be reached through a symbolic link; otherwise the real path.
+getEditorUri :: LSM (FilePath -> J.NormalizedUri)
+getEditorUri
+  = do ls <- getLSState
+       docs <- liftIO $ mapM (\uri -> do mbpath <- fromLspUri uri
+                                         return [(fpath,uri) | Just fpath <- [mbpath]])
+                             (M.keys (documentInfos ls))
+       mbFolders <- J.getWorkspaceFolders
+       mbRoot    <- J.getRootPath
+       let editorDirs = case mbFolders of
+                          Just folders -> [dir | J.WorkspaceFolder furi _ <- folders, Just dir <- [J.uriToFilePath furi]]
+                          Nothing      -> maybe [] (\root -> [root]) mbRoot
+       dirs <- liftIO $ mapM (\dir -> do real <- realPath dir
+                                         return (real,dir)) editorDirs
+       let docUris = M.fromList (concat docs)
+           toUri fpath = J.toNormalizedUri (filePathToUri fpath)
+           editorUri fpath
+             = case M.lookup fpath docUris of
+                 Just uri -> uri
+                 Nothing  -> case [(real,dir) | (real,dir) <- dirs, (real ++ "/") `isPrefixOf` fpath] of
+                               []      -> toUri fpath
+                               matches -> let (real,dir) = maximumBy (comparing (length . fst)) matches
+                                          in toUri (joinPath dir (drop (length real + 1) fpath))
+       return editorUri
 
-mapToVFS :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> VFS
+-- Each document is keyed by the path the build uses for it: `fromLspUri` resolves
+-- symbolic links and normalizes, as the build does for its sources. A key taken
+-- directly from the URI misses through a symbolic link, or on Windows (backslashes),
+-- and the build then reads the file from disk instead of the editor buffer.
+mapToVFS :: Map J.NormalizedUri (ByteString, FileTime, J.Int32) -> IO VFS
 mapToVFS vmap
-  = vfsFromList [(fpath,(content,ftime)) | (furi,(content,ftime,_)) <- M.toList vmap, let Just fpath = J.uriToFilePath (J.fromNormalizedUri furi)]
+  = do files <- mapM keyed (M.toList vmap)
+       return (vfsFromList (concat files))
+  where
+    keyed (furi,(content,ftime,_))
+      = do mbpath <- fromLspUri furi
+           return [(fpath,(content,ftime)) | Just fpath <- [mbpath]]
 
 -- Run a build with optionally temporarily changed flags (this restores the original build context afterwards)
 -- (when a build context is validated, it checks itself against the current flags and rebuilds accordingly)
 liftBuildWith :: Maybe Flags -> (BuildContext -> Build (BuildContext,a)) -> LSM (Either Errors (a,Errors))
 liftBuildWith mbFlags action
   = do ls <- getLSState
-       let vfs  = -- VFS (\fpath -> maybeContents (documentInfos ls) fpath)
-                  mapToVFS (documentInfos ls)
-           flgs = case mbFlags of
+       vfs <- liftIO $ mapToVFS (documentInfos ls)
+       let flgs = case mbFlags of
                     Nothing    -> flags ls
                     Just flags -> flags
        res <- seq flgs $ seq vfs $ liftIO $ runBuild (terminal ls) flgs $ withVFS vfs $ action (buildContext ls)

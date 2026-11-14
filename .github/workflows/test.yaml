@@ -70,6 +70,15 @@ jobs:
           stack-build-arguments: "--fast"
           cache-save-always: true
 
+      # VS Code extension tests (support/vscode/koka.language-koka/src/test) on the compiler just built
+      - name: Test VS Code extension
+        working-directory: support/vscode/koka.language-koka
+        shell: bash
+        run: |
+          npm install --no-audit --no-fund
+          export KOKA_COMPILER="$(stack path --local-install-root)/bin/koka$([ "$RUNNER_OS" = Windows ] && echo .exe)"
+          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a npm test; else npm test; fi
+
       # Run tests
       - name: Run test suite
         if: runner.os != 'macOS'

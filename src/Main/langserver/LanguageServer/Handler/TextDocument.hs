@@ -34,13 +34,14 @@ import Data.Maybe (fromJust, fromMaybe)
 import Data.List(isSuffixOf)
 import Data.Functor ((<&>))
 import qualified Data.Map as M
+import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 import Language.LSP.Diagnostics (partitionBySource)
-import Language.LSP.Server (Handlers, flushDiagnosticsBySource, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler, withProgress, ProgressCancellable (..))
+import Language.LSP.Server (Handlers, publishDiagnostics, sendNotification, getVirtualFile, getVirtualFiles, notificationHandler, withProgress, ProgressCancellable (..))
 import Language.LSP.VFS (virtualFileText, VFS(..), VirtualFile, VirtualFileEntry(..), file_version, virtualFileVersion)
 import Lib.PPrint (text, (<->), (<+>), color, Color (..))
 
@@ -55,11 +56,12 @@ import LanguageServer.Monad
     ( getFlags,
       getLSState,
       getVirtualFileVersion,
+      getEditorUri,
       liftBuildWith,
       modifyLSState,
       setProgress,
       LSM,
-      LSState(documentInfos) )
+      LSState(documentInfos, diagnosedUris) )
 import qualified Language.LSP.Server as J
 import Compile.Build (searchSourceFile)
 import Platform.Config (sourceExtension)
@@ -195,28 +197,37 @@ rebuildFile mbFlags mbRun uri fpath
 -- Run a build monad and emit diagnostics if needed.
 liftBuildDiag :: Maybe Flags -> J.NormalizedUri -> (BuildContext -> Build (BuildContext,a)) -> LSM (Maybe a)
 liftBuildDiag mbflags defaultUri build
-  = do flags <- getFlags
-       flushDiagnosticsBySource (maxErrors flags) diagSourceKoka
-       res <- liftBuildWith mbflags build
+  = do res <- liftBuildWith mbflags build
        case res of
          Right (x,errs) -> do diagnoseErrors defaultUri (errors errs)
                               return (Just x)
          Left errs      -> do diagnoseErrors defaultUri (errors errs)
                               return Nothing
 
--- A build retains all errors over all loaded modules, so we can always publish all
+-- A build retains all errors over all loaded modules, so we can always publish all,
+-- including those of files that are not open. An error is published under the URI the
+-- editor uses for its file (`getEditorUri`), which may go through a symbolic link.
+-- Each file that had or has diagnostics is published with its current version (if it
+-- is open), including an empty list once its errors are gone: a client may drop a
+-- notification for an older version, which is the version `flushDiagnosticsBySource`
+-- would send. The explicit (possibly empty) entry for our source replaces the stored
+-- diagnostics even when the version is unchanged.
 diagnoseErrors :: J.NormalizedUri -> [ErrorMessage] -> LSM ()
 diagnoseErrors defaultUri errs
   = (if null errs then id else trace ("koka errors: " ++ unlines (map show errs))) $
     do flags <- getFlags
+       editorUri <- getEditorUri
        let diagSource = diagSourceKoka
            maxDiags   = maxErrors flags
-           diagss     = M.toList $ M.map partitionBySource $ M.fromListWith (++) $  -- group all errors per file uri
-                        map (errorMessageToDiagnostic diagSource defaultUri) errs
-       -- flushDiagnosticsBySource maxDiags diagSource
-       mapM_ (\(uri, diags) -> if null diags then return ()
-                                else do mversion <- getVirtualFileVersion uri
-                                        publishDiagnostics maxDiags uri mversion diags) diagss
+           diagss     = M.filter (not . null) $ M.fromListWith (++) $  -- group all errors per file uri
+                        map (errorMessageToDiagnostic diagSource editorUri defaultUri) errs
+       previous <- diagnosedUris <$> getLSState
+       mapM_ (\uri -> do let diags = M.insertWith (\_ old -> old) diagSource mempty $
+                                     partitionBySource (M.findWithDefault [] uri diagss)
+                         mversion <- getVirtualFileVersion uri
+                         publishDiagnostics maxDiags uri mversion diags)
+             (S.toList (S.union previous (M.keysSet diagss)))
+       modifyLSState (\ls -> ls{ diagnosedUris = M.keysSet diagss })
 
 diagSourceKoka :: Maybe T.Text
 diagSourceKoka
