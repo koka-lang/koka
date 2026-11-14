@@ -402,6 +402,15 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 emitToH (text "#define" <+> ppName name <+> parens (text "(double)" <.> parens flt))
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit (block doc)  -- must be scoped to avoid name clashes
+                                -- A toplevel constant is used from every thread: `@init` makes each block of
+                                -- its heap graph stuck, unless the block is thread-shared already. Boxing
+                                -- gives one handle for every type; where boxing allocates (a value struct)
+                                -- that box becomes stuck as well and is never freed.
+                                let counted = case cType tp of
+                                                CPrim val -> val `elem` ["kk_integer_t","kk_bytes_t","kk_string_t","kk_vector_t","kk_ref_t","kk_box_t"]
+                                                _         -> True
+                                when counted $
+                                  emitToInit (text "kk_box_mark_static" <.> arguments [genBoxCall tp (ppName name)] <.> semi)
                                 case genDupDropCall False {-drop-} tp (ppName name) of
                                   []   -> return ()
                                   docs -> emitToDone (hcat docs <.> semi)
