@@ -145,10 +145,11 @@ matchArguments matchSome range free tp fixed named mbExpResTp
                         then do subst rho1
                         else unifyError NoMatch
 
-subsumeSubst :: Range -> Tvs -> Type -> Type -> Unify (Type,Rho, Core.Expr -> Core.Expr)
+subsumeSubst :: HasCallStack => Range -> Tvs -> Type -> Type -> Unify (Type,Rho, Core.Expr -> Core.Expr)
 subsumeSubst range free tp1 tp2
   = do stp1 <- subst tp1
        stp2 <- subst tp2
+       -- trace ("subsumeSubst: " ++ show (pretty stp1, pretty stp2)) $ return ()
        subsume range free stp1 stp2
 
 -- | See if two types match exactly up to renaming of free type variables
@@ -186,8 +187,11 @@ subsume range free tp1 tp2
     do -- skolemize,instantiate and unify
        (sks,rho1,core1) <- skolemizeEx range tp1
        (tvs,rho2,core2) <- instantiateEx range tp2
+       -- We can remove the implicit requirements from the type as they will be resolved later
+       -- we just need to know if the "shape" will match after implicits are resolved
+       -- TODO: Should we also unOptional here, instead of in type matching?
        -- trace ("  subsume: " ++ show (pretty rho1, pretty rho2) ++ ", free: " ++ show (map pretty (tvsList free))) $ return ()
-       unify rho2 rho1
+       unify (unImplicit rho2) (unImplicit rho1)
 
        -- escape check: no skolems should escape into the environment
        -- entailment check: predicates should be entailed
