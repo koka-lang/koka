@@ -158,7 +158,7 @@ module Common.NamePrim
 
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
-          , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew
+          , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew, nameLocalUpdate
 
 
           , nameTpOptional
@@ -404,6 +404,7 @@ nameAssign      = newHiddenName "@assign"  -- used for :=
 nameRefSet      = coreTypesName "set"
 nameLocalSet    = coreTypesName "local-set"
 nameLocalGet    = coreTypesName "local-get"
+nameLocalUpdate = newLocallyQualified "std/core/types" "local-var" "update"
 nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
 nameByref       = coreTypesName "@byref"
 

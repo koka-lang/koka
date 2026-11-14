@@ -381,6 +381,31 @@ pub inline extern modify<h,a,b,e>( ref : ref<h,a>, f : forall<s> local-var<s,a> 
   c  inline "kk_ref_modify(#1,#2,kk_context())"
   js inline "((#2)(#1))"
 
+// Replace the value of a reference with `update(value)`. The value is passed with
+// its ownership, so a unique value can be updated in place.
+pub inline extern ref/update<h,a>( ^ref : ref<h,a>, update : a -> a): <read<h>,write<h>> ()
+  c  "kk_ref_update_borrow"
+  js inline "((#1).value = (#2)((#1).value))"
+
+// Replace the value of a local variable with `update(value)`, as `ref/update`.
+// `x := e` on a local variable `x` that occurs in a total `e` compiles to
+// `update(x, fn(x) e)`. It is an inline function, not an external, so the
+// optimizer removes the function argument and `i := i + 1` is a load and a store.
+pub inline fun local-var/update<h,a>( ^ref : local-var<h,a>, update : a -> a): <local<h>> ()
+  unsafe-local-put(std/core/types/@byref(ref), update(unsafe-local-take(std/core/types/@byref(ref))))
+
+// Move the value out of a local variable without a reference count. The variable
+// holds a stale value until `unsafe-local-put` stores the next one, so nothing may
+// read it in between: in `local-var/update` the total `update` cannot.
+inline extern unsafe-local-take<h,a>( ^ref : local-var<h,a> ) : <local<h>> a
+  c  inline "kk_ref_unsafe_take_borrow(#1,kk_context())"
+  js inline "((#1).value)"
+
+// Store the value taken by `unsafe-local-take` without dropping the old one.
+inline extern unsafe-local-put<h,a>( ^ref : local-var<h,a>, value : a ) : <local<h>> ()
+  c  inline "kk_ref_unsafe_put_borrow(#1,#2,kk_context())"
+  js inline "((#1).value = #2)"
+
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 pub extern run<e,a>( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) : e a

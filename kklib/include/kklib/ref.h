@@ -22,6 +22,7 @@ typedef kk_datatype_ptr_t kk_ref_t;
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(struct kk_ref_s* r, kk_context_t* ctx);
 kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(struct kk_ref_s* r, kk_box_t value, kk_context_t* ctx);
 kk_decl_export kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_ssize_t idx, kk_box_t value, kk_context_t* ctx);
+kk_decl_export kk_unit_t kk_ref_update_borrow(kk_ref_t _r, kk_function_t update, kk_context_t* ctx);
 
 static inline kk_decl_const kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   kk_unused(ctx);
@@ -80,6 +81,34 @@ static inline kk_box_t kk_ref_swap_borrow(kk_ref_t _r, kk_box_t value, kk_contex
 static inline kk_unit_t kk_ref_set_borrow(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
   kk_box_t b = kk_ref_swap_borrow(r, value, ctx);
   kk_box_drop(b, ctx);
+  return kk_Unit;
+}
+
+// Unsafe: `kk_ref_unsafe_take_borrow` moves the value out of a reference that is
+// not thread shared, and `kk_ref_unsafe_put_borrow` stores the next one without
+// dropping the moved value; between the two the reference holds a stale value and
+// must not be read. On a thread-shared reference they are a `get` (dup) and a `set`
+// (drop), so a take/put pair is correct either way. Used only by `local-var/update`
+// through `unsafe-local-take` and `unsafe-local-put` in `std/core/types`.
+static inline kk_box_t kk_ref_unsafe_take_borrow(kk_ref_t _r, kk_context_t* ctx) {
+  struct kk_ref_s* r = kk_datatype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
+  if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
+    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    return b;
+  }
+  else {
+    return kk_ref_get_thread_shared(r,ctx);
+  }
+}
+
+static inline kk_unit_t kk_ref_unsafe_put_borrow(kk_ref_t _r, kk_box_t value, kk_context_t* ctx) {
+  struct kk_ref_s* r = kk_datatype_as_assert(struct kk_ref_s*, _r, KK_TAG_REF, ctx);
+  if kk_likely(!kk_block_is_thread_shared(&r->_block)) {
+    kk_atomic_store_relaxed(&r->value, value.box);
+  }
+  else {
+    kk_box_drop(kk_ref_swap_thread_shared_borrow(r, value, ctx), ctx);
+  }
   return kk_Unit;
 }
 
