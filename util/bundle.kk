@@ -188,7 +188,7 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
   val contribdir = sharedir / "contrib"
   println("copy contrib...")
   ensure-dir(contribdir)
-  copy-directory-except("support/vscode".path, contribdir / "vscode",  fn(p) ["node_modules","dist","out","package-lock.json"].contains(p.basename) )
+  copy-directory-except("support/vscode".path, contribdir / "vscode",  fn(p) ["node_modules","dist","out","package-lock.json",".vscode-test"].contains(p.basename) )
   copy-directory("support/emacs".path, contribdir / "emacs")
   copy-directory("support/vim".path, contribdir / "vim")
 
