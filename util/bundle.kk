@@ -63,7 +63,18 @@ pub fun process-flags() : <ndet,console> maybe<iflags>
     Nothing
 
 
+// Exit with a non-zero code when bundling fails: the default handler only prints an uncaught
+// exception and exits with 0, so CI did not notice when `util/link-std` failed to link.
+extern exit-failure() : io ()
+  c inline "exit(1)"
+
 fun main()
+  with final ctl throw-exn( exn : exception )
+    println("error: " ++ exn.show)
+    exit-failure()
+  bundle-main()
+
+fun bundle-main()
   if !is-directory("kklib".path) then
     println("you can only run 'util/bundle' from the koka root directory")
     println(flag-descs.usage(header))

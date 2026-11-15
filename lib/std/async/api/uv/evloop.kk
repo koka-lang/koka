@@ -13,7 +13,7 @@ extern import
   c[host=libc] { vcpkg="libuv"; library="uv" }
 
 extern import
-  c[host=libc,os=windows] { syslib="user32;iphlpapi;userenv;ws2_32;dbghelp;ole32;uuid" }
+  c[host=libc,os=windows] { syslib="user32;iphlpapi;userenv;ws2_32;dbghelp;ole32;uuid;synchronization" }
 
 extern import
   c { header-file="evloop.h"; file="evloop.c" }
