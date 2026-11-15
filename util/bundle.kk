@@ -63,7 +63,18 @@ pub fun process-flags() : <ndet,console> maybe<iflags>
     Nothing
 
 
+// Exit with a non-zero code when bundling fails: the default handler only prints an uncaught
+// exception and exits with 0, so CI did not notice when `util/link-std` failed to link.
+extern exit-failure() : io ()
+  c inline "exit(1)"
+
 fun main()
+  with final ctl throw-exn( exn : exception )
+    println("error: " ++ exn.show)
+    exit-failure()
+  bundle-main()
+
+fun bundle-main()
   if !is-directory("kklib".path) then
     println("you can only run 'util/bundle' from the koka root directory")
     println(flag-descs.usage(header))
@@ -177,7 +188,7 @@ fun bundle( prefixdir : path, extrametadir : string, solibsdir : string, cc : st
   val contribdir = sharedir / "contrib"
   println("copy contrib...")
   ensure-dir(contribdir)
-  copy-directory-except("support/vscode".path, contribdir / "vscode",  fn(p) ["node_modules","dist","out","package-lock.json"].contains(p.basename) )
+  copy-directory-except("support/vscode".path, contribdir / "vscode",  fn(p) ["node_modules","dist","out","package-lock.json",".vscode-test"].contains(p.basename) )
   copy-directory("support/emacs".path, contribdir / "emacs")
   copy-directory("support/vim".path, contribdir / "vim")
 
