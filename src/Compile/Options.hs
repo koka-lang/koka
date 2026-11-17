@@ -1226,7 +1226,7 @@ ccGcc name path hasOptG
       = -- unfortunately, these flags are not as widely supported as one may hope so we only enable at -O2 or higher
         if (opt < 2) then []
         else if (cpuArch=="x64") then ["-march=haswell","-mtune=native"]    -- Haswell (2013) = x86-64-v3: popcnt, lzcnt, tzcnt, pdep, pext
-        else if (cpuArch=="arm64") then ["-march=armv8.1-a+crypto+aes","-mtune=native"]  -- popcnt, simd, lse, pmull (+aes)
+        else if (cpuArch=="arm64") then ["-march=armv8.3-a+crypto+aes","-mtune=native"]  -- popcnt, simd, lse, pmull (+aes), ldapr
         else []
 
 ccMsvc :: String -> FilePath -> CC
@@ -1279,7 +1279,10 @@ ccFromPath flags path
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn
                                      ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align"
-                                     ++ (if onMacOS && targetArch flags == "arm64" then ["-Wno-unknown-warning-option"] else [])
+                                     ++ (if onMacOS && targetArch flags == "arm64" then ["-Wno-unknown-warning-option"] else []),
+                       ccFlagsOpt  = \opt cpuArch -> ccFlagsOpt gcc opt cpuArch
+                                     ++ (if onMacOS && opt >= 2 && cpuArch == "arm64" then ["-mno-outline -Xclang -fno-split-cold-code"] else [])
+
                      }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
