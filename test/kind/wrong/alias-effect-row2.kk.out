@@ -1,0 +1,10 @@
+test/kind/wrong/alias-effect-row2@kk(8,34): kind error: Invalid type
+ type context : stream<a,div>
+ type : div
+ inferred kind: X
+ expected kind: E
+test/kind/wrong/alias-effect-row2@kk(8,25): kind error: Invalid type
+ type context : stream<a,div>
+ type : stream<a,div>
+ inferred kind: X
+ expected kind: E

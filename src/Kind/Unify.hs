@@ -8,7 +8,7 @@
 {--}
 -----------------------------------------------------------------------------
 
-module Kind.Unify( Context(..), unify, mgu, match ) where
+module Kind.Unify( Context(..), Unify(..), unify, kindError, mgu, match ) where
 
 import Lib.PPrint
 import Common.Range
