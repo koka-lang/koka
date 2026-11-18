@@ -40,16 +40,17 @@ import Type.Type
 import Type.Pretty as Pretty
 import Type.TypeVar
 import Type.Assumption( Gamma, gammaLookupQ, infoType )
+import Type.InferMonad(TypeInferErrorCode(..))
 import Core.Core
 import Core.Pretty
 
 -- take a context and check if it is well-formed and return a well-typed context expression
-analyzeCCtx :: TargetPlatform -> Range -> Newtypes -> Gamma -> Expr -> (Int -> ((Expr,[(Range,Doc)]),Int))
+analyzeCCtx :: TargetPlatform -> Range -> Newtypes -> Gamma -> Expr -> (Int -> ((Expr,[(TypeInferErrorCode,Range,Doc)]),Int))
 analyzeCCtx tpl rng newtypes gamma expr uniq
   = let (res,uniq') = runCCtx tpl rng newtypes gamma uniq (cctxCreate expr)
     in case res of
          Right e   -> ((e,[]),uniq')
-         Left errs -> let errs' = if null errs then [(rng,text "ill-formed context")]
+         Left errs -> let errs' = if null errs then [(TypeErrorCCtxIllFormed,rng,text "ill-formed context")]
                                                else errs
                       in ((makeCCtxEmpty gamma tpl (typeOf expr),errs'),uniq)
 
@@ -138,7 +139,7 @@ cctxCheckNoHole expr
     return ()
 
 
-cctxFind :: [(Range,Doc)] -> [Expr] -> [Expr] -> CCtx ([Expr],Ctx,[Expr])
+cctxFind :: [(TypeInferErrorCode,Range,Doc)] -> [Expr] -> [Expr] -> CCtx ([Expr],Ctx,[Expr])
 -- no args
 cctxFind errs acc []
   = emitErrors errs
@@ -227,7 +228,7 @@ makeCCtxSetContextPath obj conName fieldName
 
 newtype CCtx a = CCtx (Int -> CCtxEnv -> Result a)
 
-runCCtx :: TargetPlatform -> Range -> Newtypes -> Gamma -> Int -> CCtx a -> (Either [(Range,Doc)] a,Int)
+runCCtx :: TargetPlatform -> Range -> Newtypes -> Gamma -> Int -> CCtx a -> (Either [(TypeInferErrorCode,Range,Doc)] a,Int)
 runCCtx tpl rng nt gamma uniq (CCtx c)
   = case (c uniq (CCtxEnv rng nt gamma tpl)) of
       Ok x u'  -> (Right x,u')
@@ -237,7 +238,7 @@ runCCtx tpl rng nt gamma uniq (CCtx c)
 
 data CCtxEnv = CCtxEnv{ rng :: !Range, newtypes :: !Newtypes, gamma :: !Gamma, tplatform :: !TargetPlatform }
 
-data Result a = Err [(Range,Doc)]
+data Result a = Err [(TypeInferErrorCode,Range,Doc)]
               | Ok a Int
 
 instance Functor CCtx where
@@ -272,12 +273,12 @@ updateEnv :: (CCtxEnv -> CCtxEnv) -> CCtx a -> CCtx a
 updateEnv f (CCtx c)
   = CCtx (\u env -> c u (f env))
 
-emitError :: Doc -> CCtx a
-emitError doc
+emitError :: TypeInferErrorCode -> Doc -> CCtx a
+emitError code doc
   = do env <- getEnv
-       emitErrors [(rng env,doc)]
+       emitErrors [(code,rng env,doc)]
 
-emitErrors :: [(Range,Doc)] -> CCtx a
+emitErrors :: [(TypeInferErrorCode,Range,Doc)] -> CCtx a
 emitErrors errs
   = do -- mtrace ("emit errors: " ++ show errs)
        (CCtx (\u env -> Err errs))
@@ -290,7 +291,7 @@ getGamma :: CCtx Gamma
 getGamma
   = gamma <$> getEnv
       
-try :: CCtx a -> CCtx (Either [(Range,Doc)] a)
+try :: CCtx a -> CCtx (Either [(TypeInferErrorCode,Range,Doc)] a)
 try (CCtx c)
   = CCtx (\u env -> case c u env of
                       Ok x u' -> Ok (Right x) u'
@@ -314,13 +315,13 @@ ensureValidHoleType :: Type -> CCtx ()
 ensureValidHoleType tp
   = do env <- getEnv
        case dataTypeNameOf tp of
-         Left (TVar{})  -> emitError (text "the hole in the constructor context has an unresolved or polymorphic type")
-         Left _         -> emitError (text "the hole in the constructor context has an invalid data type")
+         Left (TVar{})  -> emitError TypeErrorCCtxHolePolymorphicType (text "the hole in the constructor context has an unresolved or polymorphic type")
+         Left _         -> emitError TypeErrorCCtxHoleInvalidType (text "the hole in the constructor context has an invalid data type")
          Right name -> case newtypesLookupAny name (newtypes env) of
                         Just dataInfo ->
                           do let (dataRepr,_) = getDataRepr dataInfo
                              when (dataDefIsValue (dataInfoDef dataInfo) || dataReprIsValue dataRepr) $
-                               emitError (text "the hole in a constructor context cannot be a value type")
+                               emitError TypeErrorCCtxHoleValueType (text "the hole in a constructor context cannot be a value type")
                              return ()
 
 dataTypeNameOf :: Type -> Either Type Name

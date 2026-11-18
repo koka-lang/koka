@@ -190,14 +190,27 @@ fixitiesNew :: [(Name,Fixity)] -> Fixities
 fixitiesNew fs
   = M.fromList [(name,f) | (name,f@(FixInfix _ _)) <- fs]
 
+data StaticErrorCode = 
+  StaticErrorInfixOperatorAmbiguousAssociativity
+  | StaticErrorInfixOperatorTooFewArguments
+  | StaticErrorUnaryOperatorTooFewArguments
+
+instance ErrorCode StaticErrorCode where
+  codeNum StaticErrorInfixOperatorAmbiguousAssociativity = 0
+  codeNum StaticErrorInfixOperatorTooFewArguments = 1
+  codeNum StaticErrorUnaryOperatorTooFewArguments = 101
+  codeDoc StaticErrorInfixOperatorTooFewArguments = text "infix operator has not enough arguments"
+  codeDoc StaticErrorInfixOperatorAmbiguousAssociativity = text "infix operator ambiguous associativity"
+  codeDoc StaticErrorUnaryOperatorTooFewArguments = text "unary operator has not enough arguments"
+
 -- The fixity monad collects error messages and passes a fixity map
 data FixM a = FixM (Fixities -> Res a)
-data Res a  = Res !a ![(Range,Doc)]
+data Res a  = Res !a ![(StaticErrorCode,Range,Doc)]
 
 runFixM :: Fixities -> FixM a -> Error b a
 runFixM fixities (FixM f)
   = case f fixities of
-      Res x errors -> if null errors then return x else errorMsgs [errorMessageKind ErrStatic rng doc | (rng,doc) <- errors]
+      Res x errors -> if null errors then return x else errorMsgs [errorMessageKind ErrStatic rng code doc | (code,rng,doc) <- errors]
 
 instance Functor FixM where
   fmap  = liftM
@@ -216,9 +229,9 @@ getFixities :: FixM Fixities
 getFixities
   = FixM (\fm -> Res fm [])
 
-emitError :: Range -> Doc -> FixM ()
-emitError range doc
-  = FixM (\fm -> Res () [(range,doc)])
+emitError :: StaticErrorCode -> Range -> Doc -> FixM ()
+emitError code range doc
+  = FixM (\fm -> Res () [(code,range,doc)])
 
 {--------------------------------------------------------------------------
   Resolve fixities:
@@ -310,8 +323,8 @@ checkAmbigious ops t
 
 ambigious :: Fixity -> Fixity -> UserExpr -> FixM ()
 ambigious fixCtx fix op
-    = emitError (getRange op)
-                (text "Ambigious" <+> ppFixity fix <+> text "operator" <+> opText <.> text "in a"
+    = emitError StaticErrorInfixOperatorAmbiguousAssociativity (getRange op)
+                (text "Ambiguous" <+> ppFixity fix <+> text "operator" <+> opText <.> text "in a"
                   <+> ppFixity fixCtx <+> text "context" <->
                  text " hint: add parenthesis around the sub-expression to disambiguate")
     where
@@ -356,7 +369,7 @@ applyUnaryOp op (t:ts)
   = return ((App op [(Nothing, t)] (combineRanged op t)):ts)
 
 applyUnaryOp op ts
-  = do{ emitError (getRange op)
+  = do{ emitError StaticErrorUnaryOperatorTooFewArguments (getRange op)
           (text "Unary operator has not enough arguments")
       ; return ts
       }
@@ -364,7 +377,7 @@ applyUnaryOp op ts
 applyInfixOp op (t1:t2:ts)
     = return ((makeApp op t2 t1 (combineRanged t1 t2)):ts)
 applyInfixOp op ts
-    = do{ emitError (getRange op)
+    = do{ emitError StaticErrorInfixOperatorTooFewArguments (getRange op)
                     (text "Infix operator has not enough arguments")
         ; return ts
         }

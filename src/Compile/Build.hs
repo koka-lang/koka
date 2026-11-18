@@ -698,7 +698,7 @@ moduleLex mod
                             = let (dparts,mparts) = (splitName declaredModName,splitName (modName mod))
                               in if not (reverse dparts `isPrefixOf` reverse mparts)
                                   then ("",
-                                        errorsSingle $ errorMessageKind ErrStatic rng $
+                                        errorsSingle $ errorMessageKind ErrStatic rng BuildErrorModuleNameNotSuffixOfPath $
                                                       text "the module name" <+> TP.ppName penv declaredModName <+>
                                                       text "is not a suffix of the expected name" <+> TP.ppName penv (modName mod))
                                   else let updirs = concat ["/.." | _ <- init dparts]
@@ -853,7 +853,7 @@ moduleFromModuleName parent {- relativeDir -} modName modNameRng
                   ifaceExist <- buildDoesFileExistAndNotEmpty ifacePath
                   if ifaceExist
                     then do cs <- getColorScheme
-                            addWarningMessage (warningMessageKind ErrBuild modNameRng (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
+                            addWarningMessage (warningMessageKind ErrBuild modNameRng BuildErrorInterfaceMissingSource (text "interface" <+> color (colorModule cs) (pretty modName) <+> text "found but no corresponding source module"))
                             moduleValidate $ moduleCreateInitial modName "" ifacePath libIfacePath
                     else throwModuleNotFound parent "" modNameRng modName
 
@@ -968,7 +968,7 @@ throwModuleNotFound :: ModuleName -> FilePath -> Range -> Name -> Build a
 throwModuleNotFound parent relativeDir range name
   = do flags <- getFlags
        vfs <- envVFS <$> getEnv       
-       throwError (\penv -> errorMessageKind ErrBuild range (errorNotFound relativeDir flags colorModule "module" vfs 
+       throwError (\penv -> errorMessageKind ErrBuild range BuildErrorModuleNotFound (errorNotFound relativeDir flags colorModule "module" vfs 
                               (pretty name <.> 
                                 (if nameIsNil parent 
                                    then Lib.PPrint.empty
@@ -981,7 +981,7 @@ throwFileNotFound :: FilePath -> Build a
 throwFileNotFound name
   = do flags <- getFlags
        vfs <- envVFS <$> getEnv       
-       throwError (\penv -> errorMessageKind ErrBuild rangeNull (errorNotFound "" flags colorSource "" vfs (text name)))
+       throwError (\penv -> errorMessageKind ErrBuild rangeNull BuildErrorFileNotFound (errorNotFound "" flags colorSource "" vfs (text name)))
 
 errorNotFound :: FilePath -> Flags -> (ColorScheme -> Color) -> [Char] -> VFS -> Doc -> Doc
 errorNotFound relativeDir flags clr kind vfs namedoc
@@ -1151,7 +1151,7 @@ forkTerminal term termProxyDone
       = do mbf <- readChan ch
            case mbf of
              Nothing -> do return ()
-             Just io -> do io `catchAny` \err -> termError term (errorMessageKind ErrGeneral rangeNull (text (show err)))
+             Just io -> do io `catchAny` \err -> termError term (errorMessageKind ErrGeneral rangeNull GeneralException (text (show err)))
                            handleOutput ch
 
 
@@ -1169,8 +1169,8 @@ checked (Build cmp)
                         let env = env0{ envErrors = errsRef }
                         res <- do{ x <- cmp env; return (Right x) }
                                `catch` (\errs -> return (Left errs)) -- ErrorMessage's
-                               `catchError` (\err -> makeErr env ErrInternal (show err))  -- error(...)
-                               `catchIO` (\exn -> makeErr env ErrBuild (show exn))  -- IO errors
+                               `catchError` (\err -> makeErr env ErrInternal InternalException (show err))  -- error(...)
+                               `catchIO` (\exn -> makeErr env ErrBuild BuildException (show exn))  -- IO errors
                         errsw <- readIORef errsRef
                         writeIORef errsRef errorsNil
                         case res of
@@ -1178,9 +1178,9 @@ checked (Build cmp)
                           Left errs  -> return (Left (mergeErrors errsw errs))
             )
   where
-    makeErr env errKind msg
+    makeErr env errKind code msg
       = do let rng = makeSourceRange (show (envModName env)) 1 1 1 1
-           return (Left (errorsSingle (errorMessageKind errKind rng (text msg))))
+           return (Left (errorsSingle (errorMessageKind errKind rng code (text msg))))
 
 checkedDefault :: a -> Build a -> Build (a,Errors)
 checkedDefault def action
@@ -1272,7 +1272,7 @@ instance Monad Build where
                           Build ie' -> ie' env)
 
 instance F.MonadFail Build where
-  fail msg = throwError (\penv -> errorMessageKind ErrGeneral rangeNull (text msg))
+  fail msg = throwError (\penv -> errorMessageKind ErrGeneral rangeNull GeneralMonadFail (text msg))
 
 onBuildException :: Build b -> Build a -> Build a
 onBuildException (Build onExn) (Build b)
@@ -1290,7 +1290,7 @@ throwError msg
 throwErrorKind :: ErrorKind -> (TP.Env -> Doc) -> Build a
 throwErrorKind ekind doc
   = do rng <- getCurrentRange
-       throwError (\penv -> errorMessageKind ekind rng (doc penv))
+       throwError (\penv -> errorMessageKind ekind rng BuildException (doc penv))
 
 getEnv :: Build Env
 getEnv
@@ -1373,7 +1373,7 @@ addErrorMessageKind :: ErrorKind -> (TP.Env -> Doc) -> Build ()
 addErrorMessageKind ekind doc
   = do rng <- getCurrentRange
        penv <- getPrettyEnv
-       addErrorMessage (errorMessageKind ekind rng (doc penv))
+       addErrorMessage (errorMessageKind ekind rng BuildException (doc penv))
 
 phaseTimed :: Int -> String -> (TP.Env -> Doc) -> Build a -> Build a
 phaseTimed level p doc action
@@ -1500,11 +1500,11 @@ expandLine currentPath stack line
                relPath = joinPath dir fname
            in do mbPath <- searchInclude relPath fname
                  case mbPath of
-                   Nothing -> do addWarningMessage (warningMessageKind ErrBuild rangeNull (text ("include not found: " ++ fname)))
+                   Nothing -> do addWarningMessage (warningMessageKind ErrBuild rangeNull BuildErrorIncludeNotFound (text ("include not found: " ++ fname)))
                                  return line
                    Just includePath ->
                      if includePath `elem` stack
-                       then throwError (\_ -> errorMessageKind ErrBuild rangeNull (text ("recursive include: " ++ includePath)))
+                       then throwError (\_ -> errorMessageKind ErrBuild rangeNull BuildErrorRecursiveInclude (text ("recursive include: " ++ includePath)))
                        else do content <- getFileContents includePath
                                rawSnippet <- extractSnippet snippet content
                                expandIncludes includePath (includePath:stack) True rawSnippet
@@ -1530,5 +1530,5 @@ extractSnippet name content
        case post of
          (_:rest) -> let (snippet, _) = span (not . isTag endTag) rest
                      in return (B.intercalate (BC.singleton '\n') snippet)
-         [] -> do addWarningMessage (warningMessageKind ErrBuild rangeNull (text ("snippet not found: " ++ name)))
+         [] -> do addWarningMessage (warningMessageKind ErrBuild rangeNull BuildErrorSnippetNotFound (text ("snippet not found: " ++ name)))
                   return BC.empty

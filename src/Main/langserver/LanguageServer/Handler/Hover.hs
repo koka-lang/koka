@@ -29,7 +29,7 @@ import Kind.Pretty (prettyKind)
 import Type.Pretty (ppScheme, defaultEnv, Env(..), ppName, keyword)
 import Syntax.RangeMap (NameInfo (..), RangeInfo (..), rangeMapFindAt)
 import Syntax.Colorize( removeComment )
-
+import Common.Error (Errors(..), ErrorMessage (..))
 import qualified Language.LSP.Protocol.Types as J
 import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
@@ -47,16 +47,27 @@ hoverHandler
     do  let J.HoverParams doc pos0 _ = req ^. J.params
             uri  = J.toNormalizedUri (doc ^. J.uri)
 
-            done :: LSM ()
-            done = responder $ Right $ J.InR J.Null
+        errs <- getErrors
+        
+        pos <- liftIO $ fromLspPos uri pos0
+        let filteredErrs = filter (\e -> errRange e `R.rangeContains` pos) (errors errs)
+            errDoc = 
+              case filteredErrs of   
+                [] -> empty
+                _ -> color Red (text "Errors:") <--> hang 2 (vcat (map (\e -> errMessage e <.> linebreak) filteredErrs))
+        let done :: LSM ()
+            done = do
+              case filteredErrs of
+                [] -> responder $ Right $ J.InR J.Null
+                _  -> do
+                  markdown <- prettyMarkdown errDoc
+                  responder $ Right $ J.InL $ J.Hover (J.InL (J.mkMarkdown markdown)) (Just (toLspRange (makeRange pos pos)))
 
             liftMaybe :: LSM (Maybe a) -> (a -> LSM ()) -> LSM ()
             liftMaybe action next = do res <- action
                                        case res of
                                          Nothing -> done
                                          Just x  -> next x
-
-        pos <- liftIO $ fromLspPos uri pos0
         -- trace ("hover: lookup: " ++ show uri) $
         liftMaybe (lookupModuleName uri) $ \(fpath,modname) ->
           -- trace ("hover: found: " ++ show modname) $
@@ -67,7 +78,7 @@ hoverHandler
               do penv <- getPrettyEnvFor modname
                  mods <- lookupModulePaths
                  let doc = formatRangeInfoHover penv mods rngInfo
-                 markdown <- prettyMarkdown doc
+                 markdown <- prettyMarkdown (doc <.> text "\n\n" <.> errDoc)
                  let rsp = J.Hover (J.InL (J.mkMarkdown markdown)) (Just (toLspRange rng))
                  -- trace ("hover markdown:\n" ++ show markdown) $
                  responder $ Right $ J.InL rsp

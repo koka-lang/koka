@@ -34,7 +34,7 @@ module Syntax.Parse( parseProgramFromFile, parseProgramFromString
                    , keyword, dockeyword, docconid
                    , typeDeclKind
                    , paramInfo
-                   , pwarningMessage
+                   , pwarningMessage, ParseErrorCode(..)
                    ) where
 
 import Lib.Trace
@@ -78,12 +78,31 @@ import qualified Control.Monad.State as Mon
 -- Parser on token stream
 -----------------------------------------------------------
 
-type PWarnings = [(String, Range)]
+type PWarnings = [(ParseErrorCode, String, Range)]
 data PState = PState{ pwarnings :: PWarnings, ptargetPlatform :: TargetPlatform
                     , puniqueId :: !Int  -- ^ type-variable id supply for core interfaces
                     }
 
 type LexParser a  = Parsec [Lexeme] PState a
+
+data ParseErrorCode
+  = ParseErrorParsec
+  | ParseWarningDeprecatedKeyword
+  | ParseWarningDeprecatedSyntax
+  | ParseWarningRedundantSyntax
+  | ParseWarningUnknownTarget
+
+instance ErrorCode ParseErrorCode where
+  codeNum ParseErrorParsec = 0
+  codeNum ParseWarningDeprecatedKeyword = 100
+  codeNum ParseWarningDeprecatedSyntax = 101
+  codeNum ParseWarningRedundantSyntax = 102
+  codeNum ParseWarningUnknownTarget = 103
+  codeDoc ParseErrorParsec = text "parse error"
+  codeDoc ParseWarningDeprecatedKeyword = text "deprecated keyword"
+  codeDoc ParseWarningDeprecatedSyntax = text "deprecated syntax"
+  codeDoc ParseWarningRedundantSyntax = text "redundant syntax"
+  codeDoc ParseWarningUnknownTarget = text "unknown or unsupported target"
 
 parseLex :: Lex -> LexParser Lexeme
 parseLex lex
@@ -118,7 +137,7 @@ logSyntaxWarnings warnings
 parseProgramFromString :: Bool -> Bool -> BString -> TargetPlatform -> FilePath -> Error a UserProgram
 parseProgramFromString allowAt semiInsert input tpl fname
   = do ((prog,lexemes), syntaxWarnings) <- lexParse allowAt semiInsert id program tpl fname 1 input
-       addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
+       addWarnings (map (\(c, s, r) -> warningMessageKind ErrParse r c (text s)) syntaxWarnings) $
         return prog
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error () UserDef
@@ -137,7 +156,7 @@ parseExpression :: Bool -> FilePath -> Int -> Name -> String -> Error () UserDef
 parseExpression semiInsert sourceName line name input
   = lexParseS semiInsert (const (expression name)) targetPlatformDefault sourceName line input
 
-ignoreSyntaxWarnings :: Error b (a, [(String, Range)]) -> Error b a
+ignoreSyntaxWarnings :: Error b (a, [(ParseErrorCode, String, Range)]) -> Error b a
 ignoreSyntaxWarnings result =
   do (x, syntaxWarnings) <- result
      return x
@@ -146,7 +165,7 @@ lexParseS :: Bool -> (Source -> LexParser b) -> TargetPlatform -> FilePath -> In
 lexParseS semiInsert p tpl sourceName line str
   = do
       ((result,lexemes), syntaxWarnings) <- (lexParse False semiInsert id p tpl sourceName line (stringToBString str))
-      return $ trace (concat (intersperse "\n" (map fst syntaxWarnings))) $ result
+      return $ trace (concat (intersperse "\n" (map (\(_,w,_) -> w) syntaxWarnings))) $ result
 
 runStateParser :: LexParser a -> TargetPlatform -> SourceName -> [Lexeme] -> Either ParseError (a, PWarnings)
 runStateParser p tpl sourceName lex =
@@ -158,7 +177,7 @@ runStateParser p tpl sourceName lex =
          s <- getState
          return (r, pwarnings s)
 
-lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> TargetPlatform -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), [(String, Range)])
+lexParse :: Bool -> Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> TargetPlatform -> FilePath -> Int -> BString -> Error b ((a,[Lexeme]), PWarnings)
 lexParse allowAt semiInsert preprocess p tpl sourceName line rawinput
   = let source = Source sourceName rawinput
         lexemes = lexSource allowAt semiInsert preprocess line source
@@ -171,7 +190,7 @@ lexParse allowAt semiInsert preprocess p tpl sourceName line rawinput
 parseProgramFromLexemes :: TargetPlatform -> Source -> [Lexeme] -> Error () UserProgram
 parseProgramFromLexemes tpl source lexemes
   = do (prog, syntaxWarnings) <- parseLexemes (program source) tpl source lexemes
-       addWarnings (map (\(s, r) -> warningMessageKind ErrParse r (text s)) syntaxWarnings) $
+       addWarnings (map (\(c, s, r) -> warningMessageKind ErrParse r c (text s)) syntaxWarnings) $
          return prog
 
 
@@ -184,7 +203,7 @@ parseDependencies tpl source lexemes
                           -- trace ("dependencies: " ++ show x) $
                           return x
 
-parseLexemes :: LexParser a -> TargetPlatform -> Source -> [Lexeme] -> Error () (a, [(String, Range)])
+parseLexemes :: LexParser a -> TargetPlatform -> Source -> [Lexeme] -> Error () (a, PWarnings)
 parseLexemes p tpl source@(Source sourceName _) lexemes
   = case (runStateParser p tpl sourceName lexemes) of
       Left err -> makeParseError (errorRangeLexeme lexemes source) err
@@ -193,7 +212,7 @@ parseLexemes p tpl source@(Source sourceName _) lexemes
 
 makeParseError :: (ParseError -> Range) -> ParseError -> Error b a
 makeParseError toRange perr
-  = errorMsg (errorMessageKind ErrParse (toRange perr) errorDoc)
+  = errorMsg (errorMessageKind ErrParse (toRange perr) ParseErrorParsec errorDoc)
   where
     errorDoc
       = PP.string ("invalid syntax" ++ (drop 1 $ dropWhile (/=':') $ show perr))
@@ -390,7 +409,7 @@ importAlias
         <|> 
         do mbentry <- firstof <$> semiBraces importConditional
            case mbentry of
-             Nothing -> do pwarningMessage ("unsupported target in conditional import " ++ show name1) rng1
+             Nothing -> do pwarningMessage ParseWarningUnknownTarget ("unsupported target in conditional import " ++ show name1) rng1
                            return Nothing
              Just (name2,rng2) -> return (Just (name1,name2,rng1,rng2))
         <|> return (Just (name1,name1,rng1,rng1)) )
@@ -406,7 +425,7 @@ visibility vis
   =   do rng <- keywordOr "pub" ["public"]
          return (Public,rng)
   <|> do rng <- keyword "private"
-         pwarningMessage "using 'private' is deprecated, only use 'pub' to make declarations public" rng
+         pwarningMessage ParseWarningDeprecatedKeyword "using 'private' is deprecated, only use 'pub' to make declarations public" rng
          return (Private,rng)
   <|> return (vis,rangeNull)
 
@@ -459,7 +478,7 @@ externDecl dvis
                          return (map lift pars,pinfos,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
                  mbBody <- externalBody
                  (expr,rng) <- case mbBody of
-                                  Nothing -> do pwarningMessage ("unsupported external: " ++ show name) nameRng
+                                  Nothing -> do pwarningMessage ParseWarningUnknownTarget ("unsupported external: " ++ show name) nameRng
                                                 tpl <- getTargetPlatform
                                                 let fname = show (show name)
                                                     expr = ExternalInline $ case tplTarget tpl of 
@@ -648,23 +667,23 @@ targetGuard
           "arch"    -> return $ matchArch val (tplArch tpl)
           "host"    -> case targetFromHost val of
                          Just tgt -> return $ matchTarget tgt (tplTarget tpl)
-                         Nothing  -> do pwarningMessage ("unknown host: " ++ show val) valrng
+                         Nothing  -> do pwarningMessage ParseWarningUnknownTarget ("unknown host: " ++ show val) valrng
                                         return False
           "backend" -> case targetFromBackend val of
                          Just tgt  -> return $ matchTarget tgt (tplTarget tpl)
-                         Nothing   -> do pwarningMessage ("unknown backend: " ++ show val) valrng
+                         Nothing   -> do pwarningMessage ParseWarningUnknownTarget ("unknown backend: " ++ show val) valrng
                                          return False                                        
           "target"  -> case targetPlatformFromString val of
                          Just tpl' -> return $ matchTargetPlatform tpl' tpl
-                         Nothing   -> do pwarningMessage ("unknown target: " ++ show val) valrng
+                         Nothing   -> do pwarningMessage ParseWarningUnknownTarget ("unknown target: " ++ show val) valrng
                                          return False                                        
           "platform"-> case platformFromString val of
                          Just pl  -> return $ matchPlatform pl (tplPlatform tpl)
-                         Nothing  -> do pwarningMessage ("unknown platform: " ++ show val) valrng
+                         Nothing  -> do pwarningMessage ParseWarningUnknownTarget ("unknown platform: " ++ show val) valrng
                                         return False
           "buildcfg"-> let defs = map trim (splitOn (\c->c==',') val)
                        in return $ matchBuildDefs defs (tplBuildDefs tpl)
-          _ -> do pwarningMessage ("unknown attribute for target: " ++ show attr) rng
+          _ -> do pwarningMessage ParseWarningUnknownTarget ("unknown attribute for target: " ++ show attr) rng
                   return True
 
     
@@ -1458,7 +1477,7 @@ parseFipEx :: Range -> Bool -> LexParser (Fip,Range)
 parseFipEx rng0 isTail
   = do rng1 <- specialId "fip"
        (alloc,rng2) <- parseFipAlloc
-       when isTail $ pwarningMessage "a 'fip' function implies already 'tail'" rng1
+       when isTail $ pwarningMessage ParseWarningRedundantSyntax "a 'fip' function implies already 'tail'" rng1
        return (Fip alloc, combineRanges [rng0,rng1,rng2])
   <|>
     do rng1 <- specialId "fbip"
@@ -1866,7 +1885,7 @@ ifexpr
         <|>
         do pos <- getPosition
            expr <- blockexpr
-           pwarning ("warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword.") rng
+           pwarning ParseWarningDeprecatedSyntax ("warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword.") rng
            return expr
 
 returnexpr
@@ -2045,7 +2064,7 @@ handlerOp :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOp
   = do rng <- keyword "return"
        (name,prng,tp) <- do (name,prng) <- paramid
-                            pwarningMessage "'return x' is deprecated; use 'return(x)' instead." prng
+                            pwarningMessage ParseWarningDeprecatedSyntax "'return x' is deprecated; use 'return(x)' instead." prng
                             tp         <- optionMaybe typeAnnotPar
                             return (name,prng,tp)
                         <|>
@@ -2090,7 +2109,7 @@ handlerOp
                     return OpControlErr
        (name, nameRng) <- qidentifier
        if opSort == OpControlErr then
-        pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead." nameRng
+        pwarningMessage ParseWarningDeprecatedSyntax "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead." nameRng
        else return ()
        (oppars,prng) <- opParams
        expr <- bodyexpr
@@ -2141,7 +2160,7 @@ guards
        return [Guard guardTrue exp]
   <|>
     do exp <- block
-       pwarningMessage "use '->' for pattern matches" (getRange exp)
+       pwarningMessage ParseWarningDeprecatedSyntax "use '->' for pattern matches" (getRange exp)
        return [Guard guardTrue exp]
 
 guardBar
@@ -3280,15 +3299,15 @@ docconid
 
 warnDeprecated dep new rng
   = do pos <- getPosition
-       pwarning ("warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead.") rng
+       pwarning ParseWarningDeprecatedKeyword ("warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead.") rng
 
 
-pwarningMessage msg rng
+pwarningMessage code msg rng
   = do pos <- getPosition
-       pwarning ("warning " ++ show pos ++ ": " ++ msg) rng
+       pwarning code ("warning " ++ show pos ++ ": " ++ msg) rng
 
-pwarning :: String -> Range -> LexParser ()
-pwarning msg rng = modifyState (\prev -> prev{ pwarnings = (pwarnings prev) ++ [(msg, rng)] } )
+pwarning :: ParseErrorCode -> String -> Range -> LexParser ()
+pwarning code msg rng = modifyState (\prev -> prev{ pwarnings = (pwarnings prev) ++ [(code, msg, rng)] } )
 
 getTargetPlatform :: LexParser TargetPlatform
 getTargetPlatform 

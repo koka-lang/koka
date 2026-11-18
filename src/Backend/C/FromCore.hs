@@ -1254,7 +1254,7 @@ genLambda params eff body
 
        platform <- getPlatform
        env <- getEnv
-       let emitError doc     = do let msg = show doc
+       let emitError code doc= do let msg = show doc
                                   failure ("Backend.C.genLambda: " ++ msg)
            nameDoc           = text (show (cdefName env) ++ "@<lambda>")
            getDataInfo name  = do newtypes <- getNewtypes

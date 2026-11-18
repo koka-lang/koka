@@ -66,7 +66,7 @@ toLspLocationLink editorUri src r =
 errorMessageToDiagnostic :: Maybe T.Text -> (FilePath -> J.NormalizedUri) -> J.NormalizedUri -> E.ErrorMessage -> (J.NormalizedUri, [J.Diagnostic])
 errorMessageToDiagnostic errSource editorUri defaultUri e
   = (let src = R.rangeSource (E.errRange e) in if src == sourceNull then defaultUri else editorUri (sourceName src),
-     [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errRange e) (E.errMessage e)] )
+     [makeDiagnostic (toSeverity (E.errSeverity e)) errSource (E.errCode e) (E.errRange e) (E.errShortMessage e)] )
   where
     toSeverity sev
           = case sev of
@@ -74,18 +74,17 @@ errorMessageToDiagnostic errSource editorUri defaultUri e
               E.SevWarning -> J.DiagnosticSeverity_Warning
               _            -> J.DiagnosticSeverity_Information
 
-toLspWarningDiagnostic :: Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
-toLspWarningDiagnostic diagsrc range doc
-  = makeDiagnostic J.DiagnosticSeverity_Warning diagsrc range doc
+toLspWarningDiagnostic :: Maybe T.Text -> Int -> R.Range -> Doc -> J.Diagnostic
+toLspWarningDiagnostic diagsrc code range doc
+  = makeDiagnostic J.DiagnosticSeverity_Warning diagsrc code range doc
 
-makeDiagnostic :: J.DiagnosticSeverity -> Maybe T.Text -> R.Range -> Doc -> J.Diagnostic
-makeDiagnostic s diagsrc r doc =
-  J.Diagnostic range severity code codeDescription diagsrc message tags related dataX
+makeDiagnostic :: J.DiagnosticSeverity -> Maybe T.Text -> Int -> R.Range -> Doc -> J.Diagnostic
+makeDiagnostic s diagsrc code r doc =
+  J.Diagnostic range severity (Just (J.InL $ fromIntegral code)) codeDescription diagsrc message tags related dataX
   where
     range = toLspRange r
     severity = Just s
-    code = Nothing
-    codeDescription = Nothing
+    codeDescription = Nothing -- Just (show doc)
     message = T.pack $ show doc
     tags
       | "is unused" `T.isInfixOf` message = Just [J.DiagnosticTag_Unnecessary]

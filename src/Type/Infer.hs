@@ -78,6 +78,7 @@ import qualified Syntax.RangeMap as RM
 import Common.File (seqqList)
 import Type.Operations (hasOptionalOrImplicits)
 import Syntax.Pretty (ppSyntaxExpr)
+import Kind.InferMonad (lookupDataEffect)
 
 
 {--------------------------------------------------------------------------
@@ -237,9 +238,9 @@ inferDefGroup topLevel (DefRec defs0) cont
           (Just _)
             -> do env <- getPrettyEnv
                   if topLevel
-                   then infError nameRng (text "recursive functions with the same overloaded name must all have a full type signature" <+> parens (ppName env name) <->
+                   then infError TypeErrorOverloadedNameRecursionRequireTypes nameRng (text "recursive functions with the same overloaded name must all have a full type signature" <+> parens (ppNameLink env name nameRng ) <->
                                           text " hint: give a type annotation for each function (including the effect type).")
-                   else infError nameRng (text "recursive functions with the same overloaded name cannot be defined as local definitions" <+> parens (ppName env name) <->
+                   else infError TypeErrorOverloadedNameRecursionNotTopLevel nameRng (text "recursive functions with the same overloaded name cannot be defined as local definitions" <+> parens (ppNameLink env name nameRng) <->
                                           text " hint: use different names for each function.")
 
           Nothing
@@ -252,7 +253,7 @@ inferDefGroup topLevel (DefRec defs0) cont
                   _ -> case lookup name gamma of
                          Just _
                           -> do env <- getPrettyEnv
-                                infError nameRng (text "recursive functions with the same overloaded name must have a full type signature" <+> parens (ppName env name))
+                                infError TypeErrorOverloadedNameRecursionRequireTypes nameRng (text "recursive functions with the same overloaded name must have a full type signature" <+> parens (ppNameLink env name nameRng))
                          Nothing
                           -> do qname <- if (topLevel) then qualifyName name else return name
                                 case expr of
@@ -281,11 +282,13 @@ inferDefGroup topLevel (DefRec defs0) cont
 checkRecVal :: Core.DefGroup -> Inf ()
 checkRecVal (Core.DefNonRec def) = return ()
 checkRecVal (Core.DefRec defs)
-  = mapM_ checkDef defs
+  = do 
+      env <- getPrettyEnv
+      mapM_ (checkDef env) defs
   where
-    checkDef def
+    checkDef env def
       = if (not (Core.defIsVal def)) then return () else
-         do infError (Core.defNameRange def) (text ("value definition is recursive.\n  recursive group: " ++ show (map Core.defName defs)))
+         do infError TypeErrorRecursiveValueDefinitions (Core.defNameRange def) (text "Value definition(s) are recursive.\n  recursive group: " <.> hsep (map (\d -> ppNameLink env (Core.defName d) (Core.defNameRange d)) defs))
 
 fixCanonicalName :: Bool -> Core.Def -> Inf Core.Def
 fixCanonicalName isRec def
@@ -544,7 +547,7 @@ inferBindDef def@(Def (ValueBinder name () expr nameRng vrng) rng vis sort inl d
 
 checkValue        = Check "Values cannot have an effect"
 checkPolyValue    = Check "Polymorphic values cannot have an effect"
-unusedWarning rng = infWarning rng (text "expression has no effect and is unused" <-->
+unusedWarning rng = infWarning TypeWarningUnusedExpression rng (text "expression has no effect and is unused" <-->
                                     text " hint: did you forget an operator? or used \"fun\" instead of \"fn\"?" )
 {--------------------------------------------------------------------------
   Expression
@@ -565,7 +568,7 @@ inferIsolated contextRange range body inf
          Just vrng -> do sieff <- subst ieff
                          let (ls,tl) = extractOrderedEffect sieff
                          case filter (\l -> labelName l == nameTpLocal) ls of
-                           (_:_) -> typeError contextRange vrng
+                           (_:_) -> typeError TypeErrorLocalEscape contextRange vrng
                                       (text "reference to a local variable escapes its lexical scope") sieff []
                            _ -> return ()
                          return (itp,sieff,coref core)
@@ -612,11 +615,11 @@ inferExpr propagated expect (Bind def body rng)
 inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name == nameReturn
   = do allowed <- isReturnAllowed
        if (False && not allowed)
-        then infError rng (text "illegal expression context for a return statement")
+        then infError TypeErrorIllegalReturnContext rng (text "illegal expression context for a return statement")
         else  do mbTp <- lookupInfName nameReturn -- (unqualify nameReturn)
                  case mbTp of
                    Nothing
-                    -> do infError rng (text "illegal context for a return statement")
+                    -> do infError TypeErrorIllegalReturnContext rng (text "illegal context for a return statement")
                           inferExpr propagated expect expr
                    Just (_,retTp)
                     -> do (tp,eff,core) <- inferExpr (Just (retTp,nameRng)) expect expr
@@ -655,7 +658,7 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
       _ -> errorAssignable
   where
     errorAssignable
-      = do contextError rng (getRange lval) (text "not an assignable expression") [(text "because",text "an assignable expression must be an application, index expression, or variable")]
+      = do contextError TypeErrorNotAssignable rng (getRange lval) (text "not an assignable expression") [(text "because",text "an assignable expression must be an application, index expression, or variable")]
            return (typeUnit,typeTotal,Core.Con (Core.TName (nameTuple 0) typeUnit) (Core.ConEnum nameTpUnit Core.DataEnum valueReprZero 0))
 
     checkAssign
@@ -695,7 +698,7 @@ inferExpr propagated expect (App (Var byref _ _) [(_,Var name _ rng)] _)  | byre
 inferExpr propagated expect (App fun@(Var hname _ nameRng) [] rng)  | hname == nameCCtxHoleCreate
   = do ok <- useHole
        when (not ok) $
-         contextError rng rng (text "ill-formed constructor context")
+         contextError TypeErrorCCtxMultipleHoles rng rng (text "ill-formed constructor context")
             [(text "because",text "there can be only one hole, and it must occur under a constructor context 'ctx'")]
        (tp,eff,core) <- inferApp propagated expect fun [] rng
        addRangeInfo nameRng (RM.Id (newName "hole") (RM.NIValue "expr" tp "" False) [] False)
@@ -715,13 +718,13 @@ inferExpr propagated expect (App (Var ctxname _ nameRng) [(_,expr)] rng)  | ctxn
        inferUnify (Infer rng) nameRng tp tpv
        when (not hole) $
           do penv <- getPrettyEnv
-             contextError rng rng (text "ill-formed constructor context") [(text "because",text "the context has no hole"),(text "hint",text "perhaps you used an underscore instead of the" <+> dquotes (keyword penv "hole") <+> text "keyword?")]
+             contextError TypeErrorCCtxHoleNotFound rng rng (text "ill-formed constructor context") [(text "because",text "the context has no hole"),(text "hint",text "perhaps you used an underscore instead of the" <+> dquotes (keyword penv "hole") <+> text "keyword?")]
        newtypes <- getNewtypes
        score <- subst core
        tpl <- getTargetPlatform
        gamma <- getGamma
        (ccore,errs) <- withUnique (analyzeCCtx tpl rng newtypes gamma score)
-       mapM_ (\(rng,err) -> infError rng err) errs
+       mapM_ (\(code,rng,err) -> infError code rng err) errs
        let ctp = Core.typeOf ccore
        addRangeInfo nameRng (RM.Id (newName "ctx") (RM.NIValue "expr" ctp "" False) [] False)
        return (Core.typeOf ccore,eff,ccore)
@@ -915,7 +918,7 @@ inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort -> HandlerScope -> B
 -- Regular handler
 inferHandler propagated expect handlerSort handlerScoped allowMask
              mbEffect (_:localPars) initially ret finally branches hrng rng
-  = do contextError hrng rng (text "Type.Infer.inferHandler: TODO: not supporting local parameters") []
+  = do contextError TypeErrorHandlerParametersUnsupported hrng rng (text "Type.Infer.inferHandler: TODO: not supporting local parameters") []
        failure "abort"
 inferHandler propagated expect handlerSort handlerScoped allowMask
              mbEffect [] initially ret finally branches hrng rng
@@ -1087,7 +1090,7 @@ checkLinearity effectName heffect branches hrng rng
         check hbranch
           = if (hbranchSort hbranch <= OpFun) then return ()
              else do penv <- getPrettyEnv
-                     contextError rng (hbranchPatRange hbranch)
+                     contextError TypeErrorLinearHandlerOperationNonLinear rng (hbranchPatRange hbranch)
                         (text "operation" <+> ppName penv (hbranchName hbranch) <+>
                          text ("needs to be linear but is handled in a non-linear way (as '" ++ show (hbranchSort hbranch) ++ "')"))
                         [(text "hint",text "use a 'val' or 'fun' operation clause instead")]
@@ -1097,7 +1100,7 @@ checkLinearity effectName heffect branches hrng rng
            --traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
            case (dropWhile labelIsLinear effs) of
              (e:_) -> do penv <- getPrettyEnv
-                         contextError rng hrng
+                         contextError TypeErrorLinearHandlerUsesNonLinearEffect rng hrng
                             (text "handler for" <+> (ppName penv effectName) <+>
                              text "needs to be linear but uses a non-linear effect:" <+> ppType penv e)
                             [(text "hint",text "ensure only linear effects are used in a handler")]
@@ -1132,18 +1135,18 @@ inferHandledEffect rng handlerSort mbeff ops
                                       case filter isHandledEffect ls of
                                         (l:_) -> return (l)  -- TODO: can we assume the effect comes first?
                                         _ -> -- failure $ "Type.Infer.inferHandledEffect: cannot find handled effect in " ++ show eff
-                                             infError rng (text "not an effect operation:" <+> ppName env qname <.> text ".")
-                  _ -> infError rng (text "cannot resolve effect operation:" <+> ppName env qname <.> text "." <--> text " hint: maybe wrong number of parameters?")
-        _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
+                                             infError TypeErrorNotEffectOperation rng (text "not an effect operation:" <+> ppNameLink env qname nameRng <.> text ".")
+                  _ -> infError TypeErrorEffectOperationNotFound rng (text "cannot resolve effect operation:" <+> ppNameLink env qname nameRng <.> text "." <--> text " hint: maybe wrong number of parameters?")
+        _ -> infError TypeErrorEffectNotFound rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
 
 -- Check coverage is not needed for type inference but gives nicer error messages
 checkCoverage :: Range -> Effect -> Name -> [HandlerBranch Type] -> Inf ()
 checkCoverage rng effect handlerConName branches
-  = do (_,gconTp,conRepr,conInfo) <- resolveConName handlerConName Nothing rng
+  = do (_,gconTp,conRepr,conInfo,effectRng) <- resolveConName handlerConName Nothing rng
        let opNames = map (fieldToOpName . fst) (drop 1 {-cfc-} (conInfoParams conInfo))
            branchNames = map branchToOpName branches
-       checkCoverageOf rng (map fst opNames) opNames branchNames
+       checkCoverageOf rng (map fst opNames) opNames branchNames effectRng
        return ()
   where
     modName = qualifier handlerConName
@@ -1161,31 +1164,31 @@ checkCoverage rng effect handlerConName branches
           then fromValueOperationsName (hbranchName hbranch) else hbranchName hbranch,
          hbranchSort hbranch)
 
-    checkCoverageOf :: Range -> [Name] -> [(Name,OperationSort)] -> [(Name,OperationSort)] -> Inf ()
-    checkCoverageOf rng allOpNames opNames branchNames
+    checkCoverageOf :: Range -> [Name] -> [(Name,OperationSort)] -> [(Name,OperationSort)] -> Range -> Inf ()
+    checkCoverageOf rng allOpNames opNames branchNames effectRng
       = -- trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
-        do env <- getPrettyEnv
+        do env <- getPrettyEnv 
            case opNames of
             [] -> if null branchNames
                    then return ()
                    -- should not occur if branches typechecked previously
                    else case (filter (\(bname,bsort) -> not (bname `elem` allOpNames)) branchNames) of
-                          ((bname,bsort):_) -> termError rng (text "operator" <+> ppOpName env bname <+>
-                                                     text "is not part of the handled effect") effect
+                          ((bname,bsort):_) -> termError TypeErrorEffectOperationNotPartOfEffect rng (text "operator" <+> ppOpName env bname <+>
+                                                     text "is not part of the handled effect") effect (Just effectRng)
                                                       [] -- hints
-                          _        -> infError rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
+                          _        -> infError TypeErrorEffectOperationMultiple rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
             ((opName,opSort):opNames')
               -> do let (matches,branchNames') = partition (\(bname,_) -> bname==opName) branchNames
                     case matches of
                       [(bname,bsort)]
                           -> if (opSort==OpVal && bsort /= opSort)
-                              then infError rng (text "cannot handle a 'val' operation" <+> ppOpName env opName <+> text "with" <+> squotes (text (show bsort)))
+                              then infError TypeErrorInvalidValOperation rng (text "cannot handle a 'val' operation" <+> ppOpName env opName <+> text "with" <+> squotes (text (show bsort)))
                              else if (bsort > opSort)
-                              then infWarning rng (text "operation" <+> ppOpName env opName <+> text "is declared as '" <.> text (show opSort) <.> text "' but handled here using '" <.> text (show bsort) <.> text "'")
+                              then infWarning TypeErrorEffectOperationWrongSort rng (text "operation" <+> ppOpName env opName <+> text "is declared as '" <.> text (show opSort) <.> text "' but handled here using '" <.> text (show bsort) <.> text "'")
                               else return ()
-                      []  -> infError rng (text "operator" <+> ppOpName env opName <+> text "is not handled")
-                      _   -> infError rng (text "operator" <+> ppOpName env opName <+> text "is handled multiple times")
-                    checkCoverageOf rng allOpNames opNames' branchNames'
+                      []  -> infError TypeErrorEffectOperationNotHandled rng (text "operator" <+> ppOpName env opName <+> text "is not handled")
+                      _   -> infError TypeErrorEffectOperationMultiple rng (text "operator" <+> ppOpName env opName <+> text "is handled multiple times")
+                    checkCoverageOf rng allOpNames opNames' branchNames' effectRng
       where
         ppOpName env cname
           = ppName env cname
@@ -1539,7 +1542,7 @@ inferLam topLevel propagated expect bindersL body0 rng
         if (null polyBinders)
         then return ()
         else let b = head polyBinders
-              in typeError rng (binderNameRange b) (text "unannotated parameters cannot be polymorphic") (binderType b) [(text "hint",text "annotate the parameter with a polymorphic type")]
+              in typeError TypeErrorParameterPolymorphicNoAnnotation rng (binderNameRange b) (text "unannotated parameters cannot be polymorphic") (binderType b) [(text "hint",text "annotate the parameter with a polymorphic type")]
 
         -- add range info for each parameter
         when (not etaExpanded) $
@@ -1567,7 +1570,7 @@ inferVar :: HasCallStack => Maybe (Type,Range) -> Expect -> Name -> Range -> Boo
 -- constructor
 inferVar propagated expect name rng isRhs  | isConstructorName name
   = -- trace("inferVar: constructor: " ++ show name)$
-    do (qname1,tp1,conRepr,conInfo) <- resolveConName name (fmap fst propagated) rng
+    do (qname1,tp1,conRepr,conInfo,_) <- resolveConName name (fmap fst propagated) rng
        let info1 = InfoCon Public tp1 conRepr conInfo rng (conInfoDoc conInfo)
        (qname,tp,info) <- do defName <- currentDefName
                              let creatorName = newCreatorName qname1
@@ -1721,14 +1724,14 @@ inferCase propagated expect expr branches isLazyMatch rng
        stp <- subst ctp
        if (typeIsCaseLegal stp)
         then return ()
-        else typeError rng (getRange expr) (text "can only match on literals or data types") stp []
+        else typeError TypeErrorInvalidScrutinee rng (getRange expr) (text "can only match on literals or data types") stp []
        -- get data info and analyze branches
        dataInfo <- findDataInfo (getTypeName stp)
        defName  <- currentDefName
        sbcores  <- subst bcores
        newtypes <- getNewtypes
        let (matchIsTotal,warnings,cbranches) = analyzeBranches newtypes defName rng sbcores [stp] [dataInfo] isLazyMatch
-       mapM_ (\(rng,warning) -> infWarning rng warning) warnings
+       mapM_ (\(code,rng,warning) -> infWarning code rng warning) warnings
        cbranches <- if matchIsTotal
                   then return cbranches
                   else do moduleName <- getModuleName
@@ -1803,7 +1806,7 @@ inferBranch patkind propagated matchType matchRange matchedNames branch@(Branch 
                case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
                   [] -> return ()
                   (name:_) -> do env <- getPrettyEnv
-                                 infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
+                                 infWarning TypeWarningUnusedPatternBinder (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
                                                                 text " hint: start with an underscore to make it a wildcard pattern")
           return (Core.Branch [pcore] gcores)
     )
@@ -1888,10 +1891,10 @@ inferPattern patkind matchType branchRange (PatCon name patterns0 nameRange rang
                PatternOutermost isLazyMatch
                 -> do when (conInfoIsLazy coninfo && not isLazyMatch) $
                         do penv <- getPrettyEnv
-                           infError nameRange $ ppName penv qname <.> text ": lazy constructors are not allowed in a (non lazy) match"
+                           infError TypeErrorLazyConstructorInMatch nameRange $ ppName penv qname <.> text ": lazy constructors are not allowed in a (non lazy) match"
                PatternNested
                 -> do penv <- getPrettyEnv
-                      infError nameRange $ ppName penv qname <.> text ": constructors of a lazy type cannot be matched in a nested pattern (but must always be matched as an outermost pattern)"
+                      infError TypeErrorLazyConstructorInInnerPattern nameRange $ ppName penv qname <.> text ": constructors of a lazy type cannot be matched in a nested pattern (but must always be matched as an outermost pattern)"
 
 
            patterns <- matchPatterns range nameRange conRho conParTps patterns0
@@ -2011,7 +2014,7 @@ inferImplicitParam par
                 Just (Parens (Var qname _ rng) _ _ _) -- encoded in the parser as a default expression
                            -> inferImplicitUnpack (rangeHide (binderRange par)) (rangeHide rng) (binderName par) qname (binderType par)
                 Nothing    -> return id
-                Just expr  -> do contextError (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
+                Just expr  -> do contextError TypeErrorImplicitParamNoDefault (getRange par) (getRange expr) (text "the value of an implicit parameter must be a single identifier") []
                                  return id
               return (par{ -- leave the binder name locally qualified as `@implicit/name` -- binderName = pname,
                            binderExpr = Nothing }, unpack)
@@ -2078,7 +2081,7 @@ inferImplicitUnpack rng nrng pname qname mbParTp
                      reasonName = case mbNameInfo of
                        Just di -> text "the type" <+> ppParam penv qname <+> ppNotUnpackable di
                        Nothing -> text "no struct type" <+> ppParam penv qname <+> text "is defined"
-                 contextError rng nrng
+                 contextError TypeErrorImplicitCannotUnpack rng nrng
                    (text "cannot unpack the implicit parameter" <+> ppParam penv (fromImplicitParamName pname))
                    [(text "because", reasonAnnot <.> text ", and" <+> reasonName),
                     (text "hint", text "annotate with a struct type to unpack, e.g." <+>
@@ -2134,8 +2137,8 @@ inferOptionals scopeDepth allowImplictMask eff infgamma (par:pars)
             temp  <- uniqueNameFrom (binderName par)
             -- let coreVar (qname,tp,info) = Core.Var (Core.TName qname tp) (coreVarInfoFromNameInfo info)
             dataInfo <- findDataInfo nameTpOptional
-            (coreNameOpt,coreTpOpt,coreReprOpt,conInfoOpt) <- resolveConName nameOptional Nothing fullRange
-            (coreNameOptNone,coreTpOptNone,coreReprOptNone,conInfoOptNone) <- resolveConName nameOptionalNone Nothing fullRange
+            (coreNameOpt,coreTpOpt,coreReprOpt,conInfoOpt,_) <- resolveConName nameOptional Nothing fullRange
+            (coreNameOptNone,coreTpOptNone,coreReprOptNone,conInfoOptNone,_) <- resolveConName nameOptionalNone Nothing fullRange
             let tempName = Core.TName temp tp
             let parName  = Core.TName (binderName par) optTp
                 corePar = Core.Var parName Core.InfoNone
@@ -2342,7 +2345,7 @@ splitNamedArgs nargs
           (((name,rng),_):named)
             -> if (name `elem` seen)
                 then do env <- getPrettyEnv
-                        infError rng (text "named argument" <+> ppName env name <+> text "is given more than once")
+                        infError TypeErrorDuplicateNamedArgument rng (text "named argument" <+> ppNameLink env name rng <+> text "is given more than once")
                 else checkDuplicates (name:seen) named
 
 isNothing Nothing = True
@@ -2352,7 +2355,7 @@ isNothing _       = False
 matchPatterns :: Range -> Range -> Type -> [(Name,Type)] -> [(Maybe (Name,Range),Pattern Type)] -> Inf [Pattern Type]
 matchPatterns context nameRange conTp conParTypes patterns0
   = do patterns1 <- if (length conParTypes < length patterns0)
-                     then do typeError context nameRange (text "constructor has too many arguments") (conTp) []
+                     then do typeError TypeErrorConstructorTooManyArguments context nameRange (text "constructor has too many arguments") (conTp) []
                              return (take (length conParTypes) patterns0)
                      else return patterns0
 
@@ -2373,7 +2376,7 @@ matchPatterns context nameRange conTp conParTypes patterns0
            return []
     matchNamed pars (((name,rng),pat):named)
       = case remove name [] pars of
-          Nothing -> do typeError context rng (text "there is no constructor field with name" <+> pretty name) conTp []
+          Nothing -> do typeError TypeErrorConstructorFieldNotFound context rng (text "there is no constructor field with name" <+> pretty name) conTp []
                         matchNamed pars named
           Just (i,pars1)
               -> do rest <- matchNamed pars1 named
@@ -2422,7 +2425,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
        TSyn _ _ t          -> matchFunTypeArgs context fun t fresolved fixed named
        TVar tv             -> do if (null named)  -- TODO: take fresolved into account
                                   then return ()
-                                  else infError range (text "cannot used named arguments on an inferred function" <-> text " hint: annotate the parameters")
+                                  else infError TypeErrorInferredFunctionNamedArgument range (text "cannot used named arguments on an inferred function" <-> text " hint: annotate the parameters")
                                  targs <- mapM (\name -> do{ tv <- Op.freshStar; return (name,tv)}) ([nameNil | a <- fixed] ++ map (fst . fst) named)
                                  teff  <- Op.freshEffect
                                  tres  <- Op.freshStar
@@ -2471,7 +2474,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                                (Var name isOp nameRange) | name == newName "resume"
                                  -> [(text "hint", text "cannot use \"resume\" inside a val/fun/except clause")]
                                _ -> []
-                 typeError context range (text "function has not enough arguments") tp hints
+                 typeError TypeErrorFunctionTooFewArguments context range (text "function has not enough arguments") tp hints
                  return []
 
     matchFixed :: [(Int,(Name,Type))] -> [(Int,Expr Type)] -> [(Int,FixedArg)] -> Inf ([(Int,(Name,Type))],[(Int,(Int,ArgExpr))])
@@ -2495,7 +2498,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
                return (prest, (j,(i,ArgExpr newarg False)):rest)
 
     matchFixed [] ((i,arg):_) fresolved
-      = do typeError context (getRange fun) (text "function is applied to too many arguments") tp []
+      = do typeError TypeErrorFunctionTooManyArguments context (getRange fun) (text "function is applied to too many arguments") tp []
            return ([],[])
 
     -- in the result, the first int is position of the parameter `j`, the second int `i` is the original position of
@@ -2504,13 +2507,13 @@ matchFunTypeArgs context fun tp fresolved fixed named
     matchNamed [] []
       = return ([],[])
     matchNamed [] ((i,((name,rng),arg)):named)
-      = do typeError context (getRange fun) {- (combineRanged rng arg) -} (text "function is applied to too many arguments") tp []
+      = do typeError TypeErrorFunctionTooManyArguments context (getRange fun) {- (combineRanged rng arg) -} (text "function is applied to too many arguments") tp []
            return ([],[])
     matchNamed pars ((i,((name,rng),arg)):named)
       = case extract name [] pars of
           Nothing -> do -- trace ("matchNamed: no parameter with name " ++ show name ++ " in " ++ show pars) $ return ()
                         penv <- getPrettyEnv
-                        typeError context (getRange fun) (text "there is no parameter with name" <+> ppName penv name) tp []
+                        typeError TypeErrorArgumentWithNameNotFound context (getRange fun) (text "there is no parameter with name" <+> ppName penv name) tp []
                         matchNamed pars named
           Just (j,tp,pars1)
               -> do newarg  <- if (isOptional tp)
@@ -2568,7 +2571,7 @@ matchFunTypeArgs context fun tp fresolved fixed named
     reportNonCallable
       = do
          hints <- shadowHints
-         typeError context range (text "only functions or types with a copy constructor can be applied") tp hints
+         typeError TypeErrorNonCallableTarget context range (text "only functions or types with a copy constructor can be applied") tp hints
          return (zip [1..] (map (\x -> ArgExpr x True) (fixed ++ map snd named)), [], typeTotal, typeUnit, Core.App)
       where
         shadowHints
@@ -2686,8 +2689,8 @@ coreVector tp cs
 
 coreList :: Type -> [Core.Expr] -> Inf Core.Expr
 coreList tp cs
-  = do (consName,consTp,consRepr,_) <- resolveConName nameCons Nothing rangeNull
-       (nilName,nilTp,nilRepr,_) <- resolveConName nameListNil Nothing rangeNull
+  = do (consName,consTp,consRepr,_,_) <- resolveConName nameCons Nothing rangeNull
+       (nilName,nilTp,nilRepr,_,_) <- resolveConName nameListNil Nothing rangeNull
        let consx = Core.TypeApp (Core.Con (Core.TName consName consTp) consRepr) [tp]
            cons x xs = Core.App consx (seqqList [x,xs])
            nil  = Core.TypeApp (Core.Con (Core.TName nilName nilTp) nilRepr) [tp]
