@@ -334,30 +334,22 @@ addDivergentEffect :: [Core.Def] -> Inf [Core.Def]
 addDivergentEffect coreDefs0
   = mapM addDiv coreDefs0
   where
+    -- unify the effect with `<div|_>` without re-generalizing: that would close (drop) the effect
+    -- variable of a signature, or reorder its quantifiers; a signature keeps its quantifiers and
+    -- only has its effects normalized, as for the other members
     addDiv def
       = do let rng = Core.defNameRange def
-           (tp0,_,coref) <- instantiateNoEx rng (Core.defType def) -- no effect extension or otherwise div can be added even if the user specified total for example.
+           (_,tp0,_) <- Op.skolemizeEx rng (Core.defType def)
            case splitFunType tp0 of
-             Nothing
-              -> -- failure ( "Type.Infer.addDivergentEffect: unexpected non-function type:\n " ++ show coreDefs0) -- ?? should never happen?
-                 -- can happen if a value contains a data structure containing recursive functions that refer to the value
-                 return def
-             Just (targs,teff,tres)
-              -> do -- trace ("addDivergent: " ++ show (Core.defName def) ++ ": " ++ show (Core.defType def, tp0)) $ return ()
-                    -- seff <- subst teff
-                    -- let snewEff = effectExtendNoDup typeDivergent seff
-                    tv <- Op.freshEffect
-                    let newEff = effectExtend typeDivergent tv
-                    inferUnify (checkEffectSubsume rng) rng newEff teff
-                    snewEff <- subst newEff
-                    let tp1 = TFun targs snewEff tres
-                    (resTp,_,resCore) <- generalize rng rng True $
-                                         return (TFun targs snewEff tres, typeTotal, coref (Core.defExpr def))
-                    inferSubsume (checkEffectSubsume rng) rng (Core.defType def) resTp
-                    -- fix up the core since the recursive tname still refers to the old type without the 'div' effect
-                    -- let name = unqualify (Core.defName def)
-                    --    resCore1 = (CoreVar.|~>) [(name, Core.Var (Core.TName name resTp) Core.InfoNone)] resCore
-                    return (def{ Core.defType = resTp, Core.defExpr = resCore })
+             Nothing  -- can happen if a value contains a data structure containing recursive functions that refer to the value
+              -> return def
+             Just (_,teff,_)
+              -> do tv <- Op.freshEffect
+                    inferUnify (checkEffectSubsume rng) rng (effectExtend typeDivergent tv) teff
+                    case Core.defType def of
+                      TForall tvs rho -> do nrho <- normalize False rho
+                                            return def{ Core.defType = quantifyType tvs nrho }
+                      _               -> return def
 
 
 
