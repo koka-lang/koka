@@ -24,14 +24,18 @@ abstract value struct channel<a>(
 type channel-state<a>
   Empty
   Values( value : a, values : list<a> = [] )
-  Waiting( listener : a -> ioc (), listeners : list<a -> ioc ()> = [] )
+  Waiting( listener : listener<a>, listeners : list<listener<a>> = [] )
+
+// A waiting `receive`. `live` is cleared when the receive is canceled; a
+// canceled listener must never be called, as its strand has moved on.
+value struct listener<a>( live : ref<global,bool>, resume : a -> ioc () )
 
 fun from-values(values : list<a> ) : channel-state<a>
   match values
     Nil -> Empty
     Cons(v,vs)  -> Values(v,vs)
 
-fun from-waiting(listeners : list<a -> ioc ()>) : channel-state<a>
+fun from-waiting(listeners : list<listener<a>>) : channel-state<a>
   match listeners
     Nil -> Empty
     Cons(l,ls)  -> Waiting(l,ls)
@@ -44,18 +48,25 @@ pub fun channel() : async channel<a>
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
 // waits asynchronously until a value becomes available.
 pub fun receive( ch : channel<a>) : <async,ndet> a
-  fun setup( cb : _ -> ioc () ) : ioc ()
+  fun setup( _evloop, cb : _ -> ioc () ) : ioc dispose-fn
     val r = ch.state
+    val me = Listener(ref(True), cb)
     match !r
-      Empty -> r := Waiting(cb,[])
-      Waiting(l,ls) -> r := Waiting(l,ls ++ [cb])
+      Empty -> r := Waiting(me,[])
+      Waiting(l,ls) -> r := Waiting(l,ls ++ [me])
       Values(v,vs)->   // this case should not happen due to `try-receive`
         r := from-values(vs)
-        cb(v)        
+        cb(v)
+    // on cancelation: drop our listener, so a later value goes to a receive that is still waiting
+    fn()
+      set(me.live, False)
+      match !r
+        Waiting(l,ls) -> r := from-waiting(Cons(l,ls).filter(fn(x) !(x.live)))
+        _ -> ()
 
   match ch.try-receive
     Just(v) -> v
-    Nothing -> await1-noexn("receive " ++ ch.chid.show, setup)
+    Nothing -> await-noexn("receive " ++ ch.chid.show, setup)
 
 // Return immediately if a value is available on the channel and otherwise returns `Nothing`.
 pub fun try-receive( ch : channel<a> ) : <async,ndet> maybe<a>
@@ -74,7 +85,7 @@ pub fun emit-io( ch : channel<a>, value : a ) : ioc ()
     Values(v,vs)  -> r := Values(v,vs ++ [value])
     Waiting(l,ls) ->
       r := from-waiting(ls)
-      l(value)                // todo: use async-schedule-ioc ?
+      (l.resume)(value)                // todo: use async-schedule-ioc ?
 
 // Emit a value asynchronously into a channel.
 pub fun emit( ch : channel<a>, value : a ) : async ()

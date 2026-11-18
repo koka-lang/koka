@@ -1,0 +1,12 @@
+timeout completes: done
+timeout expires: timed out
+timeout raises at once: exception early
+timeout raises later: exception late
+firstof, one raises: exception fast
+firstof, both raise: exception first
+firstof, both complete: right
+firstof, all canceled: canceled
+interleaved raises: exception b
+ 
+async/firstof-first/main: () -> <std/async/async/async,console,ndet> ()
+async/firstof-first/test: (name : string, action : () -> <std/async/async/async,exn,ndet> string) -> <std/async/async/async,console,ndet> ()

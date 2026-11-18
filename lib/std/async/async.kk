@@ -131,7 +131,7 @@ pub fun await1-noexn( label : string = "", setup : (resume : (a) -> ioc () ) -> 
 
 // Convenience function for async functions where the setup cannot fail. In that case
 // the result will never be an error.
-fun await-noexn( label : string = "", setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc dispose-fn ) : async a
+pub fun await-noexn( label : string = "", setup : (evloop : event-loop, resume : (a) -> ioc ()) -> ioc dispose-fn ) : async a
   val res = setup/await-error( label, fn(evloop,resume) setup(evloop,resume).Ok )
   match res
     Ok(x)      -> x
