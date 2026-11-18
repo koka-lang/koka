@@ -84,7 +84,7 @@ static inline kk_unit_t kk_ref_set_borrow(kk_ref_t r, kk_box_t value, kk_context
 }
 
 // In Koka we can constrain the argument of f to be a local-scope reference.
-static inline kk_box_t kk_ref_modify(kk_ref_t r, kk_function_t f, kk_context_t* ctx) {
+static inline kk_box_t kk_ref_access(kk_ref_t r, kk_function_t f, kk_context_t* ctx) {
   return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_context_t*),f,(f,r,ctx),ctx);
 }
 
