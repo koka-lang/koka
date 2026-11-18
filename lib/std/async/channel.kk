@@ -24,14 +24,14 @@ abstract value struct channel<a>(
 type channel-state<a>
   Empty
   Values( value : a, values : list<a> = [] )
-  Waiting( listener : a -> ioc (), listeners : list<a -> ioc ()> = [] )
+  Waiting( listener : (int, a -> ioc ()), listeners : list<(int, a -> ioc ())> = [] )
 
 fun from-values(values : list<a> ) : channel-state<a>
   match values
     Nil -> Empty
     Cons(v,vs)  -> Values(v,vs)
 
-fun from-waiting(listeners : list<a -> ioc ()>) : channel-state<a>
+fun from-waiting(listeners : list<(int, a -> ioc ())>) : channel-state<a>
   match listeners
     Nil -> Empty
     Cons(l,ls)  -> Waiting(l,ls)
@@ -44,18 +44,24 @@ pub fun channel() : async channel<a>
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
 // waits asynchronously until a value becomes available.
 pub fun receive( ch : channel<a>) : <async,ndet> a
-  fun setup( cb : _ -> ioc () ) : ioc ()
+  fun setup( _evloop, cb : _ -> ioc () ) : ioc dispose-fn
     val r = ch.state
+    val id = unique()
     match !r
-      Empty -> r := Waiting(cb,[])
-      Waiting(l,ls) -> r := Waiting(l,ls ++ [cb])
+      Empty -> r := Waiting((id,cb),[])
+      Waiting(l,ls) -> r := Waiting(l,ls ++ [(id,cb)])
       Values(v,vs)->   // this case should not happen due to `try-receive`
         r := from-values(vs)
         cb(v)        
+    // on cancelation, remove our listener so it does not consume a later value
+    fn()
+      match !r
+        Waiting(l,ls) -> r := from-waiting(Cons(l,ls).filter(fn(x) x.fst != id))
+        _ -> ()
 
   match ch.try-receive
     Just(v) -> v
-    Nothing -> await1-noexn("receive " ++ ch.chid.show, setup)
+    Nothing -> await-noexn("receive " ++ ch.chid.show, setup)
 
 // Return immediately if a value is available on the channel and otherwise returns `Nothing`.
 pub fun try-receive( ch : channel<a> ) : <async,ndet> maybe<a>
@@ -72,7 +78,7 @@ pub fun emit-io( ch : channel<a>, value : a ) : ioc ()
   match !r
     Empty -> r := Values(value, [])
     Values(v,vs)  -> r := Values(v,vs ++ [value])
-    Waiting(l,ls) ->
+    Waiting((_,l),ls) ->
       r := from-waiting(ls)
       l(value)                // todo: use async-schedule-ioc ?
 
