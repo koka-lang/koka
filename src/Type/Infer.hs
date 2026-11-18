@@ -20,7 +20,7 @@ import Data.List(partition,sortBy,sortOn,intersperse)
 import qualified Data.List(find)
 import Data.Ord(comparing)
 import Data.Maybe(catMaybes,isJust)
-import Control.Monad(when)
+import Control.Monad(when,foldM)
 import Lib.PPrint
 import Core.Pretty
 import Common.Failure
@@ -63,6 +63,7 @@ import Type.Pretty
 import Type.Assumption
 import Type.TypeVar
 import qualified Type.Operations as Op
+import qualified Type.Unify as Unify
 import Type.InferMonad
 
 import qualified Core.CoreVar as CoreVar
@@ -197,13 +198,17 @@ inferDefGroup topLevel (DefRec defs0) cont
        mod <- getModuleName
        mapMDefs_ (\cdef -> addRangeInfoCoreDef topLevel mod (fst (M.find (unqualify $ Core.defName cdef) coreMap)) cdef) coreGroups2
        -- TODO: fix local info in the core; test/algeff/nim.kk with no types for bobTurn and aliceTurn triggers this
-       let sub = map (\cdef -> let tname    = Core.defTName cdef
-                                   nameInfo = -- trace ("fix local info: " ++ show (Core.defName cdef)) $
-                                              createNameInfoX Public (Core.defName cdef) sd (Core.defSort cdef) (Core.defNameRange cdef) (Core.defType cdef) (Core.defDoc cdef)
-                                   varInfo  = coreVarInfoFromNameInfo nameInfo
-                                   var      = Core.Var tname varInfo
-                               in (tname, var)) (Core.flattenDefGroups coreGroups2)
-           coreGroups3 = (CoreVar.|~>) sub coreGroups2
+       -- a member's references to the other members get their final types and infos (its
+       -- references to itself were replaced by inferRecDef2)
+       let members = map (\cdef -> let nameInfo = createNameInfoX Public (Core.defName cdef) sd (Core.defSort cdef) (Core.defNameRange cdef) (Core.defType cdef) (Core.defDoc cdef)
+                                   in (Core.defName cdef, Core.defType cdef, coreVarInfoFromNameInfo nameInfo))
+                         (Core.flattenDefGroups coreGroups2)
+           replaceSiblings cdef
+             = do expr <- foldM (\expr (name,tp,info) -> if name == Core.defName cdef then return expr
+                                                          else replaceRecCalls name tp info expr)
+                                (Core.defExpr cdef) members
+                  return cdef{ Core.defExpr = expr }
+       coreGroups3 <- mapMDefs replaceSiblings coreGroups2
        -- extend gamma
        x <- (if topLevel then extendGammaCore True {- already canonical -} else extendInfGammaCore False {-toplevel -}) coreGroups3 cont
        return (seqqList coreGroups3,x)
@@ -415,17 +420,8 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                           coreX <- subst simexpr
                           -- traceDoc $ \penv -> prettyExpr penv coreX
                           (mvars,msub) <- Op.freshSub Bound tvars
-                          let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
-                              -- mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
-                              -- msub  = subNew (zip tvars (map TVar mvars))
-
-
-                              resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX,
-                                                        Core.TypeApp (Core.Var (Core.TName ({- unqualify -} name) (resTp1)) info)
-                                                                      (map TVar mvars))] -- TODO: check: was `tvars` TODO: wrong for unannotated polymorphic recursion: see codegen/wrong/rec2
-                                          (msub |-> coreX)
-
-                              resCoreY = Core.addTypeLambdas mvars resCoreX
+                          resCoreX <- replaceRecCalls name resTp1 info (msub |-> coreX)
+                          let resCoreY = Core.addTypeLambdas mvars resCoreX
                               -- TODO: check: this was:
                               -- bsub  = subNew (zip mvars (map TVar tvars))
                               -- resCoreY = Core.TypeLam tvars (bsub |-> resCoreX)
@@ -441,14 +437,14 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                        do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
                           simResCore1 <- return resCore1 -- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                           coreX <- subst simResCore1
-                          let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
+                          resCoreX <- replaceRecCalls name resTp1 info coreX
                           return (resTp1, resCoreX)
                   _  -- ensure we insert the right info  (test: static/div2-ack)
                     -> -- trace "  rec normal" $
                        do assumedTpX <- normalize True assumedTp >>= subst
                           simResCore1 <- return resCore1 -- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                           coreX <- subst simResCore1
-                          let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
+                          resCoreX <- replaceRecCalls name resTp1 info coreX
                           return (resTp1, resCoreX)
                   --(Nothing,_)
                   --   ->    return (resTp1,resCore1) -- (CoreVar.|~>) [(unqualify name, Core.Var (Core.TName (unqualify name) resTp1) Core.InfoNone)] resCore1
@@ -459,6 +455,58 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
         coreDef2    <- subst (Core.Def (Core.defName coreDef) resTp2 coreExpr (Core.defVis coreDef) csort (Core.defInline coreDef) (Core.defNameRange coreDef) (Core.defDoc coreDef))
         return (coreDef2)
 
+
+
+-- | Replace the references in `expr` to `name`, a member of a recursive group, by
+-- references at its generalized type `tp`. The group was checked with `name` at the
+-- type `occTp`: its annotation, or the monomorphic type assumed for it. A reference's
+-- type arguments instantiate `occTp`, and are mapped to the ones that instantiate
+-- `tp` at the same type (see `instanceTypeArgs`). They cannot be reused as they are,
+-- since an annotation can quantify in another order than `tp` (tests
+-- cgen/rec-annot-order, cgen/rec-mutual-order), nor dropped, since a polymorphic
+-- recursive call has arguments of its own (test cgen/rec-polytargs).
+replaceRecCalls :: Name -> Type -> Core.VarInfo -> Core.Expr -> Inf Core.Expr
+replaceRecCalls name tp info expr
+  = case [occTp | Core.TName occName occTp <- Core.tnamesList (CoreVar.fv expr), occName == name] of
+      [] -> return expr
+      (occTp:_)
+        -> do toTpArgs <- instanceTypeArgs name occTp tp
+              let call occurrence
+                    = Core.makeTypeApp (Core.Var (Core.TName name tp) info) (toTpArgs (typeArgsOf occurrence))
+              return (CoreVar.substOccurrences [(Core.TName name occTp, call)] expr)
+  where
+    typeArgsOf (Core.TypeApp _ targs) = targs
+    typeArgsOf _                      = []
+
+-- | Given the type `occTp` that the body of `name` was checked at, and its generalized
+-- type `tp`, map the type arguments of an instance of `occTp` to those of the same
+-- instance of `tp`; every instance of `occTp` is one of `tp`. The two can differ in
+-- the order of their quantifiers, `tp` can close an effect row that `occTp`
+-- quantifies over, and `tp` can quantify a variable that is free in `occTp` (the
+-- wildcard in `act : () -> _ a`). Unifying their bodies, with the quantifiers of both
+-- as unknowns, expresses each quantifier of `tp` in those of `occTp`. The unknowns
+-- are meta variables. A variable free in a body and not quantified by its own scheme
+-- must stay as it is, so it is a skolem during the unification: a meta variable can
+-- be bound to a skolem, but not to a bound variable.
+instanceTypeArgs :: Name -> Type -> Type -> Inf ([Type] -> [Type])
+instanceTypeArgs name occTp tp
+  = do let (occVars,occRho) = splitTypeScheme occTp
+           (tpVars,tpRho)   = splitTypeScheme tp
+           fixed = tvsList (tvsRemove occVars (ftv occRho) `tvsUnion` tvsRemove tpVars (ftv tpRho))
+       (occMetas,occSub)  <- Op.freshSub Meta occVars
+       (tpMetas,tpSub)    <- Op.freshSub Meta tpVars
+       (skolems,toSkolem) <- Op.freshSub Skolem fixed
+       (res,sub) <- Unify.runUnify (Unify.unify (toSkolem |-> (tpSub |-> tpRho)) (toSkolem |-> (occSub |-> occRho)))
+       case res of
+         Left _   -> failure ("Type.Infer.instanceTypeArgs: the type the body was checked at is not an instance of the generalized type: " ++ show name)
+         Right () -> return ()
+       let fromSkolem = subNew (zip skolems (map TVar fixed))
+           -- after unification, a quantifier of `occTp` is a variable, or a type where `tp` closed it
+           toTpArgs targs
+             = assertion ("Type.Infer.instanceTypeArgs: type arguments of " ++ show name) (length targs == length occMetas) $
+               let argSub = subNew [(tv,targ) | (occMeta,targ) <- zip occMetas targs, TVar tv <- [sub |-> TVar occMeta]]
+               in [fromSkolem |-> (argSub |-> (sub |-> TVar tpMeta)) | tpMeta <- tpMetas]
+       return toTpArgs
 
 
 inferDef :: Bool -> Expect -> Def Type -> Inf Core.Def
