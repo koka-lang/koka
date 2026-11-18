@@ -381,7 +381,7 @@ fun read(i:int) {
 }
 
 fun reader(init,action) {
-  read-handle( Reader-hnd( op-control( fn(x,k){ k(init) } )), action)
+  read-handle( ReaderHnd( op-control( fn(x,k){ k(init) } )), action)
 }
 
 // State
