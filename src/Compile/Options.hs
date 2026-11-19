@@ -1280,6 +1280,9 @@ ccFromPath flags path
         clang   = gcc{ ccFlagsWarn = gnuWarn
                                      ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align"
                                      ++ (if onMacOS && targetArch flags == "arm64" then ["-Wno-unknown-warning-option"] else [])
+                     , ccFlagsCompile = ccFlagsCompile gcc ++
+                         (if optimize flags >= 2
+                            then ["-falign-functions=64"] else [])
                      }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
