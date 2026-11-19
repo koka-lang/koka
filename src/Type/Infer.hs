@@ -1751,7 +1751,7 @@ inferCase propagated expect expr branches isLazyMatch rng
                             (force,forceTp,forceInfo) <- resolveFunName forceName (CtxFunArgs False 1 [] Nothing) rng (getRange expr)
                             let cforce   = coreExprFromNameInfo force forceInfo
                             case ccore0 of
-                              Core.App (Core.Var fname _) [_] | force == Core.getName fname -> return ccore0 -- don't duplicate as force(force(expr)) -- this can happen in Kind/Infer where force is explicitly inserted sometimes
+                              Core.App f [_] | isForce force f -> return ccore0 -- don't duplicate as force(force(expr)) -- this can happen in Kind/Infer where force is explicitly inserted sometimes
                               _ -> do (ftp,_,coref) <- instantiate rng forceTp
                                       case splitFunType ftp of
                                         Just (_,eff,rtp) -> do inferUnify (Infer rng) (getRange expr) ctp rtp
@@ -2740,6 +2740,16 @@ usesLocalsMb lvars (Just expr) = usesLocals lvars expr
 
 usesLocalsOp :: S.NameSet -> HandlerBranch Type -> Bool
 usesLocalsOp lvars b = usesLocals lvars (hbranchExpr b)
+
+
+-- is this expression the function `force`, possibly wrapped in an effect `@open`?
+isForce :: Name -> Core.Expr -> Bool
+isForce force expr
+  = case expr of
+      Core.App (Core.TypeApp (Core.Var open _) _) [body]  | Core.getName open == nameEffectOpen
+        -> isForce force body
+      Core.Var fname _ -> Core.getName fname == force
+      _ -> False
 
 
 shortCircuit :: Core.Expr -> [Core.Expr] -> Maybe Core.Expr
