@@ -99,7 +99,7 @@ liftDefGroup False (DefRec defs)
                              <+> tupled (map (ppName penv . getName) fvs)
                              <//> prettyDef penv{coreShowDef=True} (head defs)
        -}
-       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss (zip names exprDocs))
+       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip defs (zip names exprDocs))
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
@@ -110,8 +110,7 @@ liftDefGroup False (DefRec defs)
                                                 , defSort = liftSort False (defSort def)})
                           defs callExprs
        return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
-  where pinfoss = map defParamInfos defs
-        exprDocs = map (\def -> (defExpr def, defDoc def)) defs
+  where exprDocs = map (\def -> (defExpr def, defDoc def)) defs
         exprs = map fst exprDocs
         names = map defTName defs
         fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
@@ -216,12 +215,13 @@ liftLocalFun expr eff
        return expr2
 -}
 
-makeDef :: [TName] -> [TypeVar] -> ([ParamInfo], (TName, (Expr, String))) -> Lift (Expr, Def)
-makeDef fvs tvs (pinfos, (origName, (expr, doc)))
+makeDef :: [TName] -> [TypeVar] -> (Def, (TName, (Expr, String))) -> Lift (Expr, Def)
+makeDef fvs tvs (def, (origName, (expr, doc)))
   = do -- liftTrace (show expr)
        dnames <- currentDefNames
        (name,inl) <- uniqueNameCurrentDef
-       let (callExpr,lifted) = (etaExpr name, liftedDef dnames name inl)
+       fip <- liftedFip def
+       let (callExpr,lifted) = (etaExpr name, liftedDef dnames name inl fip)
        -- traceDoc $ \penv -> text "lifting:" <+> ppName penv name <.> colon <+> text "tvs:" <+> tupled (map (ppTypeVar penv) tvs) <//> prettyExpr penv expr <//> text "to:" <+> prettyDef penv{coreShowDef=True} lifted
        return (callExpr,lifted)
   where
@@ -237,12 +237,12 @@ makeDef fvs tvs (pinfos, (origName, (expr, doc)))
     alltpars = tvs ++ tpars
     allpars  = fvs ++ pars
     allargs  = [Var tname InfoNone | tname <- allpars]
-    allpinfos = [Own | _ <- fvs] ++ pinfos
+    allpinfos = [Own | _ <- fvs] ++ defParamInfos def
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef dnames name inl
-            = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull
+    liftedDef dnames name inl fip
+            = Def name liftedTp liftedFun Private (defFunEx allpinfos fip) inl rangeNull
               $ "// lifted local: " ++ concat (intersperse ", " (map (show . unqualify) (dnames ++ [getName origName]))) ++ "\n" ++ doc
 
     funExpr name
@@ -264,6 +264,13 @@ liftGuard (Guard guard body)
   = do guard' <- liftExpr False guard
        body'  <- liftExpr False body
        return (Guard guard' body')
+
+liftedFip :: Def -> Lift Fip
+liftedFip def
+  = do env <- getEnv
+       return (case (defSort (last (currentDef env)), defSort def) of
+                 (DefFun _ top, DefFun _ fip) | not (isFipTop top) -> fip
+                 _ -> noFip)
 
 uniqueNameCurrentDef :: Lift (Name,DefInline)
 uniqueNameCurrentDef =
