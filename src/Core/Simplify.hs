@@ -9,7 +9,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Simplify (simplify, uniqueSimplify, simplifyDefs) where
+module Core.Simplify (simplify, uniqueSimplify, simplifyDefs, isIdentityFun) where
 
 import Data.List
 import Control.Monad
@@ -187,21 +187,13 @@ topDown expr@(App app@(TypeApp (Var openName _) [effFrom,effTo,tpFrom,tpTo]) [ar
           -- Var _ InfoExternal{} -> True  -- TODO: maybe too liberal?
           _     -> False
 
--- Remove effect open applications; only if 'unsafe' is enabled since
+-- Remove effect open applications and identity externals; only if 'unsafe' is enabled since
 -- the effect types won't match up
-topDown expr@(App app@(TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
+topDown expr@(App f [arg])  | isIdentityFun f
   = do unsafe <- getUnsafe
        if (unsafe)
         then return arg
-        else do return (App app [arg])
-
--- Remove identity externals of the form "#1"; only if 'unsafe' is enabled since
--- usually the effect types won't match up
-topDown expr@(App app@(TypeApp (Var _ (InfoExternal "#1")) _) [arg])
-  = do unsafe <- getUnsafe
-       if (unsafe)
-        then return arg
-        else do return (App app [arg])
+        else return expr
 
 -- Direct function applications
 topDown expr@(App (Lam pars eff body) args) | length pars == length args
@@ -300,6 +292,17 @@ topDown (App f args)
 topDown expr
   = do -- traceS ("no topdown match: " ++ show expr)
        return expr
+
+-- `.open` or an identity external (`inline "#1"`, such as `unsafe-total-cast` or
+-- `pretend-decreasing`), or one applied to another (`.open(cast-ev1)`): applied to one
+-- argument, it changes at most the effects in its type.
+isIdentityFun :: Expr -> Bool
+isIdentityFun f
+  = case f of
+      TypeApp (Var _ (InfoExternal "#1")) _ -> True
+      TypeApp (Var g _) _ -> getName g == nameEffectOpen
+      App g [h] -> isIdentityFun g && isIdentityFun h
+      _ -> False
 
 
 -- normalize evaluation by binding sub expressions
@@ -459,17 +462,20 @@ bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && get
   = arg
 
 
--- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
-bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars
+-- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f,
+-- also under identity casts: fun(x1...xn) { .open(f)(x1,...,xn) } -> .open(f)
+bottomUp (Lam pars eff (App f args))   | Var _ info <- uncast f, notExternal info && length pars == length args && argsMatchPars
   = f
   where
+    uncast (App g [x]) | isIdentityFun g = uncast x
+    uncast g = g
     argsMatchPars = and (zipWith argMatchPar pars args)
     argMatchPar par (Var name _)  = par == name
     argMatchPar _    _            = False
 
-    notExternal = case info of
-                    InfoExternal{} -> False
-                    _ -> True
+    notExternal info = case info of
+                         InfoExternal{} -> False
+                         _ -> True
 
 
 -- return immediately from a lambda
