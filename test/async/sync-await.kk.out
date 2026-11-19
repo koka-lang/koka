@@ -1,0 +1,10 @@
+plain: 3
+sync strand wins: 5
+sync then never vs immediate: 3
+sync then wait vs immediate: 3
+interleaved: 3
+done
+ 
+async/sync-await/main: () -> ioc ()
+async/sync-await/never: () -> std/async/async/async int
+async/sync-await/sync-await: (x : int) -> std/async/async/async int
