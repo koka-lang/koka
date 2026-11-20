@@ -251,12 +251,4 @@ getDataDef lookupDI tp
                        case mdi of
                          Nothing -> return Nothing
                          Just di -> return $ Just (dataInfoDef di)
-    where
-      extractDataDefType :: Type -> Maybe Name
-      extractDataDefType tp
-        = case expandSyn tp of
-            TApp t _      -> extractDataDefType t
-            TForall _ t   -> extractDataDefType t
-            TCon tc       -> Just (typeConName tc)
-            _             -> Nothing
 

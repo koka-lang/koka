@@ -28,7 +28,7 @@ module Type.Type (-- * Types
                   -- ** Operations
                   , makeScheme
                   , quantifyType, applyType, tForall
-                  , expandSyn
+                  , expandSyn, extractDataDefType
                   , canonicalForm, minimalForm
                   -- ** Standard types
                   , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSSizeT
@@ -357,6 +357,15 @@ expandSyn (TSyn syn args tp)
   = expandSyn tp
 expandSyn tp
   = tp
+
+-- | The name of the data type at the head of a type (under foralls and synonyms)
+extractDataDefType :: Type -> Maybe Name
+extractDataDefType tp
+  = case expandSyn tp of
+      TApp t _      -> extractDataDefType t
+      TForall _ t   -> extractDataDefType t
+      TCon tc       -> Just (typeConName tc)
+      _             -> Nothing
 
 
 -- | A type in canonical form has no type synonyms and expanded effect types.

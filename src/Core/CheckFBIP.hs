@@ -41,8 +41,6 @@ import Core.Borrowed ( Borrowed, borrowedLookup, borrowedLookupFip )
 import Common.NamePrim (nameEffectEmpty, nameTpDiv, nameEffectOpen, namePatternMatchError, nameTpException, nameTpPartial, nameTrue,
                         nameCCtxSetCtxPath, nameFieldAddrOf, nameTpInt,
                         nameLazyMemoizeTarget,nameLazyLeave,nameLazyEnter,nameLazyMemoize, nameCoreDebug)
-import Backend.C.ParcReuse (getFixedDataAllocSize, Reusable(..), ruIsReusable)
-import Backend.C.Parc (getDataInfo', needsDupDropData)
 import Data.Ratio
 import Data.Ord (Down (Down))
 import Control.Monad.Reader
