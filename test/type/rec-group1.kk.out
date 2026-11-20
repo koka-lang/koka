@@ -1,0 +1,7 @@
+type/rec-group1/dup: forall<a> (x : a, n : int) -> div list<a>
+type/rec-group1/dup2: forall<a> (y : a, n : int) -> div list<a>
+type/rec-group1/more: forall<a> (ys : list<a>) -> div list<(a, a)>
+type/rec-group1/pairs: forall<a> (xs : list<a>) -> div list<(a, a)>
+type/rec-group1/spin: forall<e> (n : int) -> <div|e> int
+type/rec-group1/swap-down: forall<a,b,e> (t : list<a>, f : (a) -> <div|e> b, acc : list<b>) -> <div|e> list<b>
+type/rec-group1/swap-up: forall<a,b,e> (t : list<b>, f : (a) -> <div|e> b, acc : list<b>) -> <div|e> list<b>
