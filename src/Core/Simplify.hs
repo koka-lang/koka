@@ -170,22 +170,13 @@ topDown (App assert@(Var name _) [msg,cond])  | getName name == nameAssert
           then return exprUnit
           else return (App assert [msg,cond])
 
--- Remove identity open applications; need to be done before open resolve to enable tail call optimization
+-- Remove identity open applications; need to be done before open resolve to enable tail call optimization.
+-- Only an exact identity is removed: an open between different effects with the same handled
+-- effects is an identity at run time, but removing it changes the type of the expression.
+-- Such opens stay as casts until the backends erase them.
 topDown expr@(App app@(TypeApp (Var openName _) [effFrom,effTo,tpFrom,tpTo]) [arg])
-  | getName openName == nameEffectOpen &&
-    (hasNoEffectExpr arg ||                -- arg uses no effects, or, the open is an identity
-      (matchType tlFrom tlTo && length lsFrom == length lsTo && and [matchType t1 t2 | (t1,t2) <- zip lsFrom lsTo]))
+  | getName openName == nameEffectOpen && matchType effFrom effTo
   = return arg
-  where
-    (lsFrom,tlFrom) = extractHandledEffect effFrom
-    (lsTo,tlTo)     = extractHandledEffect effTo
-    hasNoEffectExpr expr
-      = case expr of
-          TypeApp e targs -> hasNoEffectExpr e
-          Lit{} -> True
-          Con{} -> True
-          -- Var _ InfoExternal{} -> True  -- TODO: maybe too liberal?
-          _     -> False
 
 -- Remove effect open applications and identity externals; only if 'unsafe' is enabled since
 -- the effect types won't match up
