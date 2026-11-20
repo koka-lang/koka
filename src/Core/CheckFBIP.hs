@@ -101,6 +101,8 @@ chkTopLevelExpr borrows (TypeLam _ body)
   = chkTopLevelExpr borrows body
 chkTopLevelExpr borrows (TypeApp body _)
   = chkTopLevelExpr borrows body
+chkTopLevelExpr borrows (App (TypeApp (Var openName _) _) [body]) | getName openName == nameEffectOpen
+  = chkTopLevelExpr borrows body
 chkTopLevelExpr borrows expr
   = chkExpr expr
 

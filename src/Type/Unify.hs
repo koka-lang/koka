@@ -206,7 +206,7 @@ subsume range free tp1 tp2
        let subx = ssub @@ sub
            tp = quantifyType vars (subx |-> rho1) -- TODO: do rho1 and we get skolem errors: see 'Prelude.choose'
            coref0 expr
-             = subx |-> addTypeApps tvs expr
+             = subx |-> core2 expr   -- type arguments, and the .open of `extend`
            coref1 expr
              = Core.addTypeLambdas vars (coref0 expr)   -- generalize
 
