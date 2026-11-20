@@ -11,7 +11,7 @@
 -- constructor reuse analysis
 -----------------------------------------------------------------------------
 
-module Backend.C.ParcReuse ( parcReuseCore, getFixedDataAllocSize, Reusable(..), ruIsReusable ) where
+module Backend.C.ParcReuse ( parcReuseCore ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -73,24 +73,6 @@ ruTopLevelDef def
 --------------------------------------------------------------------------
 -- Main PARC algorithm
 --------------------------------------------------------------------------
-
-getConInfo :: Type -> Name -> Reuse (Maybe ConInfo)
-getConInfo dataType conName
-  = do newtypes <- getNewtypes
-       let mdataName = extractDataName dataType
-       let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
-       case filter (\ci -> conInfoName ci == conName) . dataInfoConstrs <$> mdataInfo of
-         Just (ci:_) -> pure $ Just ci
-         _ -> pure Nothing
-
-extractDataName :: Type -> Maybe Name
-extractDataName tp
-  = case expandSyn tp of
-      TForall _ t -> extractDataName t
-      TFun _ _ t -> extractDataName t
-      TCon tc    -> Just (typeConName tc)
-      TApp t _   -> extractDataName t
-      _          -> Nothing
 
 ruToAssign :: Match -> Reuse ([DefGroup],(Expr,Bool {-is match?-}))
 ruToAssign (Match pres arg)  = return ([DefNonRec (makeDef nameNil pre) | pre <- pres],(arg,True))
@@ -350,22 +332,6 @@ ruGuard (Guard test expr)  -- expects patAdded in depth-order
          -> let dropsHere = Map.elems $ reuseDrops Map.\\ Map.fromSet (const undefined) reusedHere
             in Guard test' (makeStats (dropsHere ++ [expr']))
 
-data Reusable
-  = NotReusable
-  | ReusableWithSize Int
-
-ruIsReusable :: ConRepr -> Platform -> Reusable
-ruIsReusable repr platform
-  = let size = conReprAllocSize platform repr in
-    -- never try to reuse a Just-like constructor:
-    if isConAsJust repr
-      -- special case to allow benchmarking the effect of reuse analysis:
-      || "_noreuse" `isSuffixOf` nameLocal (conTypeName repr)
-    -- size zero indicates value types:
-      || size == 0
-    then NotReusable
-    else ReusableWithSize size
-
 ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
 ruTryReuseCon cname repr conApp
   = do platform <- getPlatform
@@ -442,7 +408,8 @@ ruLazyMemoize lazyTName arg
                             lazyIndirect reuseName lazyInfo True (App con args)
                     else do -- generate alloc-at
                             args' <- mapM ruExpr args
-                            mci <- getConInfo (typeOf cname) (getName cname)
+                            newtypes <- getNewtypes
+                            let mci = getConInfo newtypes (typeOf cname) (getName cname)
                             lazyReuse reuseName lazyInfo mci cname crepr con args'
 
     -- specialized reuse
@@ -880,66 +847,17 @@ getRuFixedDataAllocSize dataType
        platform <- getPlatform
        pure $ getFixedDataAllocSize platform newtypes dataType
 
--- | The allocation size of a value of this type, when every constructor has the same one.
--- A function value has none: its size depends on what the closure captures, and
--- `getDataInfo` would otherwise answer with the size of its result type.
-getFixedDataAllocSize :: Platform -> Newtypes -> Type -> Maybe (Int, Int)
-getFixedDataAllocSize platform newtypes dataType
-  | isJust (splitFunScheme dataType) = Nothing
-  | otherwise
-  = case getDataInfo newtypes dataType of
-      Nothing -> Nothing
-      Just (dataName,dataInfo)
-        -> if ("_noreuse" `isSuffixOf` nameLocal dataName)
-            then Nothing
-            else let ddef = dataInfoDef dataInfo
-                 in if dataDefIsValue ddef
-                      then Nothing
-                      else let cis = dataInfoConstrs dataInfo
-                               sizeScanCounts = map (valueReprSizeScan platform . conInfoValueRepr) cis
-                           in case sizeScanCounts of
-                                (ss:sss) | all (==ss) sss -> Just ss
-                                _        -> Nothing
-
 getLazyIndirectCon :: TName -> Reuse (Maybe (ConInfo,ConRepr))
 getLazyIndirectCon lazyTName
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       case getDataInfo newtypes (typeOf lazyTName) of
+       case extractDataInfo newtypes (typeOf lazyTName) of
          Nothing -> do return Nothing
          Just (_,dataInfo)
            -> case filter (\cinfo -> isLazyIndirectConName (conInfoName cinfo) ) (dataInfoConstrs dataInfo) of
                 [cinfo] | length (conInfoParams cinfo) == 1
                   -> return (Just (cinfo,getConRepr dataInfo cinfo))
                 _ -> do return Nothing
-
-getDataInfo ::  Newtypes -> Type -> Maybe (Name,DataInfo)
-getDataInfo newtypes dataType
-  = case  extractDataName dataType of
-      Nothing   -> Nothing
-      Just name -> case newtypesLookupAny name newtypes of
-                     Just dataInfo -> Just (name,dataInfo)
-                     Nothing       -> Nothing
-  where
-    extractDataName :: Type -> Maybe Name
-    extractDataName tp
-      = case expandSyn tp of
-          TForall _ t -> extractDataName t
-          TFun _ _ t -> extractDataName t
-          TApp t _   -> extractDataName t
-          TCon tc    -> Just (typeConName tc)
-          _          -> Nothing
-
-{-
-getConInfo :: Newtypes -> TName -> Maybe ConInfo
-getConInfo newtypes conTName
-  = case getDataInfo newtypes (typeOf conTName) of
-      Nothing -> Nothing
-      Just (dataName,dataInfo)
-        -> case filter (\cinfo -> conInfoName cinfo == getName conTName) of
-             [cinfo] -> Just cinfo
-             _       -> Nothing
--}
 
 {-
 

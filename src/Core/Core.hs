@@ -71,6 +71,7 @@ module Core.Core ( -- Data structures
                    , conReprHasCtxPath, conReprCtxPath, CtxPath(..)
                    , isDataStruct, isDataAsMaybe, isDataStructAsMaybe
                    , conReprAllocSize, conReprAllocSizeScan, conReprScanCount
+                   , Reusable(..), ruIsReusable, needsDupDropData
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
                    , dataReprIsValue, conReprIsValue
@@ -114,6 +115,7 @@ import Control.Monad (forM)
 import Control.Monad.Identity
 
 import Data.Char( isDigit )
+import Data.List( isSuffixOf )
 import qualified Data.Set as S
 import Data.Maybe
 import Data.Monoid (Endo(..), Any(..),(<>))
@@ -454,6 +456,33 @@ conReprAllocSizeScan :: Platform -> ConRepr -> (Int,Int)
 conReprAllocSizeScan platform conRepr
   = let (size,scan) = valueReprSizeScan platform (conValRepr conRepr)
     in if (conReprIsValue conRepr) then (0,scan) else (size,scan)
+
+-- | Can a constructor be reused, and with which allocation size.
+data Reusable
+  = NotReusable
+  | ReusableWithSize Int
+
+ruIsReusable :: ConRepr -> Platform -> Reusable
+ruIsReusable repr platform
+  = let size = conReprAllocSize platform repr in
+    -- never try to reuse a Just-like constructor:
+    if isConAsJust repr
+      -- special case to allow benchmarking the effect of reuse analysis:
+      || "_noreuse" `isSuffixOf` nameLocal (conTypeName repr)
+    -- size zero indicates value types:
+      || size == 0
+    then NotReusable
+    else ReusableWithSize size
+
+needsDupDropData :: DataInfo -> Bool
+needsDupDropData info =
+  case dataInfoDef info of
+    -- value types with no reference fields don't need a drop
+    DataDefValue vr | valueReprIsRaw vr -> False
+    _ -> case dataInfoConstrs info of
+      -- structs with no fields (eg. Pad) don't need a drop
+      [ConInfo { conInfoParams = [], conInfoValueRepr = ValueRepr 0 0 _ }] ->  False
+      _ -> True
 
 -- Value data is not heap allocated and needs no header
 dataReprIsValue :: DataRepr -> Bool
