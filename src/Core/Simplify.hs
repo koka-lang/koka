@@ -175,7 +175,7 @@ topDown (App assert@(Var name _) [msg,cond])  | getName name == nameAssert
 -- effects is an identity at run time, but removing it changes the type of the expression.
 -- Such opens stay as casts until the backends erase them.
 topDown expr@(App app@(TypeApp (Var openName _) [effFrom,effTo,tpFrom,tpTo]) [arg])
-  | getName openName == nameEffectOpen && matchType effFrom effTo
+  | getName openName == nameEffectOpen && matchType (orderEffect effFrom) (orderEffect effTo)  -- up to the order of labels
   = return arg
 
 -- Remove effect open applications and identity externals; only if 'unsafe' is enabled since
