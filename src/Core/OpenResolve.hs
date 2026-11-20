@@ -151,7 +151,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                    = exprApp $
                        Lam params effTo $
                            App (makeTypeApp openExpr [tres,effFrom,effTo])
-                               (evExprs ++ [Lam [] effTo (App exprVar [Var p InfoNone | p <- params])])
+                               (evExprs ++ [Lam [] effFrom (App exprVar [Var p InfoNone | p <- params])])
 
 
                  wrapper openExpr evExprs
