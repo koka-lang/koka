@@ -57,7 +57,7 @@ coreOptimize flags newtypes gamma inlines coreProgram
      do Core.setCoreDefs (Core.coreProgDefs coreProgram)
         let progName = Core.coreProgName coreProgram
             penv     = prettyEnvFromFlags flags
-            checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore False False penv gamma
+            checkCoreDefs title = when (coreCheck flags) $ Core.Check.checkCore (show progName ++ ": " ++ title) False False penv gamma
 
         -- when (show progName == "std/text/parse") $
         --  trace ("compile " ++ show progName ++ ", gamma: " ++ showHidden gamma) $ return ()

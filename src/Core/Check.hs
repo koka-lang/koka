@@ -42,14 +42,29 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase b ()
-checkCore liberalEffects allowPartialApps prettyEnv gamma
+-- | Check the current core definitions; @title@ names the stage (and module) in the warnings.
+-- Each failing top-level definition is reported as a separate warning.
+checkCore :: String -> Bool -> Bool -> Env -> Gamma -> CorePhase b ()
+checkCore title liberalEffects allowPartialApps prettyEnv gamma
   = do uniq      <- unique
        defGroups <- getCoreDefs
-       case checkDefGroups defGroups (return ()) of
-          Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
-                      Ok x _  -> return x
-                      Err doc -> liftError (warningMsg (warningMessageKind ErrStatic rangeNull doc))
+       let env  = CEnv liberalEffects allowPartialApps gamma prettyEnv []
+           docs = checkTopDefGroups uniq env defGroups
+       liftError (warningMsgs [warningMessageKind ErrStatic rangeNull (text ("[core check: " ++ title ++ "]") <-> doc)
+                              | doc <- docs])
+
+-- Check each top-level definition separately, and return the error of each failing one.
+checkTopDefGroups :: Int -> CheckEnv -> DefGroups -> [Doc]
+checkTopDefGroups uniq env defGroups
+  = case defGroups of
+      [] -> []
+      (dgroup:dgroups)
+        -> let defs = case dgroup of
+                        DefRec defs   -> defs
+                        DefNonRec def -> [def]
+               env' = env{ gamma = gammaExtends (map (\def -> coreDefInfo def 0) defs) (gamma env) }
+               errs = [doc | def <- defs, Check c <- [checkDef def], Err doc <- [c uniq env']]
+           in errs ++ checkTopDefGroups uniq env' dgroups
 
 
 
