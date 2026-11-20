@@ -9,7 +9,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Simplify (simplify, uniqueSimplify, simplifyDefs) where
+module Core.Simplify (simplify, uniqueSimplify, simplifyDefs, isIdentityFun) where
 
 import Data.List
 import Control.Monad
@@ -170,38 +170,29 @@ topDown (App assert@(Var name _) [msg,cond])  | getName name == nameAssert
           then return exprUnit
           else return (App assert [msg,cond])
 
--- Remove identity open applications; need to be done before open resolve to enable tail call optimization
+-- Remove identity open applications; need to be done before open resolve to enable tail call optimization.
+-- Only an exact identity is removed: an open between different effects with the same handled
+-- effects is an identity at run time, but removing it changes the type of the expression.
+-- Such opens stay as casts until the backends erase them.
 topDown expr@(App app@(TypeApp (Var openName _) [effFrom,effTo,tpFrom,tpTo]) [arg])
-  | getName openName == nameEffectOpen &&
-    (hasNoEffectExpr arg ||                -- arg uses no effects, or, the open is an identity
-      (matchType tlFrom tlTo && length lsFrom == length lsTo && and [matchType t1 t2 | (t1,t2) <- zip lsFrom lsTo]))
+  | getName openName == nameEffectOpen && matchType (orderEffect effFrom) (orderEffect effTo)  -- up to the order of labels
   = return arg
-  where
-    (lsFrom,tlFrom) = extractHandledEffect effFrom
-    (lsTo,tlTo)     = extractHandledEffect effTo
-    hasNoEffectExpr expr
-      = case expr of
-          TypeApp e targs -> hasNoEffectExpr e
-          Lit{} -> True
-          Con{} -> True
-          -- Var _ InfoExternal{} -> True  -- TODO: maybe too liberal?
-          _     -> False
 
--- Remove effect open applications; only if 'unsafe' is enabled since
+-- Remove an open in call position when it is an identity at run time (the same handled effects,
+-- or a constructor): `.open(f)(args)` ~> `f(args)`. This is type-correct since a call is checked
+-- against the parameter and result types of `f`, not against the effect of its context; it
+-- enables beta reduction, inlining, and tail calls.
+topDown (App (App (TypeApp (Var openName _) [effFrom,effTo,_,_]) [f]) args)
+  | getName openName == nameEffectOpen && isRuntimeIdentityOpen effFrom effTo f
+  = topDown (App f args)
+
+-- Remove effect open applications and identity externals; only if 'unsafe' is enabled since
 -- the effect types won't match up
-topDown expr@(App app@(TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
+topDown expr@(App f [arg])  | isIdentityFun f
   = do unsafe <- getUnsafe
        if (unsafe)
         then return arg
-        else do return (App app [arg])
-
--- Remove identity externals of the form "#1"; only if 'unsafe' is enabled since
--- usually the effect types won't match up
-topDown expr@(App app@(TypeApp (Var _ (InfoExternal "#1")) _) [arg])
-  = do unsafe <- getUnsafe
-       if (unsafe)
-        then return arg
-        else do return (App app [arg])
+        else return expr
 
 -- Direct function applications
 topDown expr@(App (Lam pars eff body) args) | length pars == length args
@@ -300,6 +291,33 @@ topDown (App f args)
 topDown expr
   = do -- traceS ("no topdown match: " ++ show expr)
        return expr
+
+-- `.open` or an identity external (`inline "#1"`, such as `unsafe-total-cast` or
+-- `pretend-decreasing`), or one applied to another (`.open(cast-ev1)`): applied to one
+-- argument, it changes at most the effects in its type.
+isIdentityFun :: Expr -> Bool
+isIdentityFun f
+  = case f of
+      TypeApp (Var _ (InfoExternal "#1")) _ -> True
+      TypeApp (Var g _) _ -> getName g == nameEffectOpen
+      App g [h] -> isIdentityFun g && isIdentityFun h
+      _ -> False
+
+-- Is `.open<effFrom,effTo>(arg)` an identity at run time? Yes if both effects have the same
+-- handled effects (so the evidence vector is the same), or if `arg` is a constructor or literal.
+isRuntimeIdentityOpen :: Effect -> Effect -> Expr -> Bool
+isRuntimeIdentityOpen effFrom effTo arg
+  = hasNoEffectExpr arg ||
+    (matchType tlFrom tlTo && length lsFrom == length lsTo && and [matchType t1 t2 | (t1,t2) <- zip lsFrom lsTo])
+  where
+    (lsFrom,tlFrom) = extractHandledEffect effFrom
+    (lsTo,tlTo)     = extractHandledEffect effTo
+    hasNoEffectExpr expr
+      = case expr of
+          TypeApp e targs -> hasNoEffectExpr e
+          Lit{} -> True
+          Con{} -> True
+          _     -> False
 
 
 -- normalize evaluation by binding sub expressions
@@ -459,17 +477,26 @@ bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && get
   = arg
 
 
--- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
-bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars
-  = f
+-- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f,
+-- also under identity casts: fun(x1...xn) { .open(f)(x1,...,xn) } -> .open(f).
+-- If the effect of `f` differs from the effect of the lambda, `f` is opened to it, so the
+-- type stays the same.
+bottomUp lam@(Lam pars eff (App f args))   | Var _ info <- uncast f, notExternal info && length pars == length args && argsMatchPars
+  = case splitFunType tpF of
+      Just (_,effF,_) | not (matchType (orderEffect effF) (orderEffect eff))
+        -> openEffectExpr effF eff tpF (typeOf lam) f
+      _ -> f
   where
+    tpF = typeOf f
+    uncast (App g [x]) | isIdentityFun g = uncast x
+    uncast g = g
     argsMatchPars = and (zipWith argMatchPar pars args)
     argMatchPar par (Var name _)  = par == name
     argMatchPar _    _            = False
 
-    notExternal = case info of
-                    InfoExternal{} -> False
-                    _ -> True
+    notExternal info = case info of
+                         InfoExternal{} -> False
+                         _ -> True
 
 
 -- return immediately from a lambda

@@ -72,7 +72,7 @@ import Core.Parse
 import Compile.Options
 import Compile.Module
 import Compile.TypeCheck      ( typeCheck )
-import Compile.Optimize       ( coreOptimize )
+import Compile.Optimize       ( coreOptimize, coreLowerUnsafe )
 import Compile.CodeGen        ( codeGen, Link, LinkResult(..), noLink )
 import Core.Core (Core(coreProgDefs))
 import GHC.IORef (atomicSwapIORef)
@@ -319,7 +319,8 @@ moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap
                       inlines = inlinesFromModules imports
                   mbEntry <- getMainEntry (defsGamma defs) mainEntries mod
                   seqIO   <- sequentialIO
-                  link    <- pooledIO $ codeGen term flags seqIO
+                  coreC   <- liftError $ coreLowerUnsafe flags (modCoreUnique mod) (fromJust (modCore mod))
+                  link    <- pooledIO $ codeGen term flags seqIO coreC
                                                 (defsNewtypes defs) (defsBorrowed defs) (defsKGamma defs) (defsGamma defs)
                                                 mbEntry imports mod
                   let mod' = mod{ modPhase = PhaseCodeGen }
@@ -398,9 +399,10 @@ moduleOptimize parsedMap tcheckedMap optimizedMap
                   flags <- getFlags
                   let defs    = defsFromModules (mod:imports)  -- todo: optimize by reusing the defs from the type check?
                       inlines = inlinesFromModules imports
-                  (core,inlineDefs) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
+                  (core,inlineDefs,uniq) <- liftError $ coreOptimize flags (defsNewtypes defs) (defsGamma defs) inlines (fromJust (modCore mod))
                   let mod' = mod{ modPhase   = PhaseOptimized
                                 , modCore    = Just $! core
+                                , modCoreUnique = uniq
                                 , modDefinitions = if showHiddenTypeSigs flags
                                                      then Just $! defsFromCore False core -- update defs so we can see generated ones as well
                                                      else modDefinitions mod

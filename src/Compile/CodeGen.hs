@@ -62,9 +62,11 @@ noLink _ = return LinkDone
   Code generation
 ---------------------------------------------------------------}
 
-codeGen :: Terminal -> Flags -> (IO () -> IO ()) -> Newtypes -> Borrowed -> KGamma -> Gamma ->
+-- The interface is written from the shared Core of the module (`modCore`), and the backend
+-- compiles its lowered Core `coreC` (`coreLowerUnsafe`).
+codeGen :: Terminal -> Flags -> (IO () -> IO ()) -> Core.Core -> Newtypes -> Borrowed -> KGamma -> Gamma ->
              Maybe (Name,Type) -> [Module] -> Module -> IO Link
-codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
+codeGen term flags sequential coreC newtypes borrowed kgamma gamma entry imported mod
   = -- compilerCatch ("code generation in " ++ show (modName mod)) term noLink $
     do let program    = fromJust (modProgram mod)
            core       = fromJust (modCore mod)
@@ -77,7 +79,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                           Left _     -> []
            ifaceDoc   = Core.Pretty.prettyCore penv{ coreIface = True } (targetPlatformFromFlags flags) inlineDefs core
                          <-> Lib.PPrint.empty
-           coreDoc    = Core.Pretty.prettyCore penv{ coreIface = False, coreShowDef = (showCore flags) } (targetPlatformFromFlags flags) inlineDefs core
+           coreDoc    = Core.Pretty.prettyCore penv{ coreIface = False, coreShowDef = (showCore flags) } (targetPlatformFromFlags flags) inlineDefs coreC
                          <-> Lib.PPrint.empty
 
        -- create output directory if it does not exist
@@ -115,7 +117,7 @@ codeGen term flags sequential newtypes borrowed kgamma gamma entry imported mod
                   genDoc cenv kgamma gamma core printer
 
        -- generate actual code
-       link <- backend term flags sequential entry outBase core
+       link <- backend term flags sequential entry outBase coreC
 
        -- return the link as an action to increase concurrency
        return $ \fullImports ->
