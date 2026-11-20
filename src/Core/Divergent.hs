@@ -56,6 +56,8 @@ isDivergentBody dname body
         -> isDivergentBody dname expr
       TypeApp expr targs
         -> isDivergentBody dname expr
+      App (TypeApp (Var openName _) _) [expr]  | getName openName == nameEffectOpen  -- see through .open
+        -> isDivergentBody dname expr
       Lam pars eff body  
         -> isDivFun dname pars body
       _ -> -- ctrace DarkRed ("Core.Divergent.isDivergentBody: not a function? " ++ show body) $
