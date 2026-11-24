@@ -437,14 +437,6 @@ bottomUp expr@(Case scruts bs)  | commonContinue
     flattenJust acc  []           = Just (reverse acc)
 
 
--- generic case of known constructor
-bottomUp expr@(Case scruts branches)
-  = -- trace "bottomUp generic case of known " $
-    case kmatchBranches scruts branches of
-      Just b -> b
-      _      -> expr
-
-
 -- simplify evv-index(l) to i if l has a known offset
 bottomUp (App (TypeApp (Var evvIndex _) [effTp,hndTp]) [htag]) | getName evvIndex == nameEvvIndex && isEffectFixed effTp
   = makeEvIndex (effectOffset (effectLabelFromHandler hndTp) effTp)
@@ -524,21 +516,31 @@ matchAll (Match x : matches)  = fmap (x:) (matchAll matches)
 matchAll (NoMatch : matches)  = NoMatch
 matchAll (Unknown : matches)  = if (any isNoMatch matches) then NoMatch else Unknown
 
+-- generic case of known constructor
+knownCase :: Expr -> Simp Expr
+knownCase expr@(Case scruts branches)
+  = case kmatchBranches scruts branches of
+      Just mk -> do names <- mapM (\_ -> uniqueName "scrut") scruts
+                    return (mk names)
+      _       -> return expr
+knownCase expr
+  = return expr
+
 --For each branch and check if an exact match is found and return the expr as is, else move onto the next branch
-kmatchBranches :: [Expr] -> [Branch] -> Maybe Expr
+kmatchBranches :: [Expr] -> [Branch] -> Maybe ([Name] -> Expr)
 kmatchBranches scruts branches
   = let matches = map (kmatchBranch scruts) branches
     in case matchFirst matches of
-        Match expr -> Just (uniquefyExpr expr)
-        _          -> Nothing
+        Match mk -> Just (uniquefyExpr . mk)
+        _        -> Nothing
 
 -- For every branch, compare all its pats with the scruts and if they all match, return the matched bindings+scruts combined with the branch body
-kmatchBranch :: [Expr] -> Branch -> Match Expr
+kmatchBranch :: [Expr] -> Branch -> Match ([Name] -> Expr)
 kmatchBranch scruts branch@(Branch pats guards)
   = --trace ("kmatchBranch start: " ++ show scruts ++ " ___branch___ " ++ show branch) $
     do bindings <- kmatchPatterns scruts pats
        expr     <- matchFirst (map matchGuard guards)
-       Match (Let (map DefNonRec bindings) expr)
+       Match (\names -> Let (map DefNonRec (bindings names)) expr)
 
   where
     matchGuard (Guard guard expr)
@@ -548,10 +550,10 @@ kmatchBranch scruts branch@(Branch pats guards)
 
 
 -- For every scrut - pat tuple, get the binding and new scrutinee and collect them into a single expr
-kmatchPatterns :: [Expr] -> [Pattern] -> Match Defs
+kmatchPatterns :: [Expr] -> [Pattern] -> Match ([Name] -> Defs)
 kmatchPatterns scruts pats
   = do ds <- matchAll (zipWith kmatchPattern scruts pats)
-       Match (concatMap (\(defs,newscrut) -> defs ++ [makeDef (newHiddenName "scrut") newscrut]) ds)
+       Match (\names -> concat (zipWith (\name (defs,newscrut) -> defs ++ [makeDef name newscrut]) names ds))
 
 -- Returns the bindings and modified scrutinee if the scrutinee and the pattern match
 kmatchPattern :: Expr -> Pattern -> Match (Defs, Expr)
@@ -714,7 +716,7 @@ instance Simplify Expr where
                         bs <- simplify branches
                         return $ Case xs bs
          -- bottomUpM e'
-         let bu = bottomUp se
+         bu <- knownCase (bottomUp se)
          -- traceS ("simplified:\n  " ++ show e ++ "\n  to:\n  " ++ show bu)
          return bu
 
