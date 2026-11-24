@@ -56,6 +56,14 @@ jobs:
         with:
           arch: x64
 
+      # Use the clang-cl bundled with Visual Studio as its STL may require a newer clang than the one in C:\Program Files\LLVM
+      - name: Use Visual Studio clang-cl (Windows x64)
+        if: runner.os == 'Windows' && runner.arch == 'X64'
+        run: |
+          $llvm = Join-Path $env:VCINSTALLDIR "Tools\Llvm\x64\bin"
+          & "$llvm\clang-cl.exe" --version
+          echo $llvm >> $env:GITHUB_PATH
+
       # Set VCPKG_ROOT on Windows (otherwise it points to the wrong one in the VS install)
       - name: Set VCPKG_ROOT (Windows)
         if: runner.os == 'Windows'

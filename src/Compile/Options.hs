@@ -1433,7 +1433,7 @@ hostArch
 detectCC :: Target -> IO String
 detectCC target
   = do paths0 <- getEnvPaths "PATH"
-       let extra = if (onWindows && not (any (isInfixOf "LLVM") paths0))
+       let extra = if (onWindows && not (any (isInfixOf "llvm" . map toLower) paths0))
                      then ["C:\\Program Files\\LLVM\\bin"] else []       -- find LLVM after initial install when the LLVM path may not be set yet
            paths = extra ++ paths0
        (name,path) <- do envCC <- getEnvVar "CC"

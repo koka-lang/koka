@@ -7,6 +7,7 @@ import Data.List
 import Data.List.Extra (replace, trim)
 import System.Directory
 import System.Environment
+import System.Exit
 import System.FilePath
 import System.IO
 import qualified System.Info as Sys
@@ -185,20 +186,29 @@ expectedSanitize input
 
 runKoka :: Cfg -> FilePath -> FilePath -> IO String
 runKoka cfg kokaDir fp
+  = do (_, out, _) <- runKokaProcess cfg kokaDir fp
+       return (testSanitize kokaDir out)
+
+-- precompile and stop on failure (as parallel tests would otherwise race to build the same modules)
+precompile :: Cfg -> FilePath -> IO ()
+precompile cfg fp
+  = do (exitCode, out, err) <- runKokaProcess cfg "" fp
+       when (exitCode /= ExitSuccess) $
+         do hFlush stdout
+            hPutStrLn stderr ("error: failed to precompile " ++ fp ++ " (" ++ show exitCode ++ ")")
+            hPutStrLn stderr (out ++ err)
+            exitFailure
+
+runKokaProcess :: Cfg -> FilePath -> FilePath -> IO (ExitCode, String, String)
+runKokaProcess cfg kokaDir fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        let relTest = makeRelative kokaDir fp
            optFlag   = if (opt (options cfg) /= 0) then ["-O" ++ show (opt (options cfg))] else []
-           kokaFlags = optFlag ++ flags cfg ++ caseFlags           
+           kokaFlags = optFlag ++ flags cfg ++ caseFlags
        if (cabal (options cfg))
-         then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
-                 (exitCode, stdout, stderr) <- readProcessWithExitCode "cabal" argv ""
-                 return (testSanitize kokaDir stdout)
+         then readProcessWithExitCode "cabal" (["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]) ""
          else do let stackFlags = if (sysghc (options cfg)) then ["--system-ghc","--skip-ghc-check"] else []
-                     argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ kokaFlags ++ [relTest]
-                 -- hPutStrLn stderr (unwords argv) -- show koka command
-                 (exitCode, stdout, stderr) <- readProcessWithExitCode "stack" argv ""
-                 -- putStrLn stdout
-                 return (testSanitize kokaDir stdout)
+                 readProcessWithExitCode "stack" (["exec","koka"] ++ stackFlags ++ ["--"] ++ kokaFlags ++ [relTest]) ""
 
 
 
@@ -300,17 +310,17 @@ main = do
   -- compile all standard libraries before testing so we can run in parallel
   let cfg = initialCfg options
       stdcfg = if rebuild options then cfg{ flags = flags cfg ++ ["-r", "-l"]} else cfg
-  runKoka stdcfg{flags = "-e" : flags stdcfg} "" "util/link-test.kk"
+  precompile stdcfg{flags = "-e" : flags stdcfg} "util/link-test.kk"
   -- precompile bench by compiling a dependent file (ensures correct module name resolution)
-  runKoka stdcfg "" "test/lazy/queue/bankers.kk"
+  precompile stdcfg "test/lazy/queue/bankers.kk"
   -- precompile mpat-lib so test/cgen/mpat.kk loads it from the .kki
-  runKoka stdcfg "" "test/cgen/mpat-lib.kk"
+  precompile stdcfg "test/cgen/mpat-lib.kk"
   -- precompile specbox-lib so test/cgen/specbox.kk loads it from the .kki
   -- (both carry a -O2 .flags file so they share one build directory)
-  runKoka stdcfg "" "test/cgen/specbox-lib.kk"
+  precompile stdcfg "test/cgen/specbox-lib.kk"
   -- precompile the syn-nested chain so syn-nested1 emits only its own core
-  runKoka stdcfg "" "test/parc/syn-nested1c.kk"
-  runKoka stdcfg{flags = "--target=js":(flags stdcfg)} "" "util/link-test.kk" -- precompiled js libraries as well
+  precompile stdcfg{flags = flags stdcfg ++ ["-l"]} "test/parc/syn-nested1c.kk"
+  precompile stdcfg{flags = "--target=js":(flags stdcfg)} "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
   let spec = if target options == "names"
                then NameSpec.spec
