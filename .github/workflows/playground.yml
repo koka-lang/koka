@@ -16,6 +16,7 @@ permissions:
 
 env:
   GHC_WASM_META_FLAVOUR: '9.12'
+  GHC_WASM_META_COMMIT: '8079eb96bbc63823d99ad8acaff0765532625474'  # pinned commit of https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta
 
 jobs:
   build:
@@ -35,7 +36,7 @@ jobs:
       # ── Setup toolchains ──────────────────────────────────────────────
 
       - name: Setup GHC + Cabal + Stack
-        uses: haskell-actions/setup@v2
+        uses: haskell-actions/setup@0f8e8c99d88aeb3fbfd523f1ef2c6f762d10d64d # v2.12.1
         with:
           ghc-version: '9.12'
           cabal-version: '3.16'
@@ -45,16 +46,17 @@ jobs:
       # GHC WASM backend
       - name: Cache GHC WASM toolchain
         id: cache-ghc-wasm
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.ghc-wasm
-          key: ghc-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-v1
+          key: ghc-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-${{ env.GHC_WASM_META_COMMIT }}
 
       - name: Install GHC WASM backend
         if: steps.cache-ghc-wasm.outputs.cache-hit != 'true'
         run: |
-          curl -sL "https://gitlab.haskell.org/ghc/ghc-wasm-meta/-/raw/master/bootstrap.sh" | \
-            FLAVOUR=${{ env.GHC_WASM_META_FLAVOUR }} sh
+          cd "$(mktemp -d)"
+          curl -fL --retry 5 "https://gitlab.haskell.org/haskell-wasm/ghc-wasm-meta/-/archive/$GHC_WASM_META_COMMIT/ghc-wasm-meta-$GHC_WASM_META_COMMIT.tar.gz" | tar xz --strip-components=1
+          FLAVOUR="$GHC_WASM_META_FLAVOUR" ./setup.sh
 
       - name: Verify GHC WASM
         run: |
@@ -64,7 +66,7 @@ jobs:
       # Tools
       - name: Cache hpack + alex
         id: cache-tools
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cabal/bin
           key: cabal-tools-${{ runner.os }}-ghc9.12-v3
@@ -83,7 +85,7 @@ jobs:
       # ── Caches ─────────────────────────────────────────────────────────
 
       - name: Cache cabal packages
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cabal/store
@@ -92,7 +94,7 @@ jobs:
           restore-keys: cabal-wasm-${{ env.GHC_WASM_META_FLAVOUR }}-
 
       - name: Cache stack
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.stack
@@ -103,7 +105,7 @@ jobs:
       # ── Build everything via playground.kk ────────────────────────────
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 20
 
