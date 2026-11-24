@@ -38,6 +38,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
+          persist-credentials: false
 
       # Cache setup for vcpkg (https://learn.microsoft.com/en-us/vcpkg/consume/binary-caching-github-actions-cache)
       # https://github.com/actions/github-script
@@ -83,6 +84,7 @@ jobs:
       - name: Run test suite
         if: runner.os != 'macOS'
         run: |
+          stack exec koka -- --version
           stack test --fast
 
       - name: Run test suite (macOS)
@@ -90,6 +92,7 @@ jobs:
         env:
           LC_ALL: C
         run: |
+          stack exec koka -- --version
           stack test --fast
 
       # Bundle

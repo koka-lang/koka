@@ -41,6 +41,7 @@ jobs:
           submodules: true
           fetch-tags: true
           fetch-depth: 0
+          persist-credentials: false
 
       # Cache setup for vcpkg (https://learn.microsoft.com/en-us/vcpkg/consume/binary-caching-github-actions-cache)
       # https://github.com/actions/github-script
