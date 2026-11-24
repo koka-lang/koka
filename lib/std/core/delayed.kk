@@ -63,7 +63,7 @@ pub fun force/go( delayed : delayed<e,a> ) : <div,read<global>,write<global>,all
 fun unsafe-no-state-div(f : () -> <st<global>,div|e> a): e a
   unsafe-no-state-div-cast(f)()
 
-extern unsafe-no-state-div-cast(f : () -> <st<global>,div|e> a): (() -> e a)
+inline extern unsafe-no-state-div-cast(f : () -> <st<global>,div|e> a): (() -> e a)
   inline "#1"
 
 // Force a delayed value; the value is computed only on the first
