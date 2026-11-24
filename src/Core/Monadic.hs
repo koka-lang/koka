@@ -116,7 +116,7 @@ monExpr' topLevel expr
       -- regular cases
       Lam args eff body
         -> do -- monTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
-              body' <- monExpr body
+              body' <- withEnv (\env -> env{ currentEff = eff }) (monExpr body)
               return $ \k -> k (Lam args eff (body' id))
 
       App f args
@@ -162,11 +162,12 @@ monExpr' topLevel expr
               if (not (any isMonBranch bs))
                then return $ \k -> exprs' (\xxs -> k (Case xxs bs'))
                else do nameC <- uniqueName "c"
+                       -- the continuation runs the rest of the enclosing function, at its effect
+                       effTp <- currentEff <$> getEnv
                        let resTp = typeOf expr
                            tnameC = TName nameC resTp
                        return $ \k ->
-                         let effTp    = typeTotal
-                             contBody = k (Var tnameC InfoNone)
+                         let contBody = k (Var tnameC InfoNone)
                              cont = Lam [tnameC] effTp contBody
                          in  exprs' (\xss -> applyBind resTp effTp (typeOf contBody) (Case xss bs')  cont)
 
@@ -181,10 +182,11 @@ monExpr' topLevel expr
                then return $ \k -> k (TypeLam tvars (body' id))
                else -- the type variables scope over the whole computation, so bind its generalized result
                     do nameY <- uniqueName "y"
+                       eff <- currentEff <$> getEnv
                        return $ \k ->
                          let resTp    = typeOf expr
                              contBody = k (Var (TName nameY resTp) InfoNone)
-                         in applyBind resTp typeTotal (typeOf contBody) (TypeLam tvars (body' id)) (Lam [TName nameY resTp] typeTotal contBody)
+                         in applyBind resTp eff (typeOf contBody) (TypeLam tvars (body' id)) (Lam [TName nameY resTp] eff contBody)
 
       TypeApp body tps
         -> do body' <- monExpr' topLevel body
@@ -369,6 +371,7 @@ newtype Mon a = Mon (Env -> State -> Result a)
 
 data Env = Env{ currentDef :: [Def],
                 isInBind   :: Bool,
+                currentEff :: Effect,  -- the effect of the enclosing function
                 prettyEnv :: Pretty.Env }
 
 data State = State{ uniq :: Int }
@@ -377,7 +380,7 @@ data Result a = Ok a State
 
 runMon :: Pretty.Env -> Int -> Mon a -> (a,Int)
 runMon penv u (Mon c)
-  = case c (Env [] False penv) (State u) of
+  = case c (Env [] False typeTotal penv) (State u) of
       Ok x (State u') -> (x,u')
 
 instance Functor Mon where
