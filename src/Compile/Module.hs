@@ -105,6 +105,7 @@ data Module  = Module{ -- initial
                      -- from parsing, `modInlines` contains Right inline definitions,
                      -- from an interface file, `modInlines` is a Left function that given a gamma parses the inline definitions
                      , modInlines     :: !(Either (Gamma -> Error () [Core.InlineDef]) [Core.InlineDef])
+                     , modCoreUnique  :: !Int              -- the counter after optimization, continued by `coreLowerUnsafe`
 
                      -- codegen
                      -- entry is set if compiled with a main entry; contains the executable path and
@@ -127,7 +128,7 @@ moduleNull modName
             -- type check
             Nothing Nothing Nothing
             -- core compiled
-            (Right [])
+            (Right []) 0
             -- codegen
             Nothing
             -- temporary

@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
-module Compile.Optimize( coreOptimize ) where
+module Compile.Optimize( coreOptimize, coreLowerUnsafe ) where
 
 import Debug.Trace
 import Data.Char
@@ -51,7 +51,9 @@ import Compile.Module( Definitions(..) )
   hidden imports to check the inlined definitions.
 ---------------------------------------------------------------}
 
-coreOptimize :: Flags -> Newtypes -> Gamma -> Inlines -> Core.Core -> Error () (Core.Core,[Core.InlineDef])
+-- The optimized Core is type-correct and shared by all backends; the final counter
+-- continues in `coreLowerUnsafe`.
+coreOptimize :: Flags -> Newtypes -> Gamma -> Inlines -> Core.Core -> Error () (Core.Core,[Core.InlineDef],Int)
 coreOptimize flags newtypes gamma inlines coreProgram
   = Core.runCorePhase 10000 {-unique-} $
      do Core.setCoreDefs (Core.coreProgDefs coreProgram)
@@ -129,9 +131,6 @@ coreOptimize flags newtypes gamma inlines coreProgram
         -- trace ("inlines2: " ++ show (map Core.inlineName (inlinesToList inlinesX))) $
         inlineDefs penv (2*optInlineMax flags) inlinesX -- (loadedInlines loaded)
 
-        -- remove remaining open calls; this may change effect types
-        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
-
         -- final simplification
         simplifyDupN
         checkCoreDefs "final"
@@ -156,16 +155,27 @@ coreOptimize flags newtypes gamma inlines coreProgram
                                  Core.coreProgDefs = coreDefsFinal,
                                  Core.coreProgImports = Core.coreProgImports coreProgram ++ inlineImports
                                }
-        return (coreFinal, allInlineDefs)
+        return (coreFinal, allInlineDefs, uniqueFinal)
 
 
+{---------------------------------------------------------------
+  Lowering for the C, JavaScript and C# backends, continuing
+  the counter of `coreOptimize`
+---------------------------------------------------------------}
 
-traceDefGroups :: Flags -> String -> Core.CorePhase () ()
-traceDefGroups flags title
-  = do dgs <- Core.getCoreDefs
-       trace (unlines (["","/* -----------------", title, "--------------- */"] ++
-                map showDef (Core.flattenDefGroups dgs))) $ return ()
-  where
-    showDef def = show (Core.Pretty.prettyDef (penv{TP.coreShowDef=True}) def)
-    penv = prettyEnvFromFlags flags
+coreLowerUnsafe :: Flags -> Int -> Core.Core -> Error () Core.Core
+coreLowerUnsafe flags uniq core
+  = Core.runCorePhase uniq $
+     do Core.setCoreDefs (Core.coreProgDefs core)
+        let penv   = prettyEnvFromFlags flags
+            ndebug = optimize flags > 0
 
+        -- remove remaining open calls and identity externals; this may change effect types
+        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0
+
+        -- final simplification
+        when (simplify flags >= 0) $
+          simplifyDefs penv False {-unsafe-} ndebug (simplify flags) (simplifyMaxDup flags)
+
+        defs <- Core.getCoreDefs
+        return (uniquefy core{ Core.coreProgDefs = defs })
