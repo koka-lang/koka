@@ -333,9 +333,9 @@ extern unsafe-reyield-prim(yld : any) : e a
   js "_reyield"
 
 pub fun yield-capture() : e yield-context
-  Yield-context(yield-capture-prim())
+  YieldContext(yield-capture-prim())
 
-pub fun unsafe-reyield(Yield-context(yld) : yield-context ) : e a
+pub fun unsafe-reyield(YieldContext(yld) : yield-context ) : e a
   unsafe-reyield-prim(yld)
 
 
