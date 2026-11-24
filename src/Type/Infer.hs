@@ -2026,17 +2026,12 @@ inferImplicitUnpack rng nrng pname qname mbParTp
        let -- the type annotation (`.?key : child`) takes precedence over the
            -- parameter name: it is the declared type of the parameter
            mbAnnotInfo = do tp <- mbParTp
-                            tc <- typeConNameOf tp
+                            tc <- extractDataDefType tp
                             newtypesLookupAny tc nt
            mbNameInfo  = newtypesLookupAny qname nt
            mbInfo = case mbAnnotInfo of
                       Just di -> Just di
                       Nothing -> mbNameInfo
-           typeConNameOf tp = case expandSyn tp of
-                                TCon tcon     -> Just (typeconName tcon)
-                                TApp t _      -> typeConNameOf t
-                                TForall _ t   -> typeConNameOf t
-                                _             -> Nothing
        case mbInfo of
         Just (DataInfo{dataInfoSort=Inductive,
                         dataInfoConstrs=[conInfo],

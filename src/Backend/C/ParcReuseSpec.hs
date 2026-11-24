@@ -29,7 +29,7 @@ import Common.Syntax
 
 import Core.Core
 import Core.Pretty
-import Kind.Newtypes (Newtypes, newtypesLookupAny)
+import Kind.Newtypes (Newtypes, getConInfo)
 
 --------------------------------------------------------------------------
 -- Specialize reuse applications
@@ -124,8 +124,9 @@ ruSpecialize reuseName info conApp
       (App con args, InfoReuse (PatCon{patConName, patConPatterns}))
         -> case extractCon con of
              Just (cname, repr)
-               -> do mci <- getConInfo (typeOf con) (getName cname)
-                     let matches = zipWith tryMatch args patConPatterns
+               -> do newtypes <- getNewtypes
+                     let mci = getConInfo newtypes (typeOf con) (getName cname)
+                         matches = zipWith tryMatch args patConPatterns
                          needsTag = patConName /= cname
                          oldTagBenefit = if needsTag then 0 else 1
                          specialize = oldTagBenefit + length (filter isMatch matches) >= 1 + ((1 + length args) `div` 4)
@@ -229,22 +230,6 @@ genConFieldsAssign resultType conName conRepr reuseName fieldExprs
   where
     fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
     typeConFieldsAssign = TFun ((nameNil,typeOf reuseName) : fieldTypes) typeTotal resultType
-
-getConInfo :: Type -> Name -> Reuse (Maybe ConInfo)
-getConInfo dataType conName
-  = do newtypes <- getNewtypes
-       let mdataName = extractDataName dataType
-       let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
-       case filter (\ci -> conInfoName ci == conName) . dataInfoConstrs <$> mdataInfo of
-         Just (ci:_) -> pure $ Just ci
-         _ -> pure Nothing
-  where
-    extractDataName :: Type -> Maybe Name
-    extractDataName tp
-      = case expandSyn tp of
-          TFun _ _ t -> extractDataName t
-          TCon tc    -> Just (typeConName tc)
-          _          -> Nothing
 
 --------------------------------------------------------------------------
 -- Utilities for readability

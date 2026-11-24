@@ -17,6 +17,8 @@ module Kind.Newtypes( -- * Type newtypes
                     , newtypesIsEmpty
                     , newtypesTypeDefs
                     , extractNewtypes
+                      -- * Data info of types
+                    , getDataInfo', getDataDef', extractDataInfo, getConInfo, getFixedDataAllocSize
                       -- * Pretty
                     -- , ppNewtypes
                     ) where
@@ -24,12 +26,14 @@ module Kind.Newtypes( -- * Type newtypes
 import qualified Common.NameMap as M
 import Common.Failure( failure )
 import Common.Name
-import Common.Syntax  ( Visibility(..), isPublic )
+import Common.Syntax  ( Visibility(..), isPublic, Platform, DataDef(..), dataDefIsValue, valueReprSizeScan )
+import Common.NamePrim( nameTpBox )
 import Type.Type
 
 import Type.Pretty
 import Lib.PPrint
 import qualified Data.List as L
+import Data.Maybe( isJust )
 
 import qualified Core.Core as Core
 
@@ -78,6 +82,73 @@ newtypesFind name syn
   = case newtypesLookupAny name syn of
       Nothing -> failure ("Kind.Newtypes.newtypesFind: unknown newtype: " ++ show name)
       Just x  -> x
+
+
+{--------------------------------------------------------------------------
+   Data info of types
+--------------------------------------------------------------------------}
+
+-- | The data type of a type; `Nothing` for type variables, functions, and `box`.
+getDataInfo' :: Newtypes -> Type -> Maybe DataInfo
+getDataInfo' newtypes tp
+  = case extractDataDefType (expandSyn tp) of
+      Nothing   -> Nothing
+      Just name | name == nameTpBox -> Nothing
+      Just name -> case newtypesLookupAny name newtypes of
+                      Nothing -> failure $ "Kind.Newtypes.getDataInfo': cannot find type: " ++ show name -- ++ "\n" ++ show newtypes
+                      Just di -> -- trace ("datainfo of " ++ show (pretty tp) ++ " = " ++ show di) $
+                                 Just di
+
+getDataDef' :: Newtypes -> Type -> Maybe DataDef
+getDataDef' newtypes tp
+  = case getDataInfo' newtypes tp of
+      Just di -> Just (dataInfoDef di)
+      _       -> Nothing -- DataDefNormal
+
+-- | The data type of a type (or of the result of a function type), with its name.
+extractDataInfo :: Newtypes -> Type -> Maybe (Name,DataInfo)
+extractDataInfo newtypes dataType
+  = case  extractDataName dataType of
+      Nothing   -> Nothing
+      Just name -> case newtypesLookupAny name newtypes of
+                     Just dataInfo -> Just (name,dataInfo)
+                     Nothing       -> Nothing
+  where
+    extractDataName :: Type -> Maybe Name
+    extractDataName tp
+      = case expandSyn tp of
+          TForall _ t -> extractDataName t
+          TFun _ _ t -> extractDataName t
+          TApp t _   -> extractDataName t
+          TCon tc    -> Just (typeConName tc)
+          _          -> Nothing
+
+-- | The constructor info of a constructor, given its type and name.
+getConInfo :: Newtypes -> Type -> Name -> Maybe ConInfo
+getConInfo newtypes conType conName
+  = do (_,dataInfo) <- extractDataInfo newtypes conType
+       L.find (\ci -> conInfoName ci == conName) (dataInfoConstrs dataInfo)
+
+-- | The allocation size of a value of this type, when every constructor has the same one.
+-- A function value has none: its size depends on what the closure captures, and
+-- `extractDataInfo` would otherwise answer with the size of its result type.
+getFixedDataAllocSize :: Platform -> Newtypes -> Type -> Maybe (Int, Int)
+getFixedDataAllocSize platform newtypes dataType
+  | isJust (splitFunScheme dataType) = Nothing
+  | otherwise
+  = case extractDataInfo newtypes dataType of
+      Nothing -> Nothing
+      Just (dataName,dataInfo)
+        -> if ("_noreuse" `L.isSuffixOf` nameLocal dataName)
+            then Nothing
+            else let ddef = dataInfoDef dataInfo
+                 in if dataDefIsValue ddef
+                      then Nothing
+                      else let cis = dataInfoConstrs dataInfo
+                               sizeScanCounts = map (valueReprSizeScan platform . conInfoValueRepr) cis
+                           in case sizeScanCounts of
+                                (ss:sss) | all (==ss) sss -> Just ss
+                                _        -> Nothing
 
 
 -- | Extract data infos from core

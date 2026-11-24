@@ -20,7 +20,7 @@ Notes:
   the same in a scope.
 ----------------------------------------------------------------------------}
 
-module Backend.C.Parc ( parcCore, getDataDef', getDataInfo', needsDupDropData ) where
+module Backend.C.Parc ( parcCore ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -646,16 +646,6 @@ needsDupDrop tp
          Nothing -> True
          Just info -> needsDupDropData info
 
-needsDupDropData :: DataInfo -> Bool
-needsDupDropData info =
-  case dataInfoDef info of
-    -- value types with no reference fields don't need a drop
-    DataDefValue vr | valueReprIsRaw vr -> False
-    _ -> case dataInfoConstrs info of
-      -- structs with no fields (eg. Pad) don't need a drop
-      [ConInfo { conInfoParams = [], conInfoValueRepr = ValueRepr 0 0 _ }] ->  False
-      _ -> True
-
 isValueType :: Type -> Parc Bool
 isValueType tp
   = do dd <- getDataDef tp
@@ -1013,23 +1003,6 @@ parcTrace msg
 
 ----------------
 
-getDataInfo' :: Newtypes -> Type -> Maybe DataInfo
-getDataInfo' newtypes tp
-  = case extractDataDefType (expandSyn tp) of
-      Nothing   -> Nothing
-      Just name | name == nameTpBox -> Nothing
-      Just name -> case newtypesLookupAny name newtypes of
-                      Nothing -> failure $ "Core.Parc.getDataDefInfo: cannot find type: " ++ show name -- ++ "\n" ++ show newtypes
-                      Just di -> -- trace ("datainfo of " ++ show (pretty tp) ++ " = " ++ show di) $
-                                 Just di
-
-getDataDef' :: Newtypes -> Type -> Maybe DataDef
-getDataDef' newtypes tp
-  = case getDataInfo' newtypes tp of
-      Just di -> Just (dataInfoDef di)
-      _       -> Nothing -- DataDefNormal
-
-
 getDataInfo :: Type -> Parc (Maybe DataInfo)
 getDataInfo tp
   = do newtypes <- getNewtypes
@@ -1051,15 +1024,6 @@ getDataDef tp
        return (case getDataDef' newtypes tp of
                  Just dd -> dd
                  Nothing -> DataDefNormal)
-
-
-extractDataDefType :: Type -> Maybe Name
-extractDataDefType tp
-  = case expandSyn tp of
-      TApp t _      -> extractDataDefType t
-      TForall _ t   -> extractDataDefType t
-      TCon tc       -> Just (typeConName tc)
-      _             -> Nothing
 
 
 isBoxType :: Type -> Bool
