@@ -1282,6 +1282,7 @@ ccFromPath flags path
                                      ++ (if onMacOS && targetArch flags == "arm64" then ["-Wno-unknown-warning-option"] else []),
                        ccFlagsOpt  = \opt cpuArch -> ccFlagsOpt gcc opt cpuArch
                                      ++ (if onMacOS && opt >= 2 && cpuArch == "arm64" then ["-mno-outline","-Xclang","-fno-split-cold-code"] else [])
+                                     ++ (if opt >= 2 && cpuArch == "arm64" then ["-falign-functions=64"] else [])
 
                      }
         generic = gcc{ ccFlagsWarn = [] }
