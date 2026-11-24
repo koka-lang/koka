@@ -135,8 +135,8 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
               else -} failure $ ("Core.openResolve.resOpen: todo: masking handled effect: " ++ show (ppType penv effTo,ppType penv effFrom))
        else if (matchType tlFrom tlTo && length lsFrom == length lsTo && and [matchType t1 t2 | (t1,t2) <- zip lsFrom lsTo])
         then -- same handled effects, just use expr
-             trace "  same handled effects, leave as is" $
-             expr
+             trace "  same handled effects, keep as a cast" $
+             App eopen [expr]
         else -- not equal in handled effects, insert open
              let resolve name = case gammaLookupQ name gamma of  -- use lookupQ to look up exactly (including hidden names)
                                   [info] -> coreExprFromNameInfo (infoCName info) info
@@ -175,11 +175,11 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                         -- into a closed row too, not into an open one
                         case lsTo of
                           [] | isEffectEmpty tlTo -> trace ("  no handled effect, in no handled effect context: use cast")
-                                expr
+                                (App eopen [expr])
                           _  -> trace ("  target has handled effects or an open row; use none: " ++ show expr) $
                                 if (isHandlerFree expr)
-                                 then trace ("***  remove open-none") $  -- fully total with using any operations that need evidence; just leave it as is
-                                      expr
+                                 then trace ("***  remove open-none") $  -- fully total with using any operations that need evidence; just keep it as a cast
+                                      (App eopen [expr])
                                 else if (n <= 4)
                                  then wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
                                       -- expr  -- fails in nim as it evidence is not cleared

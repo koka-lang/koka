@@ -836,6 +836,7 @@ isTotal expr
      Lit _      -> True
      Let dgs e  -> all isTotalDef (flattenDefGroups dgs) && isTotal e
      Case exps branches -> all isTotal exps && all isTotalBranch branches
+     App (TypeApp (Var open _) _) [arg] | getName open == nameEffectOpen -> isTotal arg  -- a cast
      App f args -> isTotalFun f && all isTotal args
      -- _          -> False
   where
@@ -853,8 +854,8 @@ isTotalFun expr
       Lit _         -> True  -- not possible due to typing
       Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e
       Case exps branches -> all isTotal exps && all isTotalBranchFun branches
-      -- App (TypeApp (Var open _) _) args  | getName open == nameEffectOpen
-      --              -> all isTotal args
+      App (TypeApp (Var open _) _) [f]  | getName open == nameEffectOpen
+                    -> isTotalFun f  -- calling the cast `.open(f)` calls `f`
       App f args    -> hasTotalEffect (typeOf expr) && isTotalFun f && all isTotal args
       Var v _       | getName v == nameKeep -> False
                     | getName v `elem` [nameBox,nameUnbox]  -> True
