@@ -13,8 +13,8 @@ fun add(a1: a, a2: a, b1: b, b2: b, .?a/num: num<a>, .?b/num: num<b>, ?a/show: a
   println(a1 + a2)
   println(a/num/(+)(a1, a2))
 
-val int/basic-num: basic-num<int> = Basic-num(0)
-val float/basic-num: basic-num<float64> = Basic-num(0.0)
+val int/basic-num: basic-num<int> = BasicNum(0)
+val float/basic-num: basic-num<float64> = BasicNum(0.0)
 
 fun num(add, sub, ?basic-num)
   Num(basic-num, add, sub)
