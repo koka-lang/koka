@@ -656,7 +656,7 @@ instance Simplify Def where
   simplify def@(Def name tp expr vis sort inl nameRng doc)
     = -- trace ("simplifying " ++ show name ) $ -- ++ ": " ++ show expr) $
       do expr' <- inDef name $
-                  case expr of
+                  case stripIdentityOpen expr of
                     TypeLam tvs (Lam pars eff body)
                       -> do body' <- simplify body
                             return $ TypeLam tvs (Lam pars eff body')
@@ -665,6 +665,14 @@ instance Simplify Def where
                             return $ Lam pars eff body'
                     _ -> simplify expr
          return $ Def name tp expr' vis sort inl nameRng doc
+    where
+      -- subsuming a definition against its annotation can wrap its body in an identity `.open`
+      -- (for example from `ioc` to its expansion); remove it so the body is a function again
+      stripIdentityOpen (TypeLam tvs body) = TypeLam tvs (stripIdentityOpen body)
+      stripIdentityOpen (App (TypeApp (Var openName _) [effFrom,effTo,_,_]) [body])
+        | getName openName == nameEffectOpen && matchType (orderEffect effFrom) (orderEffect effTo)
+        = stripIdentityOpen body
+      stripIdentityOpen body = body
 
 instance Simplify a => Simplify [a] where
   simplify  = mapM simplify
