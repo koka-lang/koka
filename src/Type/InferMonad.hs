@@ -77,6 +77,7 @@ module Type.InferMonad( Inf, InfGamma
                       , termError
                       , infError, infWarning
                       , withHiddenTermDoc, inHiddenTermDoc
+                      , withUpdateParam, getUpdateParam
 
                       -- run-local
                       , withLocalScope, withNoLocalScope, localScopeDepth
@@ -1794,6 +1795,7 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , returnAllowed :: !Bool
                  , inLhs :: !Bool
                  , hiddenTermDoc :: !(Maybe (Range,Doc))
+                 , updateParam :: !(Maybe (Name,Range)) -- the parameter of the update function of `x := e`
                  , localDepth :: !Int   -- number of run-local scope's
                  , scopeNestingDepth :: !Int   -- nested scope level
                  , allowInfiniteChains :: !Bool
@@ -1811,7 +1813,7 @@ data St     = St{ uniq :: !Int
 
 runInfer :: Pretty.Env -> TargetPlatform -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Bool -> Int -> Inf a -> Error b (a,Int,Maybe RangeMap)
 runInfer env tpl mbrm syns newTypes imports assumption context allowInfiniteChains unique (Inf f)
-  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing 0 0 allowInfiniteChains NM.empty tpl)
+  = case f (Env env context [] False newTypes syns assumption infgammaEmpty imports False False Nothing Nothing 0 0 allowInfiniteChains NM.empty tpl)
            (St unique subNull [] infgammaEmpty False mbrm) of
       Err (rng,doc) warnings
         -> addWarnings (map (toWarning ErrType) warnings) (errorMsg (errorMessageKind ErrType rng doc))
@@ -1983,6 +1985,17 @@ withLhs inf
 withHiddenTermDoc :: Range -> Doc -> Inf a -> Inf a
 withHiddenTermDoc range doc inf
   = withEnv (\env -> env{ hiddenTermDoc = Just (range,doc) }) inf
+
+-- | The parameter (name and range) of the update function of `x := e`: it shadows `x` on
+-- purpose, so it gets no shadowing warning, and the function's body must be total.
+withUpdateParam :: Name -> Range -> Inf a -> Inf a
+withUpdateParam name range inf
+  = withEnv (\env -> env{ updateParam = Just (name,range) }) inf
+
+getUpdateParam :: Inf (Maybe (Name,Range))
+getUpdateParam
+  = do env <- getEnv
+       return (updateParam env)
 
 inHiddenTermDoc :: Inf Bool
 inHiddenTermDoc
@@ -2222,7 +2235,7 @@ extendInfGammaEx topLevel ignores tnames inf
                       Right (cname,info2) | cname /= nameReturn  -- TODO: adapt to multiple matches?
                         -> do checkCasingOverlap range name cname info2
                               env <- getEnv
-                              if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow" && not (name `elem` ignores))
+                              if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow" && not (name `elem` ignores) && updateParam env /= Just (name,range))
                                then infWarning range (Pretty.ppName (prettyEnv env) name <+> text "shadows an earlier local definition or parameter")
                                else return ()
                       _ -> return ()

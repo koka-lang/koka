@@ -27,14 +27,14 @@ import Common.Failure
 import Common.Error
 import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
-                      , nameReturn, nameRef, nameByref, nameDeref, nameAssign
+                      , nameReturn, nameRef, nameByref, nameDeref, nameAssign, nameAssignSet
                       , nameRefSet, nameTpUnit, nameTuple
                       , namePatternMatchError, nameSystemCore
                       , nameTpHandled, nameTpHandled1, nameTpNHandled1, nameTpNHandled
                       , nameToAny, nameFalse, nameTrue
                       , nameCons, nameListNil, nameVector
                       , nameTpPartial
-                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar
+                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocalVar, nameLocalUpdate
                       , nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag, nameTpEv
                       , nameInternalInt32, nameOr, nameAnd, nameEffectOpen
@@ -523,8 +523,19 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
                           return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn)
                                                 (Core.InfoExternal "return #1")) [core])  -- TODO: fragile
 -- | Assign expression
-inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
-  = case lval of
+inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign || name == nameAssignSet
+  = case findReturn rexpr of
+      Just retRng
+        -> do contextError (getRange rexpr) retRng (text "a return is not allowed in the right-hand side of an assignment")
+                [(text "because", text "the right-hand side must produce the assigned value")]
+              return (typeUnit,typeTotal,unitCore)
+      Nothing
+        -> inferAssign
+  where
+    unitCore = Core.Con (Core.TName (nameTuple 0) typeUnit) (Core.ConEnum nameTpUnit Core.DataEnum valueReprZero 0)
+
+    inferAssign
+     = case lval of
       App fun args lrng  -- array[i] := e
           -> do xargs <- case args of
                           ((mbName,arg@(Var target _ vrng)) : rest)  -- var_vec[i] := e   TODO: perhaps unsafe for general use?
@@ -537,7 +548,7 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
                           _ -> return args
                 inferExpr propagated expect (App fun (xargs ++ [(Nothing,rexpr)]) rng)
       Var target _ lrng
-        -> do (_,gtp,_) <- resolveName target Nothing lrng
+        -> do (tqname,gtp,_) <- resolveName target Nothing lrng
               (tp,_,_) <- instantiateEx lrng gtp
               -- traceDoc $ \penv -> text "setting:" <+> pretty target <+> text ":" <+> ppType penv tp
               nameSet <- if (isTypeLocalVar tp)
@@ -545,14 +556,26 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
                            else do r <- freshRefType
                                    inferUnify (checkAssign rng) lrng r tp
                                    return nameRefSet
-              inferExpr propagated expect
-                        (App (Var nameSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
+              let byrefLhs  = (Nothing,App (Var nameByref False (before lrng)) [lhs] lrng)
+                  assignSet = inferExpr propagated expect (App (Var nameSet False arng) [byrefLhs, rhs] rng)
+              -- `x := e` on a local variable is `local-var/update(x, fn(x) e)`: `update` passes the
+              -- current value with its ownership, so a unique value is updated in place instead of
+              -- copied because the variable still holds it. `update` takes only a total function,
+              -- which guarantees `e` cannot read or write the variable while it holds the moved
+              -- value; `x ::= e` is the plain `local-set(x, e)`. The parameter has the name of the
+              -- variable's definition, so it shadows the variable on purpose (and gets no warning).
+              -- On a reference both are `set`.
+              if (isTypeLocalVar tp && name == nameAssign)
+                then do let updater = Lam [ValueBinder tqname Nothing Nothing lrng lrng] rexpr False (getRange rexpr)
+                        withUpdateParam tqname lrng $ inferExpr propagated expect
+                          (App (Var nameLocalUpdate False arng) [byrefLhs, (Nothing,updater)] rng)
+                else assignSet
 
       _ -> errorAssignable
-  where
+
     errorAssignable
       = do contextError rng (getRange lval) (text "not an assignable expression") [(text "because",text "an assignable expression must be an application, index expression, or variable")]
-           return (typeUnit,typeTotal,Core.Con (Core.TName (nameTuple 0) typeUnit) (Core.ConEnum nameTpUnit Core.DataEnum valueReprZero 0))
+           return (typeUnit,typeTotal,unitCore)
 
     checkAssign
       = Check "an assignable identifier must have a reference type"
@@ -1385,7 +1408,12 @@ inferLam topLevel propagated expect bindersL body0 rng
         -- seff1    <- subst eff1
         -- traceDoc $ \env -> text " inferExpr.Lam: propagated effect" <+> ppProp env spropEff <+> text ", body effect:" <+> ppType env seff1 <+> text ", unsubst " <+> ppType env eff1
         inferUnify (checkReturnResult rng) (getRange body) returnTp tp
-        inferUnify (Infer rng) (getRange body) eff eff1
+        updParam <- getUpdateParam
+        let checkBodyEffect = case bindersL of
+                                [b] | updParam == Just (binderName b, binderNameRange b)
+                                  -> checkAssignUpdate (binderName b) rng
+                                _ -> Infer rng
+        inferUnify checkBodyEffect (getRange body) eff eff1
 
         -- traceDoc $ \env -> text " inferExpr.Lam: body tp:" <+> ppType env tp
         topEff <- case propEff of
@@ -2079,6 +2107,9 @@ checkOptionalTotal = Check "default value expression must be total"
 checkInject     = Check "inject expects a parameter-less function argument"
 
 checkEffect        = Infer
+
+checkAssignUpdate name = let x = show (unqualify name)
+                         in Check ("the right-hand side must be total to update " ++ x ++ " in place; use `" ++ x ++ " ::= ...` to assign a value using effects")
 checkEffectSubsume = Check "effect cannot be subsumed"
 
 checkReturnResult  = Check "function returns values of different types"
@@ -2591,6 +2622,29 @@ unzipx4 acc1 acc2 acc3 acc4 ((x,y,z,zz):xs) = unzipx4 (x:acc1) (y:acc2) (z:acc3)
 ppProp env Nothing = text "(nothing)"
 ppProp env (Just (tp,_))  = ppType env tp
 
+
+-- | The range of a `return` in the expression outside any lambda in it.
+findReturn :: Expr Type -> Maybe Range
+findReturn expr
+  = case expr of
+      App (Var name _ rng) _ _ | name == nameReturn -> Just rng
+      Lam _ _ _ _                -> Nothing
+      Let defs body _            -> firstJust (map findReturnDef (flattenDefGroups' defs) ++ [findReturn body])
+      Bind def body _            -> firstJust [findReturnDef def, findReturn body]
+      App fun nargs _            -> firstJust (map findReturn (fun : map snd nargs))
+      Ann e _ _                  -> findReturn e
+      Case e brs _ _             -> firstJust (findReturn e : [r | b <- branchGuards' brs, r <- b])
+      Parens e _ _ _             -> findReturn e
+      Inject _ e _ _             -> findReturn e
+      _                          -> Nothing
+  where
+    firstJust xs = case [r | Just r <- xs] of
+                     (r:_) -> Just r
+                     []    -> Nothing
+    branchGuards' brs = [[findReturn g, findReturn e'] | b <- brs, Guard g e' <- branchGuards b]
+    findReturnDef d = findReturn (binderExpr (defBinder d))
+    flattenDefGroups' (DefRec defs) = defs
+    flattenDefGroups' (DefNonRec d) = [d]
 
 usesLocals :: S.NameSet -> Expr Type -> Bool
 usesLocals lvars expr

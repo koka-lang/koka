@@ -1,0 +1,6 @@
+test/type/wrong/assign-effect@kk(4, 8): type error: effects do not match
+ context : i + (fn() { println("tick"); 1 })()
+ term : i + (fn() { println("tick"); 1 })()
+ inferred effect: <console|_e>
+ expected effect: total
+ because : the right-hand side must be total to update i in place; use `i ::= @@@` to assign a value using effects

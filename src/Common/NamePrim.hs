@@ -27,7 +27,7 @@ module Common.NamePrim
           -- * Operations
           , namePatternMatchError, nameMainConsole
           , nameCopy, copyNameOf
-          , nameAssign
+          , nameAssign, nameAssignSet
           , nameRefSet, nameByref, nameDeref, nameIndex
           , nameDecreasing, nameSubStr1
           , nameAssert
@@ -158,7 +158,7 @@ module Common.NamePrim
 
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
-          , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew
+          , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew, nameLocalUpdate
 
 
           , nameTpOptional
@@ -400,10 +400,12 @@ nameUnsafeTotal = qualify nameCoreUnsafe (newName "unsafe-total")
 nameIndex       = newHiddenName "index"
 nameReturn      = newHiddenName "return"
 nameAssign      = newHiddenName "@assign"  -- used for :=
+nameAssignSet   = newHiddenName "@assign-set"  -- used for ::=
 
 nameRefSet      = coreTypesName "set"
 nameLocalSet    = coreTypesName "local-set"
 nameLocalGet    = coreTypesName "local-get"
+nameLocalUpdate = newLocallyQualified "std/core/types" "local-var" "update"
 nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
 nameByref       = coreTypesName "@byref"
 

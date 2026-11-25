@@ -1,0 +1,4 @@
+test/type/wrong/assign-return3@kk(4,46): type error: a return is not allowed in the right-hand side of an assignment
+ context: (match xs { Cons(x, _) | x@is-even -> return x; _ -> 1 })
+ term : return
+ because: the right-hand side must produce the assigned value

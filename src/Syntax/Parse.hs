@@ -2211,6 +2211,9 @@ operatorVar
     <|>
     do rng <- keyword ":="
        return (Var nameAssign True rng)
+    <|>
+    do rng <- keyword "::="
+       return (Var nameAssignSet True rng)
 
 
 prefixexpr :: Bool -> LexParser UserExpr
