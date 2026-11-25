@@ -378,7 +378,7 @@ fnBody e = failure $ "fnBody: Not a function: " <> show e
 extractSpecializeDefs :: Inlines -> DefGroups -> [InlineDef]
 extractSpecializeDefs loadedInlines dgs =
     inlinesToList
-  $ flip (multiStepInlines loadedInlines) (flattenDefGroups dgs)
+  $ flip (multiStepInlines loadedInlines) (flattenDefGroups (filter (not . isMutualDefGroup) dgs))
   $ inlinesNew
   $ mapMaybe (\def -> makeSpecialize def)
   $ filter (isFun . defType)
@@ -387,6 +387,13 @@ extractSpecializeDefs loadedInlines dgs =
   where
     isRecursiveDefGroup (DefRec [def]) = True
     isRecursiveDefGroup _ = False
+
+    -- Members of a mutually recursive group are not multi-step specializable: specializing
+    -- one inlines a body that calls another member, whose specialization calls the first
+    -- again, and so on. Only self-recursive calls are tied back to the specialized
+    -- definition (by `specInnerCalls`), so this would never terminate.
+    isMutualDefGroup (DefRec (_:_:_)) = True
+    isMutualDefGroup _ = False
 
 filterMaybe :: (a -> Bool) -> Maybe a -> Maybe a
 filterMaybe f Nothing = Nothing
