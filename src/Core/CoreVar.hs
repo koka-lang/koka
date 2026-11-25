@@ -195,7 +195,7 @@ instance HasExprVar Expr where
                                         (all (\tv -> not (tvsMember tv (ftv (map snd sub)))) typeVars
                                           || all (\name -> not (S.member name (fv exp) )) (map fst sub)) $ -}
                               TypeLam typeVars (sub |~> exp)
-      TypeApp expr tp      -> TypeApp (sub |~> expr) tp
+      TypeApp expr tp      -> makeTypeApp (sub |~> expr) tp  -- flatten if `expr` is replaced by a type application
       Con tname repr       -> expr
       Lit lit              -> expr
       Let defGroups expr   -> let defnames = map defName (flattenDefGroups defGroups)
