@@ -32,7 +32,7 @@ jobs:
         # is fixed: macos-26 (macOS-latest) pairs Xcode 26's linker with the macOS 27 SDK, which GHC links against.
         os: [windows-latest, macos-15, macos-15-intel, ubuntu-22.04, ubuntu-22.04-arm]
         # split the test suite over multiple jobs (see `--shard` in test/readme.md)
-        shard: [1, 2, 3, 4]
+        shard: [0, 1, 2, 3, 4]
 
     steps:
       # Checkout: https://github.com/actions/checkout
@@ -83,13 +83,13 @@ jobs:
 
       # Run tests
       - name: Run test suite
-        if: runner.os != 'macOS'
+        if: runner.os != 'macOS' && matrix.shard != 0
         run: |
           stack exec koka -- --version
           stack test --fast --test-arguments="--shard=${{ matrix.shard }}/4"
 
       - name: Run test suite (macOS)
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && matrix.shard != 0
         env:
           LC_ALL: C
         run: |
@@ -98,13 +98,13 @@ jobs:
 
       # Bundle (only once per OS)
       - name: Build libraries
-        if: matrix.shard == 1
+        if: matrix.shard == 0
         run: |
           stack exec koka -- -e -O2 util/bundle
 
       # VS Code extension tests (support/vscode/koka.language-koka/src/test) on the compiler just built
       - name: Test VS Code extension
-        if: matrix.shard == 2
+        if: matrix.shard == 0
         working-directory: support/vscode/koka.language-koka
         shell: bash
         run: |
