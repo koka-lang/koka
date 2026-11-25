@@ -32,7 +32,7 @@ jobs:
         # is fixed: macos-26 (macOS-latest) pairs Xcode 26's linker with the macOS 27 SDK, which GHC links against.
         os: [windows-latest, macos-15, macos-15-intel, ubuntu-22.04, ubuntu-22.04-arm]
         # split the test suite over multiple jobs (see `--shard` in test/readme.md)
-        shard: [0, 1, 2, 3, 4]
+        shard: [0, 1, 2, 3]
 
     steps:
       # Checkout: https://github.com/actions/checkout
@@ -86,7 +86,7 @@ jobs:
         if: runner.os != 'macOS' && matrix.shard != 0
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/4"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3"
 
       - name: Run test suite (macOS)
         if: runner.os == 'macOS' && matrix.shard != 0
@@ -94,7 +94,7 @@ jobs:
           LC_ALL: C
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/4"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3"
 
       # Bundle (only once per OS)
       - name: Build libraries
