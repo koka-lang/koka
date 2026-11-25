@@ -1,0 +1,5 @@
+sync
+yield 1
+sync
+yield 2
+done

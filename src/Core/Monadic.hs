@@ -129,7 +129,7 @@ monExpr' topLevel expr
                            Just(_,feff,_) -> return feff
                            _ -> do monTraceDoc $ \env -> text "Core.Monadic.App: illegal application:" <+> ppType env ftp
                                    failure ("Core.Monadic.App: illegal application: " ++ show (ppType defaultEnv ftp))
-              if ((not (isMonType ftp || isAlwaysMon f)) || isNeverMon f)
+              if ((not (isMonType ftp || isAlwaysMon f)) || isNeverMonCall f)
                then do monTraceDoc $ \env -> text "app non-mon: eff:" <+> pretty feff <+> text ", expr:" <+> prettyExpr env expr
                        return $ \k -> f' (\ff ->
                                             applies args' (\argss ->
@@ -321,6 +321,19 @@ isNeverMon expr
       Var v _     -> getName v == nameDeref -- canonicalName 1 nameDeref --TODO: remove special case?
       _ -> isTotal expr
 
+
+-- Calling this function expression never needs mon translation. Unlike `isNeverMon`, which
+-- asks whether evaluating an expression is total, this asks whether calling its value is:
+-- `.open(sel)(t)` (selecting a function field) is total to evaluate, but calling the selected
+-- function may yield.
+isNeverMonCall :: Expr -> Bool
+isNeverMonCall expr
+  = case expr of
+      App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f] | getName open == nameEffectOpen
+        -> isTypeTotal effFrom
+      TypeApp e _ -> isNeverMonCall e
+      Var v _     -> getName v == nameDeref
+      _ -> isTotalFun expr
 
 -- Does this definition need any mon translation (sometimes deeper inside)
 isMonDef :: Def -> Bool

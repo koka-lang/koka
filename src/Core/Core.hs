@@ -62,7 +62,7 @@ module Core.Core ( -- Data structures
                    , TNames
                    , splitFun
                    , splitTForall
-                   , isTotal
+                   , isTotal, isTotalFun
                    -- * Data representation
                    , DataRepr(..), ConRepr(..)
                    , isConSingleton
