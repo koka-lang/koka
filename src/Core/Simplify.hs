@@ -115,31 +115,39 @@ topDown (Let dgs body)
                  in topDownLet sub acc (uniqDgs ++ [DefNonRec def{defExpr = uniqBody}] ++ dgs) body
 
     topDownLet sub acc (dg:dgs) body
-      = let sdg = subst sub dg
+      = let -- the names `dg` binds shadow the substitution for the rest of the
+            -- let (and a recursive group's own right-hand sides): names are not
+            -- always unique (a fresh name can coincide with a binder that was
+            -- named by another module's counter), and substituting through the
+            -- rebinding would capture its occurrences
+            sub1 = shadowSub (defGroupTNames dg) sub
+            sdg  = case dg of
+                     DefRec _ -> subst sub1 dg
+                     _        -> subst sub dg
         in case sdg of
           DefRec [def]
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                if (occursNot (defName def) (Let dgs body))
                 then -- trace ("simplify dead: " ++ show (defName def)) $
-                     topDownLet sub (acc) dgs body -- dead definition
+                     topDownLet sub1 (acc) dgs body -- dead definition
                 else -- trace ("no simplify rec def: " ++ show (defName def)) $
-                     topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+                     topDownLet sub1 (sdg:acc) dgs body -- don't inline recursive ones
           DefRec defs'
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
-               topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+               topDownLet sub1 (sdg:acc) dgs body -- don't inline recursive ones
 
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
             -> -- cannot inline effectful expressions
-               topDownLet sub (sdg:acc) dgs body
+               topDownLet sub1 (sdg:acc) dgs body
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
              -> -- trace ("simplify let: " ++ show x ++ " = " ++ show se) $
                 do maxSmallOccur <- getDuplicationMax  -- should be 10 or higher to inline partial bind applications
-                   let inlineExpr = topDownLet (extend (TName x tp, se) sub) acc dgs body
+                   let inlineExpr = topDownLet (extend (TName x tp, se) sub1) acc dgs body
                    case occurrencesOf x (Let dgs body) of
                      -- no occurrence, disregard
                      Occur 0 m n 0
                        -> -- trace "no occurrence" $
-                          topDownLet sub (acc) dgs body
+                          topDownLet sub1 (acc) dgs body
                      -- occurs once, always inline (TODO: maybe only if it is not very big?)
                      Occur acnt m n vcnt | vcnt + acnt == 1
                        -> -- trace "occurs once: inline" $
@@ -160,7 +168,7 @@ topDown (Let dgs body)
 
                      -- dont inline
                      oc -> -- trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
-                           topDownLet sub (sdg:acc) dgs body
+                           topDownLet sub1 (sdg:acc) dgs body
 
 
 -- Remove assertions if optimized
@@ -943,6 +951,11 @@ occurrencesDefGroup dg oc
 uniqueTName (TName name tp)
   = do i <- unique
        return (TName (toUniqueName i name) tp)
+
+-- Drop the substituted names that a binder rebinds (see `topDownLet`).
+shadowSub :: TNames -> [(TName,Expr)] -> [(TName,Expr)]
+shadowSub bound sub
+  = [(name,e) | (name,e) <- sub, not (S.member name bound)]
 
 
 {--------------------------------------------------------------------------
