@@ -41,6 +41,8 @@ Options:
 -O-1                         # Full debug mode with internal runtime assertions enabled
 --seq                        # Test sequentially (instead of in parallel) 
 --rebuild                    # Rebuild standard library for tests
+--quick                      # Skip slow tests (as listed under "slow" in a config.json)
+--shard=<i>/<n>              # Only run every n-th test starting at the i-th (1 <= i <= n), used to split CI jobs
 ```
 
 Per-directory test configuration uses `config.json` and supports:
@@ -49,6 +51,7 @@ Per-directory test configuration uses `config.json` and supports:
 {
 	"flags": "-e --showtypesigs",
 	"exclude": ["always-skip.kk"],
+	"slow": ["skip-with-quick.kk"],
 	"exclude-platform": {
 		"linux-arm64": ["arm-linux-only-failure.kk"],
 		"linux-aarch64": ["another-test.kk"],

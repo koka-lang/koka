@@ -3,6 +3,7 @@ import Control.Monad.IO.Class
 import Data.Maybe
 import Data.Char
 import Data.Array ((!))
+import Data.IORef
 import Data.List
 import Data.List.Extra (replace, trim)
 import System.Directory
@@ -31,27 +32,29 @@ data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
 
-data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, target :: String, par :: Bool, rebuild :: Bool }
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, target :: String, par :: Bool, rebuild :: Bool,
+                        quick :: Bool, shard :: (Int,Int) }
 
-optionsDefault = Options Test False False 0 "" True False
+optionsDefault = Options Test False False 0 "" True False False (1,1)
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
-                exclude :: [String],
-                fexclude:: !(String -> Bool)
+                fexclude:: !(String -> Bool),
+                fslow   :: !(String -> Bool)   -- skipped with --quick
               }
 
-makeCfg :: [String] -> Options -> [String] -> Cfg
-makeCfg flags options []
-  = Cfg flags options [] (\s -> False)
-makeCfg flags options exclude
-  = Cfg flags options exclude fexclude
+makeCfg :: [String] -> Options -> [String] -> [String] -> Cfg
+makeCfg flags options exclude slow
+  = Cfg flags options (matchAny exclude) (matchAny slow)
+
+matchAny :: [String] -> String -> Bool
+matchAny []    = const False
+matchAny items = \s -> any (\m -> m s) matchers
   where
+    matchers = map matcher items
     matcher item | any (\c -> c `elem` "()[]+*?") item = let r = makeRegex item :: Regex
                                                          in (\s -> matchTest r s)
                  | otherwise = (\s -> s == item || s == (item ++ ".kk"))
-    matchers   = map matcher exclude
-    fexclude s = any (\m -> m s) matchers
 
 normalizePlatformKey :: String -> String
 normalizePlatformKey = map norm
@@ -70,6 +73,9 @@ instance JSON Cfg where
                  exclude = case valFromObj "exclude" obj of
                              Ok xs -> xs
                              _     -> []
+                 slow = case valFromObj "slow" obj of
+                          Ok xs -> xs
+                          _     -> []
                  pexclude = case valFromObj "exclude-platform" obj of
                               Ok v -> platformExcludes v
                               _    -> []
@@ -100,20 +106,20 @@ instance JSON Cfg where
                           "x86_64"  -> "x64"
                           "amd64"   -> "x64"
                           a          -> a
-               in Ok (makeCfg flags optionsDefault (exclude ++ pexclude))
-        JSNull     -> Ok (makeCfg [] optionsDefault [])
-        JSString s -> Ok (makeCfg (words (fromJSString s)) optionsDefault [])
+               in Ok (makeCfg flags optionsDefault (exclude ++ pexclude) slow)
+        JSNull     -> Ok (makeCfg [] optionsDefault [] [])
+        JSString s -> Ok (makeCfg (words (fromJSString s)) optionsDefault [] [])
         _          -> Error ("invalid JSON object")
 
 extendCfg :: Cfg -> Cfg -> Cfg
-extendCfg (Cfg flags1 opts1 exclude1 fexclude1) (Cfg flags2 opts2 exclude2 fexclude2)
+extendCfg (Cfg flags1 opts1 fexclude1 fslow1) (Cfg flags2 opts2 fexclude2 fslow2)
   = Cfg (flags1 ++ flags2) opts1
-        (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s)
+        (\s -> fexclude1 s || fexclude2 s) (\s -> fslow1 s || fslow2 s)
 
 initialCfg :: Options -> Cfg
 initialCfg options
   = makeCfg (commonFlags ++ if (not (null (target options))) then ["--target=" ++ target options] else [])
-            options []
+            options [] []
 
 
 readFlagsFile :: FilePath -> IO [String]
@@ -212,13 +218,16 @@ runKokaProcess cfg kokaDir fp
 
 
 
-makeTest :: Cfg -> FilePath -> Spec
-makeTest cfg fp
+-- `counter` numbers the tests in discovery order; with `--shard=i/n` we only run every n-th test
+makeTest :: IORef Int -> Cfg -> FilePath -> Spec
+makeTest counter cfg fp
   | takeExtension fp == ".kk" || ".kk.md" `isSuffixOf` fp
       = do let expectedFile = fp ++ ".out"
            isTest <- runIO $ doesFileExist expectedFile
            let shouldRun = not isTest && mode (options cfg) == New || isTest && mode (options cfg) /= New
-           when shouldRun $
+               (i,n)     = shard (options cfg)
+           idx <- if shouldRun then runIO (atomicModifyIORef' counter (\k -> (k+1,k))) else return 0
+           when (shouldRun && idx `mod` n == i - 1) $
              it (takeBaseName fp) $ do
                kokaDir <- getCurrentDirectory
                out <- runKoka cfg kokaDir fp
@@ -229,17 +238,19 @@ makeTest cfg fp
       = return ()
 
 discoverTests :: Cfg -> FilePath -> Spec
-discoverTests cfg0 p = discover cfg0 "" p
-  where discover cfg cat p
+discoverTests cfg0 p = do counter <- runIO (newIORef 0)
+                          discover counter cfg0 "" p
+  where discover counter cfg cat p
           = do isDirectory <- runIO $ doesDirectoryExist p
                if not isDirectory
-                 then makeTest cfg p
+                 then makeTest counter cfg p
                  else do
                    fs0  <- runIO (sort <$> listDirectory p)
                    cfg' <- runIO (readConfigFile cfg p)
-                   let fs   = filter (not . fexclude cfg') fs0  -- todo: make ignoring the failing optional
+                   let skip f = fexclude cfg' f || (quick (options cfg') && fslow cfg' f)
+                       fs   = filter (not . skip) fs0  -- todo: make ignoring the failing optional
                        with = if cat == "" then id else describe cat
-                   with $ mapM_ (\f -> discover cfg' f (p </> f)) fs
+                   with $ mapM_ (\f -> discover counter cfg' f (p </> f)) fs
 
 readConfigFile :: Cfg -> FilePath -> IO Cfg
 readConfigFile cfg dir
@@ -284,8 +295,18 @@ processOptions arg (options,hargs)
       then (options{par=False}, hargs)
     else if (arg == "--rebuild" || arg == "-r")
       then (options{rebuild=True}, hargs)
+    else if (arg == "--quick")
+      then (options{quick=True}, hargs)
+    else if (take 8 arg == "--shard=")
+      then (options{shard=parseShard (drop 8 arg)}, hargs)
       else (options, arg : hargs)
   where
+    parseShard :: String -> (Int,Int)
+    parseShard s = case break (=='/') s of
+                     (i,'/':n) | all isDigit i && all isDigit n && not (null i) && not (null n)
+                                 && read i >= 1 && read i <= (read n :: Int) -> (read i, read n)
+                     _ -> error $ "Invalid shard (expecting --shard=<i>/<n> with 1 <= i <= n): " ++ show s
+
     parseMode :: String -> Mode
     parseMode "new" = New
     parseMode "update" = Update
