@@ -1,0 +1,6 @@
+i32map: ok
+i64map: ok
+imap: ok
+i32set: ok
+i64set: ok
+iset: ok

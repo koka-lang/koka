@@ -37,6 +37,13 @@ pub import std/num/float64
 pub import std/num/decimal
 pub import std/num/ddouble
 pub import std/num/random
+pub import std/num/i32map
+pub import std/num/i32set
+pub import std/num/i64map
+pub import std/num/i64set
+
+pub import std/data/imap
+pub import std/data/iset
 
 pub import std/time
 pub import std/time/timestamp
