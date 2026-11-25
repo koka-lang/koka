@@ -104,6 +104,14 @@ pub fun (==)( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> e bool ) : e bool
              Nil  -> True
              Cons -> False
 
+// Is `xs` a prefix of `ys`?
+pub fun is-prefix-of( xs : list<a>, ys : list<a>, ?(==) : (a,a) -> e bool ) : e bool
+  match xs
+    Cons(x,xx) -> match ys
+                    Nil        -> False
+                    Cons(y,yy) -> (x==y) && xx.is-prefix-of(yy)
+    Nil -> True
+
 // Order on lists
 pub fun cmp( xs : list<a>, ys : list<a>, ?cmp : (a,a) -> e order ) : e order
   match xs
@@ -569,6 +577,13 @@ pub fun maximum( xs : list<int>, default : int = 0 ) : int
   match xs
     Nil -> default
     Cons(x,xx) -> xx.foldl( x, max )
+
+// Returns the largest element of a list under `?cmp` (or `default` for the empty list).
+// Of equal largest elements, the first is returned.
+pub fun default/maximum( xs : list<a>, default : a, ?cmp : (a,a) -> e order ) : e a
+  match xs
+    Nil -> default
+    Cons(x,xx) -> xx.foldl(x) fn(m,y) if cmp(y,m).is-gt then y else m
 
 
 // Split a string into a list of lines
