@@ -347,7 +347,13 @@ generalizeRecDefs coreDefs
        let tvarss = [[tv | tv <- ofuv rho, not (tvsMember tv free)] | rho <- rhos]
            uses   = [(Core.defTName cdef, Core.makeTypeApp (Core.Var (Core.defTName cdef) Core.InfoNone) (map TVar tvars))
                     | (cdef,tvars) <- zip coreDefs tvarss]
-       mapM (generalizeDef uses) (zip3 coreDefs rhos tvarss)
+       gdefs <- mapM (generalizeDef uses) (zip3 coreDefs rhos tvarss)
+       -- the uses still refer to the members at their monomorphic types: give them the generalized
+       -- types now, so the group is well-typed before the caller fixes the variable info
+       -- (`analyzeDivergence` takes the `typeOf` of these bodies; a recursive call that is
+       -- matched on, as in `val (x,y) = f(..)`, failed with "splitTForall: Expected forall")
+       let polyUses = [(Core.defTName gdef, Core.Var (Core.defTName gdef) Core.InfoNone) | gdef <- gdefs]
+       return [gdef{ Core.defExpr = (CoreVar.|~>) polyUses (Core.defExpr gdef) } | gdef <- gdefs]
   where
     generalizeDef uses (cdef,rho,tvars)
       = do (bvars,bsub) <- Op.freshSub Bound tvars
