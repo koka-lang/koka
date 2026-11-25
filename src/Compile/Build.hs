@@ -264,7 +264,7 @@ moduleCompile :: HasCallStack => [Name] -> ModuleMap -> ModuleMap -> ModuleMap -
 moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMap buildOrder
   = moduleGuard PhaseCodeGen PhaseLinked linkedMap (\(_,_,mod) -> mod) id
                 (moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap)
-    $ \done (fullLink,link,mod) ->
+    $ \done (fullLink,(link,writeIface),mod) ->
      do -- wait for all required imports to be codegen'd
         -- However, for a final exe we need to wait for the imports to be _linked_ as well (so we use linkedMap instead of codegenMap).
         imports0 <- moduleWaitForImports {-fullLink-} True -- with parallel builds in optimized mode we sometimes get permission errors
@@ -278,6 +278,10 @@ moduleCompile mainEntries parsedMap tcheckedMap optimizedMap codegenMap linkedMa
           else do phaseVerbose (if fullLink then 1 else 2) (if fullLink then "linking" else "link") $
                                 \penv -> TP.ppName penv (modName mod) -- <+> text ", imports:" <+> list (map (TP.ppName penv . modName) imports)
                   mbEntry <- pooledIO $ link imports  -- link it! (specifics were returned by codegen)
+                  -- write our interface after those of our imports, so an import interface that is
+                  -- newer than ours means it was recompiled later (see `validateDependencies`)
+                  _ <- moduleWaitForImports False linkedMap [] (modImportNames mod)
+                  pooledIO writeIface
                   ftIface <- getFileTime (modIfacePath mod)
                   let mod' = mod{ modPhase = PhaseLinked
                                 , modIfaceTime = ftIface
@@ -303,9 +307,9 @@ orderByBuildOrder buildOrder mods
   Code generation (.c,.js)
 ---------------------------------------------------------------}
 
-moduleCodeGen :: HasCallStack => [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Bool, Link, Module)
+moduleCodeGen :: HasCallStack => [Name] -> ModuleMap -> ModuleMap -> ModuleMap -> ModuleMap -> Module -> Build (Bool, (Link, IO ()), Module)
 moduleCodeGen mainEntries parsedMap tcheckedMap optimizedMap codegenMap
-  = moduleGuard PhaseOptimized PhaseCodeGen codegenMap (\mod -> mod) (\mod -> (False,noLink,mod))
+  = moduleGuard PhaseOptimized PhaseCodeGen codegenMap (\mod -> mod) (\mod -> (False,(noLink,return ()),mod))
                 (moduleOptimize parsedMap tcheckedMap optimizedMap) $ \done mod ->
     do -- wait for all required imports to be optimized (no need to wait for codegen!)
        -- trace ("mod import names: " ++ show (modImportNames mod)) (return ())
@@ -626,14 +630,14 @@ validateDependencies modules
     validateDependency visited mod
       = if (modPhase mod < PhaseLexed || null (modDeps mod))
           then return (mod:visited)
-          else let imports = map lexImportName (modDeps mod)
-                   phases  = map (\iname -> case find (\m -> modName m == iname) visited of
-                                              Just m -> modPhase m
-                                              _      -> -- trace ("cannot find: " ++ show iname) $ 
-                                                        PhaseInit) imports
+          else let imports  = map (\imp -> find (\m -> modName m == lexImportName imp) visited) (modDeps mod)
+                   phases   = map (maybe PhaseInit modPhase) imports
                    minphase = minimum phases
+                   -- an import was compiled after our (local) interface (in an earlier build)
+                   newerImport = modPhase mod >= PhaseIfaceLoaded && null (modLibIfacePath mod) && not (null (modSourcePath mod)) &&
+                                 any (\m -> modIfaceTime m > modIfaceTime mod) (catMaybes imports)
                in if (minphase < PhaseIfaceLoaded && -- once IfaceLoaded we are good?
-                      minphase < modPhase mod) 
+                      minphase < modPhase mod) || newerImport
                     then -- trace ("invalidated: " ++ show (modName mod) ++ show (modPhase mod) ++ " > " ++ show (zip imports phases)) $
                          do mod' <- moduleLoad True [] mod
                             return (mod' : visited)

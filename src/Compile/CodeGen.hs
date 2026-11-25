@@ -65,7 +65,7 @@ noLink _ = return LinkDone
 -- The interface is written from the shared Core of the module (`modCore`), and the backend
 -- compiles its lowered Core `coreC` (`coreLowerUnsafe`).
 codeGen :: Terminal -> Flags -> (IO () -> IO ()) -> Core.Core -> Newtypes -> Borrowed -> KGamma -> Gamma ->
-             Maybe (Name,Type) -> [Module] -> Module -> IO Link
+             Maybe (Name,Type) -> [Module] -> Module -> IO (Link, IO ())
 codeGen term flags sequential coreC newtypes borrowed kgamma gamma entry imported mod
   = -- compilerCatch ("code generation in " ++ show (modName mod)) term noLink $
     do let program    = fromJust (modProgram mod)
@@ -119,12 +119,12 @@ codeGen term flags sequential coreC newtypes borrowed kgamma gamma entry importe
        -- generate actual code
        link <- backend term flags sequential entry outBase coreC
 
-       -- return the link as an action to increase concurrency
-       return $ \fullImports ->
+       -- return the link as an action to increase concurrency, and
+       -- a separate action to write the interface after linking (and after the imports are linked)
+       let writeIface = writeDocW 10000 (modIfacePath mod) ifaceDoc
+       return $ flip (,) writeIface $ \fullImports ->
          -- compilerCatch ("linking in " ++ show (modName mod)) term LinkDone $
          do mbRun <- link fullImports
-            -- write interface file last so on any error it will not be written
-            writeDocW 10000 (modIfacePath mod) ifaceDoc
 
             -- copy final exe if -o is given
             case mbRun of
