@@ -1,0 +1,2 @@
+type/update-effects/main: () -> <pure,console,ndet> ()
+type/update-effects/spin: (n : int) -> div int

@@ -1,0 +1,3 @@
+test/type/wrong/update-local@kk(5, 6): type error: the effect local<_h> is not allowed here
+ allowed : ioc
+ hint : the local variables cannot be used here (use `::=` to assign a value that uses them)

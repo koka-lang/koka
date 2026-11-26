@@ -1,0 +1,4 @@
+type/max-effects/apply-max: forall<a,e> (f : () -> e a, ?max-effects : max-effects<e,<div,ndet>>) -> e a
+type/max-effects/main: () -> <pure,console,ndet> ()
+type/max-effects/spin: (n : int) -> div int
+type/max-effects/twice: forall<e> (f : () -> e int, ?max-effects : max-effects<e,<div,ndet>>) -> e int

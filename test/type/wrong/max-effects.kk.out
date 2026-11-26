@@ -1,0 +1,2 @@
+test/type/wrong/max-effects@kk(6,11): type error: the effect exn is not allowed here
+ allowed : <div,ndet>

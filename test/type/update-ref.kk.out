@@ -1,0 +1,6 @@
+type/update-ref/allocated: () -> <alloc<global>,read<global>> int
+type/update-ref/assign: forall<h> (r : ref<h,int>) -> <read<h>,div> int
+type/update-ref/global-ref: (r : ref<global,int>) -> <st<global>,div> int
+type/update-ref/heap-in-value: (r : ref<global,() -> (read<global>) int>) -> <div,read<global>> int
+type/update-ref/read-before: forall<h> (r : ref<h,int>) -> <read<h>,div> int
+type/update-ref/unannotated: (r : ref<global,int>) -> (read<global>) int
