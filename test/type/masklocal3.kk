@@ -11,6 +11,6 @@ fun show(x: xx<a, b>, ?a/show: (a) -> pure string, ?b/show: (b) -> pure string) 
 fun pretty-emit3(action : () -> <emit,pure|e> a, ?show: int -> pure string) : <pure|e> string
   var out := ""
   with fun emit(s) 
-    out := out ++ s.show ++ "\n"
+    out ::= out ++ s.show ++ "\n"
   action()
   out
