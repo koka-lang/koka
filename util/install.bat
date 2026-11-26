@@ -282,7 +282,7 @@ if errorlevel 1 (
   echo Unpacking error: %ERRORLEVEL%
   echo.
   echo Perhaps Koka is in use by VS Code or another process?
-  echo Or perhaps you are running the install.bat from a non-standard cmd shell (like git bash)?
+  echo Or perhaps you are running the install.bat from a non-standard cmd shell ^(like git bash^)?
   rem echo Or perhaps uninstall a previous version manually first? Use:
   rem echo   curl -sSL -o %%tmp%%\install-koka.bat https://github.com/koka-lang/koka/releases/download/%KOKA_VERSION%/install.bat ^&^& %%tmp%%\install-koka.bat --uninstall
   goto end
