@@ -1,0 +1,2 @@
+type/hdiv-recursive/read-global: (r : ref<global,int>) -> <div,read<global>> int
+type/hdiv-recursive/recur: forall<a,h> () -> <alloc<h>,div,read<h>> a
