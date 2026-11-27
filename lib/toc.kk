@@ -38,6 +38,10 @@ pub import std/num/decimal
 pub import std/num/ddouble
 pub import std/num/random
 
+pub import std/data/rbtree
+pub import std/data/map
+pub import std/data/set
+
 pub import std/time
 pub import std/time/timestamp
 pub import std/time/astro
