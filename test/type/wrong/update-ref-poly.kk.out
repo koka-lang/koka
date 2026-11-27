@@ -1,0 +1,2 @@
+test/type/wrong/update-ref-poly@kk(4, 6): type error: the effect read<$h> is not allowed here
+ allowed : ioc

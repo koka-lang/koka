@@ -27,7 +27,7 @@ module Common.NamePrim
           -- * Operations
           , namePatternMatchError, nameMainConsole
           , nameCopy, copyNameOf
-          , nameAssign
+          , nameAssign, nameAssignSet
           , nameRefSet, nameByref, nameDeref, nameIndex
           , nameDecreasing, nameSubStr1
           , nameAssert
@@ -158,7 +158,8 @@ module Common.NamePrim
 
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
-          , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew
+          , nameLocalVar, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew, nameLocalUpdate
+          , nameTypeMaxEffects, nameEvMaxEffects, nameMaxEffects, nameOpenLocal
 
 
           , nameTpOptional
@@ -221,8 +222,8 @@ nameCase        = newName "case"
   Core
 --------------------------------------------------------------------------}
 nameTpIO        = preludeName "io"
-nameTpIOC       = preludeName "ioc"
-nameTpIOCTotal  = preludeName "ioc-total"
+nameTpIOC       = coreTypesName "ioc"
+nameTpIOCTotal  = coreTypesName "ioc-total"
 nameTpNamed     = preludeName "nmd"
 nameTpScope     = preludeName "scope"
 nameTpPure      = preludeName "pure"
@@ -400,10 +401,16 @@ nameUnsafeTotal = qualify nameCoreUnsafe (newName "unsafe-total")
 nameIndex       = newHiddenName "index"
 nameReturn      = newHiddenName "return"
 nameAssign      = newHiddenName "@assign"  -- used for :=
+nameAssignSet   = newHiddenName "@assign-set"  -- used for ::=
 
 nameRefSet      = coreTypesName "set"
 nameLocalSet    = coreTypesName "local-set"
 nameLocalGet    = coreTypesName "local-get"
+nameLocalUpdate = coreTypesName "@local-update"
+nameTypeMaxEffects = coreTypesName "max-effects"
+nameEvMaxEffects   = coreTypesName "@Max-effects"
+nameMaxEffects     = newName "max-effects"
+nameOpenLocal      = coreTypesName "@open-local"
 nameDeref       = qualifyLocally (newModuleName "ref") (coreTypesName "!")
 nameByref       = coreTypesName "@byref"
 

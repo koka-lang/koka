@@ -1,0 +1,2 @@
+test/type/wrong/assign-effect@kk(5, 6): type error: the effect exn is not allowed here
+ allowed : ioc

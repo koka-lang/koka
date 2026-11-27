@@ -19,7 +19,7 @@ import Lib.PPrint
 import Common.Failure
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen, nameToAny, nameReturn, nameOptionalNone
+import Common.NamePrim( nameEffectOpen, nameOpenLocal, nameToAny, nameReturn, nameOptionalNone
                        --, isValidK , nameLift
                        , nameBind, nameEvvIndex, nameClauseTailNoOp, isClauseTailName
                        , nameBox, nameUnbox, nameAssert
@@ -177,6 +177,20 @@ topDown (App assert@(Var name _) [msg,cond])  | getName name == nameAssert
         if (ndebug)
           then return exprUnit
           else return (App assert [msg,cond])
+
+-- `@open-local(f)` adds `local<h>` to the effect of `f : a -> e b`: it is `.open(f)`, which inlining,
+-- the monadic transform, and open resolution understand. (`@open-local` itself is total, so an open
+-- around it is dropped.) Only for a closed `e`: open resolution cannot open from an effect variable,
+-- which might contain handled effects; in an effect-polymorphic function it stays an identity external.
+topDown (App fun [f]) | Just [a,b,h,e] <- openLocalTypeArgs fun, isEffectEmpty (snd (extractEffectExtend e))
+  = let eTo = effectExtend (TApp typeLocal [h]) e
+    in topDown (openEffectExpr e eTo (TFun [(nameNil,a)] e b) (TFun [(nameNil,a)] eTo b) f)
+  where
+    openLocalTypeArgs expr
+      = case expr of
+          TypeApp (Var v _) targs | getName v == nameOpenLocal -> Just targs
+          App (TypeApp (Var open _) _) [g] | getName open == nameEffectOpen -> openLocalTypeArgs g
+          _ -> Nothing
 
 -- Remove identity open applications; need to be done before open resolve to enable tail call optimization.
 -- Only an exact identity is removed: an open between different effects with the same handled

@@ -1,0 +1,5 @@
+test/type/wrong/update-closure3@kk(6,30): type error: effects do not match
+ context : fn() x
+ term : x
+ inferred effect: <local<_h>|_e>
+ expected effect: total

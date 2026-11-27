@@ -59,23 +59,8 @@ pub alias pure = <exn,div>
 // The `:global-scope` is a special type constant to denote the global scope
 pub type global-scope :: S
 
-// The `:net` effect signifies a function may access the network
-pub type net :: X
-
-// The `:fsys` effect signifies a function may access the file system
-pub type fsys :: X
-
-// The `:ui` effect signifies a function may access the graphics system
-pub type ui :: X
-
 // The `:blocking` effect signifies that a function may block
 pub type blocking :: X
-
-// The `:ioc-total` effect is used for functions that perform arbitrary I/O operations, but are terminating without raising exceptions.
-pub alias ioc-total = <ndet,console,net,fsys,ui,st<global>>
-
-// The `:ioc` effect ("I/O as in C") is used for functions that perform arbitrary I/O operations, but raise no exceptions
-pub alias ioc = <div,ioc-total>
 
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
 pub alias io = <exn,ioc>

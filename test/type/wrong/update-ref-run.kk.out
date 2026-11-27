@@ -1,0 +1,9 @@
+test/type/wrong/update-ref-run@kk(4,10): type error: effects do not match
+ context : fn()
+ @@@
+ x
+ term : 
+ @@@
+ x
+ inferred effect: <alloc<global>,read<global>|_e1>
+ expected effect: <alloc<$h>,read<$h>,write<$h>|_e>

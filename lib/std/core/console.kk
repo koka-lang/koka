@@ -19,9 +19,6 @@ extern import
   js file "inline/console.js"
 
 
-// The console effect signifies that a function may write to the console.
-pub type console :: X
-
 
 // ----------------------------------------------------------------------------
 // Print to the console
