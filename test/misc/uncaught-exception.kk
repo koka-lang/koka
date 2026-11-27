@@ -1,0 +1,2 @@
+fun main()
+  throw("boom")

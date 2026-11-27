@@ -14,4 +14,5 @@
 ---------------------------------------------------------------------------*/
 
 kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx );
+kk_unit_t kk_exit_failure( kk_context_t* ctx );
 
