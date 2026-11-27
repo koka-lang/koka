@@ -475,14 +475,16 @@ moduleWaitForPubImports tcheckedMap alreadyDone0 importDeps
        imports0 <- mapM (modmapRead tcheckedMap) importNames
        let imports = zipWith (\isOpen mod -> mod{ modShouldOpen = isOpen }) importOpen imports0
            alreadyDone = alreadyDone0 ++ importNames
-           extras = nub $ [(modShouldOpen mod,Core.importName imp)
-                          | mod <- imports, imp <- modCoreImports mod,
-                            -- import public modules
-                            isPublic (Core.importVis imp)
-                            -- in a generated main, with @open import <mod>, also import its imports (for `println` for example)
-                            || (modShouldOpen mod && Core.isUserImport imp {- don't import `std/core` again -}),
-                            not (Core.isCompilerImport imp),
-                            not (Core.importName imp `elem` alreadyDone)]
+           candidates = [(modShouldOpen mod,Core.importName imp)
+                        | mod <- imports, imp <- modCoreImports mod,
+                          -- import public modules
+                          isPublic (Core.importVis imp)
+                          -- in a generated main, with @open import <mod>, also import its imports (for `println` for example)
+                          || (modShouldOpen mod && Core.isUserImport imp {- don't import `std/core` again -}),
+                          not (Core.isCompilerImport imp),
+                          not (Core.importName imp `elem` alreadyDone)]
+           -- unique by name (opened if any import opens it)
+           extras = [(or [isOpen | (isOpen,n) <- candidates, n == name], name) | name <- nub (map snd candidates)]
        if null extras
          then return imports
          else -- trace ("extra imports: " ++ show extras) $
