@@ -1581,6 +1581,7 @@ kk_integer_t kk_integer_ctz(kk_integer_t x, kk_context_t* ctx) {
 }
 
 static kk_intf_t int_count_digits(kk_intf_t x) {
+  if (x == 0) return 0;
   // make positive
   kk_uintx_t u;
   if (x < 0) {
