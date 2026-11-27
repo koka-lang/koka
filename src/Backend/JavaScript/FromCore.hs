@@ -472,7 +472,8 @@ genMatch result scrutinees branches
   = fmap (debugWrap "genMatch") $ do
     case branches of
         []  -> fail ("Backend.JavaScript.FromCore.genMatch: no branch in match statement: " ++ show(scrutinees))
-        [b] -> fmap snd $ genBranch True result scrutinees b
+        [b] | length (branchGuards b) == 1  -- multiple guards need a break label (in the regular case)
+            -> fmap snd $ genBranch True result scrutinees b
 
        -- Special handling of return related cases - would be nice to get rid of it
         [ Branch [p1] [Guard t1 (App (Var tn _) [r1])], Branch [p2] [Guard t2 e2] ]
