@@ -1,0 +1,10 @@
+test/kind/wrong/alias-effect-row@kk(5,27): kind error: Invalid type
+ type context : property<myeff>
+ type : myeff
+ inferred kind: X
+ expected kind: E
+test/kind/wrong/alias-effect-row@kk(5,18): kind error: Invalid type
+ type context : property<myeff>
+ type : property<myeff>
+ inferred kind: X
+ expected kind: E
