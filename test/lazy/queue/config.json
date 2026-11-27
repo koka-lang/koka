@@ -1,4 +1,9 @@
 {
+  "exclude-target": {
+    "js": [
+      "physicists-stack.kk"
+    ]
+  },
   "slow": [
     "hoodmelville.kk",
     "physicists-stack.kk",

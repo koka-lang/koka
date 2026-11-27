@@ -56,10 +56,14 @@ Per-directory test configuration uses `config.json` and supports:
 		"linux-arm64": ["arm-linux-only-failure.kk"],
 		"linux-aarch64": ["another-test.kk"],
 		"linux": ["linux-only-skip.kk"]
+	},
+	"exclude-target": {
+		"js": ["c-only.kk"]
 	}
 }
 ```
 
 `exclude-platform` expects a JSON object from platform key to an array of test patterns.
+`exclude-target` is similar but keyed by the target (`c` or `js`).
 
 Platform keys are case-insensitive and may use `-` or `_`. Matching supports OS keys (`linux`, `darwin`, `mingw32`), arch keys (`arm64`, `amd64`), and combined keys (`linux-arm64`, `arm64-linux`).

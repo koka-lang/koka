@@ -39,13 +39,16 @@ optionsDefault = Options Test False False 0 "" True False False (1,1)
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
-                fexclude:: !(String -> Bool),
+                fexclude:: !(String -> String -> Bool),  -- target and file name
                 fslow   :: !(String -> Bool)   -- skipped with --quick
               }
 
-makeCfg :: [String] -> Options -> [String] -> [String] -> Cfg
-makeCfg flags options exclude slow
-  = Cfg flags options (matchAny exclude) (matchAny slow)
+makeCfg :: [String] -> Options -> [String] -> [(String,[String])] -> [String] -> Cfg
+makeCfg flags options exclude texclude slow
+  = Cfg flags options (\t s -> fex s || any (\(k,m) -> k == t && m s) ftex) (matchAny slow)
+  where
+    fex  = matchAny exclude
+    ftex = [(k, matchAny xs) | (k,xs) <- texclude]
 
 matchAny :: [String] -> String -> Bool
 matchAny []    = const False
@@ -76,20 +79,12 @@ instance JSON Cfg where
                  slow = case valFromObj "slow" obj of
                           Ok xs -> xs
                           _     -> []
-                 pexclude = case valFromObj "exclude-platform" obj of
-                              Ok v -> platformExcludes v
-                              _    -> []
-                 platformExcludes v
-                   = case v of
-                       JSObject pobj -> concatMap matchPlatform (fromJSObject pobj)
-                       _             -> []
-                 matchPlatform (platform, excludes)
-                   | normalizePlatformKey platform `elem` platformKeys
-                   = case excludes of
-                       JSArray xs -> mapMaybe toString xs
-                       _          -> []
-                   | otherwise
-                   = []
+                 pexclude = concat [xs | (platform,xs) <- keyedLists "exclude-platform", platform `elem` platformKeys]
+                 texclude = keyedLists "exclude-target"
+                 keyedLists key
+                   = case valFromObj key obj of
+                       Ok (JSObject kobj) -> [(normalizePlatformKey k, mapMaybe toString xs) | (k, JSArray xs) <- fromJSObject kobj]
+                       _                  -> []
                  toString (JSString s) = Just (fromJSString s)
                  toString _            = Nothing
                  platformKeys = [os, arch, os ++ "-" ++ arch]
@@ -106,20 +101,20 @@ instance JSON Cfg where
                           "x86_64"  -> "x64"
                           "amd64"   -> "x64"
                           a          -> a
-               in Ok (makeCfg flags optionsDefault (exclude ++ pexclude) slow)
-        JSNull     -> Ok (makeCfg [] optionsDefault [] [])
-        JSString s -> Ok (makeCfg (words (fromJSString s)) optionsDefault [] [])
+               in Ok (makeCfg flags optionsDefault (exclude ++ pexclude) texclude slow)
+        JSNull     -> Ok (makeCfg [] optionsDefault [] [] [])
+        JSString s -> Ok (makeCfg (words (fromJSString s)) optionsDefault [] [] [])
         _          -> Error ("invalid JSON object")
 
 extendCfg :: Cfg -> Cfg -> Cfg
 extendCfg (Cfg flags1 opts1 fexclude1 fslow1) (Cfg flags2 opts2 fexclude2 fslow2)
   = Cfg (flags1 ++ flags2) opts1
-        (\s -> fexclude1 s || fexclude2 s) (\s -> fslow1 s || fslow2 s)
+        (\t s -> fexclude1 t s || fexclude2 t s) (\s -> fslow1 s || fslow2 s)
 
 initialCfg :: Options -> Cfg
 initialCfg options
   = makeCfg (commonFlags ++ if (not (null (target options))) then ["--target=" ++ target options] else [])
-            options [] []
+            options [] [] []
 
 
 readFlagsFile :: FilePath -> IO [String]
@@ -247,7 +242,8 @@ discoverTests cfg0 p = do counter <- runIO (newIORef 0)
                  else do
                    fs0  <- runIO (sort <$> listDirectory p)
                    cfg' <- runIO (readConfigFile cfg p)
-                   let skip f = fexclude cfg' f || (quick (options cfg') && fslow cfg' f)
+                   let tgt    = if null (target (options cfg')) then "c" else target (options cfg')
+                       skip f = fexclude cfg' tgt f || (quick (options cfg') && fslow cfg' f)
                        fs   = filter (not . skip) fs0  -- todo: make ignoring the failing optional
                        with = if cat == "" then id else describe cat
                    with $ mapM_ (\f -> discover counter cfg' f (p </> f)) fs

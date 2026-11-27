@@ -261,11 +261,17 @@ codeGenJS term flags sequential entry outBase core
               JS JsWeb ->
                do return (\_ -> return (LinkExe outHtml (runSystemEcho term flags (dquote outHtml ++ " &"))))
               _ ->
-               do let stksize = if (stackSize flags == 0) then 100000 else (stackSize flags `div` 1024)
-                  return (\_ -> return (LinkExe outjs (runCommand term flags
-                                           ([node flags,"--stack-size=" ++ show stksize,outjs] ++ execOpts flags)
+               do return (\_ -> return (LinkExe outjs (runCommand term flags
+                                           ([node flags,nodeStackFlag flags,outjs] ++ execOpts flags)
                                         )))
 
+
+
+-- V8 segfaults (instead of raising a stack overflow) if its stack size exceeds the real stack,
+-- so by default stay below the 8MiB that node reserves on Windows and the default Unix stack limit.
+nodeStackFlag :: Flags -> String
+nodeStackFlag flags
+  = "--stack-size=" ++ show (if (stackSize flags == 0) then 7*1024 else (stackSize flags `div` 1024))
 
 
 {---------------------------------------------------------------
@@ -417,9 +423,8 @@ codeGenLinkExe term flags stksize clink mainExe
             -> do return (LinkExe mainTarget
                             (runSystemEcho term flags (dquote mainTarget ++ " &")))
           C WasmJs
-            -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
-                  return (LinkExe mainTarget
-                            (runCommand term flags ([node flags,"--stack-size=" ++ show nodeStack,mainTarget] ++ mainflags)))
+            -> do return (LinkExe mainTarget
+                            (runCommand term flags ([node flags,nodeStackFlag flags,mainTarget] ++ mainflags)))
           _ -> do return (LinkExe mainTarget
                             (runCommand term flags ([mainExe] ++ mainflags)))
 
