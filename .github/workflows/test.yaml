@@ -33,6 +33,13 @@ jobs:
         os: [windows-latest, macos-15, macos-15-intel, ubuntu-22.04, ubuntu-22.04-arm]
         # split the test suite over multiple jobs (see `--shard` in test/readme.md)
         shard: [0, 1, 2, 3]
+        target: [c, js]
+        # test the js backend only on ubuntu-22.04
+        exclude:
+          - { target: js, os: windows-latest }
+          - { target: js, os: macos-15 }
+          - { target: js, os: macos-15-intel }
+          - { target: js, os: ubuntu-22.04-arm }
 
     steps:
       # Checkout: https://github.com/actions/checkout
@@ -81,12 +88,19 @@ jobs:
           stack-build-arguments: "--fast"
           cache-save-always: true
 
+      # https://github.com/actions/setup-node
+      - name: Set up Node.js
+        if: matrix.target == 'js'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
       # Run tests
       - name: Run test suite
         if: runner.os != 'macOS' && matrix.shard != 0
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }}"
 
       - name: Run test suite (macOS)
         if: runner.os == 'macOS' && matrix.shard != 0
@@ -94,20 +108,26 @@ jobs:
           LC_ALL: C
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }}"
 
       # Bundle (only once per OS)
       - name: Build libraries
-        if: matrix.shard == 0
+        if: matrix.shard == 0 && matrix.target == 'c'
         run: |
           stack exec koka -- -e -O2 util/bundle
 
+      # Build all standard libraries for other backends
+      - name: Build libraries (${{ matrix.target }})
+        if: matrix.shard == 0 && matrix.target != 'c'
+        run: |
+          stack exec koka -- --target=${{ matrix.target }} -O2 util/link-std
+
       # VS Code extension tests (support/vscode/koka.language-koka/src/test) on the compiler just built
       - name: Test VS Code extension
-        if: matrix.shard == 0
+        if: matrix.shard == 0 && matrix.target == 'c' && matrix.os == 'ubuntu-22.04'
         working-directory: support/vscode/koka.language-koka
         shell: bash
         run: |
           npm install --no-audit --no-fund
-          export KOKA_COMPILER="$(stack path --local-install-root)/bin/koka$([ "$RUNNER_OS" = Windows ] && echo .exe)"
-          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a npm test; else npm test; fi
+          export KOKA_COMPILER="$(stack path --local-install-root)/bin/koka"
+          xvfb-run -a npm test

@@ -35,8 +35,7 @@ Options:
 --match <match>              # only match a specific test or test directory
 --cabal                      # Use cabal to run koka.
 --system-ghc                 # If using stack, use --system-ghc option.
---target-js                  # Test javascript backend
---target-c64c                # Test compressed heap 
+--target-<t>                 # Test the given backend, e.g. c (default), js, or c64c (compressed heap)
 -O2                          # Use optimization
 -O-1                         # Full debug mode with internal runtime assertions enabled
 --seq                        # Test sequentially (instead of in parallel) 
