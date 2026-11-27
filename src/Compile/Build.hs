@@ -718,7 +718,14 @@ moduleLex mod
                                 | imp <- imports]
 
                       resolveDep :: LexImport -> Build LexImport
-                      resolveDep imp 
+                      resolveDep imp
+                        -- Entry modules open roots that are already loaded under
+                        -- `importName`. Resolving an absolute root through a path
+                        -- with non-identifier components would invent a different
+                        -- module name (for example `tmp/nix-shell.../main`).
+                        | lexImportIsOpen imp && modSourcePath mod `endsWith` ("@main" ++ sourceExtension)
+                            = return imp
+                        | otherwise
                         = do mbname <- moduleNameResolve relativeDir (lexImportName imp)
                              case mbname of
                                Just mname -> return (imp{ lexImportName = mname })
