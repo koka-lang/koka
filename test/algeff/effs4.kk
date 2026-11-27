@@ -7,8 +7,8 @@ effect state<s> {
 
 val state = handler {
   return(x){ fn(s){ x } }
-  ctl get() { fn(s){ resume(s)(s) } }
-  ctl set(t){ fn(s){ resume(())(t) } }
+  raw ctl get() { fn(s){ rcontext.resume(s)(s) } }
+  raw ctl set(t){ fn(s){ rcontext.resume(())(t) } }
 }
 
 fun test() {
