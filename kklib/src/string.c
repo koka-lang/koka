@@ -968,37 +968,109 @@ static kk_string_t kk_double_show_special(double d, kk_context_t* ctx) {
   }
 }
 
-static kk_string_t kk_double_show_spec(double d, int32_t prec, char spec, kk_context_t* ctx) {
+#define KK_DOUBLE_MAX_PREC  (100)
+#define KK_DOUBLE_BUF_SIZE  (512)   // enough for `%.100f` of the largest double
+
+static int kk_double_clamp_prec(int32_t prec) {
+  return (prec > KK_DOUBLE_MAX_PREC ? KK_DOUBLE_MAX_PREC : (prec < -KK_DOUBLE_MAX_PREC ? -KK_DOUBLE_MAX_PREC : (int)prec));
+}
+
+// Shortest exponential notation that reads back as `d`; returns the number of fraction digits.
+static int kk_double_shortest_exp(double d, char* buf, size_t len) {
+  int lo = 0;
+  int hi = 16;  // 17 significant digits always round-trip
+  while (lo < hi) {
+    const int mid = (lo + hi) / 2;
+    snprintf(buf, len, "%.*e", mid, d);
+    if (strtod(buf, NULL) == d) { hi = mid; } else { lo = mid + 1; }
+  }
+  snprintf(buf, len, "%.*e", lo, d);
+  return lo;
+}
+
+// Remove trailing zeros of the fraction (and a trailing dot), keeping any exponent.
+static void kk_double_trim_zeros(char* buf) {
+  char* dot = strchr(buf, '.');
+  if (dot == NULL) return;
+  char* exp = strchr(dot, 'e');
+  char* end = (exp != NULL ? exp : dot + strlen(dot));
+  char* p = end;
+  while (p > dot + 1 && p[-1] == '0') { p--; }
+  if (p == dot + 1) { p = dot; }
+  memmove(p, end, strlen(end) + 1);
+}
+
+// Write the digits of an exponential notation `s` in fixed notation to `buf`.
+static void kk_double_exp_to_fixed(const char* s, char* buf) {
+  const char* e = strchr(s, 'e');
+  const long exp = strtol(e + 1, NULL, 10);
+  char digits[32];
+  long n = 0;
+  if (*s == '-') { *buf++ = *s++; }
+  for (; s < e; s++) { if (*s != '.') { digits[n++] = *s; } }
+  if (exp < 0) {
+    *buf++ = '0'; *buf++ = '.';
+    for (long i = 0; i < -exp - 1; i++) { *buf++ = '0'; }
+    for (long i = 0; i < n; i++) { *buf++ = digits[i]; }
+  }
+  else {
+    for (long i = 0; i <= exp; i++) { *buf++ = (i < n ? digits[i] : '0'); }
+    if (n > exp + 1) {
+      *buf++ = '.';
+      for (long i = exp + 1; i < n; i++) { *buf++ = digits[i]; }
+    }
+  }
+  *buf = 0;
+}
+
+// Fixed notation with exactly `prec` fraction digits if `prec >= 0`, or otherwise
+// the shortest notation that reads back as `d` with at most `-prec` fraction digits.
+kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_context_t* ctx) {
   if (!isfinite(d)) return kk_double_show_special(d, ctx);
-  char buf[64];
-  char fmt[16];
-  if (prec < 0)  prec = -prec;
-  if (prec > 48) prec = 48;
-  snprintf(fmt, 16, "%%.%i%c", (int)prec, spec);
-  snprintf(buf, 64, fmt, d);
-  // check if it ends with a 0 exponent and remove if so. 
-  char* p = buf;
-  while (*p != 'e' && *p != 0) { p++; }
-  if (p[0] == 'e'
-    && (p[1] == '+' || p[1] == '-')
-    && (p[2] == '0')
-    && (p[3] == 0 || (p[3] == '0' && (p[4] == 0 || (p[4] == '0' && p[5] == 0)))))
-  {
-    *p = 0; // remove exponent
+  char buf[KK_DOUBLE_BUF_SIZE];
+  const int p = kk_double_clamp_prec(prec);
+  if (p >= 0) {
+    snprintf(buf, KK_DOUBLE_BUF_SIZE, "%.*f", p, d);
+  }
+  else {
+    char ebuf[64];
+    const int frac = kk_double_shortest_exp(d, ebuf, 64) - (int)strtol(strchr(ebuf, 'e') + 1, NULL, 10);
+    if (frac > -p) {
+      snprintf(buf, KK_DOUBLE_BUF_SIZE, "%.*f", -p, d);
+      kk_double_trim_zeros(buf);
+    }
+    else {
+      kk_double_exp_to_fixed(ebuf, buf);
+    }
   }
   return kk_string_alloc_dup_valid_utf8(buf, ctx);
 }
 
-kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_context_t* ctx) {
-  return kk_double_show_spec(d, prec, prec < 0 ? 'g' : 'f', ctx);
-}
-
+// Exponential notation with exactly `prec` fraction digits if `prec >= 0`, or otherwise
+// the shortest notation that reads back as `d` with at most `-prec` fraction digits.
 kk_string_t kk_double_show_exp(double d, int32_t prec, kk_context_t* ctx) {
-  return kk_double_show_spec(d, prec, prec < 0 ? 'g' : 'e', ctx);
+  if (!isfinite(d)) return kk_double_show_special(d, ctx);
+  char buf[KK_DOUBLE_BUF_SIZE];
+  const int p = kk_double_clamp_prec(prec);
+  if (p >= 0) {
+    snprintf(buf, KK_DOUBLE_BUF_SIZE, "%.*e", p, d);
+  }
+  else if (kk_double_shortest_exp(d, buf, KK_DOUBLE_BUF_SIZE) > -p) {
+    snprintf(buf, KK_DOUBLE_BUF_SIZE, "%.*e", -p, d);
+    kk_double_trim_zeros(buf);
+  }
+  return kk_string_alloc_dup_valid_utf8(buf, ctx);
 }
 
+// As `std/num/float64/show`
 kk_string_t kk_double_show(double d, int32_t prec, kk_context_t* ctx) {
-  return kk_double_show_spec(d, prec, 'g', ctx);
+  const double dabs = fabs(d);
+  if (dabs == 0.0 || (dabs >= 1.0e-5 && dabs < 1.0e21)) {
+    return kk_double_show_fixed(d, prec, ctx);
+  }
+  else {
+    return kk_double_show_exp(d, prec, ctx);
+  }
 }
 
 
@@ -1007,7 +1079,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
   char buf[128];
 #if KK_USE_NAN_BOX
   if (_is_double(b)) {
-    return kk_double_show(kk_double_unbox(b, ctx), 0, ctx);
+    return kk_double_show(kk_double_unbox(b, ctx), -21, ctx);
   }
   else
 #endif
