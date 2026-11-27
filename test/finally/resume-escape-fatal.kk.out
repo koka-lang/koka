@@ -1,0 +1,6 @@
+finally
+r = 0
+resuming the stored resume
+ 
+finally/resume-escape-fatal/ask: () -> ask int
+finally/resume-escape-fatal/main: () -> <console,div> ()

@@ -98,8 +98,8 @@ fun pretty-all2(action)
 fun state2(init,action)
   with return(f) f(init)
   with handler
-    ctl get()  (fn(s) resume(s)(s))
-    ctl set(x) (fn(s) resume(())(x))
+    raw ctl get()  (fn(s) rcontext.resume(s)(s))
+    raw ctl set(x) (fn(s) rcontext.resume(())(x))
   val x = action()
   (fn(s) x)
 

@@ -94,8 +94,8 @@ fun pretty-all2(action) {
 
 fun state2(init,action) {
   val f = with {
-            ctl get()  { (fn(s){ resume(s)(s) }) }
-            ctl set(x) { (fn(s){ resume(())(x) }) }
+            raw ctl get()  { (fn(s){ rcontext.resume(s)(s) }) }
+            raw ctl set(x) { (fn(s){ rcontext.resume(())(x) }) }
           } in {
             val x = action()
             (fn(s) { x })

@@ -121,6 +121,8 @@ static void kk_log_message_fmt(kk_context_t* ctx, kk_log_level_t level, const ch
 
 void kk_fatal_error(int err, const char* fmt, ...) {
   kk_unused(err);
+  // `abort` does not flush stdio on every platform (glibc does not), so flush the program's output first or it is lost when stdout is a pipe.
+  fflush(stdout);
   va_list args;
   va_start(args, fmt);
   kk_log_message_fmt(kk_get_context(), KK_LOG_FATAL, fmt, args);

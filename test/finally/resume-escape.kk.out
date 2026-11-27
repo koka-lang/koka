@@ -1,0 +1,20 @@
+resumed with 1
+finally
+resumed with 2
+finally
+3
+finally
+saved
+0
+resumed with 1
+finally
+finally
+1
+ 
+finally/resume-escape/ask: () -> ask int
+finally/resume-escape/copies: () -> <console,div> int
+finally/resume-escape/flip: () -> flip bool
+finally/resume-escape/main: () -> <console,div> ()
+finally/resume-escape/never-resumed: () -> <console,div> int
+finally/resume-escape/resumed-by-helper: () -> console int
+finally/resume-escape/twice: forall<e> (k : (int) -> e int) -> e int

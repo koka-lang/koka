@@ -1,0 +1,7 @@
+resumed with 1
+finally
+r = 1
+resuming the stored resume
+ 
+finally/resume-escape-fatal-resumed/ask: () -> ask int
+finally/resume-escape-fatal-resumed/main: () -> <console,div> ()
