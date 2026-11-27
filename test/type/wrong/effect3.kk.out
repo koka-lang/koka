@@ -1,0 +1,10 @@
+test/type/wrong/effect3.kk(1,23): type error: effects do not match
+  context        : fun main(): io-noexn ()
+                   println("")
+                   throw("error!")
+  term           : 
+                   println("")
+                   throw("error!")
+  inferred effect: <exn,console/console|_e>
+  expected effect: io-noexn
+  unexpected     : exn

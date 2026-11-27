@@ -3,4 +3,5 @@ test/type/wrong/val1@kk(2, 7): type error: effects do not match
  term : r
  inferred effect: <alloc<global>|_e>
  expected effect: total
+ unexpected : alloc<global>
  because : Polymorphic values cannot have an effect
