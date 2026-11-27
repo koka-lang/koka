@@ -87,7 +87,7 @@ data Module  = Module{ -- initial
                      , modSourcePath  :: !FilePath          -- can be empty for pre-compiled sources
                      , modSourceRelativePath :: !FilePath   -- for messages display a shorter path if possible
                      , modSourceTime  :: !FileTime
-
+                     , modIncludeTime :: !FileTime          -- latest time of the inline include files (from `modCore`); `fileTime0` if unknown
                        -- lexing
                      , modSource      :: !Source
                      , modLexemes     :: ![Lexeme]
@@ -120,7 +120,7 @@ data Module  = Module{ -- initial
 moduleNull :: Name -> Module
 moduleNull modName
   = Module  PhaseInit modName rangeNull errorsNil
-            "" fileTime0 "" fileTime0 "" "" fileTime0
+            "" fileTime0 "" fileTime0 "" "" fileTime0 fileTime0
             -- lex
             sourceNull [] []
             -- parse

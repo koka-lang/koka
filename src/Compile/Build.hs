@@ -672,7 +672,11 @@ moduleLoad rebuild forced mod0
                                  if not (null (modLibIfacePath mod)) && (modIfaceTime mod < modLibIfaceTime mod) && not force
                                    then moduleLoadLibIface mod
                                    else if (modSourceTime mod < modIfaceTime mod) && not force
-                                     then moduleLoadIface mod
+                                     then do imod <- moduleLoadIface mod
+                                             ftInclude <- moduleIncludeTime imod
+                                             if (ftInclude < modIfaceTime imod)
+                                               then return imod{ modIncludeTime = ftInclude }
+                                               else moduleLex mod
                                      else moduleLex mod
                   return mod'{ modErrors = mergeErrors errs (modErrors mod') }
 
@@ -811,6 +815,18 @@ externalImportsFromCore :: Core.Core -> [[(String,String)]]
 externalImportsFromCore core
   = [imports  | Core.ExternalImport imports _ <- Core.coreProgExternals core]
 
+-- inline include files (`extern import { file ".." }`) of a module; the paths in core are relative to the source
+moduleIncludePaths :: Module -> [FilePath]
+moduleIncludePaths mod
+  = case modCore mod of
+      Just core | not (null (modSourcePath mod))
+        -> [joinPath (dirname (modSourcePath mod)) path | keyvals <- externalImportsFromCore core, ("include-path",path) <- keyvals]
+      _ -> []
+
+moduleIncludeTime :: Module -> Build FileTime
+moduleIncludeTime mod
+  = maxFileTimes <$> mapM getFileTime (moduleIncludePaths mod)
+
 
 {---------------------------------------------------------------
   Create initial empty modules
@@ -924,12 +940,15 @@ moduleValidate mod
   = do ftSource   <- getFileTime (modSourcePath mod)
        ftIface    <- getFileTime (modIfacePath mod)
        ftLibIface <- getFileTime (modLibIfacePath mod)
+       ftInclude  <- moduleIncludeTime mod
        let stale = (ftSource > modSourceTime mod ||
                     ftIface > modIfaceTime mod ||
-                    ftLibIface > modLibIfaceTime mod)
+                    ftLibIface > modLibIfaceTime mod ||
+                    (modIncludeTime mod /= fileTime0 && ftInclude > modIncludeTime mod))
            mod'  = mod{ modSourceTime = ftSource
                       , modIfaceTime  = ftIface
                       , modLibIfaceTime = ftLibIface
+                      , modIncludeTime = ftInclude
                       }
        phaseVerbose 3 "validate" $ \penv -> TP.ppName penv (modName mod') <.>
                                             text (": " ++ if stale then "stale, " else "") <.>

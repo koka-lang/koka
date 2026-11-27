@@ -545,22 +545,23 @@ externalImport rng1
            return (show id)
 
     externalIncludes target rng (key,fname)  | key == "file" || key == "header-file" || key == "header-end-file"
-     = do let currentFile = (Common.Range.sourceName (rangeSource rng))
-              fpath       = joinPath (dirname currentFile) fname
-          if (isTargetC target && null (extname fpath) && key=="file")
-            then do contentH <- preadFile (fpath ++ ".h")
-                    contentC <- preadFile (fpath ++ ".c")
-                    return [("header-include-inline",contentH),("include-inline",contentC)]
-            else if (isTargetC target  && key=="header-file")
-                  then do content <- preadFile fpath
-                          return [("header-include-inline",content)]
-                 else if (isTargetC target && key=="header-end-file")
-                  then do content <- preadFile fpath
-                          return [("header-end-include-inline",content)]
-                  else if (key == "file")
-                         then do content <- preadFile fpath
-                                 return [("include-inline",content)]
-                         else return [(key,fpath)]
+     = if (isTargetC target && null (extname fname) && key=="file")
+         then do incH <- include "header-include-inline" (fname ++ ".h")
+                 incC <- include "include-inline" (fname ++ ".c")
+                 return (incH ++ incC)
+       else if (isTargetC target && key=="header-file")
+         then include "header-include-inline" fname
+       else if (isTargetC target && key=="header-end-file")
+         then include "header-end-include-inline" fname
+       else if (key == "file")
+         then include "include-inline" fname
+         else return [(key,joinPath (dirname currentFile) fname)]
+     where
+       currentFile = Common.Range.sourceName (rangeSource rng)
+       -- the include path is relative to the source file and is kept for dependency checks in the build
+       include ikey path
+         = do content <- preadFile (joinPath (dirname currentFile) path)
+              return [(ikey,content),("include-path",path)]
     externalIncludes target rng (key,val)
       = return [(key,val)]
 
