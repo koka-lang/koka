@@ -2060,12 +2060,14 @@ type visitor
 Conor McBride [@Mcbride:derivative] describes how we can
 generically derive a _zipper_ [@Huet:zipper] visitor for any
 recursive type $\mu x. F$ as a list of the derivative of that type,
-namely $@list (\pdv{x} F\mid_{x =\mu x.F})$.
+namely $list (\pdv{x} F\mid_{x =\mu x.F})$,
+where $list(A) = \mu v. 1 + A\times v$.
 In our case, the algebraic representation of the inductive `:tree`
 type is $\mu x. 1 + x\times int\times x  \,\cong\, \mu x. 1 + x^2\times int$.
-Calculating the derivative $@list (\pdv{x} (1 + x^2\times int) \mid_{x = tree})$
-and by further simplification,
-we get $\mu x. 1 + (tree\times int\times x) + (tree\times int\times x)$,
+The derivative of $F = 1 + x^2\times int$ is $2\times x\times int$,
+which for $x = tree$ is $(tree\times int) + (tree\times int)$.
+Taking a list of that gives
+$\mu v. 1 + (tree\times int\times v) + (tree\times int\times v)$,
 which corresponds exactly to our `:visitor` data type.)
 
 We also keep track of which `:direction` in the tree
