@@ -111,3 +111,10 @@ jobs:
           npm install --no-audit --no-fund
           export KOKA_COMPILER="$(stack path --local-install-root)/bin/koka$([ "$RUNNER_OS" = Windows ] && echo .exe)"
           if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a npm test; else npm test; fi
+
+      # Compile the self-hosted compiler modules (compiler/, pretty/) against this lib/
+      - name: Check self-hosted modules
+        if: matrix.shard == 0
+        shell: bash
+        run: |
+          compiler/check.sh
