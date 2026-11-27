@@ -11,23 +11,30 @@ Experimental: Parallel tasks.
 
 Note: very experimental and may not work as intended :-)
 See ``test/bench/koka/binarytrees.kk`` for example usage.
+In JavaScript, tasks run sequentially: `task` evaluates its argument right away.
 */
 module std/os/task
 
 import std/num/int32
+
+extern import
+  js file "task-inline.js"
 
 // A `:promise<a>` can be `await`ed for a result.
 abstract struct promise<a>
   promise : any
 
 noinline extern unsafe_task( work : () -> a ) : any
-  c "kk_task_schedule"
+  c  "kk_task_schedule"
+  js inline "(#1)()"
 
 noinline extern unsafe_await( p : any ) : a
-  c "kk_promise_get"
+  c  "kk_promise_get"
+  js inline "(#1)"
 
 extern prim-task-set-default-concurrency( thread-count : ssize_t  ) : ioc ()
-  c "kk_task_set_default_concurrency"
+  c  "kk_task_set_default_concurrency"
+  js inline "$std_core_types.Unit"
 
 pub fun task-set-default-concurrency( thread-count : int ) : ioc ()
   prim-task-set-default-concurrency( thread-count.ssize_t )
@@ -67,13 +74,16 @@ abstract struct lvar<a>
   lv : any
 
 noinline extern unsafe-lvar( init : a ) : any
-  c "kk_lvar_alloc"
+  c  "kk_lvar_alloc"
+  js inline "({ value: (#1) })"
 
 noinline extern unsafe-put( lvar : any, x : a, monotonic-combine : (a,a) -> a ) : ()
-  c "kk_lvar_put"
+  c  "kk_lvar_put"
+  js inline "((#1).value = (#3)((#1).value, #2), $std_core_types.Unit)"
 
 noinline extern unsafe-get( lvar : any, bot : a, is-gte : (a,a) -> int32 ) : ndet a
-  c "kk_lvar_get"
+  c  "kk_lvar_get"
+  js "_lvar_get"
 
 pub noinline fun lvar( init : a ) : lvar<a>
   Lvar( unsafe-lvar(init) )
