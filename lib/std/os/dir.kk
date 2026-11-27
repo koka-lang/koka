@@ -13,7 +13,8 @@ module std/os/dir
 import std/os/path
 
 extern import
-  c file "dir-inline.c"
+  c  file "dir-inline.c"
+  js file "dir-inline.js"
 
 // Recursively list all the entries under a directory (excluding `.` and `..`).
 pub fun list-directory-recursive( dir : path, max-depth : int = 1000 ) : <fsys,pure> list<path>
@@ -68,17 +69,22 @@ pub fun copy-file( from : path, to : path, preserve-mtime : bool = True ) : <fsy
 
 
 extern ensure-dir-err( path : string, mode : int ) : fsys error<()>
-  c "kk_os_ensure_dir_error"
+  c  "kk_os_ensure_dir_error"
+  js "_os_ensure_dir_error"
 
 extern prim-copy-file( from : string, to : string, preserve-mtime : bool ) : fsys error<()>
-  c "kk_os_copy_file_error"
+  c  "kk_os_copy_file_error"
+  js "_os_copy_file_error"
 
 extern prim-list-dir( dir : string ) : fsys error<vector<string>>
-  c "kk_os_list_directory_prim"
+  c  "kk_os_list_directory_prim"
+  js "_os_list_directory"
 
 extern prim-is-dir( dir : string ) : fsys bool
-  c "kk_os_is_directory"
+  c  "kk_os_is_directory"
+  js "_os_is_directory"
 
 extern prim-is-file( path : string ) : fsys bool
-  c "kk_os_is_file"
+  c  "kk_os_is_file"
+  js "_os_is_file"
 
