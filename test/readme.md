@@ -46,7 +46,8 @@ Options:
 ```
 
 The run times can be compared against a baseline with `util/test-report.kk`, which generates an HTML report
-(the CI does this for the C target on `ubuntu-24.04-arm` against the latest run on `dev`, see the `test-report.html` artifact):
+(the CI does this for the C target on `ubuntu-24.04-arm` against the latest run on `dev`, see the `test-report.html` artifact;
+when running the workflow manually, the `baseline` input can select the run of a specific commit hash, tag, or branch instead):
 
 ```sh
 $ stack test --test-arguments="--runtimes=out/base/c/times.json"

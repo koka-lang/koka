@@ -5,6 +5,10 @@ on:
         description: "Skip slow tests (--quick)"
         type: boolean
         default: false
+      baseline:
+        description: "Baseline for the run-time report: a commit hash, tag, or branch (default: latest run on dev)"
+        type: string
+        default: ""
   push:
     branches:
       - dev
@@ -204,11 +208,20 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          BASELINE: ${{ inputs.baseline }}
         run: |
-          id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow test.yaml --branch dev --event push --status completed --limit 10 \
-                 --json databaseId,conclusion \
-                 -q "[.[] | select(.databaseId != $GITHUB_RUN_ID and .conclusion != \"cancelled\")][0].databaseId")
+          select="[.[] | select(.databaseId != $GITHUB_RUN_ID and .conclusion != \"cancelled\")][0].databaseId"
+          if [ -n "$BASELINE" ]; then
+            sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BASELINE" -q .sha)
+            id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow test.yaml --commit "$sha" --status completed --limit 10 \
+                   --json databaseId,conclusion -q "$select")
+          else
+            id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow test.yaml --branch dev --event push --status completed --limit 10 \
+                   --json databaseId,conclusion -q "$select")
+          fi
+          if [ -z "$id" ]; then echo "::warning::no baseline run found for '${BASELINE:-dev}'"; exit 1; fi
           echo "baseline run: $id"
+          echo "Baseline: \`${BASELINE:-dev}\` ([run $id]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$id))" >> "$GITHUB_STEP_SUMMARY"
           gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'runtimes-*' -D baseline-runs
           mkdir -p baseline && cp -r baseline-runs/*/. baseline/
 
