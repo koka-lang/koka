@@ -122,15 +122,16 @@ jobs:
           stack-build-arguments: "--fast"
           cache-save-always: true
 
-      # Run tests
+      # Run tests (with -O2 on ubuntu-24.04-arm)
       - name: Run test suite
         if: matrix.shard != 0
         timeout-minutes: 20
         env:
           QUICK: ${{ inputs.quick && '--quick' || '' }}
+          OPT: ${{ matrix.os == 'ubuntu-24.04-arm' && '-O2' || '' }}
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }} $QUICK"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }} $QUICK $OPT"
 
       # Bundle (only once per OS)
       - name: Build libraries
