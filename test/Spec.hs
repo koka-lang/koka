@@ -1,4 +1,3 @@
-import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe
@@ -10,7 +9,6 @@ import Data.List
 import Data.List.Extra (replace, trim)
 import qualified Data.Map.Strict as M
 import System.Directory
-import System.Directory.Extra (listFilesRecursive)
 import System.Environment
 import System.Exit
 import System.FilePath
@@ -228,8 +226,8 @@ runKokaProcess cfg kokaDir fp
 
 
 -- `counter` numbers the tests in discovery order; with `--shard=i/n` we only run every n-th test
-makeTest :: IORef Int -> RunTimes -> Serial -> Cfg -> FilePath -> Spec
-makeTest counter runTimes serial cfg fp
+makeTest :: IORef Int -> RunTimes -> Cfg -> FilePath -> Spec
+makeTest counter runTimes cfg fp
   | takeExtension fp == ".kk" || ".kk.md" `isSuffixOf` fp
       = do let expectedFile = fp ++ ".out"
            isTest <- runIO $ doesFileExist expectedFile
@@ -237,7 +235,7 @@ makeTest counter runTimes serial cfg fp
                (i,n)     = shard (options cfg)
            idx <- if shouldRun then runIO (atomicModifyIORef' counter (\k -> (k+1,k))) else return 0
            when (shouldRun && idx `mod` n == i - 1) $
-             it (takeBaseName fp) $ serial fp $ do
+             it (takeBaseName fp) $ do
                kokaDir <- getCurrentDirectory
                (out, rtime) <- runKoka cfg kokaDir fp
                forM_ rtime $ \secs ->
@@ -249,33 +247,13 @@ makeTest counter runTimes serial cfg fp
   | otherwise
       = return ()
 
--- Tests that import another test module, or are imported by another test, share generated files
--- (which are rewritten when compiled as the main module) and are run one at a time
-type Serial = FilePath -> IO () -> IO ()
-
-newSerial :: FilePath -> IO Serial
-newSerial testDir
-  = do files <- filter isKoka <$> listFilesRecursive testDir
-       deps  <- concat <$> mapM imports files
-       let shared = nub (map normalise (concat [[f,m] | (f,m) <- deps]))
-       lock <- newMVar ()
-       return (\fp action -> if normalise fp `elem` shared then withMVar lock (const action) else action)
-  where
-    isKoka f = takeExtension f == ".kk" || ".kk.md" `isSuffixOf` f
-    imports f
-      = do src <- withBinaryFile f ReadMode (\h -> do s <- hGetContents h; length s `seq` return s)
-           let mods = [m | l <- lines src, ("import":m:_) <- [words l]]
-           ms <- filterM (\m -> doesFileExist (m ++ ".out")) [d </> m <.> "kk" | m <- mods, d <- [testDir, takeDirectory f]]
-           return [(f,m) | m <- ms]
-
-discoverTests :: RunTimes -> Serial -> Cfg -> FilePath -> Spec
-discoverTests runTimes serial cfg0 p
-  = do counter <- runIO (newIORef 0)
-       discover counter cfg0 "" p
+discoverTests :: RunTimes -> Cfg -> FilePath -> Spec
+discoverTests runTimes cfg0 p = do counter <- runIO (newIORef 0)
+                                   discover counter cfg0 "" p
   where discover counter cfg cat p
           = do isDirectory <- runIO $ doesDirectoryExist p
                if not isDirectory
-                 then makeTest counter runTimes serial cfg p
+                 then makeTest counter runTimes cfg p
                  else do
                    fs0  <- runIO (sort <$> listDirectory p)
                    cfg' <- runIO (readConfigFile cfg p)
@@ -377,11 +355,10 @@ main = do
   precompile stdcfg{flags = flags stdcfg ++ ["--target=js"]} "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
   runTimes <- newIORef M.empty
-  serial   <- newSerial (pwd </> "test")
   let spec = if target options == "names"
                then NameSpec.spec
                else (if (target options == "js" || not (par options)) then id else parallel) $
-                    discoverTests runTimes serial cfg (pwd </> "test")
+                    discoverTests runTimes cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormat=Just (formatterToFormat (specProgress runTimes))})
   unless (null (runtimes options)) $ writeRunTimes (runtimes options) runTimes
   evaluateSummary summary

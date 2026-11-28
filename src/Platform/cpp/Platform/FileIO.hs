@@ -28,6 +28,7 @@ module Platform.FileIO(
   , copyBinaryContents
   , copyBinaryFileWithMetaData
   , removeFileIfExists
+  , replaceFile
     -- * Paths and environment
   , getCwd
   , realPath
@@ -43,7 +44,7 @@ module Platform.FileIO(
 
 import System.IO
 import System.Directory( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
-                       , getCurrentDirectory, canonicalizePath, removeFile
+                       , getCurrentDirectory, canonicalizePath, removeFile, renameFile
                        , getFileSize
                        , getHomeDirectory, getTemporaryDirectory
                        , copyFileWithMetadata )
@@ -52,6 +53,7 @@ import System.Process   ( system, rawSystem, createProcess, CreateProcess(..)
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getExecutablePath )
 import Data.Char( toLower, isSpace )
+import Control.Concurrent( threadDelay )
 
 import Common.Failure( raiseIO, catchIO )
 import Platform.Config( pathSep, pathDelimiter, exeExtension )
@@ -122,6 +124,18 @@ removeFileIfExists :: FilePath -> IO ()
 removeFileIfExists fname
   = B.exCatch (removeFile fname) (\_ -> return ())
 
+-- | Atomically rename `src` over `dest`; on Windows retry as `dest` may be temporarily opened by another process
+replaceFile :: FilePath -> FilePath -> IO ()
+replaceFile src dest
+  = retry (if onWindows then 10 else 0) 10000
+  where
+    retry :: Int -> Int -> IO ()
+    retry n delay
+      = renameFile src dest `B.exCatch` \msg ->
+          if n > 0 then do threadDelay delay
+                           retry (n-1) (2*delay)
+                   else do removeFileIfExists src
+                           raiseIO msg
 
 copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
 copyBinaryFileWithMetaData src dest

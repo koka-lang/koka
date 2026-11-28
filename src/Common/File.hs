@@ -41,6 +41,7 @@ module Common.File(
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer, copyExeFile
                   , removeFileIfExists
+                  , writeFileIfChanged, replaceFileIfChanged, newTempFile
                   , realPath
                   , doesFileExistAndNotEmpty
                   , makeRelativeToPaths
@@ -56,19 +57,53 @@ import Data.List        ( intersperse, isPrefixOf, maximumBy )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension, exeExtension )
 import Common.Failure   ( raiseIO, catchIO )
+import qualified Data.ByteString as BS
+import Control.Monad    ( when )
+import System.IO        ( openBinaryTempFileWithDefaultPermissions, hClose )
 
 -- Platform-specific IO primitives (no CPP needed!)
 import Platform.FileIO  ( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
                         , readTextFile, writeTextFile
                         , readBinaryContents, writeBinaryContents, copyBinaryContents
                         , copyBinaryFileWithMetaData
-                        , removeFileIfExists
+                        , removeFileIfExists, replaceFile
                         , getCwd, realPath
                         , getEnvVar, getEnvPaths, getProgramPath
                         , runSystem, runSystemRaw, runCmd, runCmdRead, runCmdEnv
                         , getFileSize )
 import Platform.Filetime
 
+
+-- | Atomically write `content` to `fpath` unless it already has that content;
+-- if `touch` is set, an unchanged file gets its modification time updated.
+writeFileIfChanged :: Bool -> FilePath -> BS.ByteString -> IO ()
+writeFileIfChanged touch fpath content
+  = do same <- hasContent fpath content
+       if same
+         then when touch ((getCurrentTime >>= setFileTime fpath) `catchIO` (\_ -> return ()))
+         else do tmp <- newTempFile fpath
+                 BS.writeFile tmp content `catchIO` (\msg -> removeFileIfExists tmp >> raiseIO msg)
+                 replaceFile tmp fpath
+
+-- | Atomically move `tmp` over `fpath` unless `fpath` already has the same content
+replaceFileIfChanged :: FilePath -> FilePath -> IO ()
+replaceFileIfChanged tmp fpath
+  = do content <- BS.readFile tmp
+       same <- hasContent fpath content
+       if same then removeFileIfExists tmp else replaceFile tmp fpath
+
+-- | Create a fresh (closed) temporary file in the directory of `fpath`
+newTempFile :: FilePath -> IO FilePath
+newTempFile fpath
+  = do let dir = dirname fpath
+       (tmp,h) <- openBinaryTempFileWithDefaultPermissions (if null dir then "." else dir) (notdir fpath)
+       hClose h
+       return tmp
+
+hasContent :: FilePath -> BS.ByteString -> IO Bool
+hasContent fpath content
+  = (do old <- BS.readFile fpath
+        return (old == content)) `catchIO` (\_ -> return False)
 
 seqList :: [a] -> b -> b
 seqList [] b     = b

@@ -25,6 +25,7 @@ module Platform.FileIO(
   , writeBinaryContents
   , copyBinaryContents
   , removeFileIfExists
+  , replaceFile
   , copyBinaryFileWithMetaData
     -- * Paths and environment
   , getCwd
@@ -41,7 +42,7 @@ module Platform.FileIO(
 
 import System.IO
 import System.Directory( doesFileExist, doesDirectoryExist, createDirectoryIfMissing
-                       , getCurrentDirectory, canonicalizePath, removeFile
+                       , getCurrentDirectory, canonicalizePath, removeFile, renameFile
                        , getFileSize, copyFileWithMetadata )
 import Data.Char( toLower )
 
@@ -82,6 +83,11 @@ copyBinaryContents src dest
 removeFileIfExists :: FilePath -> IO ()
 removeFileIfExists fname
   = B.exCatch (removeFile fname) (\_ -> return ())
+
+-- | Atomically rename `src` over `dest`
+replaceFile :: FilePath -> FilePath -> IO ()
+replaceFile src dest
+  = renameFile src dest `B.exCatch` (\msg -> removeFileIfExists src >> raiseIO msg)
 
 copyBinaryFileWithMetaData :: FilePath -> FilePath -> IO ()
 copyBinaryFileWithMetaData src dest

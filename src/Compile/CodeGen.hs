@@ -121,7 +121,7 @@ codeGen term flags sequential coreC newtypes borrowed kgamma gamma entry importe
 
        -- return the link as an action to increase concurrency, and
        -- a separate action to write the interface after linking (and after the imports are linked)
-       let writeIface = writeDocW 10000 (modIfacePath mod) ifaceDoc
+       let writeIface = writeDocWTouch 10000 (modIfacePath mod) ifaceDoc
        return $ flip (,) writeIface $ \fullImports ->
          -- compilerCatch ("linking in " ++ show (modName mod)) term LinkDone $
          do mbRun <- link fullImports
@@ -436,7 +436,9 @@ codeGenLinkExe term flags stksize clink mainExe
 -- Run the C compiler
 ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> [FilePath] -> IO ()
 ccompile term flags cc ctargetObj extraIncDirs csources
-  = do let cmdline = concat $
+  = do let obj = ccObjFile cc (notext ctargetObj)
+       tmpObj <- newTempFile obj
+       let cmdline = concat $
                       [ [ccPath cc]
                       , ccFlags cc
                       , ccFlagsWarn cc
@@ -449,10 +451,12 @@ ccompile term flags cc ctargetObj extraIncDirs csources
                       ++
                       map (ccAddDef cc) (ccompDefs flags)
                       ++
-                      [ ccTargetObj cc (notext ctargetObj)
+                      [ ccTargetObj cc (notext tmpObj)
                       , csources
                       ]
-       runCommand term flags cmdline
+       -- compile to a fresh object file first so concurrent builds never see a partial object
+       runCommand term flags cmdline `catchIO` (\msg -> removeFileIfExists tmpObj >> raiseIO msg)
+       replaceFileIfChanged tmpObj obj
 
 
 

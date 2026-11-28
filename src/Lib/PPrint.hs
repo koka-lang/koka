@@ -55,7 +55,7 @@ module Lib.PPrint
         , Color(..)
         , color, bcolor
         , writePretty, writePrettyLn
-        , writeDoc, writeDocW
+        , writeDoc, writeDocW, writeDocWTouch
         , writePrettyW
         , isEmptyDoc
         , writeAtomicPrettyLn
@@ -69,10 +69,10 @@ module Lib.PPrint
 
 import System.IO           -- (Handle,hPutStr,hPutChar,stdout,openFile,hClose)
 import Lib.Printer
-import Platform.Runtime( finally )
 
 import Data.Text.Encoding (encodeUtf8) -- ,decodeUtf8With)
-import qualified Data.ByteString as B( hPutStr )
+import qualified Data.ByteString as B( ByteString, hPutStr )
+import Common.File( writeFileIfChanged )
 import qualified Data.Text.Lazy.Builder as B
 import qualified Data.Text.Lazy as TL
 
@@ -624,20 +624,25 @@ hPutDoc handle doc
 
 hPutDocW :: Int -> Handle -> Doc -> IO ()
 hPutDocW width handle doc
-  = do s <- return $ encodeUtf8
-                   $ TL.toStrict
-                   $ B.toLazyText
-                   $ renderPrettyB 0.5 width doc
-       B.hPutStr handle s
+  = B.hPutStr handle (renderUtf8 width doc)
+
+renderUtf8 :: Int -> Doc -> B.ByteString
+renderUtf8 width doc
+  = encodeUtf8 $ TL.toStrict $ B.toLazyText $ renderPrettyB 0.5 width doc
 
 writeDoc :: FilePath -> Doc -> IO ()
 writeDoc fpath doc
   = writeDocW defaultWidth fpath doc
 
+-- | Atomically write a document to a file (only if its content changed)
 writeDocW :: Int -> FilePath -> Doc -> IO ()
 writeDocW width fpath doc
-  = do h <- openFile fpath WriteMode
-       hPutDocW width h doc `finally` hClose h
+  = writeFileIfChanged False fpath (renderUtf8 width doc)
+
+-- | Like `writeDocW` but updates the modification time if the content is unchanged
+writeDocWTouch :: Int -> FilePath -> Doc -> IO ()
+writeDocWTouch width fpath doc
+  = writeFileIfChanged True fpath (renderUtf8 width doc)
 
 
 -----------------------------------------------------------
