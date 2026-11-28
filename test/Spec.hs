@@ -2,6 +2,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe
 import Data.Char
+import Numeric (showFFloat)
 import Data.Array ((!))
 import Data.IORef
 import Data.List
@@ -342,16 +343,19 @@ main = do
                then NameSpec.spec
                else (if (target options == "js" || not (par options)) then id else parallel) $
                     discoverTests cfg (pwd </> "test")
-  summary <- withArgs [] (runSpec spec hcfg{configFormat=Just (formatterToFormat specProgress)})
+  timeSum <- newIORef 0
+  summary <- withArgs [] (runSpec spec hcfg{configFormat=Just (formatterToFormat (specProgress timeSum))})
   evaluateSummary summary
 
 
-specProgress = specdoc {
+specProgress :: IORef Double -> Formatter
+specProgress timeSum = specdoc {
     formatterItemDone = \(nesting, requirement) item -> do
+      let Seconds secs = itemDuration item
+      liftIO $ modifyIORef' timeSum (+ secs)
       total <- getTotalCount
-      times <- printTimes
       let info = itemInfo item
-          line = showTotal total nesting requirement ++ (if times then showDuration (itemDuration item) else "")
+          line = showTotal total nesting requirement ++ showDuration (itemDuration item)
       case itemResult item of
         F.Success -> withSuccessColor $ do
           writeLine line
@@ -366,6 +370,10 @@ specProgress = specdoc {
           forM_ (lines info) $ \ s ->
             writeLine $ indentationFor nesting ++ s
           writeLine $ indentationFor nesting ++ "# PENDING: " ++ fromMaybe "No reason given" reason
+  , formatterDone = do
+      formatterDone specdoc
+      secs <- liftIO $ readIORef timeSum
+      writeLine $ "Sum of test times: " ++ showFFloat (Just 4) secs " seconds"
 } where
     showTotal total nesting req
       = let nest = (length nesting + 1) * 2

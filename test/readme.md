@@ -42,7 +42,6 @@ Options:
 --rebuild                    # Rebuild standard library for tests
 --quick                      # Skip slow tests (as listed under "slow" in a config.json)
 --shard <i>/<n>              # Only run every n-th test starting at the i-th (1 <= i <= n), used to split CI jobs
---times                      # Show the time each test takes (use --seq for accurate times)
 ```
 
 Per-directory test configuration uses `config.json` and supports:
