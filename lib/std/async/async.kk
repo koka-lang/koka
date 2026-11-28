@@ -226,6 +226,12 @@ fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
   // Has the root async-scope been canceled?
   val canceled : ref<global,bool> = ref(False)
 
+  // Schedule an async call for the next evloop iteration (uv_check_t / setImmediate)
+  fun schedule( f : () -> ioc () ) : ioc ()
+    match immediate-setup(evloop,f)
+      Ok    -> ()   // scheduled f to be called
+      Error -> f()  // if setup fails we call it immediately
+
   // Setup a new async await request with a given callback `resume`
   fun setup-await( setup : await-setup<a>, scope : async-scope, label : string, resume : (await-result<a>) -> ioc ()) : ioc ()
     // Each callback gets its own async-scope so we can tell when a given
@@ -235,16 +241,31 @@ fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
     // `disposer` holds the dispose function (that releases resources on cancelation)
     val disposer : ref<global,dispose-fn> = ref(noop)
 
+    // True while `setup` runs: a callback invoked synchronously from inside
+    // `setup` must not resume yet (that would run the rest of the strand
+    // nested inside this `do-await` clause, which loses the continuation when
+    // the strand is part of an `interleaved` or `firstof`).
+    val in-setup : ref<global,bool> = ref(True)
+
+    // Set once the request is done (or canceled): later callbacks are ignored.
+    val finished : ref<global,bool> = ref(False)
+
     // The resumption callback that is invoked when the async request completes (or on cancelation)
     fun resume-cb( res : await-result<_>, is-done : bool ): ioc ()
-      if is-done then
-        outstanding := (!outstanding).remove(cscope)
-        val dispose = disposer.swap(noop)  // unreference early
-        if res.is-cancel then dispose()
-      resume(res)
+      if !finished then ()                                 // late callback after completion or cancelation
+      elif !in-setup then schedule(fn() resume-cb(res, is-done))   // completed synchronously: resume from the event loop
+      else
+        if is-done then
+          finished := True
+          outstanding := (!outstanding).remove(cscope)
+          val dispose = disposer.swap(noop)  // unreference early
+          if res.is-cancel then dispose()
+        resume(res)
 
     outstanding := Cons(AwaitResumption(cscope,label,resume-cb), !outstanding)
-    match(setup(evloop,resume-cb))                   // primitive setup: registers `resume-cb` as the callback for an async request
+    val setup-result = setup(evloop,resume-cb)       // primitive setup: registers `resume-cb` as the callback for an async request
+    in-setup := False
+    match setup-result
       Ok(dispose) -> disposer := dispose
       Error(exn)  -> resume-cb(Exception(exn),True)  // if setup fails, we resume immediately with an exception result
 
@@ -256,12 +277,6 @@ fun async-evloop(evloop : event-loop, action : () -> <async,ioc> () ) : ioc ()
         resume-cb(Cancel,True)
       // else
       // trace("no cancel: " ++ label ++ " at " ++ scope.show)
-
-  // Schedule an async call for the next evloop iteration (uv_check_t / setImmediate)
-  fun schedule( f : () -> ioc () ) : ioc ()
-    match immediate-setup(evloop,f)
-      Ok    -> ()   // scheduled f to be called
-      Error -> f()  // if setup fails we call it immediately
 
   with handler<async-await>
     raw ctl do-await(setup,scope,lab)   setup-await(setup, scope, lab, fn(x) rcontext.resume(x) )
