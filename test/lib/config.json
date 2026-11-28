@@ -8,6 +8,13 @@
     "time3.kk",
     "time8.kk"
   ],
+  "exclude-target": {
+    "wasm": [
+      "dir.kk",
+      "task-publish.kk",
+      "task-shared.kk"
+    ]
+  },
   "exclude-platform": {
     "linux-arm64": [
       "ddouble1.kk",

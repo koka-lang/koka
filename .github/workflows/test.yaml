@@ -30,13 +30,17 @@ jobs:
         os: [windows-latest, ubuntu-24.04, ubuntu-24.04-arm, macos-latest, macos-15-intel]
         # split the test suite over multiple jobs (see `--shard` in test/readme.md)
         shard: [0, 1, 2, 3]
-        target: [c, js]
-        # test the js backend only on ubuntu-24.04
+        target: [c, js, wasm]
+        # test the js and wasm backends only on ubuntu-24.04
         exclude:
           - { target: js, os: windows-latest }
           - { target: js, os: ubuntu-24.04-arm }
           - { target: js, os: macos-latest }
           - { target: js, os: macos-15-intel }
+          - { target: wasm, os: windows-latest }
+          - { target: wasm, os: ubuntu-24.04-arm }
+          - { target: wasm, os: macos-latest }
+          - { target: wasm, os: macos-15-intel }
 
     steps:
       # Checkout: https://github.com/actions/checkout
@@ -92,6 +96,22 @@ jobs:
         with:
           node-version: 24
 
+      # https://github.com/mymindstorm/setup-emsdk
+      - name: Set up Emscripten
+        if: matrix.target == 'wasm'
+        uses: mymindstorm/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+
+      - name: Set up wasmtime
+        if: matrix.target == 'wasm'
+        env:
+          WASMTIME_URL: https://github.com/bytecodealliance/wasmtime/releases/download/v51.0.0/wasmtime-v51.0.0-x86_64-linux.tar.xz
+          WASMTIME_SHA256: a18020674fac4107f329bc9ed720ea9c88e4b30a61e8a527787bcce051123d32
+        run: |
+          curl -sSfL -o wasmtime.tar.xz "$WASMTIME_URL"
+          echo "$WASMTIME_SHA256  wasmtime.tar.xz" | sha256sum -c
+          mkdir -p "$RUNNER_TEMP/wasmtime" && tar xJf wasmtime.tar.xz -C "$RUNNER_TEMP/wasmtime" --strip-components=1
+          echo "$RUNNER_TEMP/wasmtime" >> "$GITHUB_PATH"
+
       # Run tests
       - name: Run test suite
         if: matrix.shard != 0
@@ -105,11 +125,11 @@ jobs:
         run: |
           stack exec koka -- -e -O2 util/bundle
 
-      # Build all standard libraries for other backends as an extra test
+      # Build all standard libraries for other backends as an extra test (wasm has no std/async)
       - name: Build libraries (${{ matrix.target }})
         if: matrix.shard == 0 && matrix.target != 'c'
         run: |
-          stack exec koka -- --target=${{ matrix.target }} -O2 util/link-std
+          stack exec koka -- --target=${{ matrix.target }} -O2 ${{ matrix.target == 'wasm' && 'util/link-wasm' || 'util/link-std' }}
 
       # VS Code extension tests (support/vscode/koka.language-koka/src/test) on the compiler just built
       - name: Test VS Code extension

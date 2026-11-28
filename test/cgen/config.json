@@ -1,1 +1,6 @@
-"-e"
+{
+  "flags": "-e",
+  "exclude-target": {
+    "wasm": [ "open-resolve.kk" ]
+  }
+}

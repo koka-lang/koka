@@ -417,8 +417,11 @@ codeGenLinkExe term flags stksize clink mainExe
         -- termInfo term $ text "flags:" <+> text (show flags) <+> text "\n"
         case targetFromFlags flags of
           C Wasm
-            -> do return (LinkExe mainTarget
-                            (runCommand term flags ([wasmrun flags,mainTarget] ++ mainflags)))
+            -> do let stackFlags = if (notext (basename (wasmrun flags)) == "wasmtime")
+                                     then ["-W","max-wasm-stack=" ++ show stksize]  -- wasmtime defaults to 512KiB
+                                     else []
+                  return (LinkExe mainTarget
+                            (runCommand term flags ([wasmrun flags] ++ stackFlags ++ [mainTarget] ++ mainflags)))
           C WasmWeb
             -> do return (LinkExe mainTarget
                             (runSystemEcho term flags (dquote mainTarget ++ " &")))
