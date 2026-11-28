@@ -10,7 +10,7 @@ $ stack test                                              # All tests
 or with a debug build:
 
 ```sh
-$ stack test --fast 
+$ stack test --fast
 ```
 
 Select specific tests, or update tests using:
@@ -31,17 +31,17 @@ $ cabal new-run koka-test -- --match /parc/
 Options:
 
 ```sh
---mode=<new|update|test>     # create new test output, or update existing one
+--mode <new|update|test>     # create new test output, or update existing one
 --match <match>              # only match a specific test or test directory
 --cabal                      # Use cabal to run koka.
 --system-ghc                 # If using stack, use --system-ghc option.
 --target-<t>                 # Test the given backend, e.g. c (default), js, or c64c (compressed heap)
 -O2                          # Use optimization
 -O-1                         # Full debug mode with internal runtime assertions enabled
---seq                        # Test sequentially (instead of in parallel) 
+--seq                        # Test sequentially (instead of in parallel)
 --rebuild                    # Rebuild standard library for tests
 --quick                      # Skip slow tests (as listed under "slow" in a config.json)
---shard=<i>/<n>              # Only run every n-th test starting at the i-th (1 <= i <= n), used to split CI jobs
+--shard <i>/<n>              # Only run every n-th test starting at the i-th (1 <= i <= n), used to split CI jobs
 ```
 
 Per-directory test configuration uses `config.json` and supports:

@@ -53,6 +53,7 @@ jobs:
           submodules: true
           persist-credentials: false
 
+      # --------------------------------------------------------------------------------------------
       # Cache setup for vcpkg (https://learn.microsoft.com/en-us/vcpkg/consume/binary-caching-github-actions-cache)
       # https://github.com/actions/github-script
       - name: Setup vcpkg cache
@@ -105,7 +106,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wasmtime" && tar xJf wasmtime.tar.xz -C "$RUNNER_TEMP/wasmtime" --strip-components=1
           echo "$RUNNER_TEMP/wasmtime" >> "$GITHUB_PATH"
 
-      # Set up stack and cache dependencies: https://github.com/freckle/stack-action (MIT license)
+      # --------------------------------------------------------------------------------------------
+      # Build the compiler (and set up stack and cache dependencies: https://github.com/freckle/stack-action (MIT license))
       - name: Build compiler
         uses: freckle/stack-action@2ca244dc7a7a078954198c858e6090ae0f0f8abe # v5.7.33
         env:
@@ -134,6 +136,7 @@ jobs:
       - name: Build libraries (${{ matrix.target }})
         if: matrix.shard == 0 && matrix.target != 'c'
         run: |
+          stack exec koka -- --version
           stack exec koka -- --target=${{ matrix.target }} -O2 ${{ matrix.target == 'wasm' && 'util/link-wasm' || 'util/link-std' }}
 
       # VS Code extension tests (support/vscode/koka.language-koka/src/test) on the compiler just built

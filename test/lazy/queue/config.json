@@ -5,9 +5,12 @@
     ]
   },
   "slow": [
+    "bankers.kk",
+    "batched.kk",
     "hoodmelville.kk",
     "physicists-stack.kk",
     "realtime.kk",
+    "realtime-strict.kk",
     "realtime-fip.kk",
     "realtime-fip2.kk"
   ]
