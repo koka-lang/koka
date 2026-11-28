@@ -82,16 +82,6 @@ jobs:
         if: runner.os == 'Windows'
         run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
 
-      # Set up stack and cache dependencies: https://github.com/freckle/stack-action (MIT license)
-      - name: Build compiler
-        uses: freckle/stack-action@2ca244dc7a7a078954198c858e6090ae0f0f8abe # v5.7.33
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        with:
-          test: false
-          stack-build-arguments: "--fast"
-          cache-save-always: true
-
       # https://github.com/actions/setup-node
       - name: Set up Node.js
         if: matrix.target == 'js'
@@ -115,6 +105,16 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wasmtime" && tar xJf wasmtime.tar.xz -C "$RUNNER_TEMP/wasmtime" --strip-components=1
           echo "$RUNNER_TEMP/wasmtime" >> "$GITHUB_PATH"
 
+      # Set up stack and cache dependencies: https://github.com/freckle/stack-action (MIT license)
+      - name: Build compiler
+        uses: freckle/stack-action@2ca244dc7a7a078954198c858e6090ae0f0f8abe # v5.7.33
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          test: false
+          stack-build-arguments: "--fast"
+          cache-save-always: true
+
       # Run tests
       - name: Run test suite
         if: matrix.shard != 0
@@ -127,6 +127,7 @@ jobs:
       - name: Build libraries
         if: matrix.shard == 0 && matrix.target == 'c'
         run: |
+          stack exec koka -- --version
           stack exec koka -- -e -O2 util/bundle
 
       # Build all standard libraries for other backends as an extra test (wasm has no std/async)

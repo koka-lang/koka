@@ -212,11 +212,11 @@ pub fip fun max( x : float64, y : float64 ) : float64
   if x >= y then x else y
 
 // Show a `:float64` as a string.
-// If `d == 0.0`, or `d.abs >= 1.0e-5` and `d.abs < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
+// If `d == 0.0`, or `d.abs >= 1.0e-4` and `d.abs < 1.0e+16`, `show-fixed` is used and otherwise `show-exp`.
 // The default `precision` of `-21` always shows the shortest string that reads back as `d`.
 pub fun show( d : float64, precision : int = -21 ) : string
   val dabs = d.abs
-  if dabs == 0.0 || (dabs >= 1.0e-5 && dabs < 1.0e+21)
+  if dabs == 0.0 || (dabs >= 1.0e-4 && dabs < 1.0e+16)
     then show-fixed(d,precision)
     else show-exp(d,precision)
 

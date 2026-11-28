@@ -38,7 +38,7 @@ asinh: 2: ok: 1.4436354751788
 asinh: 1230: ok: 7.8079167941719
 asinh: 123000000: ok: 19.3208420938966
 asinh: 1230000000000000: ok: 35.4389377448550
-asinh: 12300000000000000: ok: 37.7415228378490
+asinh: 1.23e+16: ok: 37.7415228378490
 asinh: inf: ok: inf
 asinh: nan: ok: nan
 asinh: -0: ok: -0.0000000000000
@@ -53,7 +53,7 @@ asinh: -2: ok: -1.4436354751788
 asinh: -1230: ok: -7.8079167941719
 asinh: -123000000: ok: -19.3208420938966
 asinh: -1230000000000000: ok: -35.4389377448550
-asinh: -12300000000000000: ok: -37.7415228378490
+asinh: -1.23e+16: ok: -37.7415228378490
 asinh: -inf: ok: -inf
 asinh: nan: ok: nan
 acosh: 0: ok: nan
@@ -68,7 +68,7 @@ acosh: 2: ok: 1.3169578969248
 acosh: 1230: ok: 7.8079164636808
 acosh: 123000000: ok: 19.3208420938966
 acosh: 1230000000000000: ok: 35.4389377448550
-acosh: 12300000000000000: ok: 37.7415228378490
+acosh: 1.23e+16: ok: 37.7415228378490
 acosh: inf: ok: inf
 acosh: nan: ok: nan
 acosh: -0: ok: nan
@@ -83,6 +83,6 @@ acosh: -2: ok: nan
 acosh: -1230: ok: nan
 acosh: -123000000: ok: nan
 acosh: -1230000000000000: ok: nan
-acosh: -12300000000000000: ok: nan
+acosh: -1.23e+16: ok: nan
 acosh: -inf: ok: nan
 acosh: nan: ok: nan

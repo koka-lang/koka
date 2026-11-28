@@ -672,15 +672,18 @@ pub fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, pre 
     else x.hi.show-hex(width,use-capitals,pre) ++ " + " ++ x.lo.show-hex(width,use-capitals,pre)
 
 // Show a `:ddouble` `x` with a given precision `prec` (=`-31`).
-// The precision specifies the  number of digits after the dot (in either scientific of fixed-point notation).
-// If the precision is negative, _at most_ `prec` digits are displayed, while for a positive
-// precision, exactly `prec` digits behind the dot are displayed.
+// If the precision is negative, _at most_ `-prec` digits behind the dot, and _at most_ `-prec + 1`
+// significant digits are displayed, while for a positive precision, exactly `prec` digits behind
+// the dot are displayed.
 // This uses `show-fixed` when the exponent of `x` in scientific notation is larger than -5
-// and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
+// and smaller than 16 (as for `:float64`), otherwise it uses `show-exp`.
 pub fun show( x : ddouble, prec : int = dd-default-prec ) : string
-  if !x.is-finite
-    then x.hi.show
-    else x.decimal.show(prec)
+  if !x.is-finite then x.hi.show else
+    val d   = x.decimal
+    val exp = d.exponent
+    if exp > -5 && exp < 16
+      then d.show-fixed(if prec < 0 then min(prec + max(exp,0), 0) else prec)
+      else d.show-exp(prec)
 
 /* Show a ddouble `x` with a given precision `prec` (=`-31`) in scientific notation.
 The precision specifies the  number of digits after the dot, i.e.

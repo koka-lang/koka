@@ -1065,7 +1065,7 @@ kk_string_t kk_double_show_exp(double d, int32_t prec, kk_context_t* ctx) {
 // As `std/num/float64/show`
 kk_string_t kk_double_show(double d, int32_t prec, kk_context_t* ctx) {
   const double dabs = fabs(d);
-  if (dabs == 0.0 || (dabs >= 1.0e-5 && dabs < 1.0e21)) {
+  if (dabs == 0.0 || (dabs >= 1.0e-4 && dabs < 1.0e16)) {
     return kk_double_show_fixed(d, prec, ctx);
   }
   else {
