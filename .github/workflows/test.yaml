@@ -115,6 +115,7 @@ jobs:
       # Run tests
       - name: Run test suite
         if: matrix.shard != 0
+        timeout-minutes: 20
         run: |
           stack exec koka -- --version
           stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }}"
