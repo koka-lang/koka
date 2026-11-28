@@ -26,11 +26,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        target: [c, c64c, js, wasm]
         # GHC 9.10.3 cannot link on ubuntu-26.04 ("collect2: fatal error: cannot find 'ld'")
         os: [windows-latest, ubuntu-24.04, ubuntu-24.04-arm, macos-latest, macos-15-intel]
         # split the test suite over multiple jobs (see `--shard` in test/readme.md)
         shard: [0, 1, 2, 3]
-        target: [c, c64c, js, wasm]
         # test the js and wasm backends only on ubuntu-24.04, and c64c (compressed pointers) only on ubuntu
         exclude:
           - { target: c64c, os: windows-latest }
