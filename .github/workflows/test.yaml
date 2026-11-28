@@ -131,7 +131,17 @@ jobs:
           OPT: ${{ matrix.os == 'ubuntu-24.04-arm' && '-O2' || '' }}
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }} $QUICK $OPT"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }} $QUICK $OPT --runtimes=runtimes/${{ matrix.target }}-${{ matrix.os }}/shard${{ matrix.shard }}.json"
+
+      # Upload the test run times for the report job (https://github.com/actions/upload-artifact)
+      - name: Upload test run times
+        if: ${{ !cancelled() && matrix.shard != 0 }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runtimes-${{ matrix.target }}-${{ matrix.os }}-${{ matrix.shard }}
+          path: runtimes/
+          if-no-files-found: ignore
+          retention-days: 90
 
       # Bundle (only once per OS)
       - name: Build libraries
@@ -156,3 +166,58 @@ jobs:
           npm install --no-audit --no-fund
           export KOKA_COMPILER="$(stack path --local-install-root)/bin/koka"
           xvfb-run -a npm test
+
+  # Compare the test run times against the latest run on dev (see util/test-report.kk)
+  report:
+    name: Test run-time report
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Build compiler
+        uses: freckle/stack-action@2ca244dc7a7a078954198c858e6090ae0f0f8abe # v5.7.33
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          test: false
+          stack-build-arguments: "--fast"
+
+      # https://github.com/actions/download-artifact
+      - name: Download test run times
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: runtimes-*
+          path: current
+          merge-multiple: true
+
+      - name: Download baseline run times
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow test.yaml --branch dev --event push --status completed --limit 10 \
+                 --json databaseId,conclusion \
+                 -q "[.[] | select(.databaseId != $GITHUB_RUN_ID and .conclusion != \"cancelled\")][0].databaseId")
+          echo "baseline run: $id"
+          gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'runtimes-*' -D baseline-runs
+          mkdir -p baseline && cp -r baseline-runs/*/. baseline/
+
+      - name: Generate report
+        run: |
+          stack exec koka -- -e util/test-report.kk -- --current=current --baseline=baseline --out=test-report.html --summary=summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-report
+          path: test-report.html

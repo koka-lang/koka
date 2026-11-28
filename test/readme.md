@@ -42,6 +42,16 @@ Options:
 --rebuild                    # Rebuild standard library for tests
 --quick                      # Skip slow tests (as listed under "slow" in a config.json)
 --shard <i>/<n>              # Only run every n-th test starting at the i-th (1 <= i <= n), used to split CI jobs
+--runtimes=<file>            # Write the test run times (in ms) to a json file
+```
+
+The run times can be compared against a baseline with `util/test-report.kk`, which generates an HTML report
+(the CI does this against the latest run on `dev`, see the `test-report` artifact):
+
+```sh
+$ stack test --test-arguments="--runtimes=out/base/c/times.json"
+$ stack test --test-arguments="--runtimes=out/cur/c/times.json"
+$ stack exec koka -- -e util/test-report.kk -- --current=out/cur --baseline=out/base --out=out/report.html
 ```
 
 Per-directory test configuration uses `config.json` and supports:

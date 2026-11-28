@@ -36,9 +36,9 @@ data Mode = Test | New | Update
 
 
 data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, target :: String, par :: Bool, rebuild :: Bool,
-                        quick :: Bool, shard :: (Int,Int) }
+                        quick :: Bool, shard :: (Int,Int), runtimes :: FilePath }
 
-optionsDefault = Options Test False False 0 "" True False False (1,1)
+optionsDefault = Options Test False False 0 "" True False False (1,1) ""
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
@@ -306,6 +306,8 @@ processOptions arg (options,hargs)
       then (options{rebuild=True}, hargs)
     else if (arg == "--quick")
       then (options{quick=True}, hargs)
+    else if (take 11 arg == "--runtimes=")
+      then (options{runtimes=drop 11 arg}, hargs)
     else if (take 8 arg == "--shard=")
       then (options{shard=parseShard (drop 8 arg)}, hargs)
       else (options, arg : hargs)
@@ -358,7 +360,16 @@ main = do
                else (if (target options == "js" || not (par options)) then id else parallel) $
                     discoverTests runTimes cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormat=Just (formatterToFormat (specProgress runTimes))})
+  unless (null (runtimes options)) $ writeRunTimes (runtimes options) runTimes
   evaluateSummary summary
+
+-- write the run times in milliseconds as `{"tests": {"<dir>/<test>": <ms>, ...}}` (used by util/test-report.kk)
+writeRunTimes :: FilePath -> RunTimes -> IO ()
+writeRunTimes fname runTimes
+  = do times <- readIORef runTimes
+       createDirectoryIfMissing True (takeDirectory fname)
+       writeFile fname $ encode $ makeObj
+         [("tests", makeObj [(intercalate "/" key, showJSON (round (secs * 1000) :: Int)) | (key,secs) <- M.toList times])]
 
 
 specProgress :: RunTimes -> Formatter
