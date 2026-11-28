@@ -26,20 +26,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macOS 15 is latest for x64, default now is arm64
-        # we build on the oldest ubuntu version for better binary compatibility.
-        # arm64 macOS stays on macos-15 until https://github.com/actions/runner-images/issues/14940
-        # is fixed: macos-26 (macOS-latest) pairs Xcode 26's linker with the macOS 27 SDK, which GHC links against.
-        os: [windows-latest, macos-15, macos-15-intel, ubuntu-22.04, ubuntu-22.04-arm]
+        os: [windows-latest, ubuntu-latest, ubuntu-latest-arm, macos-latest, macos-15-intel]
         # split the test suite over multiple jobs (see `--shard` in test/readme.md)
         shard: [0, 1, 2, 3]
         target: [c, js]
-        # test the js backend only on ubuntu-22.04
+        # test the js backend only on ubuntu-latest
         exclude:
           - { target: js, os: windows-latest }
-          - { target: js, os: macos-15 }
+          - { target: js, os: ubuntu-latest-arm }
+          - { target: js, os: macos-latest }
           - { target: js, os: macos-15-intel }
-          - { target: js, os: ubuntu-22.04-arm }
 
     steps:
       # Checkout: https://github.com/actions/checkout
@@ -116,7 +112,7 @@ jobs:
 
       # VS Code extension tests (support/vscode/koka.language-koka/src/test) on the compiler just built
       - name: Test VS Code extension
-        if: matrix.shard == 0 && matrix.target == 'c' && matrix.os == 'ubuntu-22.04'
+        if: matrix.shard == 0 && matrix.target == 'c' && matrix.os == 'ubuntu-latest'
         working-directory: support/vscode/koka.language-koka
         shell: bash
         run: |
