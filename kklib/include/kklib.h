@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          201    // modify on changes to trigger recompilation..
+#define KKLIB_BUILD          202    // modify on changes to trigger recompilation..
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -1396,13 +1396,21 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
 #define kk_function_static_dup(fun,ctx)   (fun)
 #define kk_function_static_drop(fun,ctx)  kk_unused(fun)
 #else
-// for a compressed heap, allocate static functions once in the heap on demand; these are never deallocated
+// for a compressed heap, allocate static functions once in the heap on demand; these are never deallocated.
+// They are shared by all threads, so they get a stuck refcount and are published atomically.
 #define kk_define_static_function(name,cfun,ctx) \
-  static kk_function_t name = { kk_datatype_null_init }; \
+  static _Atomic(kk_intb_t) _static_##name = KK_ATOMIC_VAR_INIT(kk_datatype_null_init); \
+  kk_function_t name = { kk_atomic_load_acquire(&_static_##name) }; \
   if (kk_datatype_is_null(name)) { \
     struct kk_function_s* _fun = kk_block_alloc_as(struct kk_function_s, 1, KK_TAG_FUNCTION, ctx); \
+    kk_block_refcount_set(&_fun->_block, INT32_MIN); /* stuck (like KK_HEADER_STATIC) */ \
     _fun->fun = kk_kkfun_ptr_box(&cfun, ctx); \
     name = kk_datatype_from_base(_fun,ctx); \
+    kk_intb_t _null = kk_datatype_null_init; \
+    if (!kk_atomic_cas_strong_acq_rel(&_static_##name, &_null, name.dbox)) { /* another thread was first */ \
+      kk_block_free(&_fun->_block, ctx); \
+      name.dbox = _null; \
+    } \
   }
 #define kk_function_static_dup(fun,ctx)   kk_function_dup(fun,ctx)
 #define kk_function_static_drop(fun,ctx)  kk_function_drop(fun,ctx)
