@@ -325,7 +325,7 @@ main = do
   -- compile all standard libraries before testing so we can run in parallel
   let cfg = initialCfg options
       stdcfg = if rebuild options then cfg{ flags = flags cfg ++ ["-r", "-l"]} else cfg
-  precompile stdcfg{flags = "-e" : flags stdcfg} "util/link-test.kk"
+  precompile stdcfg{flags = "-e" : flags stdcfg} (if target options == "wasm" then "util/link-wasm.kk" else "util/link-test.kk")
   -- precompile bench by compiling a dependent file (ensures correct module name resolution)
   precompile stdcfg "test/lazy/queue/bankers.kk"
   -- precompile mpat-lib so test/cgen/mpat.kk loads it from the .kki
@@ -335,7 +335,7 @@ main = do
   precompile stdcfg "test/cgen/specbox-lib.kk"
   -- precompile the syn-nested chain so syn-nested1 emits only its own core
   precompile stdcfg{flags = flags stdcfg ++ ["-l"]} "test/parc/syn-nested1c.kk"
-  precompile stdcfg{flags = "--target=js":(flags stdcfg)} "util/link-test.kk" -- precompiled js libraries as well
+  precompile stdcfg{flags = flags stdcfg ++ ["--target=js"]} "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
   let spec = if target options == "names"
                then NameSpec.spec

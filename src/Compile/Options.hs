@@ -825,6 +825,9 @@ processDerivedOptions defaultFlags flags
                 useStdAlloc = stdAlloc,
                 vcpkgTriplet= triplet,
                 ccompDefs   = cdefs,
+                ccompLibDirs= if isTargetWasm (target flags)  -- don't link host libraries
+                                then filter (`notElem` systemLibDirs) (ccompLibDirs flags)
+                                else ccompLibDirs flags,
                 baseFlags   = Just defaultFlags
               }
 
@@ -1269,7 +1272,8 @@ ccFromPath flags path
                      }
         emcc    = (ccGcc name path False)
                      { ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
-                       ccFlagsLink = ccFlagsLink gcc ++ ["-sWASM_BIGINT=1","-sEXPORTED_RUNTIME_METHODS=ccall,cwrap"],
+                       ccFlagsOpt  = (\_ _ -> []),  -- no host -march flags
+                       ccFlagsLink = ccFlagsLink gcc ++ ["-sEXPORTED_RUNTIME_METHODS=ccall,cwrap"],
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
                        ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
