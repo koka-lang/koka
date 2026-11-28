@@ -351,7 +351,7 @@ fun summary( entries : list<entry>, has-base : bool, opts : options ) : div stri
   val table = if regressions.is-nil then "" else
                 "| test | configuration | current (ms) | baseline (ms) | change |\n|:--|:--|--:|--:|--:|\n" ++ regressions.take(20).map(row).join
   "### Test run times\n\n" ++ regressions.length.show ++ " slower and " ++ improvements.length.show ++
-  " faster (at least " ++ opts.min-ms.show ++ " ms and more than " ++ opts.noise.show ++ "% change); see the test-report artifact for details.\n\n" ++
+  " faster (at least " ++ opts.min-ms.show ++ " ms and more than " ++ opts.noise.show ++ "% change); see the test-report.html artifact for details.\n\n" ++
   table
 
 // ---------------------------------------------------------------------------
