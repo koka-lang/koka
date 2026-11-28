@@ -1,5 +1,10 @@
 on:
   workflow_dispatch:   # so we can run the workflow manually as well
+    inputs:
+      quick:
+        description: "Skip slow tests (--quick)"
+        type: boolean
+        default: false
   push:
     branches:
       - dev
@@ -121,9 +126,11 @@ jobs:
       - name: Run test suite
         if: matrix.shard != 0
         timeout-minutes: 20
+        env:
+          QUICK: ${{ inputs.quick && '--quick' || '' }}
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }}"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }} $QUICK"
 
       # Bundle (only once per OS)
       - name: Build libraries
