@@ -23,6 +23,7 @@ import std/num/random
 import std/time
 import std/time/timestamp
 import std/time/astro
+import samples/all
 
 fun main() : console ()
   println("done.")

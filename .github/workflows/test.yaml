@@ -30,9 +30,12 @@ jobs:
         os: [windows-latest, ubuntu-24.04, ubuntu-24.04-arm, macos-latest, macos-15-intel]
         # split the test suite over multiple jobs (see `--shard` in test/readme.md)
         shard: [0, 1, 2, 3]
-        target: [c, js, wasm]
-        # test the js and wasm backends only on ubuntu-24.04
+        target: [c, c64c, js, wasm]
+        # test the js and wasm backends only on ubuntu-24.04, and c64c (compressed pointers) only on ubuntu
         exclude:
+          - { target: c64c, os: windows-latest }
+          - { target: c64c, os: macos-latest }
+          - { target: c64c, os: macos-15-intel }
           - { target: js, os: windows-latest }
           - { target: js, os: ubuntu-24.04-arm }
           - { target: js, os: macos-latest }
