@@ -340,8 +340,9 @@ addDivergentEffect coreDefs
 -- | Generalize recursive definitions over their inference variables (in front of their own quantifiers).
 -- They use each other at exactly those variables, so each use becomes a type application to them.
 generalizeRecDefs :: [Core.Def] -> Inf [Core.Def]
-generalizeRecDefs coreDefs
-  = do nrhos <- mapM (\cdef -> subst (snd (splitTypeScheme (Core.defType cdef))) >>= normalize True) coreDefs
+generalizeRecDefs coreDefs0
+  = do coreDefs <- placeRecEvidence coreDefs0
+       nrhos <- mapM (\cdef -> subst (snd (splitTypeScheme (Core.defType cdef))) >>= normalize True) coreDefs
        rhos  <- subst nrhos  -- closing the effect of one member can change the types of others
        free  <- freeInGamma
        let tvarss = [[tv | tv <- ofuv rho, not (tvsMember tv free)] | rho <- rhos]
@@ -355,6 +356,44 @@ generalizeRecDefs coreDefs
            let sigVars = fst (splitTypeScheme (Core.defType cdef))
            return cdef{ Core.defType = quantifyType bvars (bsub |-> quantifyType sigVars rho),
                         Core.defExpr = Core.addTypeLambdas bvars (bsub |-> body) }
+
+-- | Discharge the implicit constraints raised inside a recursive group. Its members are
+-- inferred `Instantiated`, so `inferDef` does not generalize them and their constraints
+-- (e.g. the `hdiv` of reading a global reference that holds a function) are still pending
+-- here. Each constraint whose evidence occurs in a member is solved now and its evidence
+-- is bound inside every member that uses it (evidence can refer to other evidence, so the
+-- uses are closed over the solved definitions). Constraints whose evidence occurs in no
+-- member belong to an enclosing scope and stay pending.
+placeRecEvidence :: [Core.Def] -> Inf [Core.Def]
+placeRecEvidence coreDefs
+  = do free <- freeInGamma
+       let bodyNames = S.unions [names (CoreVar.fv (Core.defExpr cdef)) | cdef <- coreDefs]
+       evDefs <- solve free bodyNames []
+       if null evDefs then return coreDefs
+         else return (map (place evDefs) coreDefs)
+  where
+    names :: Core.TNames -> S.NameSet
+    names tns = S.fromList (map Core.getName (Core.tnamesList tns))
+
+    -- solve until no new evidence is needed; later rounds are dependencies of earlier ones, so they bind first
+    solve free used acc
+      = do defs <- resolveImplicitConstraintsUsedBy False free (`S.member` used)
+           if null defs then return acc
+             else do let used' = S.union used (S.unions [names (CoreVar.fv (Core.defExpr d)) | d <- defs])
+                     solve free used' (defs ++ acc)
+
+    -- bind the evidence a member uses (transitively) around its body
+    place evDefs cdef
+      = let uses0 = names (CoreVar.fv (Core.defExpr cdef))
+            close us = let us' = S.union us (S.unions [names (CoreVar.fv (Core.defExpr d)) | d <- evDefs, S.member (Core.defName d) us])
+                       in if S.size us' == S.size us then us else close us'
+            uses   = close uses0
+            mine   = filter (\d -> S.member (Core.defName d) uses) evDefs
+            wrap core = case core of
+                          Core.Lam pars eff body -> Core.Lam pars eff (Core.makeDefsLet mine body)
+                          Core.TypeLam tpars (Core.Lam pars eff body) -> Core.TypeLam tpars (Core.Lam pars eff (Core.makeDefsLet mine body))
+                          _ -> Core.makeDefsLet mine core
+        in if null mine then cdef else cdef{ Core.defExpr = wrap (Core.defExpr cdef) }
 
 
 inferDef :: Bool -> Expect -> Def Type -> Inf Core.Def

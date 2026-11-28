@@ -58,6 +58,7 @@ module Type.InferMonad( Inf, InfGamma
                       -- * Operations
                       , generalize
                       , improve
+                      , resolveImplicitConstraintsUsedBy
                       , instantiate, instantiateNoEx, instantiateEx
                       , checkCasing
                       , normalize
@@ -1665,6 +1666,30 @@ tryResolveImplicitConstraints close free
                      tryResolve (def:defs, acc) ics
              else tryResolve (defs, ic:acc) ics
 
+
+
+-- | Resolve the pending implicit constraints whose evidence variable satisfies `isUsed`
+-- (and that can be solved now), returning their evidence definitions in binding order
+-- (as for `makeDefsLet`); all other constraints stay pending. Used where the core that
+-- contains the evidence occurrences is not a single expression, e.g. the members of a
+-- recursive group (`generalizeRecDefs`): each member binds the evidence it uses.
+resolveImplicitConstraintsUsedBy :: Bool -> Tvs -> (Name -> Bool) -> Inf [Core.Def]
+resolveImplicitConstraintsUsedBy close free isUsed
+  = mapImplicitConstraints $ \ics -> go [] [] ics
+  where
+    go defs acc []
+      = return (defs, reverse acc)
+    go defs acc (ic:ics) | not (isUsed (icEvidence ic))
+      = go defs (ic:acc) ics
+    go defs acc (ic:ics)
+      = do determined <- (icCanSolve ic) free ic
+           let freeTv = tvsList (fuv ic)
+               force  = null freeTv || not (all (\tv -> tvsMember tv free) freeTv)
+           if determined || force || close
+             then do (ev,tp) <- (icSolve ic) free ic
+                     solvedImplicitConstraint (icEvidence ic) tp
+                     go (Core.makeTDef (Core.TName (icEvidence ic) tp) ev : defs) acc ics
+             else go defs (ic:acc) ics
 
 
 {--------------------------------------------------------------------------
