@@ -17,7 +17,8 @@ import Text.Regex.TDFA
 import Text.JSON
 import Test.Hspec
 import Test.Hspec.Core.Runner
-import Test.Hspec.Core.Formatters hiding (Error)
+import Test.Hspec.Core.Formatters.V2 hiding (Error, Result)
+import qualified Test.Hspec.Core.Formatters.V2 as F
 import qualified NameSpec(spec)
 
 commonFlags :: [String]
@@ -341,34 +342,37 @@ main = do
                then NameSpec.spec
                else (if (target options == "js" || not (par options)) then id else parallel) $
                     discoverTests cfg (pwd </> "test")
-  summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
+  summary <- withArgs [] (runSpec spec hcfg{configFormat=Just (formatterToFormat specProgress)})
   evaluateSummary summary
 
 
 specProgress = specdoc {
-    exampleSucceeded = \(nesting, requirement) info -> withSuccessColor $ do
-      total  <- getTotalCount
-      writeLine $ showTotal total nesting requirement
-      forM_ (lines info) $ \ s -> writeLine $ indentationFor ("" : nesting) ++ s
-
-  , exampleFailed = \(nesting, requirement) info _ -> withFailColor $ do
-      n <- getFailCount
-      total  <- getTotalCount
-      writeLine $ showTotal total nesting requirement ++ ": FAILED [" ++ show n ++ "]"
-      forM_ (take 10 (lines info)) $ \ s ->
-        writeLine $ indentationFor nesting ++ (take (400) s)
-
-  , examplePending = \(nesting, requirement) info reason -> withPendingColor $ do
-      total  <- getTotalCount
-      writeLine $ showTotal total nesting requirement
-      forM_ (lines info) $ \ s ->
-        writeLine $ indentationFor nesting ++ s
-      writeLine $ indentationFor nesting ++ "# PENDING: " ++ fromMaybe "No reason given" reason
+    formatterItemDone = \(nesting, requirement) item -> do
+      total <- getTotalCount
+      times <- printTimes
+      let info = itemInfo item
+          line = showTotal total nesting requirement ++ (if times then showDuration (itemDuration item) else "")
+      case itemResult item of
+        F.Success -> withSuccessColor $ do
+          writeLine line
+          forM_ (lines info) $ \ s -> writeLine $ indentationFor ("" : nesting) ++ s
+        F.Failure _ _ -> withFailColor $ do
+          n <- getFailCount
+          writeLine $ line ++ ": FAILED [" ++ show n ++ "]"
+          forM_ (take 10 (lines info)) $ \ s ->
+            writeLine $ indentationFor nesting ++ (take (400) s)
+        F.Pending _ reason -> withPendingColor $ do
+          writeLine line
+          forM_ (lines info) $ \ s ->
+            writeLine $ indentationFor nesting ++ s
+          writeLine $ indentationFor nesting ++ "# PENDING: " ++ fromMaybe "No reason given" reason
 } where
     showTotal total nesting req
       = let nest = (length nesting + 1) * 2
             t    = " " ++ show total
         in replicate nest ' ' ++ req ++ replicate (12 - length req) ' ' ++ t
+    showDuration (Seconds secs)
+      = " (" ++ show (floor (secs * 1000) :: Int) ++ "ms)"
     indentationFor nesting
       = replicate ((length nesting + 1) * 2) ' '
 
