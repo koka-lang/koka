@@ -22,7 +22,7 @@ env:
 name: Test
 jobs:
   build:
-    name: Test
+    name: ${{ matrix.os }},  ${{ matrix.target }}, ${{ matrix.shard }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
