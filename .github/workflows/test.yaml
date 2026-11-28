@@ -97,15 +97,7 @@ jobs:
 
       # Run tests
       - name: Run test suite
-        if: runner.os != 'macOS' && matrix.shard != 0
-        run: |
-          stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }}"
-
-      - name: Run test suite (macOS)
-        if: runner.os == 'macOS' && matrix.shard != 0
-        env:
-          LC_ALL: C
+        if: matrix.shard != 0
         run: |
           stack exec koka -- --version
           stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }}"
@@ -116,7 +108,7 @@ jobs:
         run: |
           stack exec koka -- -e -O2 util/bundle
 
-      # Build all standard libraries for other backends
+      # Build all standard libraries for other backends as an extra test
       - name: Build libraries (${{ matrix.target }})
         if: matrix.shard == 0 && matrix.target != 'c'
         run: |

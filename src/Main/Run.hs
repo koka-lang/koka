@@ -14,7 +14,8 @@ module Main.Run( runPlain, runWithLS, runWith ) where
 
 import Debug.Trace
 import System.Exit            ( exitFailure )
-import System.IO              ( hPutStrLn, stdout, stderr)
+import System.IO              ( hPutStrLn, stdin, stdout, stderr, hSetEncoding, mkTextEncoding )
+import GHC.IO.Encoding        ( setLocaleEncoding )
 import Control.Monad          ( when, foldM )
 import Data.List              ( intersperse)
 import Data.Maybe
@@ -60,11 +61,21 @@ plainLS p flags files
   = do hPutStrLn stderr "The plain build of Koka cannot run as a language server"
        exitFailure
 
+-- Use utf-8 for files, pipes, and standard handles independent of the locale (LC_ALL, LANG).
+-- (on Windows we keep the code page as the console may not be utf-8)
+setUtf8Encoding :: IO ()
+setUtf8Encoding
+  = when (exeExtension /= ".exe") $
+    do enc <- mkTextEncoding "UTF-8//ROUNDTRIP"  -- roundtrip invalid bytes (e.g. from external tools)
+       setLocaleEncoding enc
+       mapM_ (\h -> hSetEncoding h enc) [stdin,stdout,stderr]
+
 
 -- Parse the arguments given a potential language server
 runWithLSArgs :: (ColorPrinter -> Flags -> [FilePath] -> IO ()) -> String -> IO ()
 runWithLSArgs runLanguageServer args
-  = do (flags,mode) <- getOptions args
+  = do setUtf8Encoding
+       (flags,mode) <- getOptions args
        let with = if (not (null (redirectOutput flags)))
                    then withFileNoColorPrinter (redirectOutput flags)
                    else if (console flags == "html")
