@@ -46,7 +46,7 @@ Options:
 ```
 
 The run times can be compared against a baseline with `util/test-report.kk`, which generates an HTML report
-(the CI does this against the latest run on `dev`, see the `test-report` artifact):
+(the CI does this for the C target on `ubuntu-24.04-arm` against the latest run on `dev`, see the `test-report` artifact):
 
 ```sh
 $ stack test --test-arguments="--runtimes=out/base/c/times.json"

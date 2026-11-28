@@ -129,13 +129,14 @@ jobs:
         env:
           QUICK: ${{ inputs.quick && '--quick' || '' }}
           OPT: ${{ matrix.os == 'ubuntu-24.04-arm' && '-O2' || '' }}
+          RUNTIMES: ${{ matrix.target == 'c' && matrix.os == 'ubuntu-24.04-arm' && format('--runtimes=runtimes/c-ubuntu-24.04-arm/shard{0}.json', matrix.shard) || '' }}
         run: |
           stack exec koka -- --version
-          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }} $QUICK $OPT --runtimes=runtimes/${{ matrix.target }}-${{ matrix.os }}/shard${{ matrix.shard }}.json"
+          stack test --fast --test-arguments="--shard=${{ matrix.shard }}/3 --target-${{ matrix.target }} $QUICK $OPT $RUNTIMES"
 
-      # Upload the test run times for the report job (https://github.com/actions/upload-artifact)
+      # Upload the test run times (only c on ubuntu-24.04-arm) for the report job (https://github.com/actions/upload-artifact)
       - name: Upload test run times
-        if: ${{ !cancelled() && matrix.shard != 0 }}
+        if: ${{ !cancelled() && matrix.shard != 0 && matrix.target == 'c' && matrix.os == 'ubuntu-24.04-arm' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runtimes-${{ matrix.target }}-${{ matrix.os }}-${{ matrix.shard }}
@@ -167,9 +168,9 @@ jobs:
           export KOKA_COMPILER="$(stack path --local-install-root)/bin/koka"
           xvfb-run -a npm test
 
-  # Compare the test run times against the latest run on dev (see util/test-report.kk)
+  # Compare the test run times of c on ubuntu-24.04-arm against the latest run on dev (see util/test-report.kk)
   report:
-    name: Test run-time report
+    name: Test run-time report (c, ubuntu-24.04-arm)
     needs: build
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
