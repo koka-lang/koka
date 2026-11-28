@@ -230,8 +230,8 @@ fun ratio-style( r : maybe<float64>, opts : options ) : string
   match r
     Just(x) | x.is-regression(opts) || x.is-improvement(opts) ->
       val f = min(1.0, if x >= 1.0 then log2(x) else 0.0 - log2(x))
-      val hue = if x >= 1.0 then "0 85%" else "120 55%"
-      " style=\"background: hsl(" ++ hue ++ " " ++ (92.0 - 40.0*f).show-fixed(0) ++ "%)\""
+      val hue = if x >= 1.0 then "0 80%" else "130 50%"
+      " style=\"background: hsl(" ++ hue ++ " " ++ (94.0 - 26.0*f).show-fixed(0) ++ "%)\""
     _ -> ""
 
 fun show-ratio( r : float64 ) : string
@@ -261,13 +261,31 @@ fun cell( e : entry, opts : options ) : string
   "<td" ++ r.ratio-style(opts) ++ title ++ ">" ++ e.cur.show-ms ++ delta ++ "</td>"
 
 val style = r#"
-body  { font-family: system-ui, sans-serif; font-size: 13px; margin: 1em 2em; }
-table { border-collapse: collapse; margin-bottom: 2em; }
-td, th { padding: 2px 8px; border: 1px solid #ddd; text-align: right; white-space: nowrap; }
-th    { position: sticky; top: 0; background: #f0f0f0; }
-.name { text-align: left; }
-small { color: #555; }
+:root  { --fg: #1f2328; --muted: #59636e; --border: #d1d9e0; --line: #eaeef2; --head: #f6f8fa; --stripe: #fafbfc; --hover: #eef4ff; }
+body   { margin: 0; color: var(--fg); background: #fff;
+         font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+header { padding: 20px 32px 16px; background: var(--head); border-bottom: 1px solid var(--border); }
+h1     { margin: 0 0 6px; font-size: 20px; font-weight: 600; }
+header p { margin: 0; max-width: 90em; color: var(--muted); }
+main   { padding: 4px 32px 32px; }
+h2     { margin: 28px 0 10px; padding-bottom: 6px; font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--border); }
+table  { border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: 6px; font-variant-numeric: tabular-nums; }
+th, td { padding: 4px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th     { position: sticky; top: 0; z-index: 1; background: var(--head); color: var(--muted); font-size: 12px; font-weight: 600; border-bottom-color: var(--border); }
+th:first-child { border-top-left-radius: 6px; }
+th:last-child  { border-top-right-radius: 6px; }
+tbody tr:last-child td      { border-bottom: none; }
+tbody tr:nth-child(even) td { background-color: var(--stripe); }
+tbody tr:hover td           { background-color: var(--hover); }
+.name    { text-align: left; }
+td.name  { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+td small { margin-left: 4px; color: #3d444d; font-size: 11px; }
+td[title] { cursor: help; }
+.legend  { display: inline-block; margin-left: 4px; padding: 0 8px; border-radius: 10px; color: var(--fg); }
 "#
+
+fun table( header : string, rows : list<string> ) : string
+  "<table><thead><tr>" ++ header ++ "</tr></thead><tbody>\n" ++ rows.join ++ "</tbody></table>\n"
 
 fun totals-row( c : config, entries : list<entry>, opts : options ) : string
   fun sum( es : list<entry>, f : entry -> maybe<int> ) : int
@@ -290,10 +308,10 @@ fun changes( entries : list<entry>, opts : options, pred : float64 -> bool ) : d
 
 fun changes-table( title : string, cs : list<(entry,float64)>, opts : options ) : string
   if cs.is-nil then return ""
-  "<h2>" ++ title ++ "</h2>\n<table><tr><th class=\"name\">test</th><th class=\"name\">configuration</th><th>current (ms)</th><th>baseline (ms)</th></tr>\n" ++
-  cs.map(fn(er) val e = er.fst in "<tr><td class=\"name\">" ++ e.test.html ++ "</td><td class=\"name\">" ++ e.config.html ++ "</td>" ++ e.cell(opts) ++
-                   "<td>" ++ e.base.show-ms ++ "</td></tr>\n").join ++
-  "</table>\n"
+  "<h2>" ++ title ++ "</h2>\n" ++
+  table("<th class=\"name\">test</th><th class=\"name\">configuration</th><th>current (ms)</th><th>baseline (ms)</th>",
+        cs.map(fn(er) val e = er.fst in "<tr><td class=\"name\">" ++ e.test.html ++ "</td><td class=\"name\">" ++ e.config.html ++ "</td>" ++
+                                        e.cell(opts) ++ "<td>" ++ e.base.show-ms ++ "</td></tr>\n"))
 
 fun report( configs : list<config>, tests : list<string>, entries : list<entry>, has-base : bool, opts : options ) : div string
   val shown = if opts.all then tests else
@@ -301,22 +319,23 @@ fun report( configs : list<config>, tests : list<string>, entries : list<entry>,
   val regressions  = entries.changes(opts, fn(r) r.is-regression(opts))
   val improvements = entries.changes(opts, fn(r) r.is-improvement(opts)).reverse
   "<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\"><title>Koka test run times</title><style>" ++ style ++ "</style></head><body>\n" ++
-  "<h1>Koka test run times</h1>\n" ++
+  "<header><h1>Koka test run times</h1>\n" ++
   "<p>Run times in milliseconds" ++
     (if has-base then ", compared against the baseline (hover a cell to see the baseline time). " ++
                       "Only tests taking at least " ++ opts.min-ms.show ++ " ms are compared, and changes within " ++ opts.noise.show ++ "% are ignored." ++
-                      " <span" ++ Just(2.0).ratio-style(opts) ++ ">slower</span> <span" ++ Just(0.5).ratio-style(opts) ++ ">faster</span>"
-                 else " (no baseline available).") ++ "</p>\n" ++
-  "<h2>Totals</h2>\n<table><tr><th class=\"name\">configuration</th><th>tests</th><th>total (ms)</th><th>compared (ms)</th><th>slower</th><th>faster</th></tr>\n" ++
-  configs.map(fn(c) c.totals-row(entries,opts) ++ "\n").join ++ "</table>\n" ++
+                      " <span class=\"legend\"" ++ Just(2.0).ratio-style(opts) ++ ">slower</span><span class=\"legend\"" ++ Just(0.5).ratio-style(opts) ++ ">faster</span>"
+                 else " (no baseline available).") ++ "</p></header>\n<main>\n" ++
+  "<h2>Totals</h2>\n" ++
+  table("<th class=\"name\">configuration</th><th>tests</th><th>total (ms)</th><th>compared (ms)</th><th>slower</th><th>faster</th>",
+        configs.map(fn(c) c.totals-row(entries,opts) ++ "\n")) ++
   changes-table("Regressions", regressions, opts) ++
   changes-table("Improvements", improvements, opts) ++
   "<h2>" ++ (if opts.all then "All tests" else "Tests taking at least " ++ opts.min-ms.show ++ " ms") ++ "</h2>\n" ++
-  "<table><tr><th class=\"name\">test</th>" ++ configs.map(fn(c) "<th>" ++ c.name.html ++ "</th>").join ++ "</tr>\n" ++
-  shown.map(fn(t) "<tr><td class=\"name\">" ++ t.html ++ "</td>" ++
-                  configs.map(fn(c) entries.find(fn(e) e.config == c.name && e.test == t)
-                                           .map(fn(e) e.cell(opts)).default("<td></td>")).join ++ "</tr>\n").join ++
-  "</table>\n</body></html>\n"
+  table("<th class=\"name\">test</th>" ++ configs.map(fn(c) "<th>" ++ c.name.html ++ "</th>").join,
+        shown.map(fn(t) "<tr><td class=\"name\">" ++ t.html ++ "</td>" ++
+                        configs.map(fn(c) entries.find(fn(e) e.config == c.name && e.test == t)
+                                                 .map(fn(e) e.cell(opts)).default("<td></td>")).join ++ "</tr>\n")) ++
+  "</main>\n</body></html>\n"
 
 // ---------------------------------------------------------------------------
 // Markdown summary (e.g. for $GITHUB_STEP_SUMMARY)
