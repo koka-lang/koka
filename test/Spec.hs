@@ -7,6 +7,7 @@ import Data.Array ((!))
 import Data.IORef
 import Data.List
 import Data.List.Extra (replace, trim)
+import qualified Data.Map.Strict as M
 import System.Directory
 import System.Environment
 import System.Exit
@@ -187,10 +188,19 @@ expectedSanitize :: String -> String
 expectedSanitize input
   = filter (/='\r') input   -- on windows \r still gets through sometimes
 
-runKoka :: Cfg -> FilePath -> FilePath -> IO String
+-- maps a test path (as reported by hspec) to the run time of its program (from `--showtime`)
+type RunTimes = IORef (M.Map [String] Double)
+
+runKoka :: Cfg -> FilePath -> FilePath -> IO (String, Maybe Double)
 runKoka cfg kokaDir fp
-  = do (_, out, _) <- runKokaProcess cfg kokaDir fp
-       return (testSanitize kokaDir out)
+  = do (_, out, err) <- runKokaProcess cfg{flags = flags cfg ++ ["--showtime"]} kokaDir fp
+       return (testSanitize kokaDir out, runTime err)
+
+-- parse the `info: elapsed: <secs>s, ...` line printed by `--kktime` on stderr
+runTime :: String -> Maybe Double
+runTime err
+  = listToMaybe [ secs | l <- lines err, Just rest <- [stripPrefix "info: elapsed: " l],
+                         (secs,'s':_) <- reads rest ]
 
 -- precompile and stop on failure (as parallel tests would otherwise race to build the same modules)
 precompile :: Cfg -> FilePath -> IO ()
@@ -216,8 +226,8 @@ runKokaProcess cfg kokaDir fp
 
 
 -- `counter` numbers the tests in discovery order; with `--shard=i/n` we only run every n-th test
-makeTest :: IORef Int -> Cfg -> FilePath -> Spec
-makeTest counter cfg fp
+makeTest :: IORef Int -> RunTimes -> Cfg -> FilePath -> Spec
+makeTest counter runTimes cfg fp
   | takeExtension fp == ".kk" || ".kk.md" `isSuffixOf` fp
       = do let expectedFile = fp ++ ".out"
            isTest <- runIO $ doesFileExist expectedFile
@@ -227,20 +237,23 @@ makeTest counter cfg fp
            when (shouldRun && idx `mod` n == i - 1) $
              it (takeBaseName fp) $ do
                kokaDir <- getCurrentDirectory
-               out <- runKoka cfg kokaDir fp
+               (out, rtime) <- runKoka cfg kokaDir fp
+               forM_ rtime $ \secs ->
+                 let key = drop 1 (splitDirectories (takeDirectory (makeRelative kokaDir fp))) ++ [takeBaseName fp]
+                 in atomicModifyIORef' runTimes (\m -> (M.insert key secs m, ()))
                unless (mode (options cfg) == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
                expected <- testSanitize kokaDir <$> readFile expectedFile
                out `shouldBe` expected
   | otherwise
       = return ()
 
-discoverTests :: Cfg -> FilePath -> Spec
-discoverTests cfg0 p = do counter <- runIO (newIORef 0)
-                          discover counter cfg0 "" p
+discoverTests :: RunTimes -> Cfg -> FilePath -> Spec
+discoverTests runTimes cfg0 p = do counter <- runIO (newIORef 0)
+                                   discover counter cfg0 "" p
   where discover counter cfg cat p
           = do isDirectory <- runIO $ doesDirectoryExist p
                if not isDirectory
-                 then makeTest counter cfg p
+                 then makeTest counter runTimes cfg p
                  else do
                    fs0  <- runIO (sort <$> listDirectory p)
                    cfg' <- runIO (readConfigFile cfg p)
@@ -339,23 +352,22 @@ main = do
   precompile stdcfg{flags = flags stdcfg ++ ["-l"]} "test/parc/syn-nested1c.kk"
   precompile stdcfg{flags = flags stdcfg ++ ["--target=js"]} "util/link-test.kk" -- precompiled js libraries as well
   putStrLn "ok."
+  runTimes <- newIORef M.empty
   let spec = if target options == "names"
                then NameSpec.spec
                else (if (target options == "js" || not (par options)) then id else parallel) $
-                    discoverTests cfg (pwd </> "test")
-  timeSum <- newIORef 0
-  summary <- withArgs [] (runSpec spec hcfg{configFormat=Just (formatterToFormat (specProgress timeSum))})
+                    discoverTests runTimes cfg (pwd </> "test")
+  summary <- withArgs [] (runSpec spec hcfg{configFormat=Just (formatterToFormat (specProgress runTimes))})
   evaluateSummary summary
 
 
-specProgress :: IORef Double -> Formatter
-specProgress timeSum = specdoc {
+specProgress :: RunTimes -> Formatter
+specProgress runTimes = specdoc {
     formatterItemDone = \(nesting, requirement) item -> do
-      let Seconds secs = itemDuration item
-      liftIO $ modifyIORef' timeSum (+ secs)
+      rtime <- liftIO $ M.lookup (nesting ++ [requirement]) <$> readIORef runTimes
       total <- getTotalCount
       let info = itemInfo item
-          line = showTotal total nesting requirement ++ showDuration (itemDuration item)
+          line = showTotal total nesting requirement ++ maybe "" showDuration rtime
       case itemResult item of
         F.Success -> withSuccessColor $ do
           writeLine line
@@ -372,15 +384,15 @@ specProgress timeSum = specdoc {
           writeLine $ indentationFor nesting ++ "# PENDING: " ++ fromMaybe "No reason given" reason
   , formatterDone = do
       formatterDone specdoc
-      secs <- liftIO $ readIORef timeSum
-      writeLine $ "Sum of test times: " ++ showFFloat (Just 4) secs " seconds"
+      secs <- liftIO $ sum . M.elems <$> readIORef runTimes
+      writeLine $ "Sum of run times: " ++ showFFloat (Just 3) secs " seconds"
 } where
     showTotal total nesting req
       = let nest = (length nesting + 1) * 2
             t    = " " ++ show total
         in replicate nest ' ' ++ req ++ replicate (12 - length req) ' ' ++ t
-    showDuration (Seconds secs)
-      = " (" ++ show (floor (secs * 1000) :: Int) ++ "ms)"
+    showDuration secs
+      = " (" ++ show (round (secs * 1000) :: Int) ++ "ms)"
     indentationFor nesting
       = replicate ((length nesting + 1) * 2) ' '
 
