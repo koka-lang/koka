@@ -367,7 +367,7 @@ specProgress runTimes = specdoc {
       rtime <- liftIO $ M.lookup (nesting ++ [requirement]) <$> readIORef runTimes
       total <- getTotalCount
       let info = itemInfo item
-          line = showTotal total nesting requirement ++ maybe "" showDuration rtime
+          line = showTotal total nesting requirement ++ maybe " (na)" showDuration rtime
       case itemResult item of
         F.Success -> withSuccessColor $ do
           writeLine line
